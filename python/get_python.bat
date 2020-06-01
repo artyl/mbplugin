@@ -1,0 +1,20 @@
+@REM Скачать и распаковать в C:\mbplugin\python:https://www.python.org/ftp/python/3.8.3/python-3.8.3-embed-win32.zip
+curl -LOk https://www.python.org/ftp/python/3.8.3/python-3.8.3-embed-win32.zip
+7z x python-3.8.3-embed-win32.zip
+
+@REM Скачать https://bootstrap.pypa.io/get-pip.py в C:\mbplugin\python
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+
+@REM Находясь C:\mbplugin\python выполнить 
+python get-pip.py
+
+@REM В файле C:\mbplugin\python\python38._pth раскоментировать (убрать #) import site
+python -c "d=open('python38._pth').read();open('python38._pth','w').write(d.replace('#import site','import site'))"
+
+@REM Находясь C:\mbplugin\python выполнить 
+python -m pip install requests pillow beautifulsoup4
+
+@REM К сожалению не нашел вменяемой инструкции по установке tkinter только переложить из установленного python
+@rem https://stackoverflow.com/questions/37710205/python-embeddable-zip-install-tkinter
+
+
