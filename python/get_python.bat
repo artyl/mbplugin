@@ -1,3 +1,7 @@
+c:
+mkdir C:\mbplugin\python
+cd C:\mbplugin\python
+
 @REM Скачать и распаковать в C:\mbplugin\python:https://www.python.org/ftp/python/3.8.3/python-3.8.3-embed-win32.zip
 curl -LOk https://www.python.org/ftp/python/3.8.3/python-3.8.3-embed-win32.zip
 7z x python-3.8.3-embed-win32.zip
