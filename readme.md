@@ -4,44 +4,38 @@ DLL шлюз дает возможность писать собственные
 Можно сохранять сессии, т.е. на каждый телефон tele2 у вас будет своя сессия с сохраненными куками.
 
 ## Установка Вариант 1 Готовый архив (простой)
+Архив можно найти в [releases](https://github.com/artyl/mbplugin/releases) на github или в форуме на [4pda](https://4pda.ru/forum/index.php?showtopic=985296) посвященном MobileBalance.
 Архив распаковать в папку C:\mbplugin
 
 ## Установка Вариант 2 Из github 
 Склонировать репозиторий в папку C:\mbplugin
 git clone <https://github.com/artyl/mbplugin> C:\mbplugin
-загрузить и распаковать tcc и python
-TCC: C:\mbplugin\tcc\get_tcc.bat
-PYTHON: C:\mbplugin\python\get_python.bat
-tkinter для python, если нужен ввод капчи для python к сожалению автоматом поставить не получиться, нашел только [такой](https://stackoverflow.com/questions/37710205/python-embeddable-zip-install-tkinter)
+загрузить и распаковать tcc и python  
+TCC: C:\mbplugin\tcc\get_tcc.bat  
+PYTHON: C:\mbplugin\python\get_python.bat  
+tkinter для python, если нужен ввод капчи для python к сожалению автоматом поставить не получиться, нашел только [такой](https://stackoverflow.com/questions/37710205/python-embeddable-zip-install-tkinter)  
 Сборка всех DLL: C:\mbplugin\dllsource\compile_all_p.bat 
-После этого все DLL будут находится в папке C:\mbplugin\dllplugin\
+После этого все DLL будут находится в папке C:\mbplugin\dllplugin  
 Если есть желание использовать свой питон, тогда можно поменять вызов в C:\mbplugin\plugin\mbplugin.bat
 
 ## Использование.
-Пути, по крайней мере пока жестко захардкожеты и все должно лежать именно в такой структуре в папке C:\mbplugin
-DLL плагин это оболочка передающая вызов в C:\mbplugin\plugin\mbplugin.bat  и из него 
+Пути, по крайней мере пока, жестко захардкожены и все должно лежать именно в такой структуре в папке C:\mbplugin
 Подключить DLL для нужных провайдеров (Настройки\Плагины\Операторы Добавить и выбрать DLL для нужных операторов)
 В настройках для соответсвующего телефона выбрать провайдера соответствующей DLL
 
 ## На данный момент реализованы плагины:
 (Источником информации послужили как собственное изучение так и существующие плагины, так что пользуясь случаем хочу выразить благодарность всем авторам
-leha3d Pasha comprech y-greek и другим, кто тратил свои силы и время на реверс сайтов операторов и разработку)
-test - Простой тест с демонстрацией всех полей (правда оказалось, что MB из DLL принимает только Balance Expired Min Internet TarifPlan BlockStatus AnyString)
-test2 - Пример реализации ввода капчи
-beeline - Билайн
-cardtel - Cardtel (IP телефония)
-megafon - Мегафон
-mts - МТС
-sodexo - Получение баланса карты Sodexo (подарочные карты)
-strelka - Баланс карты стрелка
-tele2 - ТЕЛЕ2
-zadarma - Zadarma.com (IP телефония)
-
-## Как это работает
-Mobilebalance вызывает DLL передавая ей логин и пароль через xml строку
-DLL вызывает C:\mbplugin\plugin\mbplugin.bat передавая ему имя плагина в качестве параметра, а переданный XML через переменную окружения RequestVariable
-mbplugin.bat вызывает mbplugin.py в котором вызывается соответсвующий DLL плагин.
-mbplugin.bat возвращает результат через stdout.
+leha3d Pasha comprech y-greek и другим, кто тратил свои силы и время на реверс сайтов операторов и разработку)  
+test1 - Простой тест с демонстрацией всех полей (правда оказалось, что MB из DLL принимает только Balance Expired Min Internet TarifPlan BlockStatus AnyString)
+test2 - Пример реализации ввода капчи  
+beeline - Билайн  
+cardtel - Cardtel (IP телефония)  
+megafon - Мегафон  
+mts - МТС  
+sodexo - Получение баланса карты Sodexo (подарочные карты)  
+strelka - Баланс карты стрелка  
+tele2 - ТЕЛЕ2  
+zadarma - Zadarma.com (IP телефония)  
 
 ## Как проверить вручную
 запустите из C:\mbplugin\plugin:
@@ -52,6 +46,12 @@ C:\mbplugin\plugin\test_mbplugin_login_pass.bat p_test login password
 ```
 Таким же образом можно проверить любой плагин:
 C:\mbplugin\plugin\test_mbplugin_login_pass.bat p_[имя плагина на python] [логин] [пароль]
+
+## Как это работает
+Mobilebalance вызывает DLL передавая ей логин и пароль через xml строку
+DLL вызывает C:\mbplugin\plugin\mbplugin.bat передавая ему имя плагина в качестве параметра, а переданный XML через переменную окружения RequestVariable
+mbplugin.bat вызывает mbplugin.py в котором вызывается соответсвующий DLL плагин.
+mbplugin.bat возвращает результат через stdout.
 
 ## Почему так сделано.
 Данные по параметрам вызова DLL были получены с помощью реверса существующего DLL плагина.
