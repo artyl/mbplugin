@@ -2,19 +2,20 @@
 DLL шлюз дает возможность писать собственные скрипты и уходит от ограничений IE для javascript.
 Т.к. mobilebalance меньше дергает IE от меньше подвисает и падает.
 Можно сохранять сессии, т.е. на каждый телефон tele2 у вас будет своя сессия с сохраненными куками.
+Все собрано таким образом чтобы не оказывать никакого влияния на установленные программы, в т.ч. если установлен python другой версии.
 
 ## Установка Вариант 1 Готовый архив (простой)
-Архив можно найти в [releases](https://github.com/artyl/mbplugin/releases) на github или в форуме на [4pda](https://4pda.ru/forum/index.php?showtopic=985296) посвященном MobileBalance.
+Архив можно найти в [releases](https://github.com/artyl/mbplugin/releases) на github или в форуме на [4pda](https://4pda.ru/forum/index.php?showtopic=985296) посвященном MobileBalance.  
 Архив распаковать в папку C:\mbplugin
 
 ## Установка Вариант 2 Из github 
-Склонировать репозиторий в папку C:\mbplugin
-git clone <https://github.com/artyl/mbplugin> C:\mbplugin
-загрузить и распаковать tcc и python  
+Склонировать репозиторий в папку C:\mbplugin  
+git clone <https://github.com/artyl/mbplugin> C:\mbplugin  
+загрузить и распаковать tcc и python:  
 TCC: C:\mbplugin\tcc\get_tcc.bat  
 PYTHON: C:\mbplugin\python\get_python.bat  
 tkinter для python, если нужен ввод капчи для python к сожалению автоматом поставить не получиться, нашел только [такой](https://stackoverflow.com/questions/37710205/python-embeddable-zip-install-tkinter)  
-Сборка всех DLL: C:\mbplugin\dllsource\compile_all_p.bat 
+Сборка всех DLL: C:\mbplugin\dllsource\compile_all_p.bat  
 После этого все DLL будут находится в папке C:\mbplugin\dllplugin  
 Если есть желание использовать свой питон, тогда можно поменять вызов в C:\mbplugin\plugin\mbplugin.bat
 

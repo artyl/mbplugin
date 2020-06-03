@@ -49,7 +49,7 @@ def get_balance(login, password, storename=None):
 
     response5 = session.get('https://lk.megafon.ru/api/tariff/current')
     if response5.status_code == 200 and 'json' in response5.headers.get('content-type'):
-        result['TarifPlan'] = response5.json().get('name', '')
+        result['TarifPlan'] = response5.json().get('name', '').replace('&nbsp;',' ').replace('&mdash;','-')
 
     response6 = session.get('https://lk.megafon.ru/api/lk/mini/options')
     if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
