@@ -43,6 +43,7 @@ financeyahoo - Курс ценных бумаг с finance.yahoo.com
 moex - Курс ценных бумаг с moex.com  
 stock - Рассчет цены портфеля ценных бумаг  
 sipnet - Sipnet (IP телефония)  
+avtodor-tr - Автодор транспондер  
 
 ## Как проверить вручную
 запустите из C:\mbplugin\plugin:
