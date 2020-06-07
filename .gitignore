@@ -1,4 +1,6 @@
 _TKINTER_install.zip
+_HLAM/*
+plugin/personalsetting.py
 mbplugin.zip
 dllplugin
 httpserver

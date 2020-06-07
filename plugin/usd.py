@@ -8,8 +8,8 @@ def get_balance(login, password, storename=None):
     result = {}
     session = requests.Session()
     url = time.strftime("http://cbrates.rbc.ru/tsv/840/%Y/%m/%d.tsv")
-    response2 = session.get(url)
-    result['Balance'] = response2.text.split()[-1]
+    response = session.get(url)
+    result['Balance'] = response.text.split()[-1]
     result['userName'] = 'Курс доллара от РБК'
     return result
 

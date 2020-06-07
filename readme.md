@@ -37,6 +37,12 @@ sodexo - Получение баланса карты Sodexo (подарочны
 strelka - Баланс карты стрелка  
 tele2 - ТЕЛЕ2  
 zadarma - Zadarma.com (IP телефония)  
+usd - Курс доллара с RBC  
+eur - Курс евро с RBC  
+financeyahoo - Курс ценных бумаг с finance.yahoo.com  
+moex - Курс ценных бумаг с moex.com  
+stock - Рассчет цены портфеля ценных бумаг  
+sipnet - Sipnet (IP телефония)  
 
 ## Как проверить вручную
 запустите из C:\mbplugin\plugin:
