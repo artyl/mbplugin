@@ -1,7 +1,10 @@
 _TKINTER_install.zip
 _HLAM/*
+DISTR/*
+DB/*
 plugin/personalsetting.py
 mbplugin.zip
+python-3.8.3-embed-win32_TKINTER.zip
 dllplugin
 httpserver
 store

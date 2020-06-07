@@ -28,17 +28,17 @@ def get_balance(login, password, storename=None):
         data = {'CabinetAction': 'login','view': 'ru','Name': login,'Password':password,}
         response1 = session.post(url, data=data)
         if response1.status_code != 200:
-            raise RuntimeError(f'POST Login page {url} error: status_code {response2.status_code}')
+            raise RuntimeError(f'POST Login page {url} error: status_code {response1.status_code}')
 
     result['Balance'] = re.search(re_balance, response1.text).group(1).replace(',', '.').strip()
     try:
         result['TarifPlan'] = re.search(re_tariff, response1.text).group(1).replace('&nbsp;', '').strip()
     except Exception:
-        logging.info(f'Not found {TarifPlan}')
+        logging.info(f'Not found TarifPlan')
     try:
         result['licSchet'] =  re.search(re_sipid, response1.text).group(1).replace('&nbsp;', '').strip()
     except Exception:
-        logging.info(f'Not found {licSchet}')
+        logging.info(f'Not found licSchet')
     
     store.save_session(storename, session)
     return result
