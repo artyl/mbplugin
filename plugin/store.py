@@ -2,8 +2,8 @@
 import sys;sys.dont_write_bytecode = True
 import os,sys, pickle, requests
 
-storefolder = 'C:\\mbplugin\\store'
-storename = 'C:\\mbplugin\\store\\persistent_store'
+storefolder = '..\\store'
+storename = '..\\store\\persistent_store'
 
 
 def get_from_store(key):

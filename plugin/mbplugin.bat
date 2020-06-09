@@ -1,2 +1,5 @@
 @echo off
-C:\mbplugin\python\python C:\mbplugin\plugin\mbplugin.py %1
+%~d0 
+cd %~dp0
+
+..\python\python ..\plugin\mbplugin.py %1

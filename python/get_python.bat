@@ -1,21 +1,24 @@
-c:
-mkdir C:\mbplugin\python
-cd C:\mbplugin\python
+%~d0 
+cd %~dp0
 
-@REM Скачать и распаковать в C:\mbplugin\python:https://www.python.org/ftp/python/3.8.3/python-3.8.3-embed-win32.zip
-curl -LOk https://www.python.org/ftp/python/3.8.3/python-3.8.3-embed-win32.zip
-7z x python-3.8.3-embed-win32.zip
+@REM это для создания дистрибутива python без __pycache__
+set PYTHONDONTWRITEBYTECODE=x
 
-@REM Скачать https://bootstrap.pypa.io/get-pip.py в C:\mbplugin\python
-curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+@REM Скачать и распаковать в mbplugin\python:https://www.python.org/ftp/python/3.8.3/python-3.8.3-embed-win32.zip
+if not exist python38.zip curl -LOk https://www.python.org/ftp/python/3.8.3/python-3.8.3-embed-win32.zip
+if not exist python38.zip 7z x python-3.8.3-embed-win32.zip
+if exist python-3.8.3-embed-win32.zip del python-3.8.3-embed-win32.zip
 
-@REM Находясь C:\mbplugin\python выполнить 
-python get-pip.py
+@REM Скачать https://bootstrap.pypa.io/get-pip.py в mbplugin\python
+if not exist get-pip.py   curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 
-@REM В файле C:\mbplugin\python\python38._pth раскоментировать (убрать #) import site
+@REM Находясь в папке mbplugin\python выполнить 
+if not exist Scripts\pip.exe python get-pip.py
+
+@REM В файле mbplugin\python\python38._pth раскоментировать (убрать #) import site
 python -c "d=open('python38._pth').read();open('python38._pth','w').write(d.replace('#import site','import site'))"
 
-@REM Находясь C:\mbplugin\python выполнить 
+@REM Находясь mbplugin\python выполнить 
 python -m pip install requests pillow beautifulsoup4 pyodbc pyreadline
 
 @REM К сожалению не нашел вменяемой инструкции по установке tkinter только переложить из установленного python

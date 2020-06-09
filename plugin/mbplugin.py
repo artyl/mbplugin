@@ -19,7 +19,7 @@ def result_to_xml(result):
 
 
 def main():
-    logging.basicConfig(filename="c:\\mbplugin\\log\\mbplugin.log", level=logging.INFO,
+    logging.basicConfig(filename="..\\log\\mbplugin.log", level=logging.INFO,
                         format=u'[%(asctime)s] %(levelname)s %(funcName)s %(message)s')
     # В коммандной строке указан плагин ?
     if len(sys.argv) < 2:

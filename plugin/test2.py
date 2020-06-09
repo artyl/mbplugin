@@ -33,8 +33,8 @@ def get_balance(login, password, storename=None):
     captcha_text = ''
     response1_text = '<img class="captcha-img" src="/api/captcha/next?form=login&x1485735388" title="CAPTCHA" alt="CAPTCHA"/>'
     url = 'https://lk.megafon.ru/login/'
-    cap_urls = [i for i in bs4.BeautifulSoup(
-        response1_text).findAll('img') if i['alt'] == 'CAPTCHA']
+    img_tag = bs4.BeautifulSoup(response1_text, 'html.parser').findAll('img')
+    cap_urls = [i for i in img_tag if i['alt'] == 'CAPTCHA']
     if len(cap_urls) > 0:
         captcha_url = urlparse.urljoin(url, cap_urls[0]['src'])
         buffer = session.get(captcha_url).content

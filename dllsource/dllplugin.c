@@ -11,9 +11,17 @@
 #define MAXBUF 10000
 #define BUFFSZ 4096
 
+// from https://stackoverflow.com/questions/8487986/file-macro-shows-full-path
+#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+
 //from  https://stackoverflow.com/questions/35969730/how-to-read-output-from-cmd-exe-using-createprocess-and-createpipe
 int callInterpreter(char *request, char *dllname, char *response, int responseSize)
 {
+	char dllpath[MAX_PATH] = {0}; 
+	char mbpluginpath[MAX_PATH] = {0}; 
+	strncpy(dllpath, __FILE__, strlen(__FILE__)-strlen(__FILENAME__)-1); // get path 
+	strncpy(mbpluginpath, dllpath, strlen(dllpath)-strlen(strrchr(dllpath, '/'))); // get path/..
+	for(int i=0;mbpluginpath[i]!='\0';i++){mbpluginpath[i] = mbpluginpath[i]=='/' ? '\\' : mbpluginpath[i];} // replace '/' -> '\\'
 	// Set RequestVariable environment
 	char RequestVariable[MAXBUF]={0};
 	snprintf(RequestVariable, MAXBUF, "RequestVariable=%s", request);
@@ -43,7 +51,7 @@ int callInterpreter(char *request, char *dllname, char *response, int responseSi
     PROCESS_INFORMATION pi = { };
 
 	char lpCommandLine[MAXBUF] = {0};
-	snprintf(lpCommandLine, MAXBUF, "c:\\mbplugin\\plugin\\mbplugin.bat %s", dllname);
+	snprintf(lpCommandLine, MAXBUF, "%s\\plugin\\mbplugin.bat %s", mbpluginpath, dllname);
     ok = CreateProcess(NULL, lpCommandLine, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
 	
     if (ok == FALSE) return -1;
@@ -80,8 +88,8 @@ __declspec(dllexport) void IssaPlugin (char *cmd, char *request, char *result, l
 	char buf[MAXBUF]={0};
 	char resultInfo[MAXBUF]={0};
 	char dllname[MAX_PATH]={0}; 
-	strncpy(dllname,__FILE__,strlen(__FILE__)-2);
-	snprintf(resultInfo, MAXBUF, "<IssaPlugin>\n<Operator>DLL %s</Operator>\n<ShortName>%s</ShortName>\n<Author>ArtyLa</Author>\n<Version>21.05.2020</Version>\n</IssaPlugin>", dllname, dllname);
+	strncpy(dllname, __FILENAME__ , strlen(__FILENAME__)-2);
+	snprintf(resultInfo, MAXBUF, "<IssaPlugin>\n<Operator>DLL %s</Operator>\n<ShortName>%s</ShortName>\n<Author>ArtyLa</Author>\n<Version>%s</Version>\n</IssaPlugin>", dllname, dllname, __DATE__);
 	if(strcmp(cmd,"Info")==0){
 		snprintf(result, resultsize, "%s" ,resultInfo); // cmd==Info
 	}

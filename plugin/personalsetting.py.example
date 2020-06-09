@@ -5,4 +5,5 @@ stocks= {
 'BROKER_RU': {'STOCKS':(('AAPL',1,'Y'),('TATNP',16,'M'),('FXIT',1,'M')), 'REMAIN': {'USD':5, 'RUB':536}, 'CURRENC': 'USD'}
 }
 
-SQLITESTORE = False  # Сохранять параллельно балансы в БД SQLITE ?
+SQLITESTORE = not False  # Сохранять параллельно балансы в БД SQLITE ?
+SQLITEPATH = r'..\DB\BalanceHistory.sqlite'

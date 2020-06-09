@@ -5,8 +5,10 @@ cd %~dp0
 if "%~1"=="" goto NOPARAM
 if "%~2"=="" goto NOPARAM
 if "%~3"=="" goto NOPARAM
-SET RequestVariable="<Request><ParentWindow>007F09DA</ParentWindow><Login>%2</Login><Password>%3</Password></Request>"
-call ..\plugin\mbplugin.bat %1
+echo INFO:
+..\python\python.exe ..\plugin\dll_call_test.py %1 Info %2 %3
+echo EXECUTE:
+..\python\python.exe ..\plugin\dll_call_test.py %1 Execute %2 %3
 pause
 
 goto :EOF
