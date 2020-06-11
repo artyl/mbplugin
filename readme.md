@@ -48,6 +48,7 @@ moex - Курс ценных бумаг с moex.com
 stock - Рассчет цены портфеля ценных бумаг  
 sipnet - Sipnet (IP телефония)  
 avtodor-tr - Автодор транспондер  
+smile-net - Infoline/smile-net/Virgin connect (Интернет провайдер)  
 
 ## Как проверить что все работает
 ### ВАЖНО! 
