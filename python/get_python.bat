@@ -1,5 +1,5 @@
 %~d0 
-cd %~dp0
+cd "%~dp0"
 
 @REM это для создания дистрибутива python без __pycache__
 set PYTHONDONTWRITEBYTECODE=x

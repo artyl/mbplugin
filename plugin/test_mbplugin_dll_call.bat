@@ -1,6 +1,6 @@
 @ECHO OFF
 %~d0 
-cd %~dp0
+cd "%~dp0"
 
 if "%~1"=="" goto NOPARAM
 if "%~2"=="" goto NOPARAM
