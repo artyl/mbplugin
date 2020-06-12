@@ -51,7 +51,7 @@ int callInterpreter(char *request, char *dllname, char *response, int responseSi
     PROCESS_INFORMATION pi = { };
 
 	char lpCommandLine[MAXBUF] = {0};
-	snprintf(lpCommandLine, MAXBUF, "%s\\plugin\\mbplugin.bat %s", mbpluginpath, dllname);
+	snprintf(lpCommandLine, MAXBUF, "\"%s\\plugin\\mbplugin.bat\" %s", mbpluginpath, dllname);
     ok = CreateProcess(NULL, lpCommandLine, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
 	
     if (ok == FALSE) return -1;
