@@ -50,12 +50,14 @@ def get_api_url(session, pages, token, longtask=False):
         logging.info(f'{response1.status_code}')
         pages.append(response1.text)
         CountersKey = response1.text.strip('"')
-        url = f'https://lk.mts.ru/api/longtask/check/{CountersKey}?for=api{token}'
+        url = f'https://lk.mts.ru/api/longtask/check/{CountersKey}?for=api/{token}'
     for _ in range(10):  # 10 попыток TODO вынести в settings
         time.sleep(2)
         logging.info(f'{url}')
         response2 = session.get(url)
         logging.info(f'{response2.status_code}')
+        if store.read_ini()['Options']['logginglevel'] == 'DEBUG':
+            open(os.path.join('..\\log',time.strftime('%Y%m%d%H%M%S.html',time.localtime())),'wb').write(response2.content)
         if response2.status_code != 200:
             # Надо чуть подождать (бывает что и 6 секунд можно прождать)
             continue
