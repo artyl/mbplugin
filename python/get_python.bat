@@ -19,7 +19,7 @@ if not exist Scripts\pip.exe python get-pip.py
 python -c "d=open('python38._pth').read();open('python38._pth','w').write(d.replace('#import site','import site'))"
 
 @REM Находясь mbplugin\python выполнить 
-python -m pip install requests pillow beautifulsoup4 pyodbc pyreadline
+python -m pip install --upgrade requests pillow beautifulsoup4 pyodbc pyreadline
 
 @REM К сожалению не нашел вменяемой инструкции по установке tkinter только переложить из установленного python
 @rem https://stackoverflow.com/questions/37710205/python-embeddable-zip-install-tkinter

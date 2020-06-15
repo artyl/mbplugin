@@ -59,14 +59,24 @@ def read_ini(fn=settings.mbplugin_ini):
         # Создаем mbplugin.ini - он нам нужен для настроек и чтобы знать где ini-шники от mobilebalance
         mbpath = find_files_up('phones.ini')
         if os.path.exists(mbpath):
-            # Если нашли mobilebalance - cоздадим mbplugin.ini там же где и ini-шники mobilebalance
+            # Если нашли mobilebalance - cоздадим mbplugin.ini и sqlite базу там же где и ini-шники mobilebalance
             inipath = os.path.join(os.path.split(mbpath)[0], fn)
-            ini['MobileBalance'] = {'path': os.path.split(mbpath)[0]}
-            ini['Options'] = {'logginglevel': settings.logginglevel, 'sqlitestore': settings.sqlitestore, 'createhtmlreport': settings.createhtmlreport}
-            ini['HttpServer'] = {'port':settings.port, 'table_format':settings.table_format}
+            dbpath = os.path.join(os.path.split(
+                mbpath)[0], os.path.split(settings.dbfilename)[1])
         else:
-            # иначе создадим mbplugin.ini в корне папки mbplugin
+            # иначе создадим mbplugin.ini и базу в корне папки mbplugin
             ini['MobileBalance'] = {'path': ''}
+            dbpath = settings.dbfilename
+        ini['MobileBalance'] = {'path': os.path.split(mbpath)[0]}
+        ini['Options'] = {'logginglevel': settings.logginglevel,
+                          'sqlitestore': settings.sqlitestore,
+                          'dbfilename': dbpath,
+                          'createhtmlreport': settings.createhtmlreport,
+                          'balance_html':settings.balance_html
+                          }
+        ini['HttpServer'] = {'port': settings.port,
+                             'table_format': settings.table_format}
+        
         ini.write(open(inipath, 'w'))
     else:
         raise RuntimeError(f'Not found {fn}')
