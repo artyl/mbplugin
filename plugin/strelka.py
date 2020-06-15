@@ -1,5 +1,5 @@
 # -*- coding: utf8 -*-
-''' Автор ArtyLa '''
+''' РђРІС‚РѕСЂ ArtyLa '''
 import os, sys, re, logging
 import requests
 import store
