@@ -1,4 +1,6 @@
 # -*- coding: utf8 -*-
+'Оплата парковки parking.mos.ru'
+'(Вход через логин/пароль на login.mos.ru)'
 ''' Автор ArtyLa '''
 import os, sys, io, re, logging, json, random
 import requests
@@ -15,10 +17,9 @@ def get_balance(login, password, storename=None):
         logging.info('Old session is ok')
     else:
         logging.info('Old session is bad, relogin')
-        response1 = session.get(
-            'https://lk.parking.mos.ru/auth/social/sudir?returnTo=/../cabinet')
-        csrf = re.findall(
-            "(?usi)csrf-token-value.*?content='(.*?)'", response1.text)[0]
+        session = requests.Session()
+        response1 = session.get('https://lk.parking.mos.ru/auth/social/sudir?returnTo=/../cabinet')
+        csrf = re.findall("(?usi)csrf-token-value.*?content='(.*?)'", response1.text)[0]
         bfp = ''.join([hex(random.randrange(15))[-1] for i in range(32)])
         data = {'isDelayed': 'false', 'login': login, 'password': password,
                 'csrftoken_w': csrf, 'bfp': bfp, 'alien': 'false', }
@@ -36,4 +37,4 @@ def get_balance(login, password, storename=None):
 
 
 if __name__ == '__main__':
-    print('This is module megafon')
+    print('This is module parking_mos')
