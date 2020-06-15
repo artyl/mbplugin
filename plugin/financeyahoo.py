@@ -2,10 +2,10 @@
 ''' Получение котировок с finance.yahoo.com в логин код ценной бумаги
     https://finance.yahoo.com/quote/AAPL
     https://query1.finance.yahoo.com/v8/finance/chart/AAPL '''
-import sys;sys.dont_write_bytecode = True
+''' Автор ArtyLa '''
 import os, sys, re, time, logging
 import requests
-import store, settings, personalsetting
+import store, settings
 
 def get_balance(login, password, storename=None):
     result = {}

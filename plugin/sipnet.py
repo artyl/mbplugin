@@ -1,5 +1,5 @@
 # -*- coding: utf8 -*-
-import sys;sys.dont_write_bytecode = True
+''' Автор ArtyLa '''
 import os, sys, re, logging
 import requests
 import store
@@ -8,7 +8,7 @@ import store
 re_balance = r'(?usi)Баланс.*?>.*?>.*?>(.*?) '
 # Строка для поиска тарифа
 re_tariff = r'(?usi)status-work.*?>.*?>.*?>(.*?)<'  
-re_sipid = '(?usi)SIP ID.*?>.*?>(.*?)<'  # SIP ID (лицевой счет)
+re_sipid = r'(?usi)SIP ID.*?>.*?>(.*?)<'  # SIP ID (лицевой счет)
 
 
 def get_balance(login, password, storename=None):

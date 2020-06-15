@@ -1,24 +1,32 @@
 # -*- coding: utf8 -*-
-''' Сумма по всем стокам
-    Стоки прописаны в personalsetting.py
-    словарь stock {имя набора':{'stocks': список_стоков, 'remain': остатки_на_счетах} }
-    имя набора берется из login
-    пример
-    stocks = {'BROKER_RU': {'STOCKS':(('AAPL',1,'Y'),('TATNP',16,'M'),('FXIT',1,'M')), 'REMAIN': {'USD':5, 'RUB':536}, 'CURRENC': 'USD'}}
-    Каждый сток - код стока, количество акций, источник данных (Y yahoo, M moex)
-    REMAIN - остатки на долларовом и рублевом счетах
-    CURRENC - в какой валюте считать итог
-    Проверить что код стока корректный можно подставив в ссылку:
-    https://finance.yahoo.com/quote/AAPL
-    https://query1.finance.yahoo.com/v8/finance/chart/AAPL 
-    https://iss.moex.com/iss/engines/stock/markets/shares/securities/TATNP 
-    https://iss.moex.com/iss/securities/TATNP.xml
+''' 
+Сумма по всем стокам
+Стоки прописаны в mbplugin.ini в виде:
+
+[stocks_broker_ru]
+stock1 = AAPL, 1, Y 
+stock2 = TATNP, 16, M 
+stock3 = FXIT, 1, M
+remain1 = USD, 5
+remain2 = RUB, 536
+currenc = USD
+
+имя набора берется из login - название секции [stocks_<логин>]
+строки  stockNN=код стока, количество акций, источник данных (Y yahoo, M moex)
+строки remainNN=валюта,сумма
+NN должны быть различными
+currenc - в какой валюте считать итог
+Проверить что код стока корректный можно подставив в ссылку:
+https://finance.yahoo.com/quote/AAPL
+https://query1.finance.yahoo.com/v8/finance/chart/AAPL 
+https://iss.moex.com/iss/engines/stock/markets/shares/securities/TATNP 
+https://iss.moex.com/iss/securities/TATNP.xml
 '''
-import sys;sys.dont_write_bytecode = True
+''' Автор ArtyLa '''
 import os, sys, re, time, logging, threading, queue
 import xml.etree.ElementTree as etree
 import requests
-import store, settings, personalsetting
+import store, settings
 
 def get_usd_moex():
     session = requests.Session()
@@ -67,16 +75,18 @@ def count_all_scocks_multithread(stocks, remain, currenc):
     # Забираем данные от трэдов
     while qu.qsize()>0:
         data.append(qu.get_nowait())
-    data.sort(key=lambda i:(i[2],i[1])) # Сортируем сначала по валюте. затем по коду бумаги
+    orderlist = list(zip(*stocks))[0] # Порядок, в котором исходно шли бумаги
+    data.sort(key=lambda i:orderlist.index(i[1])) # Сортируем в исходном порядке
     res_full = '\n'.join([f'{sec:5} : {round(val*k[curr],2):7.2f} {curr}' for val,sec,curr in data])+'\n'
     res_balance = round(sum([val*k[curr] for val,sec,curr in data]) + remain['USD']*k['USD'] + remain['RUB']*k['RUB'],2)
     return res_balance, res_full
 
 def get_balance(login, password, storename=None):
     result = {}
-    stocks = personalsetting.stocks[login]['STOCKS']
-    remain = personalsetting.stocks[login]['REMAIN']
-    currenc = personalsetting.stocks[login]['CURRENC']
+    data = store.read_stocks(login.lower())
+    stocks = data['stocks']
+    remain = data['remain']
+    currenc = data['currenc']
     res_balance, res_full = count_all_scocks_multithread(stocks, remain, currenc)
     result['Stock'] = res_full # Полная информация по стокам
     result['Balance'] = res_balance # Сумма в заданной валюте

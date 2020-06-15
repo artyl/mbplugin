@@ -1,5 +1,5 @@
 # -*- coding: utf8 -*-
-import sys;sys.dont_write_bytecode = True
+''' Автор ArtyLa '''
 import os, sys, re, io, logging
 from PIL import Image, ImageTk
 import tkinter.tix as Tix

@@ -1,7 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa
 Огромная благодарность pasha за его плагин МТС_Pasha_wR used internet, который сильно ускорил процесс '''
-import sys;sys.dont_write_bytecode = True
 import os, sys, re, time, logging, traceback
 import requests
 import store, settings
@@ -39,35 +38,37 @@ def do_login(session, pages, login, password):
         raise RuntimeError(
             f'POST Login page error: status_code {response2.status_code}!=200')
 
+
 def get_api_url(session, pages, token, longtask=False):
     '''у МТС некоторые операции делаются в два приема (longtask==True), сначала берется одноразовый токен, 
     а затем с этим токеном выдается страничка, иногда если слишком быстро попросить ответ  вместо нужного json
     возвращает json {'loginStatus':'InProgress'}  '''
-    url = f'https://lk.mts.ru/api/{token}'    
-    if longtask:  
+    url = f'https://lk.mts.ru/api/{token}'
+    if longtask:
         logging.info(url)
         response1 = session.get(url)
         logging.info(f'{response1.status_code}')
         pages.append(response1.text)
         CountersKey = response1.text.strip('"')
         url = f'https://lk.mts.ru/api/longtask/check/{CountersKey}?for=api{token}'
-    for _ in range(10): # 10 попыток TODO вынести в settings
+    for _ in range(10):  # 10 попыток TODO вынести в settings
         time.sleep(2)
         logging.info(f'{url}')
         response2 = session.get(url)
         logging.info(f'{response2.status_code}')
         if response2.status_code != 200:
-            continue  # Надо чуть подождать (бывает что и 6 секунд можно прождать)
+            # Надо чуть подождать (бывает что и 6 секунд можно прождать)
+            continue
         if 'json' in response2.headers.get('content-type'):
-            logging.info(f'{response2.json()}')  # !!! убрать 
             # если у json есть 'loginStatus'=='InProgress' уходим на дополнительный круг
-            if response2.json().get('loginStatus','') != 'InProgress':
+            if response2.json().get('loginStatus', '') != 'InProgress':
                 break  # результат есть выходим из цикла
         else:
+            logging.info(f"Not json:{response2.headers.get('content-type')}")
             # ответ есть и это не json - выходим
             break
-    else: 
-        raise RuntimeError(f'Limit retry for {url}')            
+    else:
+        raise RuntimeError(f'Limit retry for {url}')
     return response2
 
 
@@ -86,16 +87,28 @@ def get_balance(login, password, storename=None):
     # Пришлось добавить это из-за попыток МТС автоматически залогинить с номером симки модема
 
     # Проверяем залогинены ли ?
-    response3 = session.get('https://lk.mts.ru/api/login/userInfo')
+    url = 'https://lk.mts.ru/api/login/userInfo'
+    response3 = session.get(url)
     if 'json' in response3.headers.get('content-type'):
         logging.info('Old session is ok')
         logging.info(f'{response3.json()["loginStatus"]=}')
     else:  # Нет, логинимся
         logging.info('Old session is bad, relogin')
         do_login(session, pages, login, password)
-
-    response3= get_api_url(session, pages, 'login/userInfo', longtask=False)
+    
+    response3 = get_api_url(session, pages, 'login/userInfo', longtask=False)
     pages.append(response3.text)
+    ct = response3.headers.get('content-type')
+    if 'json' not in ct:
+        # Отдали не json, попробуем перелогиниться 1 раз
+        logging.info('userInfo not return json try relogon, relogin')
+        response3 = get_api_url(session, pages, 'userInfo', longtask=False)
+        pages.append(response3.text)
+        ct = response3.headers.get('content-type')
+        if 'json' not in ct:
+            # снова не json - тогда в другой раз заново
+            store.drop_session(storename)
+            raise RuntimeError(f'login/userInfo not return json: {ct}')
     profile = response3.json()['userProfile']
     # Это баланс с login/userInfo (он не всегда обновляется, так что может отстать от реальности)
     result['Balance'] = round(profile.get('balance', 0), 2)

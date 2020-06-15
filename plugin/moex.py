@@ -2,12 +2,11 @@
 ''' Получение котировок с moex.com в логин код ценной бумаги
     https://iss.moex.com/iss/engines/stock/markets/shares/securities/TATNP 
     https://iss.moex.com/iss/securities/TATNP.xml'''
-import sys;sys.dont_write_bytecode = True
+''' Автор ArtyLa '''
 import os, sys, re, time, logging
 import requests
 import xml.etree.ElementTree as etree
-import store, settings, personalsetting
-
+import store, settings
 
 def get_balance(login, password, storename=None):
     result = {}

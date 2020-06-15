@@ -2,8 +2,9 @@ _TKINTER_install.zip
 _HLAM/*
 DISTR/*
 DB/*
+*/__pycache__
 plugin/personalsetting.py
-mbplugin.zip
+mbplugin*.zip
 python-3.8.3-embed-win32_TKINTER.zip
 dllplugin
 httpserver
@@ -12,3 +13,4 @@ log
 python
 tcc
 readme2.md
+mbplugin.ini

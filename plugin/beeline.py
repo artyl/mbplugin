@@ -1,6 +1,5 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import sys;sys.dont_write_bytecode = True
 import os, sys, re, time, logging
 import requests
 import store, settings

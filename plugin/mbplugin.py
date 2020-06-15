@@ -1,8 +1,9 @@
 # -*- coding: utf8 -*-
-import sys;sys.dont_write_bytecode = True
+''' Автор ArtyLa '''
 import time, os, sys, logging, traceback
 import xml.etree.ElementTree as etree
 sys.path.append(os.path.split(os.path.abspath(sys.argv[0]))[0])
+import dbengine, store, settings
 
 lang = 'p'  # Для плагинов на python преффикс lang всегда 'p'
 
@@ -19,7 +20,8 @@ def result_to_xml(result):
 
 
 def main():
-    logging.basicConfig(filename="..\\log\\mbplugin.log", level=logging.INFO,
+    logging_level = store.read_ini()['Options']['logginglevel']
+    logging.basicConfig(filename="..\\log\\mbplugin.log", level=logging_level,
                         format=u'[%(asctime)s] %(levelname)s %(funcName)s %(message)s')
     # В коммандной строке указан плагин ?
     if len(sys.argv) < 2:
@@ -71,6 +73,27 @@ def main():
         logging.error(exception_text)
         sys.stdout.write(exception_text)
         return -1
+    # пишем в базу
+    try:
+        options = store.read_ini()['Options']
+        if options.get('sqlitestore','0') == '1':
+            logging.info(f'Пишем в базу sqlite')
+            dbfilename = options.get('dbfilename', settings.dbfilename)
+            db = dbengine.dbengine(dbfilename)
+            db.write_result(f'{lang}_{plugin}', login, result)
+    except AttributeError:
+        logging.info(f'Отсутствуют параметры {"".join(traceback.format_exception(*sys.exc_info()))} дополнительные действия не производятся')
+    except Exception:
+        logging.error(f'Ошибка при записи в БД {"".join(traceback.format_exception(*sys.exc_info()))}')
+    try:
+        options = store.read_ini()['Options']
+        if options.get('createhtmlreport','0') == '1':
+            import httpserver_mobile
+            _,res = httpserver_mobile.getreport()
+            balance_html = options.get('balance_html', settings.balance_html)
+            open(balance_html,encoding='utf8',mode='w').write('\n'.join(res))
+    except Exception:
+        logging.error(f'Ошибка генерации {balance_html} {"".join(traceback.format_exception(*sys.exc_info()))}')
     logging.debug(f'result = {result}')
     logging.info(f'Complete {lang} {plugin} {login}\n')
     return 0

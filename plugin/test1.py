@@ -1,12 +1,17 @@
 # -*- coding: utf8 -*-
-import sys;sys.dont_write_bytecode = True
+''' Автор ArtyLa '''
 import os, sys, re, logging
 import requests
 import store
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    return {'Balance': 124.45,  # double
+    result = {}
+    ini = store.read_ini()
+    session = store.load_session(storename)
+    if session is None:  # Сессия не сохранена - создаем
+        session = requests.Session()
+    result = {'Balance': 124.45,  # double
             'Balance2': 22,  # double
             'Balance3': 33,  # double
             'LicSchet': 'Лицевой счет',
@@ -29,6 +34,8 @@ def get_balance(login, password, storename=None):
             # 'ErrorMsg':	'Сообщение об ошибке', # Если оо есть в Reponce то это ошибка
             'UslugiOn': '2/8',
             }
+    store.save_session(storename, session)            
+    return result
 
 
 if __name__ == '__main__':
