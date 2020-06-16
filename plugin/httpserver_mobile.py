@@ -1,10 +1,15 @@
 # -*- coding: utf8 -*- 
 ''' Автор ArtyLa '''
 import os, sys, re, time, json, traceback, threading, logging, importlib,configparser
+import wsgiref.simple_server
 from wsgiref.simple_server import make_server, WSGIServer, WSGIRequestHandler
 from socketserver import ThreadingMixIn
 sys.path.append('..\\plugin')
 import settings, store, dbengine  # pylint: disable=import-error
+try:
+    import win32api, win32gui, win32con, winerror
+except ModuleNotFoundError:
+    print('No win32 installed, no tray icon')
 
 lang='p' # Для плагинов на python преффикс lang всегда 'p'
 
@@ -132,24 +137,86 @@ def getreport(param=[]):
     res = template.format(style=style, html_header=html_header, html_table='\n'.join(html_table))
     return 'text/html', [res]
 
+class TrayIcon:
+    def __init__(self):
+        msg_TaskbarRestart = win32gui.RegisterWindowMessage("TaskbarCreated");
+        message_map = {
+                msg_TaskbarRestart: self.OnRestart,
+                win32con.WM_DESTROY: self.OnDestroy,
+                win32con.WM_COMMAND: self.OnCommand,
+                win32con.WM_USER+20 : self.OnTaskbarNotify,
+        }
+        wc = win32gui.WNDCLASS()
+        hinst = wc.hInstance = win32api.GetModuleHandle(None)
+        wc.lpszClassName = "PythonTaskbarDemo"
+        wc.style = win32con.CS_VREDRAW | win32con.CS_HREDRAW;
+        wc.hCursor = win32api.LoadCursor( 0, win32con.IDC_ARROW )
+        wc.hbrBackground = win32con.COLOR_WINDOW
+        wc.lpfnWndProc = message_map # could also specify a wndproc.
+        try:
+            classAtom = win32gui.RegisterClass(wc)
+        except win32gui.error as err_info:
+            if err_info.winerror!=winerror.ERROR_CLASS_ALREADY_EXISTS:
+                raise
+        style = win32con.WS_OVERLAPPED | win32con.WS_SYSMENU
+        self.hwnd = win32gui.CreateWindow( wc.lpszClassName, "Taskbar Demo", style, \
+                0, 0, win32con.CW_USEDEFAULT, win32con.CW_USEDEFAULT, \
+                0, 0, hinst, None)
+        win32gui.UpdateWindow(self.hwnd)
+        self._DoCreateIcons()
 
-def simple_app(environ, start_response):
-    status = '200 OK'
-    ct, text = 'text/html',[]
-    fn=environ.get('PATH_INFO', None)
-    _, cmd, *param = fn.split('/')
-    #print(f'{cmd}, {param}')
-    if cmd.lower() == 'getbalance':
-        ct, text = getbalance(param)  # TODO !!! Но правильно все-таки через POST
-    if cmd == '' or cmd == 'report': # report
-        ct, text = getreport(param)
-        #ct, text = 'text/html', [f'<html>REPORT</html>']
-    #th = f'{threading.currentThread().name}:{chr(44).join([t.name for t in threading.enumerate()[1:]])}'
-    headers = [('Content-type', ct)]
-    start_response(status, headers)
-    #print('text',text)
-    return [line.encode('cp1251') for line in text]
-    
+    def run_forever(self):
+        win32gui.PumpMessages()
+
+    def _DoCreateIcons(self, iconame = 'httpserver.ico'):
+        # Try and find a custom icon
+        hinst =  win32api.GetModuleHandle(None)
+        iconPathName = os.path.join(os.path.split(os.path.abspath(sys.argv[0]))[0], iconame)
+        if os.path.isfile(iconPathName):
+            icon_flags = win32con.LR_LOADFROMFILE | win32con.LR_DEFAULTSIZE
+            hicon = win32gui.LoadImage(hinst, iconPathName, win32con.IMAGE_ICON, 0, 0, icon_flags)
+        else:
+            hicon = win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
+
+        flags = win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP
+        nid = (self.hwnd, 0, flags, win32con.WM_USER+20, hicon, "Python Demo")
+        try:
+            win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, nid)
+        except win32gui.error:
+            print(f"Failed to add the taskbar icon - is explorer running? {''.join(traceback.format_exception(*sys.exc_info()))}")
+
+    def OnRestart(self, hwnd, msg, wparam, lparam):
+        self._DoCreateIcons()
+
+    def OnDestroy(self, hwnd, msg, wparam, lparam):
+        nid = (self.hwnd, 0)
+        win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, nid)
+        win32gui.PostQuitMessage(0) # Terminate the app.
+
+    def OnTaskbarNotify(self, hwnd, msg, wparam, lparam):
+        if lparam==win32con.WM_LBUTTONDBLCLK:
+            print("You double-clicked me - goodbye")
+            win32gui.DestroyWindow(self.hwnd)
+        elif lparam==win32con.WM_RBUTTONUP:
+            print("You right clicked me.")
+            menu = win32gui.CreatePopupMenu()
+            #win32gui.AppendMenu( menu, win32con.MF_STRING, 1024, "Say Hello")
+            win32gui.AppendMenu( menu, win32con.MF_STRING, 1025, "Exit program" )
+            pos = win32gui.GetCursorPos()
+            # See http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/menus_0hdi.asp
+            win32gui.SetForegroundWindow(self.hwnd)
+            win32gui.TrackPopupMenu(menu, win32con.TPM_LEFTALIGN, pos[0], pos[1], 0, self.hwnd, None)
+            win32gui.PostMessage(self.hwnd, win32con.WM_NULL, 0, 0)
+        return 1
+
+    def OnCommand(self, hwnd, msg, wparam, lparam):
+        id = win32api.LOWORD(wparam)
+        #if id == 1024: print("Hello")
+        if id == 1025:
+            print("Goodbye")
+            win32gui.DestroyWindow(self.hwnd)
+        else:
+            print("Unknown command -", id)
 
 class Handler(WSGIRequestHandler):
     # Disable logging DNS lookups
@@ -164,15 +231,46 @@ class ThreadingWSGIServer(ThreadingMixIn, WSGIServer):
     pass
 
 
-def main():
-    logging.basicConfig(filename="..\\log\\http.log", level=logging.INFO,
-        format = u'[%(asctime)s] %(levelname)s %(funcName)s %(message)s')
+class WebServer():
+    def __init__(self):
+        logging.basicConfig(filename="..\\log\\http.log", level=logging.INFO,format = u'[%(asctime)s] %(levelname)s %(funcName)s %(message)s')
+        port = int(store.read_ini()['HttpServer'].get('port', settings.port))
+        with wsgiref.simple_server.make_server('127.0.0.1', port, self.simple_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
+            logging.info(f'Listening on port {port}....')
+            if 'win32api' in sys.modules:
+                self.webserver_thread = threading.Thread(target=self.httpd.serve_forever)
+                self.webserver_thread.daemon = True
+                self.webserver_thread.name = 'ThrWeb'
+                self.webserver_thread.start()
+                TrayIcon().run_forever()
+            else:
+                # не установлен pywin32, иконки в трее не будет запускаем web сервер в основном потоке
+                self.httpd.serve_forever()
+                
 
-    # with make_server('', self.port, self.web_app, handler_class=Handler) as server:
-    port = int(store.read_ini()['HttpServer'].get('port', settings.port))
-    with make_server('127.0.0.1', port, simple_app, server_class=ThreadingWSGIServer, handler_class=Handler) as httpd:
-        print(f'Listening on port {port}....')
-        httpd.serve_forever()
+    def simple_app(self,environ, start_response):
+        status = '200 OK'
+        ct, text = 'text/html',[]
+        fn=environ.get('PATH_INFO', None)
+        _, cmd, *param = fn.split('/')
+        #print(f'{cmd}, {param}')
+        if cmd.lower() == 'getbalance':
+            ct, text = getbalance(param)  # TODO !!! Но правильно все-таки через POST
+        if cmd == '' or cmd == 'report': # report
+            ct, text = getreport(param)
+            #ct, text = 'text/html', [f'<html>REPORT</html>']
+        if cmd == 'exit': # exit cmd
+            self.httpd.shutdown()
+
+        #th = f'{threading.currentThread().name}:{chr(44).join([t.name for t in threading.enumerate()[1:]])}'
+        headers = [('Content-type', ct)]
+        start_response(status, headers)
+        #print('text',text)
+        return [line.encode('cp1251') for line in text]
+        
+
+def main():
+    WebServer()
 
 if __name__ == '__main__':
     main()

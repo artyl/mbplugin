@@ -25,5 +25,7 @@ average_days = 30
 
 # порт http сервера с отчетами
 port = '8000'
+# host '127.0.0.1' - доступ только локально, '0.0.0.0' - разрешить доступ к по сети
+host = '127.0.0.1'
 # формат вывода по умолчанию
 table_format = 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus' # ? UserName

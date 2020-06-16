@@ -75,8 +75,9 @@ def read_ini(fn=settings.mbplugin_ini):
                           'balance_html':settings.balance_html
                           }
         ini['HttpServer'] = {'port': settings.port,
+                             'host': settings.host,
                              'table_format': settings.table_format}
-        
+
         ini.write(open(inipath, 'w'))
     else:
         raise RuntimeError(f'Not found {fn}')
