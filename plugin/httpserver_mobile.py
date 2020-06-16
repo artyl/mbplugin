@@ -224,6 +224,7 @@ class Handler(WSGIRequestHandler):
         return str(self.client_address[0])
 
     def log_message(self, format, *args):
+        args = re.sub('(/.*?/.*?/.*?/)(.*?)(/.*)',r'\1xxxxxxx\3',args[0]),*args[1:]
         logging.info(f"{self.client_address[0]} - - [self.log_date_time_string()] {format % args}\n")
 
 
@@ -253,7 +254,7 @@ class WebServer():
         ct, text = 'text/html',[]
         fn=environ.get('PATH_INFO', None)
         _, cmd, *param = fn.split('/')
-        #print(f'{cmd}, {param}')
+        print(f'{cmd}, {param}')
         if cmd.lower() == 'getbalance':
             ct, text = getbalance(param)  # TODO !!! Но правильно все-таки через POST
         if cmd == '' or cmd == 'report': # report

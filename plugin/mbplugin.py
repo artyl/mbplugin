@@ -15,6 +15,9 @@ def result_to_xml(result):
         result['SMS'] = int(result['SMS'])
     if 'Min' in result:
         result['Min'] = int(result['Min'])
+    for k, v in result.items():
+        if type(v) == float:
+            result[k] = round(v, 2)  # Чтобы не было паразитных микрокопеек
     body = ''.join([f'<{k}>{v}</{k}>' for k, v in result.items()])
     return f'<Response>{body}</Response>'
 

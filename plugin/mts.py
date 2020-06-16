@@ -131,7 +131,7 @@ def get_balance(login, password, storename=None):
         services.sort(key=lambda i:(-i[1],i[0]))
         u1 = len([a for a,b in services if b==0 and (a,b)!=('Ежемесячная плата за тариф', 0)])
         u2 = len([a for a,b in services if b!=0])
-        u2_sum = sum([b for a,b in services if b!=0])
+        u2_sum = round(sum([b for a,b in services if b!=0]),2)
         result['UslugiOn']=f'{u1}/{u2}({u2_sum})'
         result['UslugiList']='\n'.join([f'{a}\t{b}' for a,b in services])
 

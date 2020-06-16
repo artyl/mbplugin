@@ -1,2 +1,2 @@
 @echo off
-start "" ..\python\pythonw.exe httpserver_mobile.py
+start "" ..\python\pythonw.exe ..\plugin\httpserver_mobile.py

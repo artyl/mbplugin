@@ -1,0 +1,38 @@
+// Плагин для программы MobileBalance: http://mtsoft.ru/mobilebalance/
+//
+// Инструкция по использованию:
+// 1. зайти в настройки программы MobileBalance, перейти на закладку "Плагины: Операторы", добавить плагин.
+// 2. После этого перейти на закладку "Телефоны" и в качестве оператора выбрать оператора с названием, указанным ниже.
+//
+// FullName  : {{pluginname}} через localhost
+// ShortName : {{pluginname}}LH
+// Version   : 01.06.2020
+// Icon      : 789C73F2FDC600016540AC01C40250CCC8C002166F0062616E08166040060D10C9860608058240C6810307803448E43F1831FCFF0FA140102404E2E3007FCE43089CF49933E7A1FC337869A83A5C00009F949135
+// Author    : Arty
+// Types     : Arty
+// Descript  : Проверка плагина через web сервер localhost
+
+// возвращает object из строки json
+function json(str) {
+	try { var obj = eval('(' + str + ')'); }
+	catch(e) { obj = str;  }
+	return obj;
+}
+
+function main(){
+    var p = 0;
+    // Заходим на главную страницу
+    document.location="http://127.0.0.1:8000/getbalance/{{pluginname}}/"+request.loginValue+"/"+request.passwValue+"/"+Date.now();
+    if(!external.WaitBrowser) return;
+    response.pages[p++]=external.source;
+
+    //external.sleep(2000);
+
+    html=document.documentElement.outerHTML;
+    //external.sleep(2000);
+
+    response = json(document.getElementById("response").innerText);
+    
+};
+main();
+
