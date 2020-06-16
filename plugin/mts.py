@@ -39,7 +39,7 @@ def do_login(session, pages, login, password):
             f'POST Login page error: status_code {response2.status_code}!=200')
 
 
-def get_api_url(session, pages, token, longtask=False):
+def get_api_json(session, pages, token, longtask=False):
     '''у МТС некоторые операции делаются в два приема (longtask==True), сначала берется одноразовый токен, 
     а затем с этим токеном выдается страничка, иногда если слишком быстро попросить ответ  вместо нужного json
     возвращает json {'loginStatus':'InProgress'}  '''
@@ -58,20 +58,23 @@ def get_api_url(session, pages, token, longtask=False):
         logging.info(f'{response2.status_code}')
         if store.read_ini()['Options']['logginglevel'] == 'DEBUG':
             open(os.path.join('..\\log',time.strftime('%Y%m%d%H%M%S.html',time.localtime())),'wb').write(response2.content)
+        if response2.status_code >= 400:
+            # Вернули ошибку, продолжать нет смысла
+            return {}            
         if response2.status_code != 200:
             # Надо чуть подождать (бывает что и 6 секунд можно прождать)
             continue
         if 'json' in response2.headers.get('content-type'):
             # если у json есть 'loginStatus'=='InProgress' уходим на дополнительный круг
             if response2.json().get('loginStatus', '') != 'InProgress':
-                break  # результат есть выходим из цикла
+                return response2.json()  # результат есть выходим из цикла
         else:
             logging.info(f"Not json:{response2.headers.get('content-type')}")
             # ответ есть и это не json - выходим
-            break
+            return {}
     else:
-        raise RuntimeError(f'Limit retry for {url}')
-    return response2
+        logging.info(f'Limit retry for {url}')
+    return {}
 
 
 def get_balance(login, password, storename=None):
@@ -98,37 +101,44 @@ def get_balance(login, password, storename=None):
         logging.info('Old session is bad, relogin')
         do_login(session, pages, login, password)
     
-    response3 = get_api_url(session, pages, 'login/userInfo', longtask=False)
-    pages.append(response3.text)
-    ct = response3.headers.get('content-type')
-    if 'json' not in ct:
+    response_json = get_api_json(session, pages, 'login/userInfo', longtask=False)
+    if 'userProfile' not in response_json:
         # Отдали не json, попробуем перелогиниться 1 раз
         logging.info('userInfo not return json try relogon, relogin')
-        response3 = get_api_url(session, pages, 'userInfo', longtask=False)
-        pages.append(response3.text)
-        ct = response3.headers.get('content-type')
-        if 'json' not in ct:
+        response_json = get_api_json(session, pages, 'userInfo', longtask=False)
+        if 'userProfile' not in response_json:
             # снова не json - тогда в другой раз заново
             store.drop_session(storename)
-            raise RuntimeError(f'login/userInfo not return json: {ct}')
-    profile = response3.json()['userProfile']
+            raise RuntimeError(f'login/userInfo not return json')
+    profile = response_json['userProfile']
     # Это баланс с login/userInfo (он не всегда обновляется, так что может отстать от реальности)
+    # Берем его, на случай если другого не дадут
     result['Balance'] = round(profile.get('balance', 0), 2)
     result['TarifPlan'] = profile.get('tariff', '')
     result['UserName'] = profile.get('displayName', '')
 
-    response4 = get_api_url(session, pages, 'accountInfo/balance', longtask=True)
-    if 'json' in response4.headers.get('content-type'):
-        try:
-            data = response4.json().get('data', {})
-            result['Balance'] = round(data['amount'], 2)
-        except Exception:
-            tb = "".join(traceback.format_exception(*sys.exc_info()))
-            logging.info(f'не смогли взять баланс с accountInfo/balance: {tb}')
+    response_json = get_api_json(session, pages, 'accountInfo/balance', longtask=True)
+    data = response_json.get('data', {})
+    if 'amount' in data:
+        result['Balance'] = round(data['amount'], 2)
+    else:
+        logging.info(f'не смогли взять баланс с accountInfo/balance')
 
-    response5 = get_api_url(session, pages, 'sharing/counters', longtask=True)
-    if 'json' in response5.headers.get('content-type'):
-        counters = response5.json()['data']['counters']
+    response_json = get_api_json(session, pages, 'services/list/active', longtask=True)
+    data = response_json.get('data', {})
+    if 'services' in data:
+        services = [(i['name'], i.get('subscriptionFees', [{}])[0].get('value', 0)) for i in data['services']]
+        services.sort(key=lambda i:(-i[1],i[0]))
+        u1 = len([a for a,b in services if b==0 and (a,b)!=('Ежемесячная плата за тариф', 0)])
+        u2 = len([a for a,b in services if b!=0])
+        u2_sum = sum([b for a,b in services if b!=0])
+        result['UslugiOn']=f'{u1}/{u2}({u2_sum})'
+        result['UslugiList']='\n'.join([f'{a}\t{b}' for a,b in services])
+
+    response_json = get_api_json(session, pages, 'sharing/counters', longtask=True)
+    data = response_json.get('data', {})
+    if 'counters' in data:
+        counters = data['counters']
         # Минуты
         calling = [i for i in counters if i['packageType'] == 'Calling']
         if calling != []:
@@ -157,6 +167,8 @@ def get_balance(login, password, storename=None):
                        ['parts'] if i['partType'] == 'NonUsed']
             if nonused != []:
                 result['Internet'] = round(nonused[0]*unitMult/unitDiv, 2)
+    else:
+        logging.info(f'не смогли взять counters из sharing/counters')                
 
     store.save_session(storename, session)
     return result
