@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
-import os, sys, re, pickle, requests, configparser
+import os, sys, re, json, pickle, requests, configparser
 import settings
 
 
@@ -95,6 +95,32 @@ def read_stocks(stocks_name):
     stocks['stocks'] = [(i[0].upper(), int(i[1]), i[2].upper()) for i in stocks_str if len(i) == 3 and i[1].isnumeric()]
     stocks['remain'] = {i[0].upper(): int(i[1]) for i in remain_str if len(i) == 2 and i[1].isnumeric()}
     return stocks
+
+
+def result_to_xml(result):
+    'Конвертирует словарь результатов в готовый к отдаче вид '
+    # Коррекция SMS и Min (должны быть integer)
+    if 'SMS' in result:
+        result['SMS'] = int(result['SMS'])
+    if 'Min' in result:
+        result['Min'] = int(result['Min'])
+    for k, v in result.items():
+        if type(v) == float:
+            result[k] = round(v, 2)  # Чтобы не было паразитных микрокопеек
+    body = ''.join([f'<{k}>{v}</{k}>' for k, v in result.items()])
+    return f'<Response>{body}</Response>'
+
+
+def result_to_html(result):
+    'Конвертирует словарь результатов в готовый к отдаче вид '
+    # Коррекция SMS и Min (должны быть integer)
+    if 'SMS' in result:
+        result['SMS'] = int(result['SMS'])
+    if 'Min' in result:
+        result['Min'] = int(result['Min'])
+    body = json.dumps(result, ensure_ascii=False)
+    return f'<html><meta charset="windows-1251"><p id=response>{body}</p></html>'    
+
 
 if __name__ == '__main__':
     print('Module store')

@@ -6,12 +6,11 @@ import store, settings
 
 
 def api(session, token, login, item):
-    apiURL = 'https://my.beeline.ru/api/1.0/' + \
-        item + '?ctn=' + login + '&token=' + token
+    apiURL = 'https://my.beeline.ru/api/1.0/' + item + '?ctn=' + login + '&token=' + token
     response = session.get(apiURL)
     if response.status_code != 200:
         raise RuntimeError(
-            f'api get {item} error status_code {response2.status_code}!=200')
+            f'api get {item} error status_code {response.status_code}!=200')
     if 'json' not in response.headers.get('content-type'):
         raise RuntimeError(f'api {item} not return json {response.text}')
     return response.json()
@@ -32,7 +31,7 @@ def get_balance(login, password, storename=None):
     response1 = session.get(uri)
     if response1.status_code != 200:
         raise RuntimeError(
-            f'Login error: status_code {response2.status_code}!=200')
+            f'Login error: status_code {response1.status_code}!=200')
 
     if 'json' not in response1.headers.get('content-type') or response1.json()['meta']['status'] != 'OK':
         raise RuntimeError(f'Login error: .meta.status!=OK {response1.text}')
@@ -49,6 +48,29 @@ def get_balance(login, password, storename=None):
     jsonTariff = api(session, token, login, 'info/pricePlan')
     if jsonTariff['meta']['status'] == 'OK':
         result['TarifPlan'] = jsonTariff['pricePlanInfo']['entityName']
+
+    # список услуг
+    jsonSubscr = api(session, token, login, 'info/subscriptions')
+    subscr = len(jsonSubscr.get('subscriptions',[]))
+    jsonServices = api(session, token, login, 'info/serviceList')
+    paid_sum = 0
+    ppi = jsonTariff['pricePlanInfo']
+    if ppi['rcRate'] is not None and ppi['rcRatePeriod'] is not None:
+        kperiod = 30 if jsonTariff['pricePlanInfo']['rcRatePeriod'].split('.')[-1]=='dayly' else 1
+        paid_sum = ppi['rcRate'] * kperiod
+    services = []
+    for el in jsonServices['services']:
+        if el['rcRate'] is not None and el['rcRatePeriod'] is not None:
+            kperiod = 30 if el['rcRatePeriod'].split('.')[-1]=='dayly' else 1
+            fee = el['rcRate'] * kperiod
+        else:
+            fee = 0
+        services.append((el['entityName'],fee))
+    free = len([a for a, b in services if b == 0])  # бесплатные
+    paid = len([a for a, b in services if b != 0])  # платные
+    paid_sum = paid_sum+round(sum([b for a, b in services if b != 0]), 2)
+    result['UslugiOn'] = f'{free}/{subscr}/{paid}({paid_sum})'
+    result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
 
     jsonStatus = api(session, token, login, 'info/status')
     if jsonStatus['meta']['status'] == 'OK':

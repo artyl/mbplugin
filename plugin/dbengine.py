@@ -165,5 +165,20 @@ class dbengine():
         data = rows.fetchall()
         return headers,data
 
+def write_result_to_db(plugin, login, result):
+    'пишем в базу если в ini установлен sqlitestore=1'
+    try:
+        options = store.read_ini()['Options']
+        if options.get('sqlitestore','0') == '1':
+            dbfilename = options.get('dbfilename', settings.dbfilename)
+            logging.info(f'Пишем в базу {dbfilename}')
+            db = dbengine(dbfilename)
+            db.write_result(plugin, login, result)
+    except AttributeError:
+        logging.info(f'Отсутствуют параметры {"".join(traceback.format_exception(*sys.exc_info()))} дополнительные действия не производятся')
+    except Exception:
+        logging.error(f'Ошибка при записи в БД {"".join(traceback.format_exception(*sys.exc_info()))}')
+
+
 if __name__ == '__main__':
     print('This is module dbengine')

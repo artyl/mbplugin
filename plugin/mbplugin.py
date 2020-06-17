@@ -3,24 +3,9 @@
 import time, os, sys, logging, traceback
 import xml.etree.ElementTree as etree
 sys.path.append(os.path.split(os.path.abspath(sys.argv[0]))[0])
-import dbengine, store, settings
+import dbengine, store, settings, httpserver_mobile
 
 lang = 'p'  # Для плагинов на python преффикс lang всегда 'p'
-
-
-def result_to_xml(result):
-    'Конвертирует словарь результатов в готовый к отдаче вид '
-    # Коррекция SMS и Min (должны быть integer)
-    if 'SMS' in result:
-        result['SMS'] = int(result['SMS'])
-    if 'Min' in result:
-        result['Min'] = int(result['Min'])
-    for k, v in result.items():
-        if type(v) == float:
-            result[k] = round(v, 2)  # Чтобы не было паразитных микрокопеек
-    body = ''.join([f'<{k}>{v}</{k}>' for k, v in result.items()])
-    return f'<Response>{body}</Response>'
-
 
 def main():
     logging_level = store.read_ini()['Options']['logginglevel']
@@ -70,33 +55,16 @@ def main():
         return -1
     # Готовим результат
     try:
-        sys.stdout.write(result_to_xml(result))
+        sys.stdout.write(store.result_to_xml(result))
     except Exception:
         exception_text = f'Ошибка при подготовке результата: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)
         sys.stdout.write(exception_text)
         return -1
     # пишем в базу
-    try:
-        options = store.read_ini()['Options']
-        if options.get('sqlitestore','0') == '1':
-            logging.info(f'Пишем в базу sqlite')
-            dbfilename = options.get('dbfilename', settings.dbfilename)
-            db = dbengine.dbengine(dbfilename)
-            db.write_result(f'{lang}_{plugin}', login, result)
-    except AttributeError:
-        logging.info(f'Отсутствуют параметры {"".join(traceback.format_exception(*sys.exc_info()))} дополнительные действия не производятся')
-    except Exception:
-        logging.error(f'Ошибка при записи в БД {"".join(traceback.format_exception(*sys.exc_info()))}')
-    try:
-        options = store.read_ini()['Options']
-        if options.get('createhtmlreport','0') == '1':
-            import httpserver_mobile
-            _,res = httpserver_mobile.getreport()
-            balance_html = options.get('balance_html', settings.balance_html)
-            open(balance_html,encoding='utf8',mode='w').write('\n'.join(res))
-    except Exception:
-        logging.error(f'Ошибка генерации {balance_html} {"".join(traceback.format_exception(*sys.exc_info()))}')
+    dbengine.write_result_to_db(f'{lang}_{plugin}', login, result)
+    # генерируем balance_html
+    httpserver_mobile.write_report()
     logging.debug(f'result = {result}')
     logging.info(f'Complete {lang} {plugin} {login}\n')
     return 0

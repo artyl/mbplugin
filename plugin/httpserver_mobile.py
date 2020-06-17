@@ -13,16 +13,6 @@ except ModuleNotFoundError:
 
 lang='p' # Для плагинов на python преффикс lang всегда 'p'
 
-def result_to_html(result):
-    'Конвертирует словарь результатов в готовый к отдаче вид '
-    # Коррекция SMS и Min (должны быть integer)
-    if 'SMS' in result:
-        result['SMS'] = int(result['SMS'])
-    if 'Min' in result:
-        result['Min'] = int(result['Min'])
-    body = json.dumps(result, ensure_ascii=False)
-    return f'<html><meta charset="windows-1251"><p id=response>{body}</p></html>'
-
 def find_ini_up(fn):
     allroot = [os.getcwd().rsplit('\\',i)[0] for i in range(len(os.getcwd().split('\\')))]
     all_ini = [i for i in allroot if os.path.exists(os.path.join(i,fn))]
@@ -36,6 +26,7 @@ def getbalance(param):
         if len(param) != 4:
             return 'text/html', [f'<html>Unknown call - use getbalance/plugin/login/password/date</html>']
         fplugin,login,password,date = param
+        logging.info(f'Start {fplugin} {login}')
         #print(f'{fn=} {fn.split("/")=}')
         #print(f'{fplugin=} {login=} {password=} {date=}')
         # Это плагин от python ?
@@ -45,9 +36,14 @@ def getbalance(param):
             module = __import__(plugin, globals(), locals(), [], 0)
             importlib.reload(module) # обновляем модуль, на случай если он менялся
             result = module.get_balance(login, password, f'{lang}_{plugin}_{login}')
-            text = result_to_html(result)
-            #print(text)
+            text = store.result_to_html(result)
+            # пишем в базу
+            dbengine.write_result_to_db(f'{lang}_{plugin}', login, result)
+            # генерируем balance_html
+            write_report()
+            logging.info(f'Complete {fplugin} {login}')
             return 'text/html', text
+        logging.error(f'Unknown plugin {fplugin}')
         return 'text/html', [f'<html>Unknown plugin {fplugin}</html>']
     except Exception:
         exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
@@ -137,6 +133,20 @@ def getreport(param=[]):
     res = template.format(style=style, html_header=html_header, html_table='\n'.join(html_table))
     return 'text/html', [res]
 
+
+def write_report():
+    'сохраняем отчет balance_html если в ini createhtmlreport=1'
+    try:
+        options = store.read_ini()['Options']
+        if options.get('createhtmlreport','0') == '1':
+            _,res = getreport()
+            balance_html = options.get('balance_html', settings.balance_html)
+            logging.info(f'Создаем {balance_html}')
+            open(balance_html,encoding='utf8',mode='w').write('\n'.join(res))
+    except Exception:
+        logging.error(f'Ошибка генерации {balance_html} {"".join(traceback.format_exception(*sys.exc_info()))}')
+
+
 class TrayIcon:
     def __init__(self):
         msg_TaskbarRestart = win32gui.RegisterWindowMessage("TaskbarCreated");
@@ -195,12 +205,13 @@ class TrayIcon:
 
     def OnTaskbarNotify(self, hwnd, msg, wparam, lparam):
         if lparam==win32con.WM_LBUTTONDBLCLK:
-            print("You double-clicked me - goodbye")
-            win32gui.DestroyWindow(self.hwnd)
+            #print("You double-clicked me - goodbye")
+            #win32gui.DestroyWindow(self.hwnd)
+            pass
         elif lparam==win32con.WM_RBUTTONUP:
             print("You right clicked me.")
             menu = win32gui.CreatePopupMenu()
-            #win32gui.AppendMenu( menu, win32con.MF_STRING, 1024, "Say Hello")
+            win32gui.AppendMenu( menu, win32con.MF_STRING, 1024, "Open report")
             win32gui.AppendMenu( menu, win32con.MF_STRING, 1025, "Exit program" )
             pos = win32gui.GetCursorPos()
             # See http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/menus_0hdi.asp
@@ -211,8 +222,10 @@ class TrayIcon:
 
     def OnCommand(self, hwnd, msg, wparam, lparam):
         id = win32api.LOWORD(wparam)
-        #if id == 1024: print("Hello")
-        if id == 1025:
+        if id == 1024: 
+            port = int(store.read_ini()['HttpServer'].get('port', settings.port))
+            os.system('start http://localhost:8000/report')
+        elif id == 1025:
             print("Goodbye")
             win32gui.DestroyWindow(self.hwnd)
         else:
