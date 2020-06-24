@@ -20,25 +20,20 @@ def get_balance(login, password, storename=None):
         logging.info('Old session is bad, relogin')
         response1 = session.get('https://lk.megafon.ru/login/')
         if response1.status_code != 200:
-            raise RuntimeError(
-                f'GET Login page error: status_code {response1.status_code}!=200')
+            raise RuntimeError(f'GET Login page error: status_code {response1.status_code}!=200')
         pages.append(response1.text)
         csrf = re.search('(?usi)name="CSRF" value="([^\"]+)"', response1.text)
         data = {'CSRF': csrf, 'j_username': f'+7{login}', 'j_password': password}
         response2 = session.post('https://lk.megafon.ru/dologin/', data=data)
         if response2.status_code != 200:
-            raise RuntimeError(
-                f'POST Login page error: status_code {response2.status_code}!=200')
+            raise RuntimeError(f'POST Login page error: status_code {response2.status_code}!=200')
         pages.append(response2.text)
-        response3 = session.get(
-            'https://lk.megafon.ru/api/lk/main/atourexpense')
+        response3 = session.get('https://lk.megafon.ru/api/lk/main/atourexpense')
         if response3.status_code != 200 or 'json' not in response3.headers.get('content-type'):
-            raise RuntimeError(
-                f'Get Balance page not return json: status_code={response2.status_code} {response3.headers.get("content-type")}')
+            raise RuntimeError(f'Get Balance page not return json: status_code={response2.status_code} {response3.headers.get("content-type")}')
         pages.append(response3.text)
         if 'balance' not in response3.text:
-            raise RuntimeError(
-                f'Get Balance page not return balance: status_code={response2.status_code} {response3.text}')
+            raise RuntimeError(f'Get Balance page not return balance: status_code={response2.status_code} {response3.text}')
 
     result['Balance'] = response3.json().get('balance', 0)
     result['KreditLimit'] = response3.json().get('limit', 0)
@@ -51,10 +46,22 @@ def get_balance(login, password, storename=None):
     if response5.status_code == 200 and 'json' in response5.headers.get('content-type'):
         result['TarifPlan'] = response5.json().get('name', '').replace('&nbsp;',' ').replace('&mdash;','-')
 
-    response6 = session.get('https://lk.megafon.ru/api/lk/mini/options')
+    #Старый вариант без получения стоимости платных услуг
+    #response6 = session.get('https://lk.megafon.ru/api/lk/mini/options')
+    #if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
+    #    servicesDto = response6.json().get('servicesDto', {})
+    #    result['UslugiOn'] = f"{servicesDto.get('free','')}/{servicesDto.get('paid','')}"
+    response6 = session.get('https://lk.megafon.ru/api/options/list/current')
     if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
-        servicesDto = response6.json().get('servicesDto', {})
-        result['UslugiOn'] = f"{servicesDto.get('free','')}/{servicesDto.get('paid','')}"
+        oList = response6.json()
+        services = [(i['optionName'],i['monthRate']*(1 if i['monthly'] else 30)) for i in oList.get('paid',[])] 
+        services += [(i['optionName'],i['monthRate']*(1 if i['monthly'] else 30)) for i in oList.get('free',[])] 
+        services.sort(key=lambda i:(-i[1],i[0]))
+        free = len([a for a, b in services if b == 0])  # бесплатные
+        paid = len([a for a, b in services if b != 0])  # платные
+        paid_sum = round(sum([b for a, b in services]), 2)
+        result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
+        result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])    
 
     response7 = session.get('https://lk.megafon.ru/api/options/remaindersMini')
     if response7.status_code == 200 and 'json' in response7.headers.get('content-type'):
