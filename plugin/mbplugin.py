@@ -2,15 +2,19 @@
 ''' Автор ArtyLa '''
 import time, os, sys, logging, traceback
 import xml.etree.ElementTree as etree
-sys.path.append(os.path.split(os.path.abspath(sys.argv[0]))[0])
+
+pluginpath = os.path.split(os.path.abspath(sys.argv[0]))[0]
+if pluginpath not in sys.path:
+    sys.path.append(pluginpath)
 import dbengine, store, settings, httpserver_mobile
 
 lang = 'p'  # Для плагинов на python преффикс lang всегда 'p'
 
 def main():
-    logging_level = store.read_ini()['Options']['logginglevel']
-    logging.basicConfig(filename="..\\log\\mbplugin.log", level=logging_level,
-                        format=u'[%(asctime)s] %(levelname)s %(funcName)s %(message)s')
+    options = store.read_ini()['Options']
+    logging.basicConfig(filename=options.get('loggingfilename', settings.loggingfilename),
+                        level=options.get('logginglevel', settings.logginglevel),
+                        format=options.get('loggingformat', settings.loggingformat))
     # В коммандной строке указан плагин ?
     if len(sys.argv) < 2:
         exception_text = f'При вызове mbplugin.bat не указан модуль'
@@ -63,6 +67,8 @@ def main():
         return -1
     # пишем в базу
     dbengine.write_result_to_db(f'{lang}_{plugin}', login, result)
+    # обновляем данные из mdb
+    dbengine.update_sqlite_from_mdb()
     # генерируем balance_html
     httpserver_mobile.write_report()
     logging.debug(f'result = {result}')

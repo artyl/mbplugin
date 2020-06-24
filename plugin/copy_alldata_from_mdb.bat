@@ -1,0 +1,1 @@
+..\python\pythonw.exe ..\plugin\dbengine.py update_sqlite_from_mdb_all

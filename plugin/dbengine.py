@@ -1,13 +1,26 @@
 # -*- coding: utf8 -*-
-''' Автор ArtyLa '''
-import time, os, sys, logging, traceback, pyodbc, sqlite3, datetime
-sys.path.append(os.path.split(os.path.abspath(sys.argv[0]))[0])
+''' Автор ArtyLa 
+Модуль для работы с базами
+Для интеграции с базой MDB необходимо установить 32битный ODBC драйвер для MDB AccessDatabaseEngine.exe:
+Скачать можно отсюда:
+https://www.microsoft.com/en-us/download/details.aspx?id=13255
+Объяснение, почему не 32 битный python не работает с 64 битным ODBC и наоборот
+https://stackoverflow.com/questions/45362440/32bit-pyodbc-for-32bit-python-3-6-works-with-microsofts-64-bit-odbc-driver-w
+set up some constants
+
+'''
+import time, os, sys, re, logging, traceback, pyodbc, sqlite3, datetime
+
+pluginpath = os.path.split(os.path.abspath(sys.argv[0]))[0]
+if pluginpath not in sys.path:
+    sys.path.append(pluginpath)
 import settings, store
 
 DB_SCHEMA = '''
 CREATE TABLE IF NOT EXISTS Phones (
     NN INTEGER NOT NULL DEFAULT NULL PRIMARY KEY AUTOINCREMENT,
     [PhoneNumber] [nvarchar] (150), -- COLLATE Cyrillic_General_CI_AS NULL ,
+    [MBPhoneNumber] [nvarchar] (150), -- COLLATE Cyrillic_General_CI_AS NULL ,
     Operator [nchar] (50), -- plugin name
     QueryDateTime timestamp DEFAULT NULL,
     SpendBalance [float] NULL ,
@@ -59,6 +72,7 @@ CREATE TABLE IF NOT EXISTS Phones (
 PhonesHText={'NN':'NN',
 'Alias':'Псевдоним',
 'PhoneNumber':'Номер',
+'MBPhoneNumber':'Номер как в MB',
 'Operator':'Оператор',
 'QueryDateTime':'Время запроса',
 'SpendBalance':'SpendBalance',
@@ -104,15 +118,25 @@ PhonesHText={'NN':'NN',
 'AnyString':'AnyString',
 'CalcTurnOff':'Откл (Р)',}
 
+addition_phone_fields = {'MBPhoneNumber': '[nvarchar] (150)'}
+addition_indexes = ['idx_QueryDateTime ON Phones (QueryDateTime ASC)']
+addition_queries = ["delete from phones where phonenumber like 'p_%' or operator='p_test1' or (phonenumber='tinkoff' and operator='???')"]
+
 class dbengine():
-    def __init__(self, dbname):
+    def __init__(self, dbname, updatescheme=True, fast=False):
+        'fast - быстрее, но менее безопасно'
         self.dbname = dbname
         self.conn = sqlite3.connect(self.dbname)  # detect_types=sqlite3.PARSE_DECLTYPES
         self.cur = self.conn.cursor()
-        self.cur.execute(DB_SCHEMA)
-        self.conn.commit()
+        if fast:
+            self.cur.execute('PRAGMA synchronous = OFF')
+            #self.cur.execute('PRAGMA journal_mode = OFF')
+            #self.cur.execute('PRAGMA jorunal_mode = MEMORY')
+            self.conn.commit()        
+        if updatescheme:
+            self.check_and_add_addition()
         rows = self.cur.execute('SELECT * FROM phones limit 1;')
-        self.phoneheaders = list(zip(*rows.description))[0]
+        self.phoneheader = list(zip(*rows.description))[0]
 
     def write_result(self,plugin, login, result, commit=True):
         'Записывает результат в базу'
@@ -128,7 +152,7 @@ class dbengine():
         if 'BalExpired' in result2:  # BalExpired -> BeeExpired
             result2['BeeExpired'] = result2['BalExpired']
         # Фильтруем только те поля, которые есть в таблице phone    
-        line = {k:v for k,v in result2.items() if k in self.phoneheaders}
+        line = {k:v for k,v in result2.items() if k in self.phoneheader}
         # Добавляем расчетные поля и т.п.
         line['Operator'] = plugin
         line['PhoneNumber'] = login  # PhoneNumber=PhoneNum
@@ -157,6 +181,7 @@ class dbengine():
         self.cur.execute(f'insert into phones ({",".join(line.keys())}) VALUES ({",".join(list("?"*len(line)))})', list(line.values()))
         if commit:
             self.conn.commit()
+
     def report(self,fields):
         'Генерирует отчет по последнему состоянию телефонов'
         reportsql = f"SELECT {','.join(fields)},max(QueryDateTime) QueryDateTime FROM Phones where PhoneNumber is not NULL GROUP BY PhoneNumber,Operator order by Operator,PhoneNumber;"
@@ -165,11 +190,153 @@ class dbengine():
         data = rows.fetchall()
         return headers,data
 
+    def check_and_add_addition(self):
+        'Создаем таблицы, добавляем новые поля, и нужные индексы если их нет'
+        self.cur.execute(DB_SCHEMA)
+        for idx in addition_indexes:
+            self.cur.execute(f"CREATE INDEX IF NOT EXISTS {idx}")
+        for k,v in addition_phone_fields.items():
+            self.cur.execute("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('phones') WHERE name=?",[k])
+            if self.cur.fetchall()[0][0] == 0:
+                self.cur.execute(f"ALTER TABLE phones ADD COLUMN {k} {v}")
+        self.conn.commit()            
+
+class mdbengine():
+    def __init__(self, dbname):
+        self.dbname = dbname
+        DRV = '{Microsoft Access Driver (*.mdb)}'
+        self.conn = pyodbc.connect(f'DRIVER={DRV};DBQ={dbname}')
+        self.cur = self.conn.cursor()
+        rows = self.cur.execute('SELECT top 1 * FROM phones')
+        self.phoneheader = list(zip(*rows.description))[0]
+        phones_ini = store.read_ini('phones.ini')
+        # phones - словарь key=MBphonenumber values=[phonenumber,region]
+        self.phones = {v['Number']: (re.sub(r' #\d+', '', v['Number']), v['Region'])
+                       for k, v in phones_ini.items() if k.isnumeric() and 'Monitor' in v}
+
+    def to_sqlite(self, line):
+        '''конвертирует строчку для sqlite:
+        Убираем последовательный номер NN 
+        PhoneNumber -> MBphoneNumber (оригинал)
+        PhoneNumber -> PhoneNumber (без добавки пробел#n)
+        Оператор(region) из ini -> Operator 
+        return header, newline
+        '''
+        idxp = self.phoneheader.index('PhoneNumber')
+        mbphoneNumber = line[idxp]
+        s1, s2 = re.search(r'\A(.*?)( #\d+)?\Z', mbphoneNumber).groups()
+        s2 = s2.strip() if s2 else '???'
+        phonenumber, region = self.phones.get(mbphoneNumber,[s1,s2])
+        header = self.phoneheader[1:] + ('MBphoneNumber', 'Operator')
+        newline = [i for i in line]  # pyodbc.Row object has no attribute copy
+        newline[idxp] = phonenumber
+        newline = newline[1:] + [mbphoneNumber, region]
+        return header, newline
+
+def update_sqlite_from_mdb_core(deep=None):
+    'Обновляем данные из mdb в sqlite'
+    options = store.read_ini()['Options']
+    if options.get('updatefrommdb', settings.updatefrommdb) != '1':
+        return
+    logging.info(f'Добавляем данные из mdb')
+    if deep is None:
+        deep = int(options.get('updatefrommdbdeep', settings.updatefrommdb))
+    dbfilename = options.get('dbfilename', settings.dbfilename)
+    # читаем sqlite БД
+    db = dbengine(dbfilename, fast=True)
+    mdbfilename = os.path.join(os.path.split(dbfilename)[0],'BalanceHistory.mdb')
+    mdb = mdbengine(mdbfilename)
+    # Дата согласно указанному deep от которой сверяем данные
+    dd = datetime.datetime.now() - datetime.timedelta(days=deep) 
+    db.cur.execute("update phones set QueryDateTime=datetime(QueryDateTime) where datetime(QueryDateTime)<>QueryDateTime"); 
+    logging.debug(f'Fix miliseconds {db.cur.fetchall()}')
+    db.conn.commit()
+    db.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd]); 
+    sqldata = db.cur.fetchall()
+    dsqlite = {datetime.datetime.strptime(i[3].split('.')[0],'%Y-%m-%d %H:%M:%S').timestamp():i for i in sqldata}
+    # теперь все то же самое из базы MDB
+    mdb.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd]); 
+    mdbdata = mdb.cur.fetchall()
+    dmdb = {i[1].timestamp():i for i in mdbdata}
+    logging.debug('calculate')
+    # Строим общий список timestamp всех данных
+    allt=sorted(set(list(dsqlite)+list(dmdb))) 
+    # обрабарываем и составляем пары данных которые затем будем подправлять
+    pairs = [] # mdb timestamp, sqlite timestamp
+    while allt:
+        # берем одну строчку из общего списка
+        c=allt.pop(0)
+        # Если для этого timestamp есть строчка в обазах добавляем из
+        pair = [c if c in dmdb else None, c if c in dsqlite else None]
+        if allt == [] or allt[0] in dmdb and pair[0] is not None or allt[0] in dsqlite and pair[1] is not None:
+            # Это следующаяя строка или была последняя
+            pairs.append(pair)
+        elif allt[0] in dmdb and pair[0] is None and allt[0]-c < 10:
+            # следующий timestamp это пара MDB к записи sqlite ?
+            pair[0] = allt.pop(0)
+            pairs.append(pair)
+        elif allt[0] in dsqlite and pair[1] is None and allt[0]-c < 10:
+            # следующий timestamp это пара sqlite к записи mdb ?
+            pair[1] = allt.pop(0)
+            pairs.append(pair)
+    logging.debug('Before:')
+    logging.debug(f'Difference time:{len([1 for a,b in pairs if a!=b and a is not None and b is not None])}')
+    logging.debug(f'Only mdb:{len([1 for a,b in pairs if b is None])}')
+    logging.debug(f'Only sqlite:{len([1 for a,b in pairs if a is None])}')
+    update_param = []
+    insert_param, insert_header = [], []
+    for num, [mdb_ts, sqlite_ts] in enumerate(pairs):
+        if mdb_ts != sqlite_ts and mdb_ts is not None and sqlite_ts is not None:
+            # исправляем время в sqlite чтобы совпадало с mdb
+            update_param.append([datetime.datetime.fromtimestamp(mdb_ts), datetime.datetime.fromtimestamp(sqlite_ts)])
+            pairs[num][1] = mdb_ts
+        elif mdb_ts is not None and sqlite_ts is None:
+            # Копируем несуществующие записи в sqlite из mdb
+            header, line = mdb.to_sqlite(dmdb[mdb_ts])
+            insert_param.append(line)
+            insert_header = header
+            pairs[num][1] = mdb_ts
+
+    # есть что вставить ?
+    logging.debug(f'Insert {len(insert_param)}')
+    if insert_param:
+        db.cur.executemany(f'insert into phones ({",".join(insert_header)}) VALUES ({",".join(list("?"*len(insert_header)))})', insert_param)
+        db.conn.commit()
+
+    # есть что проапдейтить ?
+    logging.debug(f'Update {len(update_param)}')
+    if update_param:            
+        db.cur.executemany('update phones set QueryDateTime=? where QueryDateTime=?',update_param)
+        db.conn.commit()
+
+    # дополнительные фиксы (у меня в mdb мусор оказался, чтобы не трогать mdb чистим здесь)
+    for sql in addition_queries:
+        db.cur.execute(sql)
+        db.conn.commit()
+    # прописываем колонку mbnumber
+    update_mbnumber = [[MBphonenumber, phonenumber, region] for MBphonenumber, (phonenumber, region) in mdb.phones.items()]
+    db.cur.executemany(f'update phones set MBPhonenumber=? where MBPhonenumber is null and Phonenumber=? and operator=?', update_mbnumber)
+    logging.debug(f'Update empty MBPhonenumber {db.cur.rowcount}:')    
+    db.conn.commit()
+
+    logging.debug(f'After:')
+    logging.debug(f'Difference time:{len([1 for a,b in pairs if a!=b and a is not None and b is not None])}')
+    logging.debug(f'Only mdb:{len([1 for a,b in pairs if b is None])}')
+    logging.debug(f'Only sqlite:{len([1 for a,b in pairs if a is None])}')
+    logging.debug(f'Update complete')
+
+def update_sqlite_from_mdb(deep=None):
+    try:
+        update_sqlite_from_mdb_core(deep)
+    except Exception:
+        logging.error(f'Ошибка при переносе данных из mdb в sqlite {"".join(traceback.format_exception(*sys.exc_info()))}')
+
+
 def write_result_to_db(plugin, login, result):
     'пишем в базу если в ini установлен sqlitestore=1'
     try:
         options = store.read_ini()['Options']
-        if options.get('sqlitestore','0') == '1':
+        if options.get('sqlitestore', '0') == '1':
             dbfilename = options.get('dbfilename', settings.dbfilename)
             logging.info(f'Пишем в базу {dbfilename}')
             db = dbengine(dbfilename)
@@ -182,3 +349,9 @@ def write_result_to_db(plugin, login, result):
 
 if __name__ == '__main__':
     print('This is module dbengine')
+    if 'update_sqlite_from_mdb_all' in sys.argv:
+        options = store.read_ini()['Options']
+        logging.basicConfig(filename=options.get('loggingfilename', settings.loggingfilename),
+                            level=logging.DEBUG,
+                            format=options.get('loggingformat', settings.loggingformat))
+        update_sqlite_from_mdb(deep=10000)

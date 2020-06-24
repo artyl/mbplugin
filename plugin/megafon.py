@@ -66,20 +66,15 @@ def get_balance(login, password, storename=None):
     response7 = session.get('https://lk.megafon.ru/api/options/remaindersMini')
     if response7.status_code == 200 and 'json' in response7.headers.get('content-type'):
         response7.json().get('remainders', {})
-        remainders = response7.json().get('remainders', [{}])[
-            0].get('remainders', [])
-        minutes = [i['availableValue']
-                   for i in remainders if i['unit'] == 'мин']
+        remainders = response7.json().get('remainders', [{}])[0].get('remainders', [])
+        minutes = [i['availableValue'] for i in remainders if i['unit'].startswith('мин')]
         if len(minutes) > 0:
             result['Min'] = sum([i['value'] for i in minutes])
-        internet = [i['availableValue']
-                    for i in remainders if i['unit'] in ('ГБ', 'МБ')]
+        internet = [i['availableValue'] for i in remainders if i['unit'].endswith('Б')]
         unitDiv = settings.UNIT.get(interUnit, 1)
         if len(internet) > 0:
-            result['Internet'] = sum(
-                [round(i['value']*settings.UNIT.get(i['unit'], 1)/unitDiv, 3) for i in internet])
-        sms = [i['availableValue']
-               for i in remainders if i['unit'].startswith('шту')]
+            result['Internet'] = sum([round(i['value']*settings.UNIT.get(i['unit'], 1)/unitDiv, 3) for i in internet])
+        sms = [i['availableValue'] for i in remainders if i['unit'].startswith('шту')]
         if len(sms) > 0:
             result['SMS'] = sum([i['value'] for i in sms])
 

@@ -3,6 +3,8 @@ _HLAM/*
 DISTR/*
 DB/*
 */__pycache__
+BalanceHistory.sqlite
+balance.html
 plugin/personalsetting.py
 mbplugin*.zip
 python-3.8.3-embed-win32_TKINTER.zip
@@ -15,3 +17,4 @@ python
 tcc
 readme2.md
 mbplugin.ini
+run_webserver.lnk

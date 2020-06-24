@@ -1,10 +1,11 @@
 # -*- coding: utf8 -*- 
 ''' Автор ArtyLa '''
-import os, sys, re, time, json, traceback, threading, logging, importlib,configparser
-import wsgiref.simple_server
-from wsgiref.simple_server import make_server, WSGIServer, WSGIRequestHandler
-from socketserver import ThreadingMixIn
-sys.path.append('..\\plugin')
+import os, sys, re, time, json, traceback, threading, logging, importlib, configparser, queue
+import wsgiref.simple_server, socketserver, socket, requests
+
+pluginpath = os.path.split(os.path.abspath(sys.argv[0]))[0]
+if pluginpath not in sys.path:
+    sys.path.append(pluginpath)
 import settings, store, dbengine  # pylint: disable=import-error
 try:
     import win32api, win32gui, win32con, winerror
@@ -39,6 +40,8 @@ def getbalance(param):
             text = store.result_to_html(result)
             # пишем в базу
             dbengine.write_result_to_db(f'{lang}_{plugin}', login, result)
+            # обновляем данные из mdb
+            dbengine.update_sqlite_from_mdb()
             # генерируем balance_html
             write_report()
             logging.info(f'Complete {fplugin} {login}')
@@ -89,8 +92,7 @@ def getreport(param=[]):
     db = dbengine.dbengine(options.get('dbfilename', settings.dbfilename))
     #num_format = 0 if len(param)==0 or not param[0].isnumeric() else int(param[0])
     # номера провайдеры и логины из phones.ini
-    phones_ini = store.read_ini('phones.ini')
-    options_ini = store.read_ini('Options.ini')
+    options_ini = store.read_ini('options.ini') 
     #if inipath is None:return 'text/html', ['phones.ini not found']
 
     edBalanceLessThen = float(options_ini['Mark']['edBalanceLessThen']) # помечать балансы меньше чем
@@ -147,8 +149,13 @@ def write_report():
         logging.error(f'Ошибка генерации {balance_html} {"".join(traceback.format_exception(*sys.exc_info()))}')
 
 
+def tray_icon(cmdqueue):
+    'Выставляем для trayicon daemon, чтобы ушел вслед за нами функция нужна для запуска в отдельном thread'
+    TrayIcon(cmdqueue).run_forever()
+
 class TrayIcon:
-    def __init__(self):
+    def __init__(self, cmdqueue):
+        self.cmdqueue = cmdqueue
         msg_TaskbarRestart = win32gui.RegisterWindowMessage("TaskbarCreated");
         message_map = {
                 msg_TaskbarRestart: self.OnRestart,
@@ -224,14 +231,15 @@ class TrayIcon:
         id = win32api.LOWORD(wparam)
         if id == 1024: 
             port = int(store.read_ini()['HttpServer'].get('port', settings.port))
-            os.system('start http://localhost:8000/report')
+            os.system(f'start http://localhost:{port}/report')
         elif id == 1025:
             print("Goodbye")
-            win32gui.DestroyWindow(self.hwnd)
+            win32gui.DestroyWindow(self.hwnd)          
+            self.cmdqueue.put('STOP')
         else:
             print("Unknown command -", id)
 
-class Handler(WSGIRequestHandler):
+class Handler(wsgiref.simple_server.WSGIRequestHandler):
     # Disable logging DNS lookups
     def address_string(self):
         return str(self.client_address[0])
@@ -241,26 +249,38 @@ class Handler(WSGIRequestHandler):
         logging.info(f"{self.client_address[0]} - - [self.log_date_time_string()] {format % args}\n")
 
 
-class ThreadingWSGIServer(ThreadingMixIn, WSGIServer):
+class ThreadingWSGIServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGIServer):
     pass
 
 
 class WebServer():
     def __init__(self):
-        logging.basicConfig(filename="..\\log\\http.log", level=logging.INFO,format = u'[%(asctime)s] %(levelname)s %(funcName)s %(message)s')
-        port = int(store.read_ini()['HttpServer'].get('port', settings.port))
-        with wsgiref.simple_server.make_server('127.0.0.1', port, self.simple_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
-            logging.info(f'Listening on port {port}....')
-            if 'win32api' in sys.modules:
-                self.webserver_thread = threading.Thread(target=self.httpd.serve_forever)
-                self.webserver_thread.daemon = True
-                self.webserver_thread.name = 'ThrWeb'
-                self.webserver_thread.start()
-                TrayIcon().run_forever()
-            else:
-                # не установлен pywin32, иконки в трее не будет запускаем web сервер в основном потоке
-                self.httpd.serve_forever()
-                
+        self.cmdqueue = queue.Queue()
+        httpssec = store.read_ini()['HttpServer']
+        options = store.read_ini()['Options']
+        logging.basicConfig(filename=options.get('logginghttpfilename', settings.logginghttpfilename), 
+                        level=options.get('logginglevel', settings.logginglevel),
+                        format=options.get('loggingformat', settings.loggingformat))
+        self.port = int(httpssec.get('port', settings.port))
+        self.host = '127.0.0.1'
+        with socket.socket() as sock:
+            sock.settimeout(0.2)  # this prevents a 2 second lag when starting the server
+            if sock.connect_ex((self.host, self.port)) == 0:
+                logging.error(f"Port {self.host}:{self.port} already in use, try restart.")
+                try:
+                    requests.session().get(f'http://{self.host}:{self.port}/exit',timeout=1)
+                    time.sleep(1)  # Подождем пока серер остановится
+                except Exception:
+                    pass
+        with wsgiref.simple_server.make_server(self.host, self.port, self.simple_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
+            logging.info(f'Listening {self.host}:{self.port}....')
+            threading.Thread(target=self.httpd.serve_forever, daemon = True).start()
+            if 'win32api' in sys.modules:  # Иконка в трее
+                threading.Thread(target=lambda i=self.cmdqueue:tray_icon(i), daemon = True).start()
+            # Запустили все остальное демонами и ждем, когда они пришлют сигнал
+            self.cmdqueue.get()
+            self.httpd.shutdown()
+        logging.info(f'Shutdown server {self.host}:{self.port}....')
 
     def simple_app(self,environ, start_response):
         status = '200 OK'
@@ -272,17 +292,13 @@ class WebServer():
             ct, text = getbalance(param)  # TODO !!! Но правильно все-таки через POST
         if cmd == '' or cmd == 'report': # report
             ct, text = getreport(param)
-            #ct, text = 'text/html', [f'<html>REPORT</html>']
         if cmd == 'exit': # exit cmd
-            self.httpd.shutdown()
-
-        #th = f'{threading.currentThread().name}:{chr(44).join([t.name for t in threading.enumerate()[1:]])}'
+            self.cmdqueue.put('STOP')
+            text = ['exit']
         headers = [('Content-type', ct)]
         start_response(status, headers)
-        #print('text',text)
         return [line.encode('cp1251') for line in text]
         
-
 def main():
     WebServer()
 

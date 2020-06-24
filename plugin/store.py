@@ -1,6 +1,10 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
 import os, sys, re, json, pickle, requests, configparser
+
+pluginpath = os.path.split(os.path.abspath(sys.argv[0]))[0]
+if pluginpath not in sys.path:
+    sys.path.append(pluginpath)
 import settings
 
 
@@ -52,7 +56,10 @@ def read_ini(fn=settings.mbplugin_ini):
         if fn.lower() == 'phones.ini':
             # phones.ini - нечестный ini читать приходится с извратами
             # replace [Phone] #123 -> [Phone #123]
-            ini.read_string(re.sub(r'(?usi)\[Phone\] #(\d+)', r'[\1]', open(inipath).read()))
+            prep1 = re.sub(r'(?usi)\[Phone\] #(\d+)', r'[\1]', open(inipath).read())
+            # TODO костыль, мы подменяем p_pluginLH на p_plugin чтобы при переключении плагина не разъезжались данные
+            prep2 = re.sub(r'(?usi)(Region\s*=\s*p_\S+)LH', r'\1', prep1)
+            ini.read_string(prep2)
         else:
             ini.read(inipath)
     elif not os.path.exists(inipath) and fn.lower() == settings.mbplugin_ini:
@@ -72,7 +79,9 @@ def read_ini(fn=settings.mbplugin_ini):
                           'sqlitestore': settings.sqlitestore,
                           'dbfilename': dbpath,
                           'createhtmlreport': settings.createhtmlreport,
-                          'balance_html':settings.balance_html
+                          'balance_html': settings.balance_html,
+                          'updatefrommdb': settings.updatefrommdb,
+                          'updatefrommdbdeep': settings.updatefrommdbdeep,
                           }
         ini['HttpServer'] = {'port': settings.port,
                              'host': settings.host,
@@ -138,3 +147,4 @@ if __name__ == '__main__':
 
     # import io;f = io.StringIO();ini.write(f);print(f.getvalue())
     #{'STOCKS':(('AAPL',1,'Y'),('TATNP',16,'M'),('FXIT',1,'M')), 'REMAIN': {'USD':5, 'RUB':536}, 'CURRENC': 'USD'}
+    #p=read_ini('phones.ini')
