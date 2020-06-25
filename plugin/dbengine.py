@@ -119,8 +119,11 @@ PhonesHText={'NN':'NN',
 'CalcTurnOff':'Откл (Р)',}
 
 addition_phone_fields = {'MBPhoneNumber': '[nvarchar] (150)'}
-addition_indexes = ['idx_QueryDateTime ON Phones (QueryDateTime ASC)']
-addition_queries = ["delete from phones where phonenumber like 'p_%' or operator='p_test1' or (phonenumber='tinkoff' and operator='???')"]
+addition_indexes = ['idx_QueryDateTime ON Phones (QueryDateTime ASC)',
+                    'idx_Phonenumber ON Phones (PhoneNumber)', 
+                    'idx_MBPhonenumber ON Phones (MBPhoneNumber)']
+addition_queries = [
+    "delete from phones where phonenumber like 'p_%' or operator='p_test1' or (phonenumber='tinkoff' and operator='???')"]
 
 class dbengine():
     def __init__(self, dbname, updatescheme=True, fast=False):
@@ -248,13 +251,15 @@ def update_sqlite_from_mdb_core(deep=None):
     mdb = mdbengine(mdbfilename)
     # Дата согласно указанному deep от которой сверяем данные
     dd = datetime.datetime.now() - datetime.timedelta(days=deep) 
-    db.cur.execute("update phones set QueryDateTime=datetime(QueryDateTime) where datetime(QueryDateTime)<>QueryDateTime"); 
-    logging.debug(f'Fix miliseconds {db.cur.fetchall()}')
-    db.conn.commit()
+    #logging.debug(f'Fix miliseconds {db.cur.fetchall()}')
+    #db.cur.execute("update phones set QueryDateTime=datetime(QueryDateTime) where datetime(QueryDateTime)<>QueryDateTime"); 
+    #db.conn.commit()
+    logging.debug(f'Read from sqlite QueryDateTime>{dd}')
     db.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd]); 
     sqldata = db.cur.fetchall()
     dsqlite = {datetime.datetime.strptime(i[3].split('.')[0],'%Y-%m-%d %H:%M:%S').timestamp():i for i in sqldata}
     # теперь все то же самое из базы MDB
+    logging.debug(f'Read from mdb QueryDateTime>{dd}')
     mdb.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd]); 
     mdbdata = mdb.cur.fetchall()
     dmdb = {i[1].timestamp():i for i in mdbdata}

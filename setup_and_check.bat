@@ -17,7 +17,7 @@ start "" "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\run_webserver.
 
 cd "%~dp0"
 echo Проверяем что все работает JSMB LH PLUGIN
-python\python -c "import re,requests;url=re.findall(r'(?usi)(http://127.0.0.1:.*?).\+',open('jsmblhplugin\\p_test1_localweb.jsmb').read())[0];print(requests.session().get(url+'123/456/789',timeout=1).content.decode('cp1251'))"
+python\python -c "import re,requests;url=re.findall(r'(?usi)(http://127.0.0.1:.*?).\+',open('jsmblhplugin\\p_test1_localweb.jsmb').read())[0];print(requests.session().get(url+'123/456/789').content.decode('cp1251'))"
 
 cd "%~dp0"
 echo Проверяем что все работает DLL PLUGIN

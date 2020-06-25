@@ -35,18 +35,22 @@ def main():
         logging.error(exception_text)
         sys.stdout.write(exception_text)
         return -1
-    # request указан в переменной RequestVariable ?
-    try:
-        RequestVariable = os.environ['RequestVariable'].strip(' "')
-        root = etree.fromstring(RequestVariable)
-        login = root.find('Login').text
-        password = root.find('Password').text
-    except Exception:
-        exception_text = f'Не смог взять RequestVariable: {"".join(traceback.format_exception(*sys.exc_info()))}'
-        logging.error(exception_text)
-        sys.stdout.write(exception_text)
-        return -1
-    logging.debug(f'request = {RequestVariable}')
+    if len(sys.argv) == 4: # plugin login password
+        login = sys.argv[2]
+        password = sys.argv[3]
+    else: # request указан в переменной RequestVariable ?        
+        try:
+            RequestVariable = os.environ['RequestVariable'].strip(' "')
+            root = etree.fromstring(RequestVariable)
+            login = root.find('Login').text
+            password = root.find('Password').text
+        except Exception:
+            exception_text = f'Не смог взять RequestVariable: {"".join(traceback.format_exception(*sys.exc_info()))}'
+            logging.error(exception_text)
+            sys.stdout.write(exception_text)
+            return -1
+        logging.debug(f'request = {RequestVariable}')
+    
     # Запуск плагина
     logging.info(f'Start {lang} {plugin} {login}')
     try:
@@ -77,6 +81,6 @@ def main():
 
 
 if __name__ == '__main__':
-    # todo for test usage mbplugin.py login password
-    # or mbplugin.py lang plugin login password
+    # todo mbplugin.py plugin  (RequestVariable=<Request>\n<ParentWindow>007F09DA</ParentWindow>\n<Login>p_test_1234567</Login>\n<Password>pass1234</Password>\n</Request>)
+    # todo mbplugin.py plugin login password (нужен для отладки)
     main()
