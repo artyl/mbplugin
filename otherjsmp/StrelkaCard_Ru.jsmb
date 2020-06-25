@@ -1,0 +1,49 @@
+// Плагин для программы MobileBalance: http://mtsoft.ru/mobilebalance/
+//
+// Инструкция по использованию:
+// 1. зайти в настройки программы MobileBalance, перейти на закладку "Плагины: Операторы", добавить плагин.
+// 2. После этого перейти на закладку "Телефоны" и в качестве оператора выбрать оператора с названием, указанным ниже.
+//
+// FullName  : Транспортная карта "Стрелка" (Московская область)
+// ShortName : Strelka
+// Version   : 08.05.2020
+// Icon      : 789C73F235636100033320D600620128666450804840E591C1FFFFFFA98E3FBC7ECA706CCB6C86E53D290CCBBB9319564FCC6638BF7F25C3AF9FDF09EA3DB2713A43758008434F9A31C3A619650C7B977732ACEC4D67688BD760688E5262B87E6A274EBDDBE6D5313446C8335C3FBD0343EECF9F5F0CBB97B63154F8F0339C3FB00A43FEF685030C659E3C0C8F6E9C06F3FFFEFDC3F0E7F72F0C75C7B7CE6588099AC9F0EEDD3F14F1F90DA10C1BA617C3F99FDEBD60985EEA0E0E0B6475FFFEFD6748CBFBCC306B01222CBE7E7ACB50E6C5CBF0F4EE2514B5170EAC66E84CD265B87BF1108AF8BACD3F1962523FC1F90FAF9F62A8F217069AFD17C3BD2F1E5C63E8CD300187E3FF7F1037DFB8F587C1D9EF03C3AF5F1035203F57FA0962F5EF87D74F182617D8336C98560C0E1390D8F59B7F185CFC11FABF7D7AC7500E74FFA39B6750F4DE3ABF8FA133598FE1D2E17528E26B37FD64884DFB8422B6B0399261DD940238FFF3FB570C1372AC185E3CBC86117EC9399F18E62FFD8122FEECDE657018DC01C62338BE817EF9F9FD0B867FF6AFEA65C808AB6378FFE11F86DC1E6018D58548315C38B806C84795FFF3FB27C3B6F975E0B479E3CC2E9C69F0E4F6790C75A1D20C5D29FA0C9B6757311C5A3F8561FDB42270DA6D8D53677870F538C13CF0FDCB0786D3BB16312C698B659855E5CBB0069C7F5681DD40EDBC0A00F3E78F1E
+// Author    : MTSoft & Artyla
+// Types     : MTSoft & Artyla
+// Descript  : Текущий баланс на транспортной карте "Стрелка"
+// Descript  : Сайт оператора: https://strelkacard.ru/
+// Descript  : Личный кабинет: https://strelkacard.ru/
+// Descript  : Дополнительно: В качестве логина вводится номер карты, в качестве пароля - любые символы. Например, 12345
+// Descript  : Если все-таки не работает, попробуйте выполнить json-ie.reg, возможно это поможет
+// Descript  : Технические детали ниже
+// Descript  : 1. В теории без изменений в реестре работать не должно, т.к. при обращении к json IE пытается его сразу сохранить, (https://stackoverflow.com/questions/2483771/how-can-i-convince-ie-to-simply-display-application-json-rather-than-offer-to-do)
+// Descript  :    но у меня в mobilebalance почему-то работает.
+// Descript  : 2. Другие варианты получения баланса не работают, т.к. сайт хочет referer, а при обращении к url через getXmlHttp IE не передает referer (https://stackoverflow.com/questions/19354985/why-ie-xdomainrequest-does-not-send-referer-header)
+
+function main(){
+
+    var p = 0;
+    // Сразу получаем всю информацию через JSON-объект
+	var url="https://strelkacard.ru/api/cards/status/?cardnum="+request.loginValue+"&cardtypeid=3ae427a1-0f17-4524-acb1-a3f50090a8f3";
+	external.Navigate(url, '', 'referer: https://strelkacard.ru/')
+	external.WaitBrowser(30);
+	//response.pages[p++]=external.source;
+	// Информацию успешно получили. Преобразуем ее в JSON-объект
+    eval("var JSON="+external.innerText);
+    // Баланс
+    response.Balance=JSON.balance/100;
+
+    // Статус блокировки
+    response.BlockStatus=JSON.emergencyblocked
+	
+    // Период окончания
+    response.TurnOffStr=JSON.periodend;
+
+    // Тариф
+    response.TarifPlan=JSON.tarif;
+
+    // Тариф
+    response.Balance2=JSON.numoftrips;
+
+};
+main();

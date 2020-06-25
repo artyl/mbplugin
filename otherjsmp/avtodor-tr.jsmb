@@ -1,0 +1,67 @@
+// Плагин для программы MobileBalance: http://mtsoft.ru/mobilebalance/
+//
+// Инструкция по использованию:
+// 1. зайти в настройки программы MobileBalance, перейти на закладку "Плагины: Операторы", добавить плагин.
+// 2. После этого перейти на закладку "Телефоны" и в качестве оператора выбрать оператора с названием, указанным ниже.
+//
+// FullName  : avtodor-tr.ru
+// ShortName : Avtodor-tr
+// Version   : 08.06.2020
+// Icon      : 789C73F2FDC600016540AC01C40250CCC8C002166F0062616E08166040060D10C9860608058240C6810307803448E43F1831FCFF0FA140102404E2E3007FCE43089CF49933E7A1FC337869A83A5C00009F949135
+// Author    : ArtyLa
+// Types     : ArtyLa
+// Descript  : Текущий баланс https://avtodor-tr.ru
+// Descript  : Сайт оператора: https://avtodor-tr.ru
+// Descript  : Личный кабинет: https://avtodor-tr.ru/account/login
+
+function main(){
+    var p = 0;
+    // Заходим на главную страницу
+    document.location="https://avtodor-tr.ru/account/login";
+    if(!external.WaitBrowser) return;
+    response.pages[p++]=external.source;
+    // Вводим логин и пароль и submit форму
+    if(document.getElementById("id_password")){
+            document.getElementById("id_email").value=request.loginValue;
+            document.getElementById("id_password").value=request.passwValue;
+            document.getElementsByName("submit0")[0].click();
+            if(!external.WaitBrowser) return;
+            response.pages[p++]=external.source;
+    };
+	
+	// Забираем информацию
+	html=document.documentElement.outerHTML;
+	// Преобразуем в одну стрку и удаляем лишние пробелы
+	html = html.replace(/\r|\n/g, "").replace(/>\s+/g, ">");
+
+    // Баланс
+    balanceParsed=false;
+    regexp=/<td>Баланс<\/td>.*?<td>(.*?)</i;
+    if (res=regexp.exec(html)){
+        tmpBalance=res[1].replace(/[^\d.,]/g, ""); // Удаляем все кроме цифр точки и запятой
+        tmpBalance=tmpBalance.replace(",", "."); // Заменяем запятую на точку
+        response.Balance=parseFloat(tmpBalance);
+        balanceParsed=true;
+    };
+
+    // ФИО
+    regexp=/<td>Клиент ?<\/td>.*?<td>(.*?)</i;
+    if (res=regexp.exec(html)){
+        response.userName=res[1];
+    };
+
+    // LicSchet
+    regexp=/<td>Лицевой счет<\/td>.*?<td>(.*?)</i;
+    if (res=regexp.exec(html)){
+        response.licSchet=res[1];
+    };
+
+
+	// Если мы не в дебаге, то выходим.
+	if (!external.isDebugMode)
+	{
+		document.location="https://avtodor-tr.ru/account/logout";
+	}
+
+};
+main();

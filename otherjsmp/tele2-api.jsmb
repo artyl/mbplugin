@@ -1,0 +1,121 @@
+// Плагин для программы MobileBalance: http://mtsoft.ru/mobilebalance/
+//
+// Инструкция по использованию:
+// 1. зайти в настройки программы MobileBalance, перейти на закладку "Плагины: Операторы", добавить плагин.
+// 2. После этого перейти на закладку "Телефоны" и в качестве оператора выбрать оператора с названием, указанным ниже.
+//
+// FullName  : Tele2 api
+// ShortName : T2api
+// Version   : 18.06.2020
+// Icon      : 789CAD532DA8C250143E0F5E31080B83D581618F056141EBE00583F0C06235D9865530894D64C13010C12C68B50D8345C3FA82C16A90051141C7E6DF39CF5DAE6F4E1EBCF7C11776EE77CE3DDF39BB9F5FF97720E46FFCB851B8F30DE4EF83FB398FCBE5F267FABE0F994C060A85029CCF678AD56A358ABDE2683422EDE170A05E645966F9BAAEC79BFD01CBB2487B3C1EE95B5114963F180CC0300CEAA35AAD42A5528172B90CB95C0E5455A5BB86C361623E72329940B3D9846EB70BBD5E0F1CC7A1386A4EA713D326E5E35C70263C168B456C7E49F948BC07FBE7B15C2E1F346118422A95225FCFF68335F91A8220D0CCF16C3C1E93CF76BB4D1E77BB1DF3C6F78231DE4BBD5EA7F833341A0D9A99A669502A95C81F6AB7DB2DF519017B984EA7D0E974683FD96C96CE716FA669329DE779AC0FFEBF705D37E613678E75715711B01ECE68BD5E8324492F771131080210459169E7F379CCE766B379F92E56AB15A4D369D2CE66B387DC56ABF5ABB7B5DFEFA1DFEF9357DC6FB15804DBB6FFE5DD22AF62AEE146
+// Author    : comprech & y-greek & Arty
+// Types     : comprech & y-greek & Arty
+// Descript  : Tеле2 через api, которое нашёл comprech. Добавил получение списка услуг.
+// Descript  : Нет привязки к региону (?)
+
+function main() {
+	var p = 0;
+	
+	// alert!
+	function alert(s){ window.alert(s); }
+	
+	// возвращает object из строки json
+	function json(str) {
+		try { var obj = eval('(' + str + ')'); }
+		catch(e) { obj = str;  }
+		return obj;
+	}
+	
+	//Проверяет существование переменной
+	function isset (variable) {
+		if(typeof(variable) != "undefined" && variable !== null)
+		{
+			return true;
+		}
+		return false;
+	}
+	
+	// аргументы 3, 4... - Headers. Каждый header - массив из двух элементов ['headerName', 'headerValue']
+	function post(uri, data) {
+		xmlhttp = external.getXmlHttp();
+		xmlhttp.open("POST", uri, false);
+		for(var i=2; i<arguments.length; i++) xmlhttp.setRequestHeader(arguments[i][0], arguments[i][1]);
+		xmlhttp.send(data);
+		response.pages[p++] = xmlhttp.responseText;
+		var tmp = xmlhttp.responseText;
+		xmlhttp.abort();
+		return tmp;
+	}
+	
+	// аргументы 3, 4... - Headers. Каждый header - массив из двух элементов ['headerName', 'headerValue']
+	function get(uri, data) {
+		xmlhttp = external.getXmlHttp();
+		xmlhttp.open("GET", uri, false);
+		for(var i=2; i<arguments.length; i++) xmlhttp.setRequestHeader(arguments[i][0], arguments[i][1]);
+		xmlhttp.send(data);
+		response.pages[p++] = xmlhttp.responseText;
+		var tmp = xmlhttp.responseText;
+		xmlhttp.abort();
+		return tmp;
+	}
+	
+	// Получаем token который используется дальше в api запросах
+	var uri = 'https://sso.tele2.ru/auth/realms/tele2-b2c/protocol/openid-connect/token?msisdn=7' + request.loginValue + '&action=auth&authType=pass';
+	var body = 'username=7' + request.loginValue + '&password=' + request.passwValue + '&grant_type=password&client_id=android-app&password_type=password';
+	jsonToken = post(uri, body, ['Tele2-User-Agent', 'mytele2-app/3.17.0; unknown; Android/9; Build/12998710'], ['User-Agent', 'okhttp/4.2.0'], ['X-API-Version', '1'], ['Content-Type', 'application/x-www-form-urlencoded']);
+	oToken = json(jsonToken);
+	var token = oToken.access_token;
+	
+	var apiURL = 'https://api.tele2.ru/api/subscribers/7' + request.loginValue + '/';
+	function api(item) {
+		res = get(apiURL + item, '', ['Accept', '*/*'], ['X-Requested-With', 'XMLHttpRequest'], ['Referer', 'https://api.tele2.ru/'], ['Authorization:', 'Bearer ' + token]);
+		return json(res).data
+	}
+	
+	// Баланс
+	oBalance = api('balance');
+	response.Balance = oBalance.value;
+	
+	// Тариф
+	oTariff = api('tariff');
+	response.TarifPlan = oTariff.frontName;
+	
+	// ФИО
+	oProfile = api('profile');
+	response.UserName = oProfile.fullName;
+	siteId = oProfile.siteId; // регион 
+	
+	// Услуги
+	oConnected = api(siteId + '/services?status=connected');
+	paid_sum = oTariff.currentAbonentFee.amount*(oTariff.period=='day'?30:1)
+	free=0; paid=0;
+	for(var i=0; i<oConnected.length; i++){
+		af = oConnected[i].abonentFee
+		fee = af.amount*(af.period=='day'?30:1)
+		if(fee > 0){ free++; } else{ paid++; paid_sum += fee; }
+	}
+	response.UslugiOn=free + '/' + paid + '(' + paid_sum + ')';
+
+	// Остатки
+	oRests = api('rests');
+	//alert(jsonRests);
+	if (oRests.rests.length>0){ // данные есть
+		response.Min = 0
+		response.Internet = 0
+		response.BlockStatus = ''
+		for(var i=0;i<oRests.rests.length;i++){
+			//console.log(i,oRests.rests[i].uom,oRests.rests[i].remain)
+			if(oRests.rests[i].uom=='min'){response.Min += oRests.rests[i].remain}
+			if(oRests.rests[i].uom=='mb'){response.Internet += oRests.rests[i].remain}
+			if(oRests.rests[i].uom=='service') {alert(oRests.rests[i].uom)}
+			if ( isset (oRests.rests[i].service.billingServiceStatus) ) 
+			{
+				response.BlockStatus = oRests.rests[i].service.billingServiceStatus
+			}
+		}
+	}
+	
+};
+
+main();
+

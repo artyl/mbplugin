@@ -1,0 +1,130 @@
+// Плагин для программы MobileBalance: http://mtsoft.ru/mobilebalance/
+//
+// Инструкция по использованию:
+// 1. зайти в настройки программы MobileBalance, перейти на закладку "Плагины: Операторы", добавить плагин.
+// 2. После этого перейти на закладку "Телефоны" и в качестве оператора выбрать оператора с названием, указанным ниже.
+//
+// FullName  : Мегафон
+// ShortName : MgfBal
+// Version   : 10.07.2019
+// Icon      : 789C73F235636100033320D600620128666450804840E591C1FFFFFFB1E237DF1F32CCBF91C7B0F66E13C3D3AFD771AA43C63FFE7C6688D8C5CC10B69381E1FCEB6D601A19171ED1C0A9F7CCAB4D286AB1E987E15B1F8EA1E9FF87A1069F7E10FEF7FF2F5C7FDC5E1E9CFA41F265C7F4C1EA57DDA963C838280516CB3C2803D78FCD7C64FDFD1743C1F4D9D79B196A4E5AC0F5806850D8E2D38F0F5F7EBB8761F59D7AAC725B1FF4E1751F084FBF92C8B0FDD124BC76E0D33FE95214C3B73F1F71EA8BDDC385573FC88FB8E441E2317B38F0EA87F96FF2A56892DD0F731BA130C225F7EFFF1F14FDBFFE7E235AFFA5B7BB71E683C5378B71EA8FD9C389926E09E10B6F7680E9EBEF0FE1540300F7C7D83E
+// Author    : leha3d (Pasha edit)
+// Types     : leha3d (Pasha edit)
+// Descript  : Баланс у сотового оператора Мегафон после изменений в ноябре 2018г.
+// Descript  : Личный кабинет: https://lk.megafon.ru/login/
+
+function main(){
+	var p = 0;
+	// Заходим на главную страницу
+	document.location="https://lk.megafon.ru/login/";
+	if(!external.WaitBrowser) return;
+	response.pages[p++]=external.source;
+
+	// Вводим логин и пароль и submit форму
+	if(document.all.j_username) {
+		document.all.j_username.value=request.loginValue;
+		document.all.j_password.value=request.passwValue;
+		document.all.j_password.form.submit();
+		if(!external.WaitBrowser) return;
+	};
+
+//	external.sleep(1000);
+
+	// Баланс
+	xmlhttp = external.getXmlHttp()
+	xmlhttp.open('GET', 'https://lk.megafon.ru/api/lk/main/atourexpense', false);
+	xmlhttp.send(null);
+	html=xmlhttp.responseText;
+	regexp=/balance..(.*?)}/;
+	if (res=regexp.exec(html)){
+		tmp=res[0].replace(/balance..|}/gm, "");
+		tmp=tmp.replace(",", "."); // Заменяем запятую на точку
+		response.Balance=tmp;
+	};
+
+	// Предоставленный лимит
+	regexp=/limit..(.*?),/;
+	if (res=regexp.exec(html)){
+		tmp=res[0].replace(/limit..|,/gm, "");
+		tmp=tmp.replace(",", "."); // Заменяем запятую на точку
+		response.KreditLimit=parseFloat(tmp);
+	};
+
+	// ФИО
+	xmlhttp = external.getXmlHttp()
+	xmlhttp.open('GET', 'https://lk.megafon.ru/api/profile/name', false);
+	xmlhttp.send(null);
+	html=xmlhttp.responseText;
+	regexp=/name..(.*?)}/;
+	if (res=regexp.exec(html)){
+		tmp=res[0].replace(/name...|"}/gm, "");
+		tmp=tmp.replace(",", "."); // Заменяем запятую на точку
+		response.UserName=tmp;
+	};
+
+	// Тариф
+	xmlhttp = external.getXmlHttp()
+	xmlhttp.open('GET', 'https://lk.megafon.ru/api/tariff/current', false);
+	xmlhttp.send(null);
+	html=xmlhttp.responseText;
+	regexp=/nameHtml...(.*?)"/;
+	if (res=regexp.exec(html)){
+		tmp=res[0].replace(/nameHtml...|"/gm, "");
+//		tmp=res[0].replace(/&nbsp;/g, " ");
+		tmp=tmp.replace(",", "."); // Заменяем запятую на точку
+		response.TarifPlan=tmp;
+	};
+
+	// Количество услуг
+	xmlhttp = external.getXmlHttp()
+	xmlhttp.open('GET', 'https://lk.megafon.ru/api/lk/mini/options', false);
+	xmlhttp.send(null);
+	html=xmlhttp.responseText;
+	regexp=/free..(.*?),/;
+	if (res=regexp.exec(html)){
+		free=res[0].replace(/free..|,/gm, "");
+	};
+	regexp=/paid..(.*?)}/;
+	if (res=regexp.exec(html)){
+		paid=res[0].replace(/paid..|}/gm, "");
+		response.UslugiOn=free + '/' + paid;
+	};
+
+	//Остатки
+	xmlhttp = external.getXmlHttp()
+	xmlhttp.open('GET', 'https://lk.megafon.ru/api/options/remaindersMini', false);
+	xmlhttp.send(null);
+	html=xmlhttp.responseText;
+	// Минуты
+	regexp=/unit":"мин(.*?)"},"availableValue":{"value":(.*?),"unit":"мин/;
+	if (res=regexp.exec(html)){
+		tmp=res[0].replace(/unit.:.мин(.*?).},.availableValue.:{.value.:|,.unit.:.мин/gm, "");
+		response.Min=parseFloat(tmp);
+	};
+	// Интернет
+	regexp=/unit":"ГБ"},"availableValue":{"value":(.*?),"unit":"ГБ/;
+	if (res=regexp.exec(html)){
+		tmp=res[0].replace(/unit.:.ГБ.},.availableValue.:{.value.:|,.unit.:.ГБ/gm, "");
+		response.Internet=parseFloat(tmp);
+	} else if (tmp = "0") {
+		regexp=/unit":"МБ"},"availableValue":{"value":(.*?),"unit":"МБ/;
+		res=regexp.exec(html)
+		tmp=res[0].replace(/unit.:.МБ.},.availableValue.:{.value.:|,.unit.:.МБ/gm, "");
+		tmp=tmp/1000
+		tmp=Math.floor(tmp*100)/100
+		response.Internet=parseFloat(tmp);
+	};
+	// SMS
+	regexp=/unit":"шту(.*?)"},"availableValue":{"value":(.*?),"unit":"шту(.*?)/;
+	if (res=regexp.exec(html)){
+		tmp=res[0].replace(/unit.:.шту(.*?).},.availableValue.:{.value.:|,.unit.:.шту(.*?)/gm, "");
+		response.SMS=parseFloat(tmp);
+	};
+
+	// Выходим
+	external.sleep(300);
+	document.location="https://lk.megafon.ru/logout/";
+	if(!external.WaitBrowser) return;
+
+};
+main();

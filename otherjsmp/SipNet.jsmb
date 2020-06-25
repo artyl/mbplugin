@@ -1,0 +1,82 @@
+// Плагин для программы MobileBalance: http://mtsoft.ru/mobilebalance/
+//
+// Инструкция по использованию:
+// 1. зайти в настройки программы MobileBalance, перейти на закладку "Плагины: Операторы", добавить плагин.
+// 2. После этого перейти на закладку "Телефоны" и в качестве оператора выбрать оператора с названием, указанным ниже.
+//
+// FullName  : VoIP оператор SipNet
+// ShortName : SipNet
+// Version   : 07.06.2020 v2
+// Icon      : 789C73F2FDC600016540AC01C40250CCC8C002166F0062616E08166040060D10C9860608058240C6810307803448E43F1831FCFF0FA140102404E2E3007FCE43089CF49933E7A1FC337869A83A5C00009F949135
+// Author    : MTSoft Исправил ArtyLa
+// Types     : MTSoft
+// Descript  : Текущий баланс у оператора IP-телефонии SipNet
+// Descript  : Сайт оператора: https://customer.sipnet.ru/
+// Descript  : Личный кабинет: https://customer.sipnet.ru/index.m
+
+function main(){
+    var p = 0;
+    // Заходим на главную страницу
+    document.location="https://www.sipnet.ru/cabinet-login";
+    if(!external.WaitBrowser) return;
+    response.pages[p++]=external.source;
+    // Вводим логин и пароль и submit форму
+    if(document.getElementById("login-field")){
+            document.getElementById("login-field").value=request.loginValue;
+            document.getElementById("password-field").value=request.passwValue;
+            document.getElementById("login-form-submit").click();
+
+            if(!external.WaitBrowser) return;
+            response.pages[p++]=external.source;
+    };
+	xmlhttp = external.getXmlHttp()
+	xmlhttp.open('GET', "https://www.sipnet.ru/cabinet-login", false);
+	xmlhttp.send(null);
+	if(xmlhttp.status == 200)
+	{
+		 external.SaveStrToLogFile(xmlhttp.responseText);
+	}    
+ 
+	// Забираем информацию
+	html=document.documentElement.outerHTML;
+	html=xmlhttp.responseText
+	// Преобразуем в одну стрку и удаляем лишние пробелы
+	html = html.replace(/\r|\n/g, "").replace(/>\s+/g, ">");
+
+    // Баланс
+    balanceParsed=false;
+    regexp=/Баланс.*?>.*?>.*?>(.*?) /i;
+    if (res=regexp.exec(html)){
+        tmpBalance=res[1].replace(/ |\xA0/, ""); // Удаляем пробелы
+        tmpBalance=tmpBalance.replace(",", "."); // Заменяем запятую на точку
+        response.Balance=parseFloat(tmpBalance);
+        balanceParsed=true;
+    };
+
+    // ФИО
+    regexp=/user-full-name.*?>.*?>(.*?)</;
+    if (res=regexp.exec(html)){
+        response.userName=res[1];
+    };
+
+    // SIP-ID (LicSchet)
+    regexp=/SIP ID.*?>.*?>(.*?)</i;
+    if (res=regexp.exec(html)){
+        response.licSchet=res[1];
+    };
+
+    // Тарифный план
+    regexp=/status-work.*?>.*?>.*?>(.*?)</i;
+    if (res=regexp.exec(html)){
+        response.tarifPlan=res[1];
+    };
+    
+
+	// Если мы не в дебаге, то выходим.
+	if (!external.isDebugMode)
+	{
+		document.location="https://www.sipnet.ru/cabinet/?CabinetAction=logout";
+	}
+
+};
+main();
