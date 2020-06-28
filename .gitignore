@@ -7,7 +7,7 @@ BalanceHistory.sqlite
 balance.html
 plugin/personalsetting.py
 mbplugin*.zip
-python-3.8.3-embed-win32_TKINTER.zip
+python-*.zip
 dllplugin
 jsmblhplugin
 httpserver

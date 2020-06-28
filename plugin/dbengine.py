@@ -187,6 +187,8 @@ class dbengine():
         rows = self.cur.execute(reportsql)
         headers = list(zip(*rows.description))[0]
         data = rows.fetchall()
+        # округляем float до 2х знаков
+        data = [tuple([(round(i, 2) if type(i) == float else i) for i in line]) for line in data]
         return headers,data
 
     def check_and_add_addition(self):

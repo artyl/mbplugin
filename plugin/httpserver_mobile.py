@@ -10,6 +10,12 @@ except ModuleNotFoundError:
 
 lang='p' # Для плагинов на python преффикс lang всегда 'p'
 
+HTML_NO_REPORT = '''Для того чтобы были доступны отчеты необходимо в mbplugin.ini включить запись результатов в sqlite базу<br>
+sqlitestore = 1<br>Также можно настроить импорт из базы BalanceHistory.mdb включив <br>
+createhtmlreport = 1<br>
+После включения, запустите mbplugin\setup_and_check.bat
+'''
+
 def find_ini_up(fn):
     allroot = [os.getcwd().rsplit('\\',i)[0] for i in range(len(os.getcwd().split('\\')))]
     all_ini = [i for i in allroot if os.path.exists(os.path.join(i,fn))]
@@ -125,8 +131,7 @@ def getreport(param=[]):
                 el = ''
             if he != 'Balance' and (el == 0.0 or el == 0):
                 el = ''
-            html_line.append(
-                f'<{"th" if he=="NN" else "td"} id="{he}"{mark}>{el}</td>')
+            html_line.append(f'<{"th" if he=="NN" else "td"} id="{he}"{mark}>{el}</td>')
         html_table.append(f'<tr id="row" class="n">{"".join(html_line)}</tr>')
     res = template.format(style=style, html_header=html_header, html_table='\n'.join(html_table))
     return 'text/html', [res]
@@ -287,7 +292,11 @@ class WebServer():
         if cmd.lower() == 'getbalance':
             ct, text = getbalance(param)  # TODO !!! Но правильно все-таки через POST
         if cmd == '' or cmd == 'report': # report
-            ct, text = getreport(param)
+            options = store.read_ini()['Options']
+            if options['sqlitestore'] == '1':
+                ct, text = getreport(param)
+            else:
+                ct, text = 'text/html', HTML_NO_REPORT
         if cmd == 'exit': # exit cmd
             self.cmdqueue.put('STOP')
             text = ['exit']
