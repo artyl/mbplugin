@@ -2,10 +2,6 @@
 ''' Автор ArtyLa '''
 import time, os, sys, logging, traceback
 import xml.etree.ElementTree as etree
-
-pluginpath = os.path.split(os.path.abspath(sys.argv[0]))[0]
-if pluginpath not in sys.path:
-    sys.path.append(pluginpath)
 import dbengine, store, settings, httpserver_mobile
 
 lang = 'p'  # Для плагинов на python преффикс lang всегда 'p'
@@ -54,8 +50,7 @@ def main():
     # Запуск плагина
     logging.info(f'Start {lang} {plugin} {login}')
     try:
-        result = module.get_balance(
-            login, password, f'{lang}_{plugin}_{login}')
+        result = module.get_balance(login, password, f'{lang}_{plugin}_{login}')
     except Exception:
         exception_text = f'Ошибка при вызове модуля \n{plugin}: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)

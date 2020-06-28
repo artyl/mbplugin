@@ -4,18 +4,20 @@ import os, sys, re, logging
 import requests
 import store, settings
 
+icon = '789CAD532DA8C250143E0F5E31080B83D581618F056141EBE00583F0C06235D9865530894D64C13010C12C68B50D8345C3FA82C16A90051141C7E6DF39CF5DAE6F4E1EBCF7C11776EE77CE3DDF39BB9F5FF97720E46FFCB851B8F30DE4EF83FB398FCBE5F267FABE0F994C060A85029CCF678AD56A358ABDE2683422EDE170A05E645966F9BAAEC79BFD01CBB2487B3C1EE95B5114963F180CC0300CEAA35AAD42A5528172B90CB95C0E5455A5BB86C361623E72329940B3D9846EB70BBD5E0F1CC7A1386A4EA713D326E5E35C70263C168B456C7E49F948BC07FBE7B15C2E1F346118422A95225FCFF68335F91A8220D0CCF16C3C1E93CF76BB4D1E77BB1DF3C6F78231DE4BBD5EA7F833341A0D9A99A669502A95C81F6AB7DB2DF519017B984EA7D0E974683FD96C96CE716FA669329DE779AC0FFEBF705D37E613678E75715711B01ECE68BD5E8324492F771131080210459169E7F379CCE766B379F92E56AB15A4D369D2CE66B387DC56ABF5ABB7B5DFEFA1DFEF9357DC6FB15804DBB6FFE5DD22AF62AEE146'
+
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    def check_or_get_bearer(session):
+    def check_or_get_bearer():
         '''Проверяем если сессия отдает баланс, то ок, если нет, то логинимся заново'''
+        session = store.load_or_create_session(storename, headers = headers)
         if 'Authorization' in session.headers:
-            response1 = session.get(
-                f'https://api.tele2.ru/api/subscribers/7{login}/balance')
+            response1 = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/balance')
             if response1.status_code == 200:
                 logging.info('Old session bearer ok')
                 return session
-        response2 = session.post(
-            f'https://sso.tele2.ru/auth/realms/tele2-b2c/protocol/openid-connect/token?msisdn=7{login}&action=auth&authType=pass', data=data)
+        session = store.drop_and_create_session(storename, headers = headers) # TODO непонятно как лучше рубить концы или нет
+        response2 = session.post(f'https://sso.tele2.ru/auth/realms/tele2-b2c/protocol/openid-connect/token?msisdn=7{login}&action=auth&authType=pass', data=data)
         if response2.status_code == 200:
             logging.info('New bearer is ok')
             bearer = response2.json()['access_token']
@@ -39,11 +41,7 @@ def get_balance(login, password, storename=None):
         'password': password,
         'grant_type': 'password', 'client_id': 'android-app', 'password_type': 'password'
     }
-    session = store.load_session(storename)
-    if session is None:
-        session = requests.Session()
-        session.headers.update(headers)
-    session = check_or_get_bearer(session)
+    session = check_or_get_bearer()
     response_b = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/balance')
     result['Balance'] = get_data(response_b).get('value')  # баланс
     response_t = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/tariff')

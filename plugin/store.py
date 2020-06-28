@@ -1,10 +1,6 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
 import os, sys, re, json, pickle, requests, configparser
-
-pluginpath = os.path.split(os.path.abspath(sys.argv[0]))[0]
-if pluginpath not in sys.path:
-    sys.path.append(pluginpath)
 import settings
 
 
@@ -16,22 +12,32 @@ def save_session(storename, session):
         pickle.dump(session, f)
 
 
-def load_session(storename):
-    'Загружаем сессию из файла'
+def load_or_create_session(storename, headers=None):
+    'Загружаем сессию из файла или создаем новую'
     options = read_ini()['Options']
     storefolder = options.get('storefolder', settings.storefolder)     
     try:
         with open(os.path.join(storefolder, storename), 'rb') as f:
             return pickle.load(f)
     except Exception:
-        return None  # return empty
+        session = requests.Session()
+        if headers:
+            session.headers.update(headers)
+        return session  # return new session
 
-def drop_session(storename):
-    'удаляем сессию'
+
+def drop_and_create_session(storename, headers=None):
+    'удаляем сессию и создаем новую'
     options = read_ini()['Options']
     storefolder = options.get('storefolder', settings.storefolder)    
-    os.remove(os.path.join(storefolder, storename))
-
+    try:
+        os.remove(os.path.join(storefolder, storename))
+    except Exception:
+        pass
+    session = requests.Session()
+    if headers:
+        session.headers.update(headers)
+    return session  # return new session
 
 def find_files_up(fn):
     'Ищем файл вверх по дереву путей'

@@ -10,10 +10,6 @@ set up some constants
 
 '''
 import time, os, sys, re, logging, traceback, pyodbc, sqlite3, datetime
-
-pluginpath = os.path.split(os.path.abspath(sys.argv[0]))[0]
-if pluginpath not in sys.path:
-    sys.path.append(pluginpath)
 import settings, store
 
 DB_SCHEMA = '''

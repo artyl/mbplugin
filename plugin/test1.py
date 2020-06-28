@@ -8,9 +8,7 @@ def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     result = {}
     ini = store.read_ini()
-    session = store.load_session(storename)
-    if session is None:  # Сессия не сохранена - создаем
-        session = requests.Session()
+    session = store.load_or_create_session(storename)
     result = {'Balance': 124.45,  # double
             'Balance2': 22,  # double
             'Balance3': 33,  # double

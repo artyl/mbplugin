@@ -5,19 +5,18 @@ import requests
 import store, settings
 
 interUnit = 'GB'
-
+icon = '789C73F235636100033320D600620128666450804840E591C1FFFFFFB1E237DF1F32CCBF91C7B0F66E13C3D3AFD771AA43C63FFE7C6688D8C5CC10B69381E1FCEB6D601A19171ED1C0A9F7CCAB4D286AB1E987E15B1F8EA1E9FF87A1069F7E10FEF7FF2F5C7FDC5E1E9CFA41F265C7F4C1EA57DDA963C838280516CB3C2803D78FCD7C64FDFD1743C1F4D9D79B196A4E5AC0F5806850D8E2D38F0F5F7EBB8761F59D7AAC725B1FF4E1751F084FBF92C8B0FDD124BC76E0D33FE95214C3B73F1F71EA8BDDC385573FC88FB8E441E2317B38F0EA87F96FF2A56892DD0F731BA130C225F7EFFF1F14FDBFFE7E235AFFA5B7BB71E683C5378B71EA8FD9C389926E09E10B6F7680E9EBEF0FE1540300F7C7D83E'
 
 def get_balance(login, password, storename=None):
     result = {}
     pages = []
-    session = store.load_session(storename)
-    if session is None:  # Сессия не сохранена - создаем
-        session = requests.Session()
+    session = store.load_or_create_session(storename)
     response3 = session.get('https://lk.megafon.ru/api/lk/main/atourexpense')
     if 'json' in response3.headers.get('content-type') and 'balance' in response3.text:
         logging.info('Old session is ok')
     else:  # Нет, логинимся
         logging.info('Old session is bad, relogin')
+        session = store.drop_and_create_session(storename)
         response1 = session.get('https://lk.megafon.ru/login/')
         if response1.status_code != 200:
             raise RuntimeError(f'GET Login page error: status_code {response1.status_code}!=200')

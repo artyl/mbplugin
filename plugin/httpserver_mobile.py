@@ -2,10 +2,6 @@
 ''' Автор ArtyLa '''
 import os, sys, re, time, json, traceback, threading, logging, importlib, configparser, queue
 import wsgiref.simple_server, socketserver, socket, requests
-
-pluginpath = os.path.split(os.path.abspath(sys.argv[0]))[0]
-if pluginpath not in sys.path:
-    sys.path.append(pluginpath)
 import settings, store, dbengine  # pylint: disable=import-error
 try:
     import win32api, win32gui, win32con, winerror
@@ -268,7 +264,7 @@ class WebServer():
             if sock.connect_ex((self.host, self.port)) == 0:
                 logging.error(f"Port {self.host}:{self.port} already in use, try restart.")
                 try:
-                    requests.session().get(f'http://{self.host}:{self.port}/exit',timeout=1)
+                    requests.Session().get(f'http://{self.host}:{self.port}/exit',timeout=1)
                     time.sleep(1)  # Подождем пока серер остановится
                 except Exception:
                     pass
