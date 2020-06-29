@@ -64,8 +64,7 @@ def get_balance(login, password, storename=None):
 
     response7 = session.get('https://lk.megafon.ru/api/options/remaindersMini')
     if response7.status_code == 200 and 'json' in response7.headers.get('content-type'):
-        response7.json().get('remainders', {})
-        remainders = response7.json().get('remainders', [{}])[0].get('remainders', [])
+        remainders = sum([i.get('remainders', []) for i in response7.json().get('remainders', [])], [])
         minutes = [i['availableValue'] for i in remainders if i['unit'].startswith('мин')]
         if len(minutes) > 0:
             result['Min'] = sum([i['value'] for i in minutes])
