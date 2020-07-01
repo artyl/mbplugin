@@ -71,4 +71,4 @@ def get_balance(login, password, storename=None):
 
 
 if __name__ == '__main__':
-    print('This is module megafon')
+    print('This is module danycom')

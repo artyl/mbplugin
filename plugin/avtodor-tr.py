@@ -29,7 +29,7 @@ def get_balance(login, password, storename=None):
         if response1.status_code != 200:
             raise RuntimeError(f'POST Login page {url} error: status_code {response1.status_code}')
     bal = re.search(re_balance, response1.text).group(1).replace(',', '.').strip()
-    result['Balance'] = re.sub('(?usi)[^\d.,]', '', bal)
+    result['Balance'] = re.sub(r'(?usi)[^\d.,]', '', bal)
     
     try:
         result['userName'] = re.search(re_userName, response1.text).group(1).replace('&nbsp;', '').strip()

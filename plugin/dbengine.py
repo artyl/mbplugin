@@ -194,12 +194,12 @@ class dbengine():
     def check_and_add_addition(self):
         'Создаем таблицы, добавляем новые поля, и нужные индексы если их нет'
         self.cur.execute(DB_SCHEMA)
-        for idx in addition_indexes:
-            self.cur.execute(f"CREATE INDEX IF NOT EXISTS {idx}")
         for k,v in addition_phone_fields.items():
             self.cur.execute("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('phones') WHERE name=?",[k])
             if self.cur.fetchall()[0][0] == 0:
                 self.cur.execute(f"ALTER TABLE phones ADD COLUMN {k} {v}")
+        for idx in addition_indexes:
+            self.cur.execute(f"CREATE INDEX IF NOT EXISTS {idx}")
         self.conn.commit()            
 
 class mdbengine():
@@ -253,17 +253,17 @@ def update_sqlite_from_mdb_core(deep=None):
     #db.cur.execute("update phones set QueryDateTime=datetime(QueryDateTime) where datetime(QueryDateTime)<>QueryDateTime"); 
     #db.conn.commit()
     logging.debug(f'Read from sqlite QueryDateTime>{dd}')
-    db.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd]); 
+    db.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd]);
     sqldata = db.cur.fetchall()
-    dsqlite = {datetime.datetime.strptime(i[3].split('.')[0],'%Y-%m-%d %H:%M:%S').timestamp():i for i in sqldata}
+    dsqlite = {datetime.datetime.strptime(i[db.phoneheader.index('QueryDateTime')].split('.')[0],'%Y-%m-%d %H:%M:%S').timestamp():i for i in sqldata}
     # теперь все то же самое из базы MDB
     logging.debug(f'Read from mdb QueryDateTime>{dd}')
     mdb.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd]); 
     mdbdata = mdb.cur.fetchall()
-    dmdb = {i[1].timestamp():i for i in mdbdata}
+    dmdb = {i[mdb.phoneheader.index('QueryDateTime')].timestamp():i for i in mdbdata}
     logging.debug('calculate')
     # Строим общий список timestamp всех данных
-    allt=sorted(set(list(dsqlite)+list(dmdb))) 
+    allt = sorted(set(list(dsqlite)+list(dmdb)))
     # обрабарываем и составляем пары данных которые затем будем подправлять
     pairs = [] # mdb timestamp, sqlite timestamp
     while allt:
