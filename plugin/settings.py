@@ -11,6 +11,7 @@ UNIT = {'TB': 1073741824, 'ТБ': 1073741824, 'TByte': 1073741824,
 # Раздел mbplugin.ini [Options]
 # logging
 loggingformat = u'[%(asctime)s] %(levelname)s %(funcName)s %(message)s'
+loggingfolder = "..\\log"
 loggingfilename = "..\\log\\mbplugin.log"
 logginghttpfilename = "..\\log\\http.log"
 logginglevel='INFO'
@@ -40,3 +41,7 @@ port = '19777'
 host = '127.0.0.1'
 # формат вывода по умолчанию
 table_format = 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus' # ? UserName
+# спецвариант по просьбе Mr. Silver в котором возвращаются не остаток интернета, а использованный
+# 1 - показывать использованный трафик (usedByMe) по всем  или 0 - показывать оставшийся трафик (NonUsed) по всем
+# список тел, через запятую - показать использованный только для этого списка телефонов
+mts_usedbyme  = '0'

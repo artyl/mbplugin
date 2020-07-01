@@ -9,28 +9,24 @@ icon = '789C73F235636100033320D600620128666450804840E591C1FFFFFFB1E237DF1F32CCBF
 
 def get_balance(login, password, storename=None):
     result = {}
-    pages = []
-    session = store.load_or_create_session(storename)
+    session = store.Session(storename)
     response3 = session.get('https://lk.megafon.ru/api/lk/main/atourexpense')
     if 'json' in response3.headers.get('content-type') and 'balance' in response3.text:
         logging.info('Old session is ok')
     else:  # Нет, логинимся
         logging.info('Old session is bad, relogin')
-        session = store.drop_and_create_session(storename)
+        session.drop_and_create()
         response1 = session.get('https://lk.megafon.ru/login/')
         if response1.status_code != 200:
             raise RuntimeError(f'GET Login page error: status_code {response1.status_code}!=200')
-        pages.append(response1.text)
         csrf = re.search('(?usi)name="CSRF" value="([^\"]+)"', response1.text)
         data = {'CSRF': csrf, 'j_username': f'+7{login}', 'j_password': password}
         response2 = session.post('https://lk.megafon.ru/dologin/', data=data)
         if response2.status_code != 200:
             raise RuntimeError(f'POST Login page error: status_code {response2.status_code}!=200')
-        pages.append(response2.text)
         response3 = session.get('https://lk.megafon.ru/api/lk/main/atourexpense')
         if response3.status_code != 200 or 'json' not in response3.headers.get('content-type'):
             raise RuntimeError(f'Get Balance page not return json: status_code={response2.status_code} {response3.headers.get("content-type")}')
-        pages.append(response3.text)
         if 'balance' not in response3.text:
             raise RuntimeError(f'Get Balance page not return balance: status_code={response2.status_code} {response3.text}')
 
@@ -76,7 +72,7 @@ def get_balance(login, password, storename=None):
         if len(sms) > 0:
             result['SMS'] = sum([i['value'] for i in sms])
 
-    store.save_session(storename, session)
+    session.save_session()
     return result
 
 

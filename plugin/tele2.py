@@ -10,18 +10,19 @@ def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     def check_or_get_bearer():
         '''Проверяем если сессия отдает баланс, то ок, если нет, то логинимся заново'''
-        session = store.load_or_create_session(storename, headers = headers)
+        session = store.Session(storename, headers = headers)
         if 'Authorization' in session.headers:
             response1 = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/balance')
             if response1.status_code == 200:
                 logging.info('Old session bearer ok')
                 return session
-        session = store.drop_and_create_session(storename, headers = headers) # TODO непонятно как лучше рубить концы или нет
+        session.drop_and_create(headers = headers) # TODO непонятно как лучше рубить концы или нет
         response2 = session.post(f'https://sso.tele2.ru/auth/realms/tele2-b2c/protocol/openid-connect/token?msisdn=7{login}&action=auth&authType=pass', data=data)
         if response2.status_code == 200:
             logging.info('New bearer is ok')
             bearer = response2.json()['access_token']
-            session.headers['Authorization'] = 'Bearer ' + bearer
+            # !!! TODO теперь session.session.headers подумать как лучше 
+            session.update_headers({'Authorization': 'Bearer ' + bearer})
             return session
         logging.error(
             f'Bearer get error {response2.status_code} for login {login}')
@@ -84,7 +85,7 @@ def get_balance(login, password, storename=None):
                 result['Internet'] += rest['remain']
             if 'billingServiceStatus' in rest.get('service', {}):
                 result['BlockStatus'] = rest['service']['billingServiceStatus']
-    store.save_session(storename, session)
+    session.save_session()
     return result
 
 

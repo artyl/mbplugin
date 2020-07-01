@@ -5,7 +5,7 @@ import settings
 
 
 def save_session(storename, session):
-    'Сохраняем сессию в файл'
+    'OBSOLETE, use store.Session Сохраняем сессию в файл' # TODO оставлены пока для совместимости в дальнейшем будут удалены 
     options = read_ini()['Options']
     storefolder = options.get('storefolder', settings.storefolder)    
     with open(os.path.join(storefolder, storename), 'wb') as f:
@@ -13,7 +13,7 @@ def save_session(storename, session):
 
 
 def load_or_create_session(storename, headers=None):
-    'Загружаем сессию из файла или создаем новую'
+    'OBSOLETE, use store.Session Загружаем сессию из файла или создаем новую'
     options = read_ini()['Options']
     storefolder = options.get('storefolder', settings.storefolder)     
     try:
@@ -27,7 +27,7 @@ def load_or_create_session(storename, headers=None):
 
 
 def drop_and_create_session(storename, headers=None):
-    'удаляем сессию и создаем новую'
+    'OBSOLETE, use store.Session удаляем сессию и создаем новую'
     options = read_ini()['Options']
     storefolder = options.get('storefolder', settings.storefolder)    
     try:
@@ -38,6 +38,68 @@ def drop_and_create_session(storename, headers=None):
     if headers:
         session.headers.update(headers)
     return session  # return new session
+
+class Session():
+    'Класс для сессии с дополнительными фишками для сохранения и проверки'
+    def __init__(self, storename, headers=None):
+        self.storename = storename
+        self.options = read_ini()['Options']
+        self.storefolder = self.options.get('storefolder', settings.storefolder)     
+        self.pagecounter = 1  # Счетчик страниц для сохранения
+        self.headers = headers
+        try:
+            with open(os.path.join(self.storefolder, self.storename), 'rb') as f:
+                self.session = pickle.load(f)
+                self.headers = self.session.headers
+        except Exception:
+            self.session = requests.Session()
+            if self.headers:
+                self.session.headers.update(self.headers)
+
+    def update_headers(self, headers):
+        self.headers.update(headers)
+        self.session.headers.update(self.headers)
+
+    def drop_and_create(self, headers=None):
+        'удаляем сессию и создаем новую'
+        try:
+            os.remove(os.path.join(self.storefolder, self.storename))
+        except Exception:
+            pass
+        self.session = requests.Session()
+        if headers:
+            self.headers = headers
+        if self.headers:
+            self.session.headers.update(self.headers)
+
+    def save_session(self):
+        'Сохраняем сессию в файл'
+        with open(os.path.join(self.storefolder, self.storename), 'wb') as f:
+            pickle.dump(self.session, f)
+
+    def save_response(self, response):
+        'debug save response'
+        if self.options['logginglevel'] == 'DEBUG' and hasattr(response, 'content'):
+            fld = self.options.get('loggingfolder', settings.loggingfolder)
+            fn = os.path.join(fld, f'{self.storename}_{self.pagecounter}.html')
+            open(fn, mode='wb').write(response.content)
+            self.pagecounter += 1        
+
+    def get(self, *args, **kwargs):
+        response = self.session.get(*args, **kwargs)
+        self.save_response(response)
+        return response
+        
+    def post(self, *args, **kwargs):
+        response = self.session.post(*args, **kwargs)
+        self.save_response(response)
+        return response
+
+    def put(self, *args, **kwargs):
+        response = self.session.put(*args, **kwargs)
+        self.save_response(response)
+        return response
+
 
 def find_files_up(fn):
     'Ищем файл вверх по дереву путей'

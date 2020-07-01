@@ -19,9 +19,8 @@ def api(session, token, login, item):
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     result = {}
-    pages = ['']
     # Загружаем или создаем сессию
-    session = store.load_or_create_session(storename, headers = {'User-Agent': 'tiehttp', })
+    session = store.Session(storename, headers = {'User-Agent': 'tiehttp', })
     uri = 'https://my.beeline.ru/api/1.0/auth/auth?login=' + \
         login + '&password=' + password
     response1 = session.get(uri)
@@ -84,7 +83,7 @@ def get_balance(login, password, storename=None):
             if elem['unitType'] == 'SMS_MMS':
                 result['SMS'] += elem['currValue']
 
-    store.save_session(storename, session)
+    session.save_session()
     return result
 
 

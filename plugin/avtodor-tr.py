@@ -15,14 +15,14 @@ def get_balance(login, password, storename=None):
     logging.info(f'start get_balance {login}')
     result = {}
     url = 'https://avtodor-tr.ru/account/login'
-    session = store.load_or_create_session(storename)
+    session = store.Session(storename)
     response1 = session.get(url)
     if re.search(re_balance, response1.text):
         logging.info(f'Already logoned {login}')
     else:
         # Логинимся
         logging.info(f'relogon {login}')
-        session = store.drop_and_create_session(storename)
+        session.drop_and_create()
         # https://stackoverflow.com/questions/12385179/how-to-send-a-multipart-form-data-with-requests-in-python
         files = {"email": (None,login), "password": (None,password), "submit0": (None,'Подождите...'), "return_url": (None,''),}
         response1 = session.post(url, files=files)
@@ -40,7 +40,7 @@ def get_balance(login, password, storename=None):
     except Exception:
         logging.info(f'Not found licSchet')
     
-    store.save_session(storename, session)
+    session.save_session()
     return result
 
 

@@ -17,14 +17,14 @@ def get_balance(login, password, storename=None):
     logging.info(f'start get_balance {login}')
     result = {}
     url = 'https://www.sipnet.ru/cabinet/index'
-    session = store.load_or_create_session(storename)
+    session = store.Session(storename)
     response1 = session.get(url)
     if re.search(re_balance, response1.text):
         logging.info(f'Already logoned {login}')
     else:
         # Логинимся
         logging.info(f'relogon {login}')
-        session = store.drop_and_create_session(storename)
+        session.drop_and_create()
         data = {'CabinetAction': 'login','view': 'ru','Name': login,'Password':password,}
         response1 = session.post(url, data=data)
         if response1.status_code != 200:
@@ -40,7 +40,7 @@ def get_balance(login, password, storename=None):
     except Exception:
         logging.info(f'Not found licSchet')
     
-    store.save_session(storename, session)
+    session.save_session()
     return result
 
 

@@ -25,14 +25,14 @@ def get_balance(login, password, storename=None):
     logging.info(f'start get_balance {login}')
     result = {}
     url = 'https://user.smile-net.ru/newpa/?handler=Login'
-    session = store.load_or_create_session(storename)
+    session = store.Session(storename)
     response = session.get(url)
     if re.search(re_balance, response.text):
         logging.info(f'Already logoned {login}')
     else:
         # Логинимся
         logging.info(f'relogon {login}')
-        session = store.drop_and_create_session(storename)
+        session.drop_and_create()
         data = {'login': login,'password': password,}
         response = session.post(url, data=data)
         if response.status_code != 200:
@@ -45,7 +45,7 @@ def get_balance(login, password, storename=None):
     result.update(find_by_regexp(response.text, 'TarifPlan', re_tarifPlan))
     result.update(find_by_regexp(response.text, 'BlockStatus', re_BlockStatus))
    
-    store.save_session(storename, session)
+    session.save_session()
     return result
 
 

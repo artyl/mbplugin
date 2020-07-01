@@ -253,12 +253,12 @@ def update_sqlite_from_mdb_core(deep=None):
     #db.cur.execute("update phones set QueryDateTime=datetime(QueryDateTime) where datetime(QueryDateTime)<>QueryDateTime"); 
     #db.conn.commit()
     logging.debug(f'Read from sqlite QueryDateTime>{dd}')
-    db.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd]);
+    db.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd])
     sqldata = db.cur.fetchall()
     dsqlite = {datetime.datetime.strptime(i[db.phoneheader.index('QueryDateTime')].split('.')[0],'%Y-%m-%d %H:%M:%S').timestamp():i for i in sqldata}
     # теперь все то же самое из базы MDB
     logging.debug(f'Read from mdb QueryDateTime>{dd}')
-    mdb.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd]); 
+    mdb.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd])
     mdbdata = mdb.cur.fetchall()
     dmdb = {i[mdb.phoneheader.index('QueryDateTime')].timestamp():i for i in mdbdata}
     logging.debug('calculate')

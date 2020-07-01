@@ -8,7 +8,9 @@ def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     result = {}
     ini = store.read_ini()
-    session = store.load_or_create_session(storename)
+    ini['Options']
+    ini['Options']['logginglevel']
+    session = store.Session(storename)
     result = {'Balance': 124.45,  # double
             'Balance2': 22,  # double
             'Balance3': 33,  # double
@@ -32,7 +34,7 @@ def get_balance(login, password, storename=None):
             # 'ErrorMsg':	'Сообщение об ошибке', # Если оо есть в Reponce то это ошибка
             'UslugiOn': '2/8',
             }
-    store.save_session(storename, session)            
+    session.save_session()            
     return result
 
 

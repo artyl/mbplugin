@@ -11,19 +11,17 @@ icon = '789C73F2DDC6C20006DB8058038805A09891410122019567808A23400318313434402810
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     result = {}
-    pages = []
-    session = store.load_or_create_session(storename)
+    session = store.Session(storename)
     response2 = session.get('https://my.danycom.ru/User/GetBalance/')
     if 'json' in response2.headers.get('content-type'):
         logging.info('Old session is ok')
     else:  # Нет, логинимся
         logging.info('Old session is bad, relogin')
-        session = store.drop_and_create_session(storename)
+        session.drop_and_create()
         data = {'phone': login, 'email': '', 'password': password}
         response1 = session.post('https://my.danycom.ru/User/SignIn', data=data)
         if response1.status_code != 200:
             raise RuntimeError(f'GET Login page error: status_code {response1.status_code}!=200')
-        pages.append(response1.text)
         response2 = session.get('https://my.danycom.ru/User/GetBalance/')
         if response2.status_code != 200:
             raise RuntimeError(f'GET GetBalance status_code {response1.status_code}!=200')
@@ -66,7 +64,7 @@ def get_balance(login, password, storename=None):
         result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
         result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b, c in services])  
 
-    store.save_session(storename, session)
+    session.save_session()
     return result
 
 

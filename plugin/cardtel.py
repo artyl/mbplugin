@@ -11,14 +11,14 @@ icon = '789CB593CF4B146118C7BF61EECA2E9520DE749D50B6221044F1E0316F46467419B6123D
 def get_balance(login, password, storename=None):
     logging.info(f'start get_balance {login}')
     result = {}
-    session = store.load_or_create_session(storename)
+    session = store.Session(storename)
     # Проверяем залогинены ли ?
     response3 = session.get('https://my.cardtel.ru/home')
     if len(re.findall(re_balance, response3.content.decode('utf8'))) > 0:
         logging.info('Old session is ok')
     else:  # Нет, логинимся
         data = {'op': 'auth', 'login': login, 'pwd': password, 'red': '1', 'remember': 'false'}
-        session = store.drop_and_create_session(storename)
+        session.drop_and_create()
         response2 = session.post('https://my.cardtel.ru/process', data=data)
         if response3.status_code != 200:
             raise RuntimeError(
@@ -31,7 +31,7 @@ def get_balance(login, password, storename=None):
     if len(balance) == 0:
         raise RuntimeError(f'Balance not found on page')
     result['Balance'] = balance[0]
-    store.save_session(storename, session)
+    session.save_session()
     return result
 
 

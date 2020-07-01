@@ -9,11 +9,10 @@ icon = '789C73F235636100033320D600620128666450804840E5918182BCF2A0C04A8AAA38E574
 def get_balance(login, password, storename=None):
     result = {}
     cardno = login
-    session = requests.Session()
-    session.headers = {'X-Requested-With': 'XMLHttpRequest'}
+    session = store.Session(storename)
+    session.update_headers({'X-Requested-With': 'XMLHttpRequest'})
     cardtype = 'virtual-cards' if cardno.startswith('+') else 'cards'
-    response = session.get(
-        f'https://sodexo.gift-cards.ru/api/1/{cardtype}/{cardno}?limit=100&rid={random.randint(1000000000,9999999999)}')
+    response = session.get(f'https://sodexo.gift-cards.ru/api/1/{cardtype}/{cardno}?limit=100&rid={random.randint(1000000000,9999999999)}')
     data = response.json()['data']
     logging.debug(data)
     result['Balance'] = 0.001+data['balance']['availableAmount']

@@ -22,7 +22,7 @@ if not exist Scripts\pip.exe python get-pip.py
 ..\python\python -c "txt='''import os,sys\nsys.path.insert(0,os.path.split(sys.argv[0])[0])''';open('sitecustomize.py','w').write(txt)"
 
 @REM Находясь mbplugin\python выполнить 
-..\python\python -m pip install --upgrade requests pillow beautifulsoup4 pyodbc pyreadline pywin32
+..\python\python -m pip install --upgrade python-telegram-bot requests pillow beautifulsoup4 pyodbc pyreadline pywin32
 
 @REM К сожалению не нашел вменяемой инструкции по установке tkinter только переложить из установленного python
 @rem https://stackoverflow.com/questions/37710205/python-embeddable-zip-install-tkinter
