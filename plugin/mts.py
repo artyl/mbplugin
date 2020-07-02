@@ -147,8 +147,11 @@ def get_balance(login, password, storename=None):
         messaging = [i for i in counters if i['packageType'] == 'Messaging']
         if messaging != []:
             nonused = [i['amount'] for i in messaging[0] ['parts'] if i['partType'] == 'NonUsed']
-            if nonused != []:
+            usedbyme = [i['amount'] for i in messaging[0] ['parts'] if i['partType'] == 'UsedByMe']
+            if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
                 result['SMS'] = int(nonused[0])
+            if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
+                result['SMS'] = int(usedbyme[0])
         # Интернет
         internet = [i for i in counters if i['packageType'] == 'Internet']
         if internet != []:
