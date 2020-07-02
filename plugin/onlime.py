@@ -47,8 +47,9 @@ def get_balance(login, password, storename=None):
 
     try:
         result['licSchet'] =  response3.json().get('accountInfo', {})['AccountID']
+        result['Expired'] =  response3.json().get('accountInfo', {})['daysToLock']
     except Exception:
-        logging.info(f'Not found licSchet')
+        logging.info(f'Not found licSchet and Expired')
 
     try:
         result['anyString'] =  'Статус: ' + response3.json().get('bonusAccount', {})['tier']
