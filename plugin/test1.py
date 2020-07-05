@@ -7,10 +7,6 @@ import store
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     result = {}
-    logging.info(f'TEST TEST TEST ')
-    import pickle
-    logging.info(f'TTTTT {repr(pickle.dumps(login))} {repr(pickle.dumps(password))}')
-    logging.info(f'BBBBB {login} {password}')
     ini = store.read_ini()
     ini['Options']
     ini['Options']['logginglevel']

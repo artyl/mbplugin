@@ -1,7 +1,7 @@
 # -*- coding: utf8 -*- 
 ''' Автор ArtyLa '''
 import os, sys, re, time, json, traceback, threading, logging, importlib, configparser, queue
-import wsgiref.simple_server, socketserver, socket, requests
+import wsgiref.simple_server, socketserver, socket, requests, urllib.parse
 import settings, store, dbengine  # pylint: disable=import-error
 try:
     import win32api, win32gui, win32con, winerror
@@ -23,33 +23,45 @@ def find_ini_up(fn):
         return all_ini[0]
     
 
-def getbalance(param):
+def getbalance(method, param_source):
     'fplugin, login, password, date'
-    try: 
-        if len(param) != 4:
-            return 'text/html', [f'<html>Unknown call - use getbalance/plugin/login/password/date</html>']
-        fplugin,login,password,date = param
-        logging.info(f'Start {fplugin} {login}')
+    try:
+        param = {}
+        if method == 'url':
+            if len(param_source) != 4:
+                return 'text/html', [f'<html>Unknown call - use getbalance/plugin/login/password/date</html>']
+            param['fplugin'], param['login'], param['password'], param['date'] = param_source
+        elif method == 'get':
+            #fplugin,login,password,date = param
+            param = param_source
+            # все параметры пришли ? 
+            if len(set(param.keys()).intersection(set('plugin,login,password,date'.split(',')))) < 4:
+                return 'text/html', [f'<html>Unknown call - use get?plugin=PLUGIN&login=LOGIN&password=PASSWORD&date=DATE</html>']
+            param = {i:param_source[i][0] for i in param_source} #  в get запросе все параметры - списки
+            param['fplugin'] = param['plugin']  # наш параметр plugin на самом деле fplugin
+        else:
+            logging.error(f'Unknown method {method}')
+        logging.info(f"Start {param['fplugin']} {param['login']}")
         #print(f'{fn=} {fn.split("/")=}')
-        #print(f'{fplugin=} {login=} {password=} {date=}')
+        #print(f'{param['fplugin']=} {param['login']=} {param['password']=} {date=}')
         # Это плагин от python ?
-        if fplugin.startswith(f'{lang}_'):
+        if param['fplugin'].startswith(f'{lang}_'):
             # get balance
-            plugin = fplugin.split('_',1)[1]  # plugin это все что после p_ 
+            plugin = param['fplugin'].split('_',1)[1]  # plugin это все что после p_ 
             module = __import__(plugin, globals(), locals(), [], 0)
             importlib.reload(module) # обновляем модуль, на случай если он менялся
-            result = module.get_balance(login, password, f'{lang}_{plugin}_{login}')
+            result = module.get_balance(param['login'], param['password'], f"{lang}_{plugin}_{param['login']}")
             text = store.result_to_html(result)
             # пишем в базу
-            dbengine.write_result_to_db(f'{lang}_{plugin}', login, result)
+            dbengine.write_result_to_db(f'{lang}_{plugin}', param['login'], result)
             # обновляем данные из mdb
             dbengine.update_sqlite_from_mdb()
             # генерируем balance_html
             write_report()
-            logging.info(f'Complete {fplugin} {login}')
+            logging.info(f"Complete {param['fplugin']} {param['login']}")
             return 'text/html', text
-        logging.error(f'Unknown plugin {fplugin}')
-        return 'text/html', [f'<html>Unknown plugin {fplugin}</html>']
+        logging.error(f"Unknown plugin {param['fplugin']}")
+        return 'text/html', [f"<html>Unknown plugin {param['fplugin']}</html>"]
     except Exception:
         exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)
@@ -157,7 +169,7 @@ def tray_icon(cmdqueue):
 class TrayIcon:
     def __init__(self, cmdqueue):
         self.cmdqueue = cmdqueue
-        msg_TaskbarRestart = win32gui.RegisterWindowMessage("TaskbarCreated");
+        msg_TaskbarRestart = win32gui.RegisterWindowMessage("TaskbarCreated")
         message_map = {
                 msg_TaskbarRestart: self.OnRestart,
                 win32con.WM_DESTROY: self.OnDestroy,
@@ -167,7 +179,7 @@ class TrayIcon:
         wc = win32gui.WNDCLASS()
         hinst = wc.hInstance = win32api.GetModuleHandle(None)
         wc.lpszClassName = "PythonTaskbarDemo"
-        wc.style = win32con.CS_VREDRAW | win32con.CS_HREDRAW;
+        wc.style = win32con.CS_VREDRAW | win32con.CS_HREDRAW
         wc.hCursor = win32api.LoadCursor( 0, win32con.IDC_ARROW )
         wc.hbrBackground = win32con.COLOR_WINDOW
         wc.lpfnWndProc = message_map # could also specify a wndproc.
@@ -246,7 +258,9 @@ class Handler(wsgiref.simple_server.WSGIRequestHandler):
         return str(self.client_address[0])
 
     def log_message(self, format, *args):
-        args = re.sub('(/.*?/.*?/.*?/)(.*?)(/.*)',r'\1xxxxxxx\3',args[0]),*args[1:]
+        # убираем пароль из лога
+        args = re.sub('(/.*?/.*?/.*?/)(.*?)(/.*)', r'\1xxxxxxx\3', args[0]), *args[1:]
+        args = re.sub('(&password=)(.*?)(&)', r'\1xxxxxxx\3', args[0]), *args[1:]
         logging.info(f"{self.client_address[0]} - - [self.log_date_time_string()] {format % args}\n")
 
 
@@ -289,15 +303,18 @@ class WebServer():
         fn=environ.get('PATH_INFO', None)
         _, cmd, *param = fn.split('/')
         print(f'{cmd}, {param}')
-        if cmd.lower() == 'getbalance':
-            ct, text = getbalance(param)  # TODO !!! Но правильно все-таки через POST
-        if cmd == '' or cmd == 'report': # report
+        if cmd.lower() == 'getbalance':  # старый вариант оставлен поеп для совместимости
+            ct, text = getbalance('url', param)  # TODO !!! Но правильно все-таки через POST
+        elif cmd.lower() == 'get':  # вариант через get запрос
+            param = urllib.parse.parse_qs(environ['QUERY_STRING'])
+            ct, text = getbalance('get', param)  
+        elif cmd == '' or cmd == 'report': # report
             options = store.read_ini()['Options']
             if options['sqlitestore'] == '1':
                 ct, text = getreport(param)
             else:
                 ct, text = 'text/html', HTML_NO_REPORT
-        if cmd == 'exit': # exit cmd
+        elif cmd == 'exit': # exit cmd
             self.cmdqueue.put('STOP')
             text = ['exit']
         headers = [('Content-type', ct)]

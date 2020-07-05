@@ -23,7 +23,10 @@ function json(str) {
 function main(){
     var p = 0;
     // Заходим на главную страницу
-    document.location="http://127.0.0.1:{{port}}/getbalance/{{pluginname}}/"+request.loginValue+"/"+request.passwValue+"/"+Date.now();
+    // Старый вариант
+    // document.location="http://127.0.0.1:{{port}}/getbalance/{{pluginname}}/"+request.loginValue+"/"+request.passwValue+"/"+Date.now();
+    // Новый вариант через get запрос
+    document.location="http://127.0.0.1:{{port}}/get?plugin={{pluginname}}&login="+encodeURIComponent(request.loginValue)+"&password="+encodeURIComponent(request.passwValue)+"&date="+Date.now();
     if(!external.WaitBrowser) return;
     response.pages[p++]=external.source;
 
