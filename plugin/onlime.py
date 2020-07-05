@@ -4,10 +4,7 @@ import os, sys, re, logging
 import requests
 import store
 
-# Строка для поиска баланса ФИО и лицевого счета на странице
 re_csrf = r'(?usi)_csrf_token.*?value="(\w+?)"'
-re_as_sfid = r'(?usi)login_form.*?as_sfid.*?value="([^"]+)"'
-re_as_fid = r'(?usi)login_form.*?as_fid.*?value="([^"]+)"'
 
 icon = '789C73F235636100033320D600620128666450804840E5A905989999F1CAB359A833B0DBEB90AC9F595A88817F423283D895490C5C31F644EB67E46065E0CEF264103DD3CB20B2AF9924FDEC2EFA0CC23B1B1844CFF531F0E4FB3230097013AD9F7F6A1A582DFF943406663911885BD85888D62F7AAC8381B72E9C81919111A2174833B2B1E2D40F5387AC9FA7D08F4150408841008841348FA0205C3F0F0F2F032F2F1F0307072703171737033FBF2056FD1CEC1C0C6C6CEC0C3CDCBC0C2C9C1C70FDDCDC3C0CEC40391066656503D3C8FA450EB63288EC6D6260773744B811C9FF30F7E2F23FB38C3003FFC414B07A8179B90C2CAA5224851F0CB0596930086DAA6610BB38011C9EA4EA0703166606AE782706D1135DE4E9870226113E06BE966806CE683BB2F4C300232BEE4C4B8C7EBC6603E305008A3A3F17'
 
@@ -19,7 +16,8 @@ def get_balance(login, password, storename=None):
     headers = {}
     session = store.Session(storename, headers=headers)
     response3 = session.post(cabinet_url, data={})
-    if 'json' in response3.headers.get('content-type') and 'accountInfo' in response3.json():
+    # !!! Хоть и возвращает json но 'content-type' - text/html
+    if 'accountInfo' in response3.text:
         logging.info(f'Already logoned {login}')
     else:
         # Логинимся
@@ -29,14 +27,16 @@ def get_balance(login, password, storename=None):
         if response1.status_code != 200:
             raise RuntimeError(f'GET Login page {baseurl} error: status_code {response1.status_code}')
         data = {'_csrf_token': re.findall(re_csrf, response1.text),
-                'login_credentials[login]': login,
-                'login_credentials[password]': password,}
-        login_url = 'https://my.onlime.ru/session/login'
+                'login': login,
+                'password': password,}
+        login_url = 'https://my.onlime.ru/session/checklogin/'
         response2 = session.post(login_url, data=data)
         if response2.status_code != 200:
             raise RuntimeError(f'POST Login page {login_url} error: status_code {response2.status_code}')
-        wtf = re.search(r"(?usi)var wtf\s*=\s*'([^']+)", response2.text).group(1).replace('&nbsp;', '').strip()
         response3 = session.post(cabinet_url, data={})
+
+    if 'accountInfo' not in response3.text:
+        raise RuntimeError(f'Balance (accountInfo) not found on {cabinet_url}')
 
     result['Balance'] = response3.json().get('accountInfo', {})['balance']
         
