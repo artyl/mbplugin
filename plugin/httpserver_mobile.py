@@ -7,6 +7,11 @@ try:
     import win32api, win32gui, win32con, winerror
 except ModuleNotFoundError:
     print('No win32 installed, no tray icon')
+try:
+    import telegram
+    from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+except ModuleNotFoundError:
+    print('No telegram installed, no telegram bot')
 
 lang='p' # Для плагинов на python преффикс lang всегда 'p'
 
@@ -25,47 +30,42 @@ def find_ini_up(fn):
 
 def getbalance(method, param_source):
     'fplugin, login, password, date'
-    try:
-        param = {}
-        if method == 'url':
-            if len(param_source) != 4:
-                return 'text/html', [f'<html>Unknown call - use getbalance/plugin/login/password/date</html>']
-            param['fplugin'], param['login'], param['password'], param['date'] = param_source
-        elif method == 'get':
-            #fplugin,login,password,date = param
-            param = param_source
-            # все параметры пришли ? 
-            if len(set(param.keys()).intersection(set('plugin,login,password,date'.split(',')))) < 4:
-                return 'text/html', [f'<html>Unknown call - use get?plugin=PLUGIN&login=LOGIN&password=PASSWORD&date=DATE</html>']
-            param = {i:param_source[i][0] for i in param_source} #  в get запросе все параметры - списки
-            param['fplugin'] = param['plugin']  # наш параметр plugin на самом деле fplugin
-        else:
-            logging.error(f'Unknown method {method}')
-        logging.info(f"Start {param['fplugin']} {param['login']}")
-        #print(f'{fn=} {fn.split("/")=}')
-        #print(f'{param['fplugin']=} {param['login']=} {param['password']=} {date=}')
-        # Это плагин от python ?
-        if param['fplugin'].startswith(f'{lang}_'):
-            # get balance
-            plugin = param['fplugin'].split('_',1)[1]  # plugin это все что после p_ 
-            module = __import__(plugin, globals(), locals(), [], 0)
-            importlib.reload(module) # обновляем модуль, на случай если он менялся
-            result = module.get_balance(param['login'], param['password'], f"{lang}_{plugin}_{param['login']}")
-            text = store.result_to_html(result)
-            # пишем в базу
-            dbengine.write_result_to_db(f'{lang}_{plugin}', param['login'], result)
-            # обновляем данные из mdb
-            dbengine.update_sqlite_from_mdb()
-            # генерируем balance_html
-            write_report()
-            logging.info(f"Complete {param['fplugin']} {param['login']}")
-            return 'text/html', text
-        logging.error(f"Unknown plugin {param['fplugin']}")
-        return 'text/html', [f"<html>Unknown plugin {param['fplugin']}</html>"]
-    except Exception:
-        exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
-        logging.error(exception_text)
-        return 'text/html', ['<html>ERROR</html>']
+    param = {}
+    if method == 'url':
+        if len(param_source) != 4:
+            return 'text/html', [f'<html>Unknown call - use getbalance/plugin/login/password/date</html>']
+        param['fplugin'], param['login'], param['password'], param['date'] = param_source
+    elif method == 'get':
+        #fplugin,login,password,date = param
+        param = param_source
+        # все параметры пришли ? 
+        if len(set(param.keys()).intersection(set('plugin,login,password,date'.split(',')))) < 4:
+            return 'text/html', [f'<html>Unknown call - use get?plugin=PLUGIN&login=LOGIN&password=PASSWORD&date=DATE</html>']
+        param = {i:param_source[i][0] for i in param_source} #  в get запросе все параметры - списки
+        param['fplugin'] = param['plugin']  # наш параметр plugin на самом деле fplugin
+    else:
+        logging.error(f'Unknown method {method}')
+    logging.info(f"Start {param['fplugin']} {param['login']}")
+    #print(f'{fn=} {fn.split("/")=}')
+    #print(f'{param['fplugin']=} {param['login']=} {param['password']=} {date=}')
+    # Это плагин от python ?
+    if param['fplugin'].startswith(f'{lang}_'):
+        # get balance
+        plugin = param['fplugin'].split('_',1)[1]  # plugin это все что после p_ 
+        module = __import__(plugin, globals(), locals(), [], 0)
+        importlib.reload(module) # обновляем модуль, на случай если он менялся
+        result = module.get_balance(param['login'], param['password'], f"{lang}_{plugin}_{param['login']}")
+        text = store.result_to_html(result)
+        # пишем в базу
+        dbengine.write_result_to_db(f'{lang}_{plugin}', param['login'], result)
+        # обновляем данные из mdb
+        dbengine.update_sqlite_from_mdb()
+        # генерируем balance_html
+        write_report()
+        logging.info(f"Complete {param['fplugin']} {param['login']}")
+        return 'text/html', text
+    logging.error(f"Unknown plugin {param['fplugin']}")
+    return 'text/html', [f"<html>Unknown plugin {param['fplugin']}</html>"]
 
 def getreport(param=[]):
     style = '''<style type="text/css">
@@ -252,6 +252,88 @@ class TrayIcon:
         else:
             print("Unknown command -", id)
 
+
+class TelegramBot():
+    def auth_decorator(func):  # pylint: disable=no-self-argument
+        def wrapper(self, update, context):
+            if update.message.chat_id in self.auth_id():
+                res = func(self, update, context)  # pylint: disable=not-callable
+                return res
+        return wrapper
+
+    def auth_id(self):
+        tgoptions = store.read_ini()['Telegram']
+        auth_id = tgoptions.get('auth_id','').strip()
+        if not re.match(r'(\d+,?)', auth_id):
+            logging.error(f'incorrect auth_id in ini: {auth_id}')
+        return map(int,auth_id.split(','))
+
+    def get_id(self, update, context):
+        """Echo chat id."""
+        update.message.reply_text(update.message.chat_id)
+
+    def prepare_balance(self):
+        """Prepare balance for TG."""
+        #update.message.reply_text('BALANCE')
+        try:
+            options = store.read_ini()['Options']
+            db = dbengine.dbengine(options.get('dbfilename', settings.dbfilename))
+            #table_format = store.read_ini()['Telegram'].get('table_format',settings.table_format)
+            table_format = 'PhoneNumber,Operator,Balance'  # Обязательно первые два номер и оператор
+            header, data = db.report(table_format.strip().split(','))
+            phones_ini = store.read_ini('phones.ini')
+            phonesdata_numb = {(re.sub(r' #\d+','',v['Number']),v['Region']):int(k) for k,v in phones_ini.items() if k.isnumeric() and 'Monitor' in v}
+            phonesdata_alias = {(re.sub(r' #\d+','',v['Number']),v['Region']):v.get('Alias','') for k,v in phones_ini.items() if k.isnumeric() and 'Monitor' in v}
+            data.sort(key=lambda line:(phonesdata_numb.get(line[0:2],999)))
+            table = []
+            for line in data:
+                row = dict(zip(header,line))
+                if type(row['PhoneNumber']) == str and row['PhoneNumber'].isdigit():
+                    # форматирование телефонных номеров
+                    row['PhoneNumber'] = re.sub(r'\A(\d{3})(\d{3})(\d{4})\Z', '(\\1) \\2-\\3', row['PhoneNumber'])
+                row['Alias'] = phonesdata_alias.get(line[0:2], 'Unknown')
+                table.append(row)
+            res = [('<b>%s</b>\t<code>%s</code>\t<b>%s</b>' % (line['Alias'], line['PhoneNumber'].replace(' ',''), line['Balance'])) for line in table]
+            return '\n'.join(res)
+        except Exception:
+            exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
+            logging.error(exception_text)        
+            return 'error'
+
+    @auth_decorator
+    def get_balance(self, update, context):
+        """Send balance only auth user."""
+        baltxt = self.prepare_balance()
+        update.message.reply_text(baltxt, parse_mode=telegram.ParseMode.HTML)
+ 
+    def send_message(self, text, parse_mode='HTML'):
+        for id in self.auth_id():
+            self.updater.bot.sendMessage(chat_id = id , text = text, parse_mode=parse_mode)
+
+    def send_balance(self):
+        baltxt = self.prepare_balance()
+        self.send_message(text = baltxt, parse_mode=telegram.ParseMode.HTML)
+                
+    def stop(self):
+        '''Stop bot'''
+        self.updater.stop()
+
+    def __init__(self):
+        ini = store.read_ini()
+        tgoptions = ini['Telegram'] if 'Telegram' in ini else {}
+        api_token = tgoptions.get('api_token', '').strip()
+        if api_token !=  ''  and 'telegram' in sys.modules:
+            logging.info(f'Module telegram starting for id={self.auth_id()}')
+            self.updater = Updater(api_token, use_context=True)
+            logging.info(f'{self.updater}')
+            dp = self.updater.dispatcher
+            dp.add_handler(CommandHandler("id", self.get_id))
+            dp.add_handler(CommandHandler("balance", self.get_balance))
+            self.updater.start_polling()  # Start the Bot
+            self.send_message(text = 'Hey there!')
+        else:
+            logging.info('Module telegram not found')
+
 class Handler(wsgiref.simple_server.WSGIRequestHandler):
     # Disable logging DNS lookups
     def address_string(self):
@@ -292,35 +374,46 @@ class WebServer():
             threading.Thread(target=self.httpd.serve_forever, daemon = True).start()
             if 'win32api' in sys.modules:  # Иконка в трее
                 threading.Thread(target=lambda i=self.cmdqueue:tray_icon(i), daemon = True).start()
+            if 'telegram' in sys.modules:  # telegram bot (он сам все запустит в threading)
+                self.telegram_bot = TelegramBot()
             # Запустили все остальное демонами и ждем, когда они пришлют сигнал
             self.cmdqueue.get()
+            self.telegram_bot.stop()
             self.httpd.shutdown()
         logging.info(f'Shutdown server {self.host}:{self.port}....')
 
     def simple_app(self,environ, start_response):
-        status = '200 OK'
-        ct, text = 'text/html',[]
-        fn=environ.get('PATH_INFO', None)
-        _, cmd, *param = fn.split('/')
-        print(f'{cmd}, {param}')
-        if cmd.lower() == 'getbalance':  # старый вариант оставлен поеп для совместимости
-            ct, text = getbalance('url', param)  # TODO !!! Но правильно все-таки через POST
-        elif cmd.lower() == 'get':  # вариант через get запрос
-            param = urllib.parse.parse_qs(environ['QUERY_STRING'])
-            ct, text = getbalance('get', param)  
-        elif cmd == '' or cmd == 'report': # report
-            options = store.read_ini()['Options']
-            if options['sqlitestore'] == '1':
-                ct, text = getreport(param)
-            else:
-                ct, text = 'text/html', HTML_NO_REPORT
-        elif cmd == 'exit': # exit cmd
-            self.cmdqueue.put('STOP')
-            text = ['exit']
-        headers = [('Content-type', ct)]
-        start_response(status, headers)
-        return [line.encode('cp1251') for line in text]
-        
+        try:
+            status = '200 OK'
+            ct, text = 'text/html',[]
+            fn=environ.get('PATH_INFO', None)
+            _, cmd, *param = fn.split('/')
+            print(f'{cmd}, {param}')
+            if cmd.lower() == 'getbalance':  # старый вариант оставлен поеп для совместимости
+                ct, text = getbalance('url', param)  # TODO !!! Но правильно все-таки через POST
+            elif cmd.lower() == 'sendtgbalance':
+                self.telegram_bot.send_balance()
+            elif cmd.lower() == 'get':  # вариант через get запрос
+                param = urllib.parse.parse_qs(environ['QUERY_STRING'])
+                ct, text = getbalance('get', param)  
+            elif cmd == '' or cmd == 'report': # report
+                options = store.read_ini()['Options']
+                if options['sqlitestore'] == '1':
+                    ct, text = getreport(param)
+                else:
+                    ct, text = 'text/html', HTML_NO_REPORT
+            elif cmd == 'exit': # exit cmd
+                self.cmdqueue.put('STOP')
+                text = ['exit']
+            headers = [('Content-type', ct)]
+            start_response(status, headers)
+            return [line.encode('cp1251') for line in text]
+        except Exception:
+            exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'        
+            logging.error(exception_text)
+            headers = [('Content-type', 'text/html')]
+            return ['<html>ERROR</html>'.encode('cp1251')]
+
 def main():
     WebServer()
 
