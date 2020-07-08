@@ -181,9 +181,9 @@ class dbengine():
         if commit:
             self.conn.commit()
 
-    def report(self,fields):
-        'Генерирует отчет по последнему состоянию телефонов'
-        reportsql = f"SELECT {','.join(fields)},max(QueryDateTime) QueryDateTime FROM Phones where PhoneNumber is not NULL GROUP BY PhoneNumber,Operator order by Operator,PhoneNumber;"
+    def report(self, fields, filter='1=1'):
+        'Генерирует отчет по последнему состоянию телефонов затем фильтруем по условию filter которые не равны 0'
+        reportsql = f"SELECT {','.join(fields)},max(QueryDateTime) QueryDateTime FROM Phones where {filter} and PhoneNumber is not NULL GROUP BY PhoneNumber,Operator order by Operator,PhoneNumber;"
         rows = self.cur.execute(reportsql)
         headers = list(zip(*rows.description))[0]
         data = rows.fetchall()

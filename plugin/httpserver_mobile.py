@@ -280,18 +280,16 @@ class TelegramBot():
             db = dbengine.dbengine(options.get('dbfilename', settings.dbfilename))
             #table_format = store.read_ini()['Telegram'].get('table_format',settings.table_format)
             table_format = 'PhoneNumber,Operator,Balance'  # Обязательно первые два номер и оператор
-            header, data = db.report(table_format.strip().split(','))
-            phones_ini = store.read_ini('phones.ini')
-            phonesdata_numb = {(re.sub(r' #\d+','',v['Number']),v['Region']):int(k) for k,v in phones_ini.items() if k.isnumeric() and 'Monitor' in v}
-            phonesdata_alias = {(re.sub(r' #\d+','',v['Number']),v['Region']):v.get('Alias','') for k,v in phones_ini.items() if k.isnumeric() and 'Monitor' in v}
-            data.sort(key=lambda line:(phonesdata_numb.get(line[0:2],999)))
+            header, data = db.report(table_format.strip().split(','), filter='QueryDateTime>datetime("now","-1 day") and (baldelta<>0 or baldeltaquery<>0) ')
+            phones = store.ini('phones.ini').phones()
+            data.sort(key=lambda line:(phones.get(line[0:2],{}).get('NN',999)))
             table = []
             for line in data:
                 row = dict(zip(header,line))
                 if type(row['PhoneNumber']) == str and row['PhoneNumber'].isdigit():
                     # форматирование телефонных номеров
                     row['PhoneNumber'] = re.sub(r'\A(\d{3})(\d{3})(\d{4})\Z', '(\\1) \\2-\\3', row['PhoneNumber'])
-                row['Alias'] = phonesdata_alias.get(line[0:2], 'Unknown')
+                row['Alias'] = phones.get(line[0:2], {}).get('Alias', 'Unknown')
                 table.append(row)
             res = [('<b>%s</b>\t<code>%s</code>\t<b>%s</b>' % (line['Alias'], line['PhoneNumber'].replace(' ',''), line['Balance'])) for line in table]
             return '\n'.join(res)
@@ -307,21 +305,27 @@ class TelegramBot():
         update.message.reply_text(baltxt, parse_mode=telegram.ParseMode.HTML)
  
     def send_message(self, text, parse_mode='HTML'):
+        if self.updater == None:
+            return
         for id in self.auth_id():
             self.updater.bot.sendMessage(chat_id = id , text = text, parse_mode=parse_mode)
 
     def send_balance(self):
+        if self.updater == None:
+            return
         baltxt = self.prepare_balance()
         self.send_message(text = baltxt, parse_mode=telegram.ParseMode.HTML)
                 
     def stop(self):
         '''Stop bot'''
-        self.updater.stop()
+        if self.updater != None:
+            self.updater.stop()
 
     def __init__(self):
         ini = store.read_ini()
         tgoptions = ini['Telegram'] if 'Telegram' in ini else {}
         api_token = tgoptions.get('api_token', '').strip()
+        self.updater = None
         if api_token !=  ''  and 'telegram' in sys.modules:
             logging.info(f'Module telegram starting for id={self.auth_id()}')
             self.updater = Updater(api_token, use_context=True)
@@ -331,8 +335,10 @@ class TelegramBot():
             dp.add_handler(CommandHandler("balance", self.get_balance))
             self.updater.start_polling()  # Start the Bot
             self.send_message(text = 'Hey there!')
-        else:
+        elif 'telegram' not in sys.modules:
             logging.info('Module telegram not found')
+        elif api_token !=  '':
+            logging.info('Telegtam api_token not found')
 
 class Handler(wsgiref.simple_server.WSGIRequestHandler):
     # Disable logging DNS lookups

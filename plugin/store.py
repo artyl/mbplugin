@@ -111,55 +111,89 @@ def find_files_up(fn):
     else:
         return os.path.join('..', fn)
 
-
 def read_ini(fn=settings.mbplugin_ini):
-    'Ищем и открываем ini, если не указали имя то смотрим mbplugin.ini'
-    ini = configparser.ConfigParser()
-    if fn.lower() == settings.mbplugin_ini:
-        inipath = find_files_up(fn)
-    else:
-        path = read_ini(settings.mbplugin_ini)['MobileBalance']['path']
-        inipath = os.path.join(path, fn)
-    if os.path.exists(inipath):
-        if fn.lower() == 'phones.ini':
-            # phones.ini - нечестный ini читать приходится с извратами
-            # replace [Phone] #123 -> [Phone #123]
-            prep1 = re.sub(r'(?usi)\[Phone\] #(\d+)', r'[\1]', open(inipath).read())
-            # TODO костыль, мы подменяем p_pluginLH на p_plugin чтобы при переключении плагина не разъезжались данные
-            prep2 = re.sub(r'(?usi)(Region\s*=\s*p_\S+)LH', r'\1', prep1)
-            ini.read_string(prep2)
+    'depricated, will be deleted, use class ini'
+    return ini(fn).read()
+    
+class ini():
+    def __init__(self, fn=settings.mbplugin_ini):
+        self.ini = configparser.ConfigParser()
+        self.fn = fn
+        if self.fn.lower() == settings.mbplugin_ini:
+            self.inipath = self.find_files_up(self.fn)        
         else:
-            ini.read(inipath)
-    elif not os.path.exists(inipath) and fn.lower() == settings.mbplugin_ini:
+            path = read_ini(settings.mbplugin_ini)['MobileBalance']['path']
+            self.inipath = os.path.join(path, fn)
+            
+    def find_files_up(self, fn):
+        'Ищем файл вверх по дереву путей'
+        allroot = [os.getcwd().rsplit('\\', i)[0] for i in range(len(os.getcwd().split('\\')))]
+        all_ini = [i for i in allroot if os.path.exists(os.path.join(i, fn))]
+        if all_ini != []:
+            return os.path.join(all_ini[0], fn)
+        else:
+            return os.path.join('..', fn)        
+        
+    def read(self):
+        if os.path.exists(self.inipath):
+            if self.fn.lower() == 'phones.ini':
+                # phones.ini - нечестный ini читать приходится с извратами
+                # replace [Phone] #123 -> [Phone #123]
+                prep1 = re.sub(r'(?usi)\[Phone\] #(\d+)', r'[\1]', open(self.inipath).read())
+                # TODO костыль, мы подменяем p_pluginLH на p_plugin чтобы при переключении плагина не разъезжались данные
+                prep2 = re.sub(r'(?usi)(Region\s*=\s*p_\S+)LH', r'\1', prep1)
+                self.ini.read_string(prep2)
+            else:
+                self.ini.read(self.inipath)
+        elif not os.path.exists(self.inipath) and self.fn.lower() == settings.mbplugin_ini:
+            self.create()
+            self.write()
+        else:
+            raise RuntimeError(f'Not found {self.fn}')
+        return self.ini
+
+    def create(self):
+        'Только создаем в памяти, но не записываем'
         # Создаем mbplugin.ini - он нам нужен для настроек и чтобы знать где ini-шники от mobilebalance
-        mbpath = find_files_up('phones.ini')
+        mbpath = self.find_files_up('phones.ini')
         if os.path.exists(mbpath):
             # Если нашли mobilebalance - cоздадим mbplugin.ini и sqlite базу там же где и ini-шники mobilebalance
-            inipath = os.path.join(os.path.split(mbpath)[0], fn)
-            dbpath = os.path.join(os.path.split(
-                mbpath)[0], os.path.split(settings.dbfilename)[1])
+            self.inipath = os.path.join(os.path.split(mbpath)[0], self.fn)
+            dbpath = os.path.abspath(os.path.join(os.path.split(mbpath)[0], os.path.split(settings.dbfilename)[1]))
         else:
             # иначе создадим mbplugin.ini и базу в корне папки mbplugin
-            ini['MobileBalance'] = {'path': ''}
-            dbpath = settings.dbfilename
-        ini['MobileBalance'] = {'path': os.path.split(mbpath)[0]}
-        ini['Options'] = {'logginglevel': settings.logginglevel,
+            self.ini['MobileBalance'] = {'path': ''}
+            dbpath = settings.dbfilename         
+        self.ini['MobileBalance'] = {'path': os.path.split(mbpath)[0]}
+        self.ini['Options'] = {'logginglevel': settings.logginglevel,
                           'sqlitestore': settings.sqlitestore,
                           'dbfilename': dbpath,
                           'createhtmlreport': settings.createhtmlreport,
-                          'balance_html': settings.balance_html,
+                          'balance_html': os.path.abspath(settings.balance_html),
                           'updatefrommdb': settings.updatefrommdb,
                           'updatefrommdbdeep': settings.updatefrommdbdeep,
                           }
-        ini['HttpServer'] = {'port': settings.port,
+        self.ini['HttpServer'] = {'port': settings.port,
                              'host': settings.host,
-                             'table_format': settings.table_format}
+                             'table_format': settings.table_format}    
 
-        ini.write(open(inipath, 'w'))
-    else:
-        raise RuntimeError(f'Not found {fn}')
-    return ini
-
+    def write(self):
+        if self.fn.lower() != settings.mbplugin_ini:
+            return  # only mbplugin.ini
+        self.ini.write(open(self.inipath, 'w'))
+        
+    def phones(self):
+        if self.fn.lower() != 'phones.ini':
+            raise RuntimeError(f'{self.fn} is not phones.ini')
+        data = {}
+        for secnum,el in self.read().items():
+            if secnum.isnumeric() and 'Monitor' in el:
+                key = (re.sub(r' #\d+','',el['Number']),el['Region'])
+                data[key] = {}
+                data[key]['NN'] = int(secnum)
+                data[key]['Alias'] = el.get('Alias','')
+                data[key]['PhoneDescription'] = el.get('PhoneDescription','')
+        return data
 
 def read_stocks(stocks_name):
     'Читаем список стоков для плагина stock.py из mbplugin.ini'
