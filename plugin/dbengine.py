@@ -1,5 +1,5 @@
 # -*- coding: utf8 -*-
-''' Автор ArtyLa 
+''' Автор ArtyLa
 Модуль для работы с базами
 Для интеграции с базой MDB необходимо установить 32битный ODBC драйвер для MDB AccessDatabaseEngine.exe:
 Скачать можно отсюда:
@@ -61,65 +61,70 @@ CREATE TABLE IF NOT EXISTS Phones (
     [NoChangeDays] [int] NULL ,
     [AnyString] [nchar] (250), -- COLLATE Cyrillic_General_CI_AS NULL ,
     [CalcTurnOff] [int] NULL
-) 
+)
 -- CREATE INDEX idx_PhoneNumber_Operator ON Phones (PhoneNumber,Operator);
 -- CREATE INDEX idx_QueryDateTime ON Phones (QueryDateTime);
 '''
-PhonesHText={'NN':'NN',
-'Alias':'Псевдоним',
-'PhoneNumber':'Номер',
-'MBPhoneNumber':'Номер как в MB',
-'Operator':'Оператор',
-'QueryDateTime':'Время запроса',
-'SpendBalance':'SpendBalance',
-'KreditLimit':'Кр. лимит',
-'UslugiOn':'Услуги',
-'Currenc':'Валюта',
-'Balance':'Баланс',
-'Balance2':'Баланс2',
-'Balance3':'Баланс3',
-'Average':'Average',
-'TurnOff':'TurnOff',
-'Recomend':'Recomend',
-'SMS':'SMS',
-'Minutes':'Минут',
-'USDRate':'USDRate',
-'LicSchet':'Л.счет',
-'UserName':'ФИО',
-'BalDelta':'Delta (день)',
-'JeansExpired':'JeansExpired',
-'ObPlat':'ObPlat',
-'BeeExpired':'BeeExpired',
-'RealAverage':'$/День(Р)',
-'Seconds':'Секунд',
-'TarifPlan':'Тариф. план',
-'BlockStatus':'Статус блок.',
-'MinSonet':'MinSonet',
-'MinLocal':'MinLocal',
-'Internet':'Инт.трафик',
-'TurnOffStr':'TurnOffStr',
-'SpendMin':'SpendMin',
-'PhoneReal':'PhoneReal',
-'BalanceRUB':'BalanceRUB',
-'SMS_USD':'SMS_USD',
-'SMS_RUB':'SMS_RUB',
-'InternetUSD':'InternetUSD',
-'InternetRUB':'InternetRUB',
-'Contract':'Contract',
-'MinAverage':'Мин/день ср',
-'BalDeltaQuery':'Delta (запрос)',
-'MinDelta':'Мин/день',
-'MinDeltaQuery':'Мин Delta (запрос)',
-'NoChangeDays':'Дней без изм.',
-'AnyString':'AnyString',
-'CalcTurnOff':'Откл (Р)',}
+PhonesHText = {
+    'NN': 'NN',
+    'Alias': 'Псевдоним',
+    'PhoneNumber': 'Номер',
+    'PhoneNumberFormat1': 'Номер',
+    'PhoneNumberFormat2': 'Номер',
+    'MBPhoneNumber': 'Номер как в MB',
+    'Operator': 'Оператор',
+    'QueryDateTime': 'Время запроса',
+    'SpendBalance': 'SpendBalance',
+    'KreditLimit': 'Кр. лимит',
+    'UslugiOn': 'Услуги',
+    'Currenc': 'Валюта',
+    'Balance': 'Баланс',
+    'Balance2': 'Баланс2',
+    'Balance3': 'Баланс3',
+    'Average': 'Average',
+    'TurnOff': 'TurnOff',
+    'Recomend': 'Recomend',
+    'SMS': 'SMS',
+    'Minutes': 'Минут',
+    'USDRate': 'USDRate',
+    'LicSchet': 'Л.счет',
+    'UserName': 'ФИО',
+    'BalDelta': 'Delta (день)',
+    'JeansExpired': 'JeansExpired',
+    'ObPlat': 'ObPlat',
+    'BeeExpired': 'BeeExpired',
+    'RealAverage': '$/День(Р)',
+    'Seconds': 'Секунд',
+    'TarifPlan': 'Тариф. план',
+    'BlockStatus': 'Статус блок.',
+    'MinSonet': 'MinSonet',
+    'MinLocal': 'MinLocal',
+    'Internet': 'Инт.трафик',
+    'TurnOffStr': 'TurnOffStr',
+    'SpendMin': 'SpendMin',
+    'PhoneReal': 'PhoneReal',
+    'BalanceRUB': 'BalanceRUB',
+    'SMS_USD': 'SMS_USD',
+    'SMS_RUB': 'SMS_RUB',
+    'InternetUSD': 'InternetUSD',
+    'InternetRUB': 'InternetRUB',
+    'Contract': 'Contract',
+    'MinAverage': 'Мин/день ср',
+    'BalDeltaQuery': 'Delta (запрос)',
+    'MinDelta': 'Мин/день',
+    'MinDeltaQuery': 'Мин Delta (запрос)',
+    'NoChangeDays': 'Дней без изм.',
+    'AnyString': 'AnyString',
+    'CalcTurnOff': 'Откл (Р)',
+}
 
 addition_phone_fields = {'MBPhoneNumber': '[nvarchar] (150)'}
 addition_indexes = ['idx_QueryDateTime ON Phones (QueryDateTime ASC)',
-                    'idx_Phonenumber ON Phones (PhoneNumber)', 
+                    'idx_Phonenumber ON Phones (PhoneNumber)',
                     'idx_MBPhonenumber ON Phones (MBPhoneNumber)']
 addition_queries = [
     "delete from phones where phonenumber like 'p_%' or operator='p_test1' or (phonenumber='tinkoff' and operator='???')"]
+
 
 class dbengine():
     def __init__(self, dbname, updatescheme=True, fast=False):
@@ -129,18 +134,16 @@ class dbengine():
         self.cur = self.conn.cursor()
         if fast:
             self.cur.execute('PRAGMA synchronous = OFF')
-            #self.cur.execute('PRAGMA journal_mode = OFF')
-            #self.cur.execute('PRAGMA jorunal_mode = MEMORY')
-            self.conn.commit()        
+            self.conn.commit()
         if updatescheme:
             self.check_and_add_addition()
         rows = self.cur.execute('SELECT * FROM phones limit 1;')
         self.phoneheader = list(zip(*rows.description))[0]
 
-    def write_result(self,plugin, login, result, commit=True):
+    def write_result(self, plugin, login, result, commit=True):
         'Записывает результат в базу'
         # Делаем копию, чтобы не трогать оригинал
-        result2 = {k:v for k,v in result.items()}
+        result2 = {k: v for k, v in result.items()}
         # Исправляем поля которые в response называются не так как в базе
         if type(result2['Balance']) == str:
             result2['Balance'] = float(result2['Balance'])
@@ -150,57 +153,72 @@ class dbengine():
             result2['Minutes'] = result2['Min']
         if 'BalExpired' in result2:  # BalExpired -> BeeExpired
             result2['BeeExpired'] = result2['BalExpired']
-        # Фильтруем только те поля, которые есть в таблице phone    
-        line = {k:v for k,v in result2.items() if k in self.phoneheader}
+        # Фильтруем только те поля, которые есть в таблице phone
+        line = {k: v for k, v in result2.items() if k in self.phoneheader}
         # Добавляем расчетные поля и т.п.
         line['Operator'] = plugin
         line['PhoneNumber'] = login  # PhoneNumber=PhoneNum
-        line['QueryDateTime'] = datetime.datetime.now().replace(microsecond=0) # no microsecond
+        line['QueryDateTime'] = datetime.datetime.now().replace(microsecond=0)  # no microsecond
         self.cur.execute(f"select cast(julianday('now')-julianday(max(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' and abs(balance-{result['Balance']})>0.02")
         line['NoChangeDays'] = self.cur.fetchall()[0][0]  # Дней без изм.
         options_ini = store.read_ini('Options.ini')
-        if 'Additional' in  options_ini and 'AverageDays' in options_ini['Additional']:
+        if 'Additional' in options_ini and 'AverageDays' in options_ini['Additional']:
             average_days = int(options_ini['Additional']['AverageDays'])
         else:
             average_days = settings.average_days
         self.cur.execute(f"select {line['Balance']}-balance from phones where phonenumber='{login}' and operator='{plugin}' and QueryDateTime>date('now','-{average_days} day') and strftime('%Y%m%d', QueryDateTime)<>strftime('%Y%m%d', date('now')) order by QueryDateTime desc limit 1")
         qres = self.cur.fetchall()
         if qres != []:
-            line['BalDelta']  = round(qres[0][0],2)  # Delta (день)
+            line['BalDelta'] = round(qres[0][0], 2)  # Delta (день)
         self.cur.execute(f"select {line['Balance']}-balance from phones where phonenumber='{login}' and operator='{plugin}' order by QueryDateTime desc limit 1")
         qres = self.cur.fetchall()
         if qres != []:
-            line['BalDeltaQuery']  = round(qres[0][0],2)  # Delta (запрос)
+            line['BalDeltaQuery'] = round(qres[0][0], 2)  # Delta (запрос)
         self.cur.execute(f"select avg(b) from (select min(BalDelta) b from phones where phonenumber='{login}' and operator='{plugin}' and QueryDateTime>date('now','-{average_days} day') group by strftime('%Y%m%d', QueryDateTime))")
         qres = self.cur.fetchall()
         if qres != [] and qres[0][0] is not None:
-            line['RealAverage']  = round(qres[0][0],2)  # $/День(Р)
-        if line.get('RealAverage',0.0) < 0:
-            line['CalcTurnOff'] = round(-line['Balance']/line['RealAverage'],2)
+            line['RealAverage'] = round(qres[0][0], 2)  # $/День(Р)
+        if line.get('RealAverage', 0.0) < 0:
+            line['CalcTurnOff'] = round(-line['Balance'] / line['RealAverage'], 2)
         self.cur.execute(f'insert into phones ({",".join(line.keys())}) VALUES ({",".join(list("?"*len(line)))})', list(line.values()))
         if commit:
             self.conn.commit()
 
-    def report(self, fields, filter='1=1'):
-        'Генерирует отчет по последнему состоянию телефонов затем фильтруем по условию filter которые не равны 0'
-        reportsql = f"SELECT {','.join(fields)},max(QueryDateTime) QueryDateTime FROM Phones where {filter} and PhoneNumber is not NULL GROUP BY PhoneNumber,Operator order by Operator,PhoneNumber;"
-        rows = self.cur.execute(reportsql)
-        headers = list(zip(*rows.description))[0]
-        data = rows.fetchall()
+    def report(self):
+        ''' Генерирует отчет по последнему состоянию телефонов'''
+        reportsql = f'''select * from phones where QueryDateTime in (SELECT max(QueryDateTime) FROM Phones GROUP BY PhoneNumber,Operator order by Operator,PhoneNumber)'''
+        cur = self.cur.execute(reportsql)
+        dbheaders = list(zip(*cur.description))[0]
+        dbdata = cur.fetchall()
+        phones = store.ini('phones.ini').phones()
+        dbdata.sort(key=lambda line: (phones.get(line[0:2], {}).get('NN', 999)))
         # округляем float до 2х знаков
-        data = [tuple([(round(i, 2) if type(i) == float else i) for i in line]) for line in data]
-        return headers,data
+        dbdata = [tuple([(round(i, 2) if type(i) == float else i) for i in line]) for line in dbdata]
+        table = []  # результат - каждая строчка словарь элементов
+        for line in dbdata:
+            row = dict(zip(dbheaders, line))
+            pair = (row['PhoneNumber'], row['Operator'])  # Пара PhoneNumber,Operator
+            row['Alias'] = phones.get(pair, {}).get('Alias', 'Unknown')
+            row['NN'] = phones.get(pair, {}).get('NN', 999)
+            row['PhoneNumberFormat1'] = row['PhoneNumberFormat2'] = row['PhoneNumber']
+            if type(row['PhoneNumber']) == str and row['PhoneNumber'].isdigit():
+                # форматирование телефонных номеров
+                row['PhoneNumberFormat1'] = re.sub(r'\A(\d{3})(\d{3})(\d{4})\Z', '(\\1) \\2-\\3', row['PhoneNumber'])
+                row['PhoneNumberFormat2'] = row['PhoneNumberFormat1'].replace(' ', '')
+            table.append(row)
+        return table
 
     def check_and_add_addition(self):
         'Создаем таблицы, добавляем новые поля, и нужные индексы если их нет'
         self.cur.execute(DB_SCHEMA)
-        for k,v in addition_phone_fields.items():
-            self.cur.execute("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('phones') WHERE name=?",[k])
+        for k, v in addition_phone_fields.items():
+            self.cur.execute("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('phones') WHERE name=?", [k])
             if self.cur.fetchall()[0][0] == 0:
                 self.cur.execute(f"ALTER TABLE phones ADD COLUMN {k} {v}")
         for idx in addition_indexes:
             self.cur.execute(f"CREATE INDEX IF NOT EXISTS {idx}")
-        self.conn.commit()            
+        self.conn.commit()
+
 
 class mdbengine():
     def __init__(self, dbname):
@@ -217,22 +235,23 @@ class mdbengine():
 
     def to_sqlite(self, line):
         '''конвертирует строчку для sqlite:
-        Убираем последовательный номер NN 
+        Убираем последовательный номер NN
         PhoneNumber -> MBphoneNumber (оригинал)
         PhoneNumber -> PhoneNumber (без добавки пробел#n)
-        Оператор(region) из ini -> Operator 
+        Оператор(region) из ini -> Operator
         return header, newline
         '''
         idxp = self.phoneheader.index('PhoneNumber')
         mbphoneNumber = line[idxp]
         s1, s2 = re.search(r'\A(.*?)( #\d+)?\Z', mbphoneNumber).groups()
         s2 = s2.strip() if s2 else '???'
-        phonenumber, region = self.phones.get(mbphoneNumber,[s1,s2])
+        phonenumber, region = self.phones.get(mbphoneNumber, [s1, s2])
         header = self.phoneheader[1:] + ('MBphoneNumber', 'Operator')
         newline = [i for i in line]  # pyodbc.Row object has no attribute copy
         newline[idxp] = phonenumber
         newline = newline[1:] + [mbphoneNumber, region]
         return header, newline
+
 
 def update_sqlite_from_mdb_core(deep=None):
     'Обновляем данные из mdb в sqlite'
@@ -245,40 +264,37 @@ def update_sqlite_from_mdb_core(deep=None):
     dbfilename = options.get('dbfilename', settings.dbfilename)
     # читаем sqlite БД
     db = dbengine(dbfilename, fast=True)
-    mdbfilename = os.path.join(os.path.split(dbfilename)[0],'BalanceHistory.mdb')
+    mdbfilename = os.path.join(os.path.split(dbfilename)[0], 'BalanceHistory.mdb')
     mdb = mdbengine(mdbfilename)
     # Дата согласно указанному deep от которой сверяем данные
-    dd = datetime.datetime.now() - datetime.timedelta(days=deep) 
-    #logging.debug(f'Fix miliseconds {db.cur.fetchall()}')
-    #db.cur.execute("update phones set QueryDateTime=datetime(QueryDateTime) where datetime(QueryDateTime)<>QueryDateTime"); 
-    #db.conn.commit()
+    dd = datetime.datetime.now() - datetime.timedelta(days=deep)
     logging.debug(f'Read from sqlite QueryDateTime>{dd}')
     db.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd])
     sqldata = db.cur.fetchall()
-    dsqlite = {datetime.datetime.strptime(i[db.phoneheader.index('QueryDateTime')].split('.')[0],'%Y-%m-%d %H:%M:%S').timestamp():i for i in sqldata}
+    dsqlite = {datetime.datetime.strptime(i[db.phoneheader.index('QueryDateTime')].split('.')[0], '%Y-%m-%d %H:%M:%S').timestamp(): i for i in sqldata}
     # теперь все то же самое из базы MDB
     logging.debug(f'Read from mdb QueryDateTime>{dd}')
     mdb.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd])
     mdbdata = mdb.cur.fetchall()
-    dmdb = {i[mdb.phoneheader.index('QueryDateTime')].timestamp():i for i in mdbdata}
+    dmdb = {i[mdb.phoneheader.index('QueryDateTime')].timestamp(): i for i in mdbdata}
     logging.debug('calculate')
     # Строим общий список timestamp всех данных
-    allt = sorted(set(list(dsqlite)+list(dmdb)))
+    allt = sorted(set(list(dsqlite) + list(dmdb)))
     # обрабарываем и составляем пары данных которые затем будем подправлять
-    pairs = [] # mdb timestamp, sqlite timestamp
+    pairs = []  # mdb timestamp, sqlite timestamp
     while allt:
         # берем одну строчку из общего списка
-        c=allt.pop(0)
+        c = allt.pop(0)
         # Если для этого timestamp есть строчка в обазах добавляем из
         pair = [c if c in dmdb else None, c if c in dsqlite else None]
         if allt == [] or allt[0] in dmdb and pair[0] is not None or allt[0] in dsqlite and pair[1] is not None:
             # Это следующаяя строка или была последняя
             pairs.append(pair)
-        elif allt[0] in dmdb and pair[0] is None and allt[0]-c < 10:
+        elif allt[0] in dmdb and pair[0] is None and allt[0] - c < 10:
             # следующий timestamp это пара MDB к записи sqlite ?
             pair[0] = allt.pop(0)
             pairs.append(pair)
-        elif allt[0] in dsqlite and pair[1] is None and allt[0]-c < 10:
+        elif allt[0] in dsqlite and pair[1] is None and allt[0] - c < 10:
             # следующий timestamp это пара sqlite к записи mdb ?
             pair[1] = allt.pop(0)
             pairs.append(pair)
@@ -308,8 +324,8 @@ def update_sqlite_from_mdb_core(deep=None):
 
     # есть что проапдейтить ?
     logging.debug(f'Update {len(update_param)}')
-    if update_param:            
-        db.cur.executemany('update phones set QueryDateTime=? where QueryDateTime=?',update_param)
+    if update_param:
+        db.cur.executemany('update phones set QueryDateTime=? where QueryDateTime=?', update_param)
         db.conn.commit()
 
     # дополнительные фиксы (у меня в mdb мусор оказался, чтобы не трогать mdb чистим здесь)
@@ -319,7 +335,7 @@ def update_sqlite_from_mdb_core(deep=None):
     # прописываем колонку mbnumber
     update_mbnumber = [[MBphonenumber, phonenumber, region] for MBphonenumber, (phonenumber, region) in mdb.phones.items()]
     db.cur.executemany(f'update phones set MBPhonenumber=? where MBPhonenumber is null and Phonenumber=? and operator=?', update_mbnumber)
-    logging.debug(f'Update empty MBPhonenumber {db.cur.rowcount}:')    
+    logging.debug(f'Update empty MBPhonenumber {db.cur.rowcount}:')
     db.conn.commit()
 
     logging.debug(f'After:')
@@ -327,6 +343,7 @@ def update_sqlite_from_mdb_core(deep=None):
     logging.debug(f'Only mdb:{len([1 for a,b in pairs if b is None])}')
     logging.debug(f'Only sqlite:{len([1 for a,b in pairs if a is None])}')
     logging.debug(f'Update complete')
+
 
 def update_sqlite_from_mdb(deep=None):
     try:

@@ -35,6 +35,9 @@ average_days = 30
 updatefrommdb = 0
 updatefrommdbdeep = 30
 
+# Раздел [Telegram]
+tg_format = '<b>{Alias}</b>\t<code>{PhoneNumberFormat2}</code>\t<b>{Balance}</b>'
+
 # Раздел mbplugin.ini [HttpServer]
 # порт http сервера с отчетами
 port = '19777'

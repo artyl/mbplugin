@@ -1,6 +1,6 @@
-# -*- coding: utf8 -*- 
+# -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys, re, time, json, traceback, threading, logging, importlib, configparser, queue
+import os, sys,io, re, time, json, traceback, threading, logging, importlib, configparser, queue
 import wsgiref.simple_server, socketserver, socket, requests, urllib.parse
 import settings, store, dbengine  # pylint: disable=import-error
 try:
@@ -13,20 +13,21 @@ try:
 except ModuleNotFoundError:
     print('No telegram installed, no telegram bot')
 
-lang='p' # Для плагинов на python преффикс lang всегда 'p'
+lang = 'p'  # Для плагинов на python преффикс lang всегда 'p'
 
 HTML_NO_REPORT = '''Для того чтобы были доступны отчеты необходимо в mbplugin.ini включить запись результатов в sqlite базу<br>
 sqlitestore = 1<br>Также можно настроить импорт из базы BalanceHistory.mdb включив <br>
 createhtmlreport = 1<br>
-После включения, запустите mbplugin\setup_and_check.bat
+После включения, запустите mbplugin\\setup_and_check.bat
 '''
 
+
 def find_ini_up(fn):
-    allroot = [os.getcwd().rsplit('\\',i)[0] for i in range(len(os.getcwd().split('\\')))]
-    all_ini = [i for i in allroot if os.path.exists(os.path.join(i,fn))]
+    allroot = [os.getcwd().rsplit('\\', i)[0] for i in range(len(os.getcwd().split('\\')))]
+    all_ini = [i for i in allroot if os.path.exists(os.path.join(i, fn))]
     if all_ini != []:
         return all_ini[0]
-    
+
 
 def getbalance(method, param_source):
     'fplugin, login, password, date'
@@ -36,24 +37,21 @@ def getbalance(method, param_source):
             return 'text/html', [f'<html>Unknown call - use getbalance/plugin/login/password/date</html>']
         param['fplugin'], param['login'], param['password'], param['date'] = param_source
     elif method == 'get':
-        #fplugin,login,password,date = param
         param = param_source
-        # все параметры пришли ? 
+        # все параметры пришли ?
         if len(set(param.keys()).intersection(set('plugin,login,password,date'.split(',')))) < 4:
             return 'text/html', [f'<html>Unknown call - use get?plugin=PLUGIN&login=LOGIN&password=PASSWORD&date=DATE</html>']
-        param = {i:param_source[i][0] for i in param_source} #  в get запросе все параметры - списки
+        param = {i: param_source[i][0] for i in param_source}  # в get запросе все параметры - списки
         param['fplugin'] = param['plugin']  # наш параметр plugin на самом деле fplugin
     else:
         logging.error(f'Unknown method {method}')
     logging.info(f"Start {param['fplugin']} {param['login']}")
-    #print(f'{fn=} {fn.split("/")=}')
-    #print(f'{param['fplugin']=} {param['login']=} {param['password']=} {date=}')
     # Это плагин от python ?
     if param['fplugin'].startswith(f'{lang}_'):
         # get balance
-        plugin = param['fplugin'].split('_',1)[1]  # plugin это все что после p_ 
+        plugin = param['fplugin'].split('_', 1)[1]  # plugin это все что после p_
         module = __import__(plugin, globals(), locals(), [], 0)
-        importlib.reload(module) # обновляем модуль, на случай если он менялся
+        importlib.reload(module)  # обновляем модуль, на случай если он менялся
         result = module.get_balance(param['login'], param['password'], f"{lang}_{plugin}_{param['login']}")
         text = store.result_to_html(result)
         # пишем в базу
@@ -66,6 +64,7 @@ def getbalance(method, param_source):
         return 'text/html', text
     logging.error(f"Unknown plugin {param['fplugin']}")
     return 'text/html', [f"<html>Unknown plugin {param['fplugin']}</html>"]
+
 
 def getreport(param=[]):
     style = '''<style type="text/css">
@@ -83,7 +82,7 @@ def getreport(param=[]):
     .p_n{color:#634276}
     .p_r{color:#006400}
     .p_b{color:#800000}
-    #Balance, #SpendBalance {text-align: right; font-weight:bold}               
+    #Balance, #SpendBalance {text-align: right; font-weight:bold}
     #Indication, #Alias, #KreditLimit, #PhoneDescr, #UserName, #PhoneNum, #PhoneNumber, #BalExpired, #LicSchet, #TarifPlan, #BlockStatus, #AnyString, #LastQueryTime{text-align: left}
     </style>'''
     template = '''
@@ -104,41 +103,33 @@ def getreport(param=[]):
     </html>'''
     options = store.read_ini()['Options']
     db = dbengine.dbengine(options.get('dbfilename', settings.dbfilename))
-    #num_format = 0 if len(param)==0 or not param[0].isnumeric() else int(param[0])
     # номера провайдеры и логины из phones.ini
-    options_ini = store.read_ini('options.ini') 
-    #if inipath is None:return 'text/html', ['phones.ini not found']
+    options_ini = store.read_ini('options.ini')
 
-    edBalanceLessThen = float(options_ini['Mark']['edBalanceLessThen']) # помечать балансы меньше чем
-    edTurnOffLessThen = float(options_ini['Mark']['edTurnOffLessThen']) # помечать когда отключение CalcTurnOff меньше чем
-    
-    phones_ini = store.read_ini('phones.ini')
-    #phones_ini.read_string(re.sub(r'(?usi)\[Phone\] #(\d+)',r'[\1]',open(os.path.join(inipath,'phones.ini')).read())) # replace [Phone] #123 -> [Phone #123]
-    phonesdata_numb =  {(re.sub(r' #\d+','',v['Number']),v['Region']):int(k) for k,v in phones_ini.items() if k.isnumeric() and 'Monitor' in v}
-    phonesdata_alias = {(re.sub(r' #\d+','',v['Number']),v['Region']):v.get('Alias','') for k,v in phones_ini.items() if k.isnumeric() and 'Monitor' in v}
-    phonesdata_descr = {(re.sub(r' #\d+','',v['Number']),v['Region']):v.get('PhoneDescription','') for k,v in phones_ini.items() if k.isnumeric() and 'Monitor' in v}
-    
-    num_format = '' if len(param)==0 or not param[0].isnumeric() else str(int(param[0]))
-    table_format = store.read_ini()['HttpServer'].get('table_format'+num_format,settings.table_format)
-    header,data = db.report(table_format.strip().split(','))
-    header = ['NN', 'Alias'] + list(header)
-    data = [[phonesdata_numb.get(line[0:2],99),phonesdata_alias.get(line[0:2],'???')]+list(line) for line in data]
-    data.sort(key=lambda i:(i[0],str(i[1:])))
+    edBalanceLessThen = float(options_ini['Mark']['edBalanceLessThen'])  # помечать балансы меньше чем
+    edTurnOffLessThen = float(options_ini['Mark']['edTurnOffLessThen'])  # помечать когда отключение CalcTurnOff меньше чем
+
+    num_format = '' if len(param) == 0 or not param[0].isnumeric() else str(int(param[0]))
+    table_format = store.read_ini()['HttpServer'].get('table_format' + num_format, settings.table_format)
+    table = db.report()
+    if 'Alias' not in table_format:
+        table_format = 'NN,Alias,' + table_format  # Если старый ini то этих столбцов нет - добавляем
+    header = table_format.strip().split(',')
     # классы для формата заголовка
-    header_class = {'Balance': 'p_b', 'RealAverage': 'p_r','BalDelta':'p_r','BalDeltaQuery': 'p_r','NoChangeDays': 'p_r','CalcTurnOff': 'p_r','MinAverage': 'p_r',}
+    header_class = {'Balance': 'p_b', 'RealAverage': 'p_r', 'BalDelta': 'p_r', 'BalDeltaQuery': 'p_r', 'NoChangeDays': 'p_r', 'CalcTurnOff': 'p_r', 'MinAverage': 'p_r', }
     html_header = ''.join([f'<th id="h{h}" class="{header_class.get(h,"p_n")}">{dbengine.PhonesHText.get(h,h)}</th>' for h in header])
     html_table = []
-    for line in data:
+    for line in table:
         html_line = []
-        for he, el in zip(header, line):
+        for he in header:
+            if he not in line:
+                continue
+            el = line[he]
             mark = ''  # class="mark"
             if he == 'Balance' and el is not None and el < edBalanceLessThen:
                 mark = ' class="mark" '  # Красим когда мало денег
             if he == 'CalcTurnOff' and el is not None and el < edTurnOffLessThen:
                 mark = ' class="mark" '  # Красим когда надолго не хватит
-            if he == 'PhoneNumber' and el is not None and el.isdigit():
-                # форматирование телефонных номеров
-                el = re.sub(r'\A(\d{3})(\d{3})(\d{4})\Z', '(\\1) \\2-\\3', el)
             if el is None:
                 el = ''
             if he != 'Balance' and (el == 0.0 or el == 0):
@@ -153,11 +144,11 @@ def write_report():
     'сохраняем отчет balance_html если в ini createhtmlreport=1'
     try:
         options = store.read_ini()['Options']
-        if options.get('createhtmlreport','0') == '1':
-            _,res = getreport()
+        if options.get('createhtmlreport', '0') == '1':
+            _, res = getreport()
             balance_html = options.get('balance_html', settings.balance_html)
             logging.info(f'Создаем {balance_html}')
-            open(balance_html,encoding='utf8',mode='w').write('\n'.join(res))
+            open(balance_html, encoding='utf8', mode='w').write('\n'.join(res))
     except Exception:
         logging.error(f'Ошибка генерации {balance_html} {"".join(traceback.format_exception(*sys.exc_info()))}')
 
@@ -166,41 +157,43 @@ def tray_icon(cmdqueue):
     'Выставляем для trayicon daemon, чтобы ушел вслед за нами функция нужна для запуска в отдельном thread'
     TrayIcon(cmdqueue).run_forever()
 
+
 class TrayIcon:
     def __init__(self, cmdqueue):
         self.cmdqueue = cmdqueue
         msg_TaskbarRestart = win32gui.RegisterWindowMessage("TaskbarCreated")
         message_map = {
-                msg_TaskbarRestart: self.OnRestart,
-                win32con.WM_DESTROY: self.OnDestroy,
-                win32con.WM_COMMAND: self.OnCommand,
-                win32con.WM_USER+20 : self.OnTaskbarNotify,
+            msg_TaskbarRestart: self.OnRestart,
+            win32con.WM_DESTROY: self.OnDestroy,
+            win32con.WM_COMMAND: self.OnCommand,
+            win32con.WM_USER + 20: self.OnTaskbarNotify,
         }
         wc = win32gui.WNDCLASS()
         hinst = wc.hInstance = win32api.GetModuleHandle(None)
         wc.lpszClassName = "PythonTaskbarDemo"
         wc.style = win32con.CS_VREDRAW | win32con.CS_HREDRAW
-        wc.hCursor = win32api.LoadCursor( 0, win32con.IDC_ARROW )
+        wc.hCursor = win32api.LoadCursor(0, win32con.IDC_ARROW)
         wc.hbrBackground = win32con.COLOR_WINDOW
-        wc.lpfnWndProc = message_map # could also specify a wndproc.
+        wc.lpfnWndProc = message_map  # could also specify a wndproc.
         try:
             classAtom = win32gui.RegisterClass(wc)
         except win32gui.error as err_info:
-            if err_info.winerror!=winerror.ERROR_CLASS_ALREADY_EXISTS:
+            if err_info.winerror != winerror.ERROR_CLASS_ALREADY_EXISTS:
                 raise
         style = win32con.WS_OVERLAPPED | win32con.WS_SYSMENU
-        self.hwnd = win32gui.CreateWindow( wc.lpszClassName, "Taskbar Demo", style, \
-                0, 0, win32con.CW_USEDEFAULT, win32con.CW_USEDEFAULT, \
-                0, 0, hinst, None)
+        self.hwnd = win32gui.CreateWindow(wc.lpszClassName, "Taskbar Demo",
+                                          style, 0, 0, win32con.CW_USEDEFAULT,
+                                          win32con.CW_USEDEFAULT, 0, 0, hinst,
+                                          None)
         win32gui.UpdateWindow(self.hwnd)
         self._DoCreateIcons()
 
     def run_forever(self):
         win32gui.PumpMessages()
 
-    def _DoCreateIcons(self, iconame = 'httpserver.ico'):
+    def _DoCreateIcons(self, iconame='httpserver.ico'):
         # Try and find a custom icon
-        hinst =  win32api.GetModuleHandle(None)
+        hinst = win32api.GetModuleHandle(None)
         iconPathName = os.path.join(os.path.split(os.path.abspath(sys.argv[0]))[0], iconame)
         if os.path.isfile(iconPathName):
             icon_flags = win32con.LR_LOADFROMFILE | win32con.LR_DEFAULTSIZE
@@ -209,7 +202,7 @@ class TrayIcon:
             hicon = win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
 
         flags = win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP
-        nid = (self.hwnd, 0, flags, win32con.WM_USER+20, hicon, "Python Demo")
+        nid = (self.hwnd, 0, flags, win32con.WM_USER + 20, hicon, "Python Demo")
         try:
             win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, nid)
         except win32gui.error:
@@ -221,18 +214,18 @@ class TrayIcon:
     def OnDestroy(self, hwnd, msg, wparam, lparam):
         nid = (self.hwnd, 0)
         win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, nid)
-        win32gui.PostQuitMessage(0) # Terminate the app.
+        win32gui.PostQuitMessage(0)  # Terminate the app.
 
     def OnTaskbarNotify(self, hwnd, msg, wparam, lparam):
-        if lparam==win32con.WM_LBUTTONDBLCLK:
-            #print("You double-clicked me - goodbye")
-            #win32gui.DestroyWindow(self.hwnd)
+        if lparam == win32con.WM_LBUTTONDBLCLK:
+            # print("You double-clicked me - goodbye")
+            # win32gui.DestroyWindow(self.hwnd)
             pass
-        elif lparam==win32con.WM_RBUTTONUP:
+        elif lparam == win32con.WM_RBUTTONUP:
             print("You right clicked me.")
             menu = win32gui.CreatePopupMenu()
-            win32gui.AppendMenu( menu, win32con.MF_STRING, 1024, "Open report")
-            win32gui.AppendMenu( menu, win32con.MF_STRING, 1025, "Exit program" )
+            win32gui.AppendMenu(menu, win32con.MF_STRING, 1024, "Open report")
+            win32gui.AppendMenu(menu, win32con.MF_STRING, 1025, "Exit program")
             pos = win32gui.GetCursorPos()
             # See http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/menus_0hdi.asp
             win32gui.SetForegroundWindow(self.hwnd)
@@ -242,12 +235,12 @@ class TrayIcon:
 
     def OnCommand(self, hwnd, msg, wparam, lparam):
         id = win32api.LOWORD(wparam)
-        if id == 1024: 
+        if id == 1024:
             port = int(store.read_ini()['HttpServer'].get('port', settings.port))
             os.system(f'start http://localhost:{port}/report')
         elif id == 1025:
             print("Goodbye")
-            win32gui.DestroyWindow(self.hwnd)          
+            win32gui.DestroyWindow(self.hwnd)
             self.cmdqueue.put('STOP')
         else:
             print("Unknown command -", id)
@@ -259,66 +252,78 @@ class TelegramBot():
             if update.message.chat_id in self.auth_id():
                 res = func(self, update, context)  # pylint: disable=not-callable
                 return res
+            else:
+                logging.info(f'TG:{update.message.chat_id} unautorized get /balance')
         return wrapper
 
     def auth_id(self):
         tgoptions = store.read_ini()['Telegram']
-        auth_id = tgoptions.get('auth_id','').strip()
+        auth_id = tgoptions.get('auth_id', '').strip()
         if not re.match(r'(\d+,?)', auth_id):
             logging.error(f'incorrect auth_id in ini: {auth_id}')
-        return map(int,auth_id.split(','))
+        return map(int, auth_id.split(','))
 
     def get_id(self, update, context):
         """Echo chat id."""
+        logging.info(f'TG:{update.message.chat_id} /id')
         update.message.reply_text(update.message.chat_id)
 
-    def prepare_balance(self):
+    def prepare_balance(self, filter='FULL'):
         """Prepare balance for TG."""
-        #update.message.reply_text('BALANCE')
+        # update.message.reply_text('BALANCE')
         try:
             options = store.read_ini()['Options']
             db = dbengine.dbengine(options.get('dbfilename', settings.dbfilename))
-            #table_format = store.read_ini()['Telegram'].get('table_format',settings.table_format)
-            table_format = 'PhoneNumber,Operator,Balance'  # Обязательно первые два номер и оператор
-            header, data = db.report(table_format.strip().split(','), filter='QueryDateTime>datetime("now","-1 day") and (baldelta<>0 or baldeltaquery<>0) ')
-            phones = store.ini('phones.ini').phones()
-            data.sort(key=lambda line:(phones.get(line[0:2],{}).get('NN',999)))
-            table = []
-            for line in data:
-                row = dict(zip(header,line))
-                if type(row['PhoneNumber']) == str and row['PhoneNumber'].isdigit():
-                    # форматирование телефонных номеров
-                    row['PhoneNumber'] = re.sub(r'\A(\d{3})(\d{3})(\d{4})\Z', '(\\1) \\2-\\3', row['PhoneNumber'])
-                row['Alias'] = phones.get(line[0:2], {}).get('Alias', 'Unknown')
-                table.append(row)
-            res = [('<b>%s</b>\t<code>%s</code>\t<b>%s</b>' % (line['Alias'], line['PhoneNumber'].replace(' ',''), line['Balance'])) for line in table]
+            table_format = store.read_ini()['Telegram'].get('tg_format', settings.tg_format).replace('\\t','\t').replace('\\n','\n')
+            # table_format = 'Alias,PhoneNumber,Operator,Balance'
+
+            #table_format = '<b>{Alias}</b>\t<code>{PhoneNumberFormat2}</code>\t<b>{Balance}</b>'
+            # Если формат задан как перечисление полей через запятую - переделываем под формат
+            if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
+                table_format = ' '.join([f'{{{i}}}' for i in table_format.strip().split(',')])
+            table = db.report()
+            if filter == 'LASTCHANGE':
+                res = [table_format.format(**line) for line in table if line['BalDeltaQuery'] != 0]
+            elif filter == 'LASTDAYCHANGE':
+                res = [table_format.format(**line) for line in table if line['BalDelta'] != 0]
+            else:  # 'FULL':
+                res = [table_format.format(**line) for line in table]
             return '\n'.join(res)
         except Exception:
             exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
-            logging.error(exception_text)        
+            logging.error(exception_text)
             return 'error'
 
     @auth_decorator
     def get_balance(self, update, context):
         """Send balance only auth user."""
-        baltxt = self.prepare_balance()
+        logging.info(f'TG:{update.message.chat_id} /balance')
+        baltxt = self.prepare_balance('FULL')
         update.message.reply_text(baltxt, parse_mode=telegram.ParseMode.HTML)
- 
+
+    @auth_decorator
+    def get_balancefile(self, update, context):
+        """Send balance html file only auth user."""
+        logging.info(f'TG:{update.message.chat_id} /balancefile')
+        _, res = getreport()
+        for id in self.auth_id():
+            self.updater.bot.send_document(chat_id=id, filename='balance.htm', document=io.BytesIO('\n'.join(res).strip().encode('cp1251')))
+
     def send_message(self, text, parse_mode='HTML'):
-        if self.updater == None:
+        if self.updater is None:
             return
         for id in self.auth_id():
-            self.updater.bot.sendMessage(chat_id = id , text = text, parse_mode=parse_mode)
+            self.updater.bot.sendMessage(chat_id=id, text=text, parse_mode=parse_mode)
 
     def send_balance(self):
-        if self.updater == None:
+        if self.updater is None:
             return
-        baltxt = self.prepare_balance()
-        self.send_message(text = baltxt, parse_mode=telegram.ParseMode.HTML)
-                
+        baltxt = self.prepare_balance('LASTCHANGE')
+        self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML)
+
     def stop(self):
         '''Stop bot'''
-        if self.updater != None:
+        if self.updater is not None:
             self.updater.stop()
 
     def __init__(self):
@@ -326,19 +331,21 @@ class TelegramBot():
         tgoptions = ini['Telegram'] if 'Telegram' in ini else {}
         api_token = tgoptions.get('api_token', '').strip()
         self.updater = None
-        if api_token !=  ''  and 'telegram' in sys.modules:
+        if api_token != '' and 'telegram' in sys.modules:
             logging.info(f'Module telegram starting for id={self.auth_id()}')
             self.updater = Updater(api_token, use_context=True)
             logging.info(f'{self.updater}')
             dp = self.updater.dispatcher
             dp.add_handler(CommandHandler("id", self.get_id))
             dp.add_handler(CommandHandler("balance", self.get_balance))
+            dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
             self.updater.start_polling()  # Start the Bot
-            self.send_message(text = 'Hey there!')
+            self.send_message(text='Hey there!')
         elif 'telegram' not in sys.modules:
             logging.info('Module telegram not found')
-        elif api_token !=  '':
+        elif api_token != '':
             logging.info('Telegtam api_token not found')
+
 
 class Handler(wsgiref.simple_server.WSGIRequestHandler):
     # Disable logging DNS lookups
@@ -361,9 +368,9 @@ class WebServer():
         self.cmdqueue = queue.Queue()
         httpssec = store.read_ini()['HttpServer']
         options = store.read_ini()['Options']
-        logging.basicConfig(filename=options.get('logginghttpfilename', settings.logginghttpfilename), 
-                        level=options.get('logginglevel', settings.logginglevel),
-                        format=options.get('loggingformat', settings.loggingformat))
+        logging.basicConfig(filename=options.get('logginghttpfilename', settings.logginghttpfilename),
+                            level=options.get('logginglevel', settings.logginglevel),
+                            format=options.get('loggingformat', settings.loggingformat))
         self.port = int(httpssec.get('port', settings.port))
         self.host = '127.0.0.1'
         with socket.socket() as sock:
@@ -371,15 +378,15 @@ class WebServer():
             if sock.connect_ex((self.host, self.port)) == 0:
                 logging.error(f"Port {self.host}:{self.port} already in use, try restart.")
                 try:
-                    requests.Session().get(f'http://{self.host}:{self.port}/exit',timeout=1)
+                    requests.Session().get(f'http://{self.host}:{self.port}/exit', timeout=1)
                     time.sleep(1)  # Подождем пока серер остановится
                 except Exception:
                     pass
         with wsgiref.simple_server.make_server(self.host, self.port, self.simple_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
             logging.info(f'Listening {self.host}:{self.port}....')
-            threading.Thread(target=self.httpd.serve_forever, daemon = True).start()
+            threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
             if 'win32api' in sys.modules:  # Иконка в трее
-                threading.Thread(target=lambda i=self.cmdqueue:tray_icon(i), daemon = True).start()
+                threading.Thread(target=lambda i=self.cmdqueue: tray_icon(i), daemon=True).start()
             if 'telegram' in sys.modules:  # telegram bot (он сам все запустит в threading)
                 self.telegram_bot = TelegramBot()
             # Запустили все остальное демонами и ждем, когда они пришлют сигнал
@@ -388,11 +395,11 @@ class WebServer():
             self.httpd.shutdown()
         logging.info(f'Shutdown server {self.host}:{self.port}....')
 
-    def simple_app(self,environ, start_response):
+    def simple_app(self, environ, start_response):
         try:
             status = '200 OK'
-            ct, text = 'text/html',[]
-            fn=environ.get('PATH_INFO', None)
+            ct, text = 'text/html', []
+            fn = environ.get('PATH_INFO', None)
             _, cmd, *param = fn.split('/')
             print(f'{cmd}, {param}')
             if cmd.lower() == 'getbalance':  # старый вариант оставлен поеп для совместимости
@@ -401,27 +408,29 @@ class WebServer():
                 self.telegram_bot.send_balance()
             elif cmd.lower() == 'get':  # вариант через get запрос
                 param = urllib.parse.parse_qs(environ['QUERY_STRING'])
-                ct, text = getbalance('get', param)  
-            elif cmd == '' or cmd == 'report': # report
+                ct, text = getbalance('get', param)
+            elif cmd == '' or cmd == 'report':  # report
                 options = store.read_ini()['Options']
                 if options['sqlitestore'] == '1':
                     ct, text = getreport(param)
                 else:
                     ct, text = 'text/html', HTML_NO_REPORT
-            elif cmd == 'exit': # exit cmd
+            elif cmd == 'exit':  # exit cmd
                 self.cmdqueue.put('STOP')
                 text = ['exit']
             headers = [('Content-type', ct)]
             start_response(status, headers)
             return [line.encode('cp1251') for line in text]
         except Exception:
-            exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'        
+            exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
             logging.error(exception_text)
             headers = [('Content-type', 'text/html')]
             return ['<html>ERROR</html>'.encode('cp1251')]
 
+
 def main():
     WebServer()
+
 
 if __name__ == '__main__':
     main()
