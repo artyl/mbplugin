@@ -36,7 +36,12 @@ updatefrommdb = 0
 updatefrommdbdeep = 30
 
 # Раздел [Telegram]
+# формат для строки telegram bot из sqlite
 tg_format = '<b>{Alias}</b>\t<code>{PhoneNumberFormat2}</code>\t<b>{Balance}</b>'
+tg_from = 'sqlite'  # mobilebalance или sqlite
+# формат для строки telegram bot из mobilebalance
+tgmb_format = '<b>{Alias}</b>\t<code>{PhoneNum}</code>\t<b>{Balance}</b>'
+mobilebalance_http = 'http://localhost:19778/123456/'
 
 # Раздел mbplugin.ini [HttpServer]
 # порт http сервера с отчетами

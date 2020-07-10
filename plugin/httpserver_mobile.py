@@ -1,7 +1,7 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
 import os, sys,io, re, time, json, traceback, threading, logging, importlib, configparser, queue
-import wsgiref.simple_server, socketserver, socket, requests, urllib.parse
+import wsgiref.simple_server, socketserver, socket, requests, urllib.parse, bs4
 import settings, store, dbengine  # pylint: disable=import-error
 try:
     import win32api, win32gui, win32con, winerror
@@ -270,29 +270,47 @@ class TelegramBot():
 
     def prepare_balance(self, filter='FULL'):
         """Prepare balance for TG."""
-        # update.message.reply_text('BALANCE')
         try:
-            options = store.read_ini()['Options']
-            db = dbengine.dbengine(options.get('dbfilename', settings.dbfilename))
-            table_format = store.read_ini()['Telegram'].get('tg_format', settings.tg_format).replace('\\t','\t').replace('\\n','\n')
-            # table_format = 'Alias,PhoneNumber,Operator,Balance'
-
-            #table_format = '<b>{Alias}</b>\t<code>{PhoneNumberFormat2}</code>\t<b>{Balance}</b>'
-            # Если формат задан как перечисление полей через запятую - переделываем под формат
-            if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
-                table_format = ' '.join([f'{{{i}}}' for i in table_format.strip().split(',')])
-            table = db.report()
-            if filter == 'LASTCHANGE':
-                res = [table_format.format(**line) for line in table if line['BalDeltaQuery'] != 0]
-            elif filter == 'LASTDAYCHANGE':
-                res = [table_format.format(**line) for line in table if line['BalDelta'] != 0]
-            else:  # 'FULL':
-                res = [table_format.format(**line) for line in table]
-            return '\n'.join(res)
+            if store.read_ini()['Telegram'].get('tg_from', settings.tg_from) == 'sqlite':
+                return self.prepare_balance_sqlite(filter)
+            else:
+                return self.prepare_balance_mobilebalance(filter)
         except Exception:
             exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
             logging.error(exception_text)
             return 'error'
+
+    def prepare_balance_sqlite(self, filter='FULL'):
+        options = store.read_ini()['Options']
+        db = dbengine.dbengine(options.get('dbfilename', settings.dbfilename))
+        table_format = store.read_ini()['Telegram'].get('tg_format', settings.tg_format).replace('\\t','\t').replace('\\n','\n')
+        # table_format = 'Alias,PhoneNumber,Operator,Balance'
+        # Если формат задан как перечисление полей через запятую - переделываем под формат
+        if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
+            table_format = ' '.join([f'{{{i}}}' for i in table_format.strip().split(',')])
+        table = db.report()
+        if filter == 'LASTCHANGE':
+            res = [table_format.format(**line) for line in table if line['BalDeltaQuery'] != 0]
+        elif filter == 'LASTDAYCHANGE':
+            res = [table_format.format(**line) for line in table if line['BalDelta'] != 0]
+        else:  # 'FULL':
+            res = [table_format.format(**line) for line in table]
+        return '\n'.join(res)
+
+    def prepare_balance_mobilebalance(self, filter='FULL'):
+        url = store.read_ini()['Telegram'].get('mobilebalance_http', settings.mobilebalance_http)
+        tgmb_format = store.read_ini()['Telegram'].get('tgmb_format', settings.tgmb_format)
+        response1_text = requests.get(url).content.decode('cp1251')
+        soup = bs4.BeautifulSoup(response1_text, 'html.parser')
+        headers = [''.join(el.get('id')[1:]) for el in soup.find(id='header').findAll('th')]
+        data = [[''.join(el.contents) for el in line.findAll(['th', 'td'])]
+                for line in soup.findAll(id='row')]
+        if filter == 'LASTCHANGE':
+            data = [line for line in data if line[headers.index('BalDeltaQuery')] != '']
+        elif filter == 'LASTDAYCHANGE':
+            data = [line for line in data if line[headers.index('BalDelta')] != '']
+        res = '\n'.join([tgmb_format.format(**dict(list(zip(headers, line)))) for line in data])
+        return res
 
     @auth_decorator
     def get_balance(self, update, context):
