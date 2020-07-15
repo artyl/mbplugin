@@ -30,39 +30,63 @@ def get_balance(login, password, storename=None):
 
     result['Balance'] = float('.'.join(response2.json())) # Баланс
 
-    response3 = session.get('https://my.danycom.ru/User/GetCustomerInfo/') # ФИО
-    if response3.status_code == 200 and 'json' in response3.headers.get('content-type'):
-        result['UserName'] = response3.json()
+    try:
+        url = 'https://my.danycom.ru/User/GetCustomerInfo/'
+        response3 = session.get(url) # ФИО
+        if response3.status_code == 200 and 'json' in response3.headers.get('content-type'):
+            result['UserName'] = response3.json()
+    except Exception:
+        logging.info(f"Can't get {url}")
 
-    response4 = session.get('https://my.danycom.ru/User/GetBonusBalance/') # Бонусы
-    if response4.status_code == 200 and 'json' in response4.headers.get('content-type'):
-        result['Balance2'] = response4.json()[0]
+    try:
+        url = 'https://my.danycom.ru/User/GetBonusBalance/'
+        response4 = session.get(url) # Бонусы
+        if response4.status_code == 200 and 'json' in response4.headers.get('content-type'):
+            result['Balance2'] = response4.json()[0]
+    except Exception:
+        logging.info(f"Can't get {url}")
 
-    response5 = session.get('https://my.danycom.ru/User/GetCurrentTariff/') # Тариф
-    if response5.status_code == 200 and 'json' in response5.headers.get('content-type'):
-        result['TarifPlan'] = json.loads(response5.json()).get('Name','')
+    try:
+        url = 'https://my.danycom.ru/User/GetCurrentTariff/'
+        response5 = session.get(url) # Тариф
+        if response5.status_code == 200 and 'json' in response5.headers.get('content-type'):
+            result['TarifPlan'] = json.loads(response5.json()).get('Name','')
+    except Exception:
+        logging.info(f"Can't get {url}")
 
-    response6 = session.get('https://my.danycom.ru/User/GetCustomerStatus/') # Статус блокировки
-    if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
-        result['BlockStatus'] = response6.json()
+    try:
+        url = 'https://my.danycom.ru/User/GetCustomerStatus/'
+        response6 = session.get(url) # Статус блокировки
+        if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
+            result['BlockStatus'] = response6.json()
+    except Exception:
+        logging.info(f"Can't get {url}")
 
-    response7 = session.get('https://my.danycom.ru/User/GetRestTraffic/') # Остатки
-    if response7.status_code == 200 and 'json' in response7.headers.get('content-type'):
-        rests = json.loads(response7.json())
-        result['Min'] = rests.get('CallBalance', 0)
-        result['SMS'] = rests.get('SmsBalance', 0)
-        k_internet = settings.UNIT.get(rests.get('InternetUnit', 'Мб').upper(), 1024) / 1024
-        result['Internet'] = rests.get('InternetBalance', 0) * k_internet
-        result['Expired'] = rests.get('EndPeriod','').split('T')[0]
+    try:
+        url = 'https://my.danycom.ru/User/GetRestTraffic/'
+        response7 = session.get(url) # Остатки
+        if response7.status_code == 200 and 'json' in response7.headers.get('content-type'):
+            rests = json.loads(response7.json())
+            result['Min'] = rests.get('CallBalance', 0)
+            result['SMS'] = rests.get('SmsBalance', 0)
+            k_internet = settings.UNIT.get(rests.get('InternetUnit', 'Мб').upper(), 1024) / 1024
+            result['Internet'] = rests.get('InternetBalance', 0) * k_internet
+            result['Expired'] = rests.get('EndPeriod','').split('T')[0]
+    except Exception:
+        logging.info(f"Can't get {url}")
 
-    response8 = session.get('https://my.danycom.ru/Lk/ServicesControl') # Услуги
-    if response8.status_code == 200: # это просто html
-        services = re.findall(r'(?usi)"Название">(.*?)<.*?руб">\s*(.*?)\s*/\s*(мес|дн|ден)<',response8.text)
-        free = len([a for a, b, c in services if b == '0'])  # бесплатные
-        paid = len([a for a, b, c in services if b != '0'])  # платные
-        paid_sum = round(sum([float(b) for a, b, c in services]), 2)
-        result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
-        result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b, c in services])  
+    try:
+        url = 'https://my.danycom.ru/Lk/ServicesControl'
+        response8 = session.get(url) # Услуги
+        if response8.status_code == 200: # это просто html
+            services = re.findall(r'(?usi)"Название">(.*?)<.*?руб">\s*(.*?)\s*/\s*(мес|дн|ден)<',response8.text)
+            free = len([a for a, b, c in services if b == '0'])  # бесплатные
+            paid = len([a for a, b, c in services if b != '0'])  # платные
+            paid_sum = round(sum([float(b) for a, b, c in services]), 2)
+            result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
+            result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b, c in services])  
+    except Exception:
+        logging.info(f"Can't get {url}")
 
     session.save_session()
     return result
