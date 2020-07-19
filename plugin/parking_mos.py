@@ -13,17 +13,21 @@ def get_balance(login, password, storename=None):
     session = store.Session(storename)
     response3 = session.get('https://lk.parking.mos.ru/ru/cabinet')
     if re.findall("(?usi)accountId\":(.*?),", response3.text) != []:
-        logging.info('Old session is ok')
+        logging.info('Old session is ok. Step 1')
     else:
-        logging.info('Old session is bad, relogin')
-        session.drop_and_create()
+        logging.info('Old session is bad? Check 2.')
+        #session.drop_and_create()
         response1 = session.get('https://lk.parking.mos.ru/auth/social/sudir?returnTo=/../cabinet')
-        csrf = re.findall("(?usi)csrf-token-value.*?content='(.*?)'", response1.text)[0]
-        bfp = ''.join([hex(random.randrange(15))[-1] for i in range(32)])
-        data = {'isDelayed': 'false', 'login': login, 'password': password,
-                'csrftoken_w': csrf, 'bfp': bfp, 'alien': 'false', }
-        response2 = session.post('https://login.mos.ru/sps/login/methods/password', data=data)
-        _ = response2
+        if re.search("(?usi)accountId\":(.*?),", response1.text):
+            logging.info('Old session is ok. (Step 2)')
+        else:
+            logging.info('Old session is bad, relogin')
+            csrf = re.findall("(?usi)csrf-token-value.*?content='(.*?)'", response1.text)[0]
+            bfp = ''.join([hex(random.randrange(15))[-1] for i in range(32)])
+            data = {'isDelayed': 'false', 'login': login, 'password': password,
+                    'csrftoken_w': csrf, 'bfp': bfp, 'alien': 'false', }
+            response2 = session.post('https://login.mos.ru/sps/login/methods/password', data=data)
+            _ = response2
         response3 = session.get('https://lk.parking.mos.ru/ru/cabinet')
 
     accountId = re.findall("(?usi)accountId\":(.*?),", response3.text)[0]
