@@ -5,7 +5,8 @@ import requests
 import store
 
 # Строка для поиска баланса ФИО и лицевого счета на странице
-re_balance = r'(?usi)<td>Баланс</td>.*?<td>(.*?)<'
+re_balance_v1 = r'(?usi)<td>Баланс</td>.*?<td>(.*?)<'
+re_balance_v2 = r'(?usi)Баланс.*?<h2[^>]*>\D?(.*?)\D*</h2>'
 re_userName = r'(?usi)<td>Клиент ?</td>.*?<td>(.*?)<'  
 re_licSchet = r'(?usi)<td>Лицевой счет</td>.*?<td>(.*?)<'  
 
@@ -14,29 +15,54 @@ icon = '789CED92DD4B936118C67F417F407F826E53A3830812EB2C282283A213AB83E82084223B
 def get_balance(login, password, storename=None):
     logging.info(f'start get_balance {login}')
     result = {}
-    url = 'https://avtodor-tr.ru/account/login'
+    url = 'https://avtodor-tr.ru/account'
+    url_ext = 'https://lk.avtodor-tr.ru/api/client/extended'
     session = store.Session(storename)
-    response1 = session.get(url)
-    if re.search(re_balance, response1.text):
-        logging.info(f'Already logoned {login}')
+    response3 = session.get(url_ext)
+    if response3.status_code == 200 and 'json' in response3.headers.get('content-type'):
+        logging.info('Old session is ok')
     else:
         # Логинимся
         logging.info(f'relogon {login}')
         session.drop_and_create()
-        # https://stackoverflow.com/questions/12385179/how-to-send-a-multipart-form-data-with-requests-in-python
-        files = {"email": (None,login), "password": (None,password), "submit0": (None,'Подождите...'), "return_url": (None,''),}
-        response1 = session.post(url, files=files)
-        if response1.status_code != 200:
-            raise RuntimeError(f'POST Login page {url} error: status_code {response1.status_code}')
-    bal = re.search(re_balance, response1.text).group(1).replace(',', '.').strip()
-    result['Balance'] = re.sub(r'(?usi)[^\d.,]', '', bal)
+        url_login = 'https://avtodor-tr.ru/account/login'
+        response1 = session.get(url_login)
+        if response1.status_code !=200:
+            raise RuntimeError(f'GET Login page {url_login} error: status_code {response1.status_code}')
+        try:
+            url_lk = re.search('action="(.*?)"',response1.text).group(1).replace('&amp;','&')
+        except:
+            raise RuntimeError(f'No action url on {url_login}')
+        data = {'username': login, 'password': password}
+        response2 = session.post(url_lk, data=data)
+        if response2.status_code not in (200, 301, 302):
+            raise RuntimeError(f'POST Login page {url_lk} error: status_code {response2.status_code}')
+        response3 = session.get(url_ext)
+        if response3.status_code != 200:
+            raise RuntimeError(f'GET Login page {url_ext} error: status_code {response3.status_code}')
+        if 'json' not in response3.headers.get('content-type'):
+            raise RuntimeError(f"{url_ext} not json: {response3.headers.get('content-type')}")
     
+    data = response3.json()
+    client = data.get('client',{})
+    contracts = data.get('contracts',[])
+    # Попытка получить баланс 
+    result['Balance'] = data['contracts'][0]['account_balance']
+    # Если contracts>1 то прибавляем остальное
+    result['Balance'] += sum([el['account_balance'] for el in data['contracts'][1:]])
+
     try:
-        result['userName'] = re.search(re_userName, response1.text).group(1).replace('&nbsp;', '').strip()
+        result['Balance2'] = data['contracts'][0]['loyalty_member_balance'] 
+    except Exception:
+        logging.info(f'Not found bonus')
+
+    try:
+        result['userName'] = client['name']
     except Exception:
         logging.info(f'Not found userName')
+
     try:
-        result['licSchet'] =  re.search(re_licSchet, response1.text).group(1).replace('&nbsp;', '').strip()
+        result['licSchet'] =  client['id']
     except Exception:
         logging.info(f'Not found licSchet')
     

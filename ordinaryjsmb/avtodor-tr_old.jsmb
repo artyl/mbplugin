@@ -16,79 +16,59 @@
 
 function main(){
     var p = 0;
-	var p = 0;
-	
-	// alert!
-	function alert(s){ window.alert(s); }
-	
-	// возвращает object из строки json
-	function json(str) {
-		try { var obj = eval('(' + str + ')'); }
-		catch(e) { obj = str;  }
-		return obj;
-	}
-	
-	//Проверяет существование переменной
-	function isset (variable) {
-		if(typeof(variable) != "undefined" && variable !== null)
-		{
-			return true;
-		}
-		return false;
-	}
-	
-	// аргументы 3, 4... - Headers. Каждый header - массив из двух элементов ['headerName', 'headerValue']
-	function post(uri, data) {
-		xmlhttp = external.getXmlHttp();
-		xmlhttp.open("POST", uri, false);
-		for(var i=2; i<arguments.length; i++) xmlhttp.setRequestHeader(arguments[i][0], arguments[i][1]);
-		xmlhttp.send(data);
-		response.pages[p++] = xmlhttp.responseText;
-		var tmp = xmlhttp.responseText;
-		xmlhttp.abort();
-		return tmp;
-	}
-	
-	// аргументы 3, 4... - Headers. Каждый header - массив из двух элементов ['headerName', 'headerValue']
-	function get(uri, data) {
-		xmlhttp = external.getXmlHttp();
-		xmlhttp.open("GET", uri, false);
-		for(var i=2; i<arguments.length; i++) xmlhttp.setRequestHeader(arguments[i][0], arguments[i][1]);
-		xmlhttp.send(data);
-		response.pages[p++] = xmlhttp.responseText;
-		var tmp = xmlhttp.responseText;
-		xmlhttp.abort();
-		return tmp;
-	}
-
     // Заходим на главную страницу
     document.location="https://avtodor-tr.ru/account/login";
     if(!external.WaitBrowser) return;
     response.pages[p++]=external.source;
     // Вводим логин и пароль и submit форму
-    if(document.getElementById("password")){
-            document.getElementById("username").value=request.loginValue;
-            document.getElementById("password").value=request.passwValue;
-            document.getElementById("kc-login").click();
+    if(document.getElementById("id_password")){
+            document.getElementById("id_email").value=request.loginValue;
+            document.getElementById("id_password").value=request.passwValue;
+            document.getElementsByName("submit0")[0].click();
             if(!external.WaitBrowser) return;
             response.pages[p++]=external.source;
     };
-    data_raw = get('https://lk.avtodor-tr.ru/api/client/extended')
-    data = json(data_raw)
-    data.contracts[0].account_id
-    data.contracts[0].account_balance
-    data.client.id
-    // Забираем информацию
-    // Баланс
-    response.Balance = parseFloat(data.contracts[0].account_balance);
-    // Бонусы
-    response.Balance2 = data.contracts[0].loyalty_member_balance
-    // ФИО
-    response.userName = data.client.name
-    // LicSchet
-    response.licSchet = data.client.id
+	
+	// Забираем информацию
+	html=document.documentElement.outerHTML;
+	// Преобразуем в одну стрку и удаляем лишние пробелы
+	html = html.replace(/\r|\n/g, "").replace(/>\s+/g, ">");
 
-    // Если мы не в дебаге, то выходим.
+    // Баланс
+    balanceParsed=false;
+    regexp=/<td>Баланс<\/td>.*?<td>(.*?)</i;
+    if (res=regexp.exec(html)){
+        tmpBalance=res[1].replace(/[^\d.,]/g, ""); // Удаляем все кроме цифр точки и запятой
+        tmpBalance=tmpBalance.replace(",", "."); // Заменяем запятую на точку
+        response.Balance=parseFloat(tmpBalance);
+        balanceParsed=true;
+    };
+	
+	// Баланс попытка 2 (иногда другая верстка)
+	if (!balanceParsed){
+		regexp=/Баланс.*?<h2[^>]*>\D?(.*?)\D*<\/h2>/i;
+		if (res=regexp.exec(html)){
+			tmpBalance=res[1].replace(/[^\d.,]/g, ""); // Удаляем все кроме цифр точки и запятой
+			tmpBalance=tmpBalance.replace(",", "."); // Заменяем запятую на точку
+			response.Balance=parseFloat(tmpBalance);
+			balanceParsed=true;
+		};	
+	}
+
+    // ФИО
+    regexp=/<td>Клиент ?<\/td>.*?<td>(.*?)</i;
+    if (res=regexp.exec(html)){
+        response.userName=res[1];
+    };
+
+    // LicSchet
+    regexp=/<td>Лицевой счет<\/td>.*?<td>(.*?)</i;
+    if (res=regexp.exec(html)){
+        response.licSchet=res[1];
+    };
+
+
+	// Если мы не в дебаге, то выходим.
 	if (!external.isDebugMode)
 	{
 		document.location="https://avtodor-tr.ru/account/logout";
