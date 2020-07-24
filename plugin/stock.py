@@ -81,6 +81,8 @@ def count_all_scocks_multithread(stocks, remain, currenc):
     data.sort(key=lambda i:orderlist.index(i[1])) # Сортируем в исходном порядке
     res_full = '\n'.join([f'{sec:5} : {round(val*k[curr],2):7.2f} {curr}' for val,sec,curr in data])+'\n'
     res_balance = round(sum([val*k[curr] for val,sec,curr in data]) + remain['USD']*k['USD'] + remain['RUB']*k['RUB'],2)
+    if len(data) != len(stocks):
+        raise RuntimeError(f'Not all stock was return ({len(data)} of {len(stocks)})')
     return res_balance, res_full
 
 def get_balance(login, password, storename=None):
@@ -97,4 +99,4 @@ def get_balance(login, password, storename=None):
 
 
 if __name__ == '__main__':
-    print('This is module finance.yahoo.com')
+    print('This is module stock calculator')
