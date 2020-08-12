@@ -29,7 +29,7 @@ def find_ini_up(fn):
         return all_ini[0]
 
 
-def getbalance(method, param_source):
+def getbalance_plugin(method, param_source):
     'fplugin, login, password, date'
     param = {}
     if method == 'url':
@@ -313,7 +313,7 @@ class TelegramBot():
         return res
 
     @auth_decorator
-    def get_balance(self, update, context):
+    def get_balancetext(self, update, context):
         """Send balance only auth user."""
         logging.info(f'TG:{update.message.chat_id} /balance')
         baltxt = self.prepare_balance('FULL')
@@ -357,7 +357,7 @@ class TelegramBot():
             logging.info(f'{self.updater}')
             dp = self.updater.dispatcher
             dp.add_handler(CommandHandler("id", self.get_id))
-            dp.add_handler(CommandHandler("balance", self.get_balance))
+            dp.add_handler(CommandHandler("balance", self.get_balancetext))
             dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
             self.updater.start_polling()  # Start the Bot
             self.send_message(text='Hey there!')
@@ -422,13 +422,13 @@ class WebServer():
             fn = environ.get('PATH_INFO', None)
             _, cmd, *param = fn.split('/')
             print(f'{cmd}, {param}')
-            if cmd.lower() == 'getbalance':  # старый вариант оставлен поеп для совместимости
-                ct, text = getbalance('url', param)  # TODO !!! Но правильно все-таки через POST
+            if cmd.lower() == 'getbalance':  # старый вариант оставлен пока для совместимости
+                ct, text = getbalance_plugin('url', param)  # TODO !!! Но правильно все-таки через POST
             elif cmd.lower() == 'sendtgbalance':
                 self.telegram_bot.send_balance()
             elif cmd.lower() == 'get':  # вариант через get запрос
                 param = urllib.parse.parse_qs(environ['QUERY_STRING'])
-                ct, text = getbalance('get', param)
+                ct, text = getbalance_plugin('get', param)
             elif cmd == '' or cmd == 'report':  # report
                 options = store.read_ini()['Options']
                 if options['sqlitestore'] == '1':
