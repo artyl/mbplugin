@@ -337,6 +337,8 @@ class TelegramBot():
         if self.updater is None:
             return
         baltxt = self.prepare_balance('LASTCHANGE')
+        if baltxt=='':
+            baltxt = 'No changes'
         self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML)
 
     def stop(self):

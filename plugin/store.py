@@ -39,6 +39,11 @@ def drop_and_create_session(storename, headers=None):
         session.headers.update(headers)
     return session  # return new session
 
+def session_folder(storename):
+    options = read_ini()['Options']
+    storefolder = options.get('storefolder', settings.storefolder)     
+    os.path.join(storefolder, storename)
+
 class Session():
     'Класс для сессии с дополнительными фишками для сохранения и проверки'
     def __init__(self, storename, headers=None):

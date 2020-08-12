@@ -34,8 +34,13 @@ average_days = 30
 # Обновлять SQLite базу данными из MDB и на сколько дней в глубино
 updatefrommdb = 0
 updatefrommdbdeep = 30
+chrome_executable_path = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+# сюда пропишем сразу возможные варианты
+chrome_executable_path_alternate = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',]
 
-# Раздел [Telegram]
+# Раздел mbplugin.ini [Telegram]
 # формат для строки telegram bot из sqlite
 tg_format = '<b>{Alias}</b>\t<code>{PhoneNumberFormat2}</code>\t<b>{Balance}</b>({BalDeltaQuery})'
 tg_from = 'sqlite'  # mobilebalance или sqlite
@@ -54,3 +59,5 @@ table_format = 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDe
 # 1 - показывать использованный трафик (usedByMe) по всем  или 0 - показывать оставшийся трафик (NonUsed) по всем
 # список тел, через запятую - показать использованный только для этого списка телефонов
 mts_usedbyme  = '0'
+
+
