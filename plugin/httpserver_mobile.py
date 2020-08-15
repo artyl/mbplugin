@@ -240,7 +240,8 @@ class TrayIcon:
             print("You right clicked me.")
             menu = win32gui.CreatePopupMenu()
             win32gui.AppendMenu(menu, win32con.MF_STRING, 1024, "Open report")
-            win32gui.AppendMenu(menu, win32con.MF_STRING, 1025, "Exit program")
+            win32gui.AppendMenu(menu, win32con.MF_STRING, 1025, "View log")
+            win32gui.AppendMenu(menu, win32con.MF_STRING, 1026, "Exit program")
             pos = win32gui.GetCursorPos()
             # See http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/menus_0hdi.asp
             win32gui.SetForegroundWindow(self.hwnd)
@@ -250,10 +251,12 @@ class TrayIcon:
 
     def OnCommand(self, hwnd, msg, wparam, lparam):
         id = win32api.LOWORD(wparam)
+        port = int(store.options('port', section='HttpServer'))
         if id == 1024:
-            port = int(store.options('port', section='HttpServer'))
             os.system(f'start http://localhost:{port}/report')
-        elif id == 1025:
+        if id == 1025:
+            os.system(f'start http://localhost:{port}/log?lines=40')
+        elif id == 1026:
             print("Goodbye")
             win32gui.DestroyWindow(self.hwnd)
             self.cmdqueue.put('STOP')
@@ -390,7 +393,7 @@ class Handler(wsgiref.simple_server.WSGIRequestHandler):
         args = re.sub('(/.*?/.*?/.*?/)(.*?)(/.*)', r'\1xxxxxxx\3', args[0]), *args[1:]
         args = re.sub('(&password=)(.*?)(&)', r'\1xxxxxxx\3', args[0]), *args[1:]
         # а если это показ лога вообще в лог не пишем, а то фигня получается
-        if 'GET /log' not in args[0]:
+        if 'GET /log' not in args[0] and 'GET /favicon.ico' not in args[0]:
             logging.info(f"{self.client_address[0]} - - [self.log_date_time_string()] {format % args}\n")
 
 
@@ -409,10 +412,10 @@ class WebServer():
         with socket.socket() as sock:
             sock.settimeout(0.2)  # this prevents a 2 second lag when starting the server
             if sock.connect_ex((self.host, self.port)) == 0:
-                logging.error(f"Port {self.host}:{self.port} already in use, try restart.")
+                logging.info(f"Port {self.host}:{self.port} already in use, try restart.")
                 try:
                     requests.Session().get(f'http://{self.host}:{self.port}/exit', timeout=1)
-                    time.sleep(1)  # Подождем пока серер остановится
+                    time.sleep(3)  # Подождем пока сервер остановится
                 except Exception:
                     pass
         with wsgiref.simple_server.make_server(self.host, self.port, self.simple_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:

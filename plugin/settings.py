@@ -90,8 +90,14 @@ ini = {
         'updatefrommdbdeep': 30,
         # показывать иконку в трее - 1 прятать - 1, (по умолчанию 1)
         'show_tray_icon': '1',
-        # Путь к хрому
+        # Показывать окна Chrome (при logginglevel=DEBUG всегда показывает)
+        'show_chrome': '0',
+        # Путь к хрому - можно прописать явно в ini, иначе поищет из вариантов chrome_executable_path_alternate
         'chrome_executable_path': 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        # спецвариант по просьбе Mr. Silver в котором возвращаются не остаток интернета, а использованный
+        # 1 - показывать использованный трафик (usedByMe) по всем  или 0 - показывать оставшийся трафик (NonUsed) по всем
+        # список тел, через запятую - показать использованный только для этого списка телефонов
+        'mts_usedbyme': '0',
     },
     'Telegram': {  # Раздел mbplugin.ini [Telegram]
         'api_token':'',  # токен для бота - прописывается в ini
@@ -110,9 +116,5 @@ ini = {
         'host': '127.0.0.1',
         # формат вывода по умолчанию
         'table_format': 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus',  # ? UserName
-        # спецвариант по просьбе Mr. Silver в котором возвращаются не остаток интернета, а использованный
-        # 1 - показывать использованный трафик (usedByMe) по всем  или 0 - показывать оставшийся трафик (NonUsed) по всем
-        # список тел, через запятую - показать использованный только для этого списка телефонов
-        'mts_usedbyme': '0',
     },
 }
