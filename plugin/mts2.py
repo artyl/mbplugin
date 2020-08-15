@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import asyncio, time, subprocess, logging, shutil, os, traceback
+import asyncio, time, re, subprocess, logging, shutil, os, traceback
 import pyppeteer  # PYthon puPPETEER
 #import pprint; pp = pprint.PrettyPrinter(indent=4).pprint
 import store, settings
@@ -12,13 +12,18 @@ icon = '789C75524D4F5341143D84B6A8C0EB2BAD856A4B0BE5E301A508A9F8158DC18498A88989
 async def async_main(login, password, storename=None):
     result = {}
     waitfor = set()
-    options = store.read_ini()['Options']
+    # можно зайти в lk через другой номер тогда логин номер_для_баланса@номер_для_входа
+    # тогда пароль указывается от номера для входа
+    main_login = login_ori = login
+    if '@' in login:
+        login, main_login = login_ori.split('@')
+        storename = storename.replace(login_ori,main_login)  # исправляем storename
     # спецвариант по просьбе Mr. Silver в котором возвращаются не остаток интернета, а использованный
-    mts_usedbyme = options.get('mts_usedbyme', settings.mts_usedbyme)
-    storefolder = options.get('storefolder', settings.storefolder)
+    mts_usedbyme = store.options('mts_usedbyme')
+    storefolder = store.options('storefolder')
     user_data_dir = os.path.join(storefolder,'puppeteer')
     profile_directory = storename
-    chrome_executable_path = options.get('chrome_executable_path', settings.chrome_executable_path)
+    chrome_executable_path = store.options('chrome_executable_path')
     if not os.path.exists(chrome_executable_path):
         chrome_paths = [p for p in settings.chrome_executable_path_alternate if os.path.exists(p)]
         if len(chrome_paths) == 0:
@@ -50,26 +55,34 @@ async def async_main(login, password, storename=None):
 
     async def worker(response):
         if response.status != 200:
-            return        
+            return
+        catch_elements = ['api/login/userInfo', 'for=api/accountInfo/balance', 'for=api/services/list/active', 'for=api/sharing/counters']
+        for elem in catch_elements:
+            if response.request.url.endswith(elem):
+                # Если это сложный заход, то проверяем что смотрим на нужный телефон
+                if '@' in login_ori:
+                    if await page.evaluate("document.getElementsByClassName('mts16-other-sites__phone').length") == 0:
+                        return  # номера на странице нет - уходим
+                    numb = await page.evaluate("document.getElementsByClassName('mts16-other-sites__phone')[0].innerText")
+                    logging.info(f'PHONE {numb}')
+                    if re.sub(r'(?:\+7|\D)', '', numb) != login:
+                        return  # Если номер не наш - уходим
+                waitfor.difference_update({elem}) # этот элемент больше не ждем
+                logging.info(f'await {response.request.url}')
+                response_json = await response.json()
+                break
+        else:  # Если url не из списка - уходим
+            return
         if response.request.url.endswith('api/login/userInfo'):
-            waitfor.difference_update({'api/login/userInfo'}) # этот элемент больше не ждем
-            logging.info(f'await {response.request.url}')
-            data = await response.json()
+            data = response_json
             profile = data['userProfile']
             result['Balance'] = round(profile.get('balance', 0), 2)
             result['TarifPlan'] = profile.get('tariff', '')
             result['UserName'] = profile.get('displayName', '')                    
         if response.request.url.endswith('for=api/accountInfo/balance'):
-            waitfor.difference_update({'for=api/accountInfo/balance'}) # этот элемент больше не ждем
-            logging.info(f'await {response.request.url}')
-            response_json = await response.json()
             data = response_json.get('data', {})
             result['Balance'] = round(data['amount'], 2)
         if response.request.url.endswith('for=api/services/list/active'):
-            #if len(await response.text())==0: return
-            waitfor.difference_update({'for=api/services/list/active'}) # этот элемент больше не ждем
-            logging.info(f"{response.request.url=} {response.request.url.endswith('for=api/services/list/active')} {response.status}")
-            response_json = await response.json()
             data = response_json.get('data', {})
             if 'services' in data:
                 services = [(i['name'], i.get('subscriptionFees', [{}])[0].get('value', 0)) for i in data['services']]
@@ -80,9 +93,6 @@ async def async_main(login, password, storename=None):
                 result['UslugiOn']=f'{free}/{paid}({paid_sum})'
                 result['UslugiList']='\n'.join([f'{a}\t{b}' for a,b in services])
         if response.request.url.endswith('for=api/sharing/counters'):
-            waitfor.difference_update({'for=api/sharing/counters'}) # этот элемент больше не ждем
-            logging.info(f"{response.request.url=} {response.request.url.endswith('for=api/services/list/active')} {response.status}")
-            response_json = await response.json()
             data = response_json.get('data', {})
             if 'counters' in data:
                 counters = data['counters']
@@ -154,7 +164,7 @@ async def async_main(login, password, storename=None):
 
     if await page.evaluate("document.getElementById('password') !== null"):
         logging.info(f'Login')
-        await page.type("#phone", login, {'delay': 10})
+        await page.type("#phone", main_login, {'delay': 10})
         await page.type("#password", password, {'delay': 10})
         await page.evaluate("document.getElementsByClassName('checkbox__input')[0].checked=true")
         await asyncio.sleep(1)
@@ -164,6 +174,17 @@ async def async_main(login, password, storename=None):
     #await asyncio.sleep(1000)
     # почему-то иногда застревает явно идем в https://lk.mts.ru
     await page.goto('https://lk.mts.ru', {'timeout': 20000})
+    if main_login != login:
+        # если заход через другой номер то переключаемся на нужный номер
+        # TODO возможно с прошлого раза может сохраниться переключенный но
+        for i in range(20):
+            if await page.evaluate("document.getElementsByClassName('mts16-other-sites__phone').length") > 0:
+                break
+            logging.info(f'wait mts16-other-sites__phone')
+            await asyncio.sleep(1)
+        url_redirect = f'https://login.mts.ru/amserver/UI/Login?service=idp2idp&IDButton=switch&IDToken1=id%3D{login}%2Cou%3Duser%2Co%3Dusers%2Cou%3Dservices%2Cdc%3Damroot&org=%2Fusers&ForceAuth=true&goto=https%3A%2F%2Flk.mts.ru'
+        await page.goto(url_redirect, {'timeout': 20000})
+
     await do_waitfor({'api/login/userInfo', 'for=api/accountInfo/balance', 'for=api/sharing/counters'})
 
     await page.goto('https://lk.mts.ru/uslugi/podklyuchennye', {'timeout': 20000})
@@ -182,8 +203,6 @@ def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     result = {}
     # спецвариант по просьбе Mr. Silver в котором возвращаются не остаток интернета, а использованный
-    options = store.read_ini()['Options']
-    mts_usedbyme = options.get('mts_usedbyme', settings.mts_usedbyme)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     result = asyncio.get_event_loop().run_until_complete(async_main(login, password, storename))

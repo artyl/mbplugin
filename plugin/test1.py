@@ -7,9 +7,6 @@ import store
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     result = {}
-    ini = store.read_ini()
-    ini['Options']
-    ini['Options']['logginglevel']
     session = store.Session(storename)
     result = {'Balance': 124.45,  # double
             'Balance2': 22,  # double

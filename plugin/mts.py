@@ -74,8 +74,7 @@ def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     result = {}
     # спецвариант по просьбе Mr. Silver в котором возвращаются не остаток интернета, а использованный
-    options = store.read_ini()['Options']
-    mts_usedbyme = options.get('mts_usedbyme', settings.mts_usedbyme)
+    mts_usedbyme = store.options('mts_usedbyme')
     # !!! Без этого ругается на несовместимый браузер
     headers = {'Accept-Language': 'ru', }
     # Загружаем или создаем сессию

@@ -66,6 +66,21 @@ def getbalance_plugin(method, param_source):
     return 'text/html', [f"<html>Unknown plugin {param['fplugin']}</html>"]
 
 
+def view_log(param):
+    try:
+        lines = int(param['lines'][0])
+    except Exception:
+        lines = 100
+    fn = store.options('logginghttpfilename')
+    res = open(fn).readlines()[-lines:]
+    for num in range(len(res)):
+        #.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+        if ' ERROR ' in res[num]:
+            res[num] = f'<span style="color:red;background-color:white">{res[num]}</span>'
+        elif ' WARNING ' in res[num]:
+            res[num] = f'<span style="color:yellow;background-color:white">{res[num]}</span>'
+    return 'text/html; charset=cp1251', ['<html><head></head><body><pre>']+res+['</pre><script>window.scrollTo(0,document.body.scrollHeight);</script></body></html>']
+
 def getreport(param=[]):
     style = '''<style type="text/css">
     table{font-family: Verdana; font-size:85%}
@@ -101,16 +116,15 @@ def getreport(param=[]):
     </table>
     </body>
     </html>'''
-    options = store.read_ini()['Options']
-    db = dbengine.dbengine(options.get('dbfilename', settings.dbfilename))
+    db = dbengine.dbengine(store.options('dbfilename'))
     # номера провайдеры и логины из phones.ini
-    options_ini = store.read_ini('options.ini')
+    options_ini = store.ini('options.ini').read()
 
     edBalanceLessThen = float(options_ini['Mark']['edBalanceLessThen'])  # помечать балансы меньше чем
     edTurnOffLessThen = float(options_ini['Mark']['edTurnOffLessThen'])  # помечать когда отключение CalcTurnOff меньше чем
 
     num_format = '' if len(param) == 0 or not param[0].isnumeric() else str(int(param[0]))
-    table_format = store.read_ini()['HttpServer'].get('table_format' + num_format, settings.table_format)
+    table_format = store.options('table_format' + num_format, default=store.options('table_format',section='HttpServer'), section='HttpServer')
     table = db.report()
     if 'Alias' not in table_format:
         table_format = 'NN,Alias,' + table_format  # Если старый ini то этих столбцов нет - добавляем
@@ -143,10 +157,9 @@ def getreport(param=[]):
 def write_report():
     'сохраняем отчет balance_html если в ini createhtmlreport=1'
     try:
-        options = store.read_ini()['Options']
-        if options.get('createhtmlreport', '0') == '1':
+        if store.options('createhtmlreport') == '1':
             _, res = getreport()
-            balance_html = options.get('balance_html', settings.balance_html)
+            balance_html = store.options('balance_html')
             logging.info(f'Создаем {balance_html}')
             open(balance_html, encoding='utf8', mode='w').write('\n'.join(res))
     except Exception:
@@ -155,7 +168,8 @@ def write_report():
 
 def tray_icon(cmdqueue):
     'Выставляем для trayicon daemon, чтобы ушел вслед за нами функция нужна для запуска в отдельном thread'
-    TrayIcon(cmdqueue).run_forever()
+    if str(store.options('show_tray_icon')) == '1':
+        TrayIcon(cmdqueue).run_forever()
 
 
 class TrayIcon:
@@ -177,6 +191,7 @@ class TrayIcon:
         wc.lpfnWndProc = message_map  # could also specify a wndproc.
         try:
             classAtom = win32gui.RegisterClass(wc)
+            _ = classAtom  # dummy pylint
         except win32gui.error as err_info:
             if err_info.winerror != winerror.ERROR_CLASS_ALREADY_EXISTS:
                 raise
@@ -236,7 +251,7 @@ class TrayIcon:
     def OnCommand(self, hwnd, msg, wparam, lparam):
         id = win32api.LOWORD(wparam)
         if id == 1024:
-            port = int(store.read_ini()['HttpServer'].get('port', settings.port))
+            port = int(store.options('port', section='HttpServer'))
             os.system(f'start http://localhost:{port}/report')
         elif id == 1025:
             print("Goodbye")
@@ -257,8 +272,7 @@ class TelegramBot():
         return wrapper
 
     def auth_id(self):
-        tgoptions = store.read_ini()['Telegram']
-        auth_id = tgoptions.get('auth_id', '').strip()
+        auth_id = store.options('auth_id', section='Telegram').strip()
         if not re.match(r'(\d+,?)', auth_id):
             logging.error(f'incorrect auth_id in ini: {auth_id}')
         return map(int, auth_id.split(','))
@@ -271,7 +285,7 @@ class TelegramBot():
     def prepare_balance(self, filter='FULL'):
         """Prepare balance for TG."""
         try:
-            if store.read_ini()['Telegram'].get('tg_from', settings.tg_from) == 'sqlite':
+            if store.options('tg_from', section='Telegram') == 'sqlite':
                 return self.prepare_balance_sqlite(filter)
             else:
                 return self.prepare_balance_mobilebalance(filter)
@@ -281,9 +295,8 @@ class TelegramBot():
             return 'error'
 
     def prepare_balance_sqlite(self, filter='FULL'):
-        options = store.read_ini()['Options']
-        db = dbengine.dbengine(options.get('dbfilename', settings.dbfilename))
-        table_format = store.read_ini()['Telegram'].get('tg_format', settings.tg_format).replace('\\t','\t').replace('\\n','\n')
+        db = dbengine.dbengine(store.options('dbfilename'))
+        table_format = store.options('tg_format', section='Telegram').replace('\\t','\t').replace('\\n','\n')
         # table_format = 'Alias,PhoneNumber,Operator,Balance'
         # Если формат задан как перечисление полей через запятую - переделываем под формат
         if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
@@ -298,8 +311,8 @@ class TelegramBot():
         return '\n'.join(res)
 
     def prepare_balance_mobilebalance(self, filter='FULL'):
-        url = store.read_ini()['Telegram'].get('mobilebalance_http', settings.mobilebalance_http)
-        tgmb_format = store.read_ini()['Telegram'].get('tgmb_format', settings.tgmb_format)
+        url = store.options('mobilebalance_http', section='Telegram')
+        tgmb_format = store.options('tgmb_format', section='Telegram')
         response1_text = requests.get(url).content.decode('cp1251')
         soup = bs4.BeautifulSoup(response1_text, 'html.parser')
         headers = [''.join(el.get('id')[1:]) for el in soup.find(id='header').findAll('th')]
@@ -337,9 +350,10 @@ class TelegramBot():
         if self.updater is None:
             return
         baltxt = self.prepare_balance('LASTCHANGE')
-        if baltxt=='':
+        if baltxt=='' and str(store.options('send_empty', section='Telegram'))=='1':
             baltxt = 'No changes'
-        self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML)
+        if baltxt!='':
+            self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML)
 
     def stop(self):
         '''Stop bot'''
@@ -347,9 +361,7 @@ class TelegramBot():
             self.updater.stop()
 
     def __init__(self):
-        ini = store.read_ini()
-        tgoptions = ini['Telegram'] if 'Telegram' in ini else {}
-        api_token = tgoptions.get('api_token', '').strip()
+        api_token = store.options('api_token', section='Telegram').strip()
         self.updater = None
         if api_token != '' and 'telegram' in sys.modules:
             logging.info(f'Module telegram starting for id={self.auth_id()}')
@@ -360,7 +372,8 @@ class TelegramBot():
             dp.add_handler(CommandHandler("balance", self.get_balancetext))
             dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
             self.updater.start_polling()  # Start the Bot
-            self.send_message(text='Hey there!')
+            if str(store.options('send_empty', section='Telegram'))=='1':
+                self.send_message(text='Hey there!')
         elif 'telegram' not in sys.modules:
             logging.info('Module telegram not found')
         elif api_token != '':
@@ -376,7 +389,9 @@ class Handler(wsgiref.simple_server.WSGIRequestHandler):
         # убираем пароль из лога
         args = re.sub('(/.*?/.*?/.*?/)(.*?)(/.*)', r'\1xxxxxxx\3', args[0]), *args[1:]
         args = re.sub('(&password=)(.*?)(&)', r'\1xxxxxxx\3', args[0]), *args[1:]
-        logging.info(f"{self.client_address[0]} - - [self.log_date_time_string()] {format % args}\n")
+        # а если это показ лога вообще в лог не пишем, а то фигня получается
+        if 'GET /log' not in args[0]:
+            logging.info(f"{self.client_address[0]} - - [self.log_date_time_string()] {format % args}\n")
 
 
 class ThreadingWSGIServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGIServer):
@@ -386,12 +401,10 @@ class ThreadingWSGIServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSG
 class WebServer():
     def __init__(self):
         self.cmdqueue = queue.Queue()
-        httpssec = store.read_ini()['HttpServer']
-        options = store.read_ini()['Options']
-        logging.basicConfig(filename=options.get('logginghttpfilename', settings.logginghttpfilename),
-                            level=options.get('logginglevel', settings.logginglevel),
-                            format=options.get('loggingformat', settings.loggingformat))
-        self.port = int(httpssec.get('port', settings.port))
+        logging.basicConfig(filename=store.options('logginghttpfilename'),
+                            level=store.options('logginglevel' ),
+                            format=store.options('loggingformat'))
+        self.port = int(store.options('port', section='HttpServer'))
         self.host = '127.0.0.1'
         with socket.socket() as sock:
             sock.settimeout(0.2)  # this prevents a 2 second lag when starting the server
@@ -429,9 +442,11 @@ class WebServer():
             elif cmd.lower() == 'get':  # вариант через get запрос
                 param = urllib.parse.parse_qs(environ['QUERY_STRING'])
                 ct, text = getbalance_plugin('get', param)
+            elif cmd.lower() == 'log': # просмотр лога
+                param = urllib.parse.parse_qs(environ['QUERY_STRING'])
+                ct, text = view_log(param)
             elif cmd == '' or cmd == 'report':  # report
-                options = store.read_ini()['Options']
-                if options['sqlitestore'] == '1':
+                if store.options('sqlitestore') == '1':
                     ct, text = getreport(param)
                 else:
                     ct, text = 'text/html', HTML_NO_REPORT
@@ -440,7 +455,7 @@ class WebServer():
                 text = ['exit']
             headers = [('Content-type', ct)]
             start_response(status, headers)
-            return [line.encode('cp1251') for line in text]
+            return [line.encode('cp1251', errors='ignore') for line in text]
         except Exception:
             exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
             logging.error(exception_text)

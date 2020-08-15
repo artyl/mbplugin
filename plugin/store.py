@@ -6,16 +6,14 @@ import settings
 
 def save_session(storename, session):
     'OBSOLETE, use store.Session Сохраняем сессию в файл' # TODO оставлены пока для совместимости в дальнейшем будут удалены 
-    options = read_ini()['Options']
-    storefolder = options.get('storefolder', settings.storefolder)    
+    storefolder = options('storefolder')
     with open(os.path.join(storefolder, storename), 'wb') as f:
         pickle.dump(session, f)
 
 
 def load_or_create_session(storename, headers=None):
     'OBSOLETE, use store.Session Загружаем сессию из файла или создаем новую'
-    options = read_ini()['Options']
-    storefolder = options.get('storefolder', settings.storefolder)     
+    storefolder = options('storefolder')     
     try:
         with open(os.path.join(storefolder, storename), 'rb') as f:
             return pickle.load(f)
@@ -28,8 +26,7 @@ def load_or_create_session(storename, headers=None):
 
 def drop_and_create_session(storename, headers=None):
     'OBSOLETE, use store.Session удаляем сессию и создаем новую'
-    options = read_ini()['Options']
-    storefolder = options.get('storefolder', settings.storefolder)    
+    storefolder = options('storefolder')    
     try:
         os.remove(os.path.join(storefolder, storename))
     except Exception:
@@ -40,16 +37,14 @@ def drop_and_create_session(storename, headers=None):
     return session  # return new session
 
 def session_folder(storename):
-    options = read_ini()['Options']
-    storefolder = options.get('storefolder', settings.storefolder)     
+    storefolder = options('storefolder')     
     os.path.join(storefolder, storename)
 
 class Session():
     'Класс для сессии с дополнительными фишками для сохранения и проверки'
     def __init__(self, storename, headers=None):
         self.storename = storename
-        self.options = read_ini()['Options']
-        self.storefolder = self.options.get('storefolder', settings.storefolder)     
+        self.storefolder = options('storefolder')
         self.pagecounter = 1  # Счетчик страниц для сохранения
         self.headers = headers
         try:
@@ -84,8 +79,8 @@ class Session():
 
     def save_response(self, response):
         'debug save response'
-        if self.options['logginglevel'] == 'DEBUG' and hasattr(response, 'content'):
-            fld = self.options.get('loggingfolder', settings.loggingfolder)
+        if options('logginglevel') == 'DEBUG' and hasattr(response, 'content'):
+            fld = options('loggingfolder')
             fn = os.path.join(fld, f'{self.storename}_{self.pagecounter}.html')
             open(fn, mode='wb').write(response.content)
             self.pagecounter += 1        
@@ -116,9 +111,17 @@ def find_files_up(fn):
     else:
         return os.path.join('..', fn)
 
-def read_ini(fn=settings.mbplugin_ini):
-    'depricated, will be deleted, use class ini'
-    return ini(fn).read()
+
+def options(param, default=None, section='Options'):
+    'Читаем параметр из mbplugin.ini либо дефолт из settings'
+    if default is None:
+        default = settings.ini[section][param]
+    options_all_sec = ini().read()
+    if section in options_all_sec:
+        options_sec = options_all_sec[section]
+    else:
+        options_sec = {}
+    return options_sec.get(param, default)
     
 class ini():
     def __init__(self, fn=settings.mbplugin_ini):
@@ -127,7 +130,7 @@ class ini():
         if self.fn.lower() == settings.mbplugin_ini:
             self.inipath = self.find_files_up(self.fn)        
         else:
-            path = read_ini(settings.mbplugin_ini)['MobileBalance']['path']
+            path = ini(settings.mbplugin_ini).read()['MobileBalance']['path']
             self.inipath = os.path.join(path, fn)
             
     def find_files_up(self, fn):
@@ -202,12 +205,15 @@ class ini():
 
 def read_stocks(stocks_name):
     'Читаем список стоков для плагина stock.py из mbplugin.ini'
-    ini = read_ini()
+    ini_all_sec = ini().read()
+    if 'stocks_'+stocks_name not in ini_all_sec:
+        raise RuntimeError(f'section {"stocks_"+stocks_name} not in mbplugin.ini')
+    stock_sec_ini = ini_all_sec['stocks_'+stocks_name]
     stocks = {'stocks': [], 'remain': {}, 'currenc': ''}
-    items = ini['stocks_'+stocks_name].items()
+    items = stock_sec_ini.items()
     stocks_str = [list(map(str.strip, v.split(','))) for k, v in items if k.startswith('stock')]
     remain_str = [list(map(str.strip, v.split(','))) for k, v in items if k.startswith('remain')]
-    stocks['currenc'] = ini['stocks_'+stocks_name]['currenc'].strip()
+    stocks['currenc'] = stock_sec_ini['currenc'].strip()
     stocks['stocks'] = [(i[0].upper(), int(i[1]), i[2].upper()) for i in stocks_str if len(i) == 3 and i[1].isnumeric()]
     stocks['remain'] = {i[0].upper(): int(i[1]) for i in remain_str if len(i) == 2 and i[1].isnumeric()}
     return stocks
@@ -240,18 +246,18 @@ def result_to_html(result):
 
 if __name__ == '__main__':
     print('Module store')
-    # print(list(read_ini('phones.ini').keys()))
-    # print(list(read_ini('options.ini').keys()))
-    # print(list(read_ini('mbplugin.ini').keys()))
+    # print(list(ini('phones.ini').read().keys()))
+    # print(list(ini('options.ini').read().keys()))
+    # print(list(ini('mbplugin.ini').read().keys()))
 
-    #ini = read_ini()
+    #ini = ini().read()
     #if ini['MobileBalance']['path'] == '':
     #    print('MobileBalance folder unknown')
-    #print(list(read_ini('phones.ini').keys()))
+    #print(list(ini('phones.ini').read().keys()))
 
     #stocks_name = 'broker_ru'
     #print(read_stocks(stocks_name))
 
     # import io;f = io.StringIO();ini.write(f);print(f.getvalue())
     #{'STOCKS':(('AAPL',1,'Y'),('TATNP',16,'M'),('FXIT',1,'M')), 'REMAIN': {'USD':5, 'RUB':536}, 'CURRENC': 'USD'}
-    #p=read_ini('phones.ini')
+    #p=ini('phones.ini').read()

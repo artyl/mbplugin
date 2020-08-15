@@ -11,8 +11,8 @@ icon = '789C73F235636100033320D600620128666450804840E5A905989999F1CAB359A833B0DB
 def get_balance(login, password, storename=None):
     logging.info(f'start get_balance {login}')
     result = {}
-    baseurl = 'https://my.onlime.ru/'
-    cabinet_url = 'https://my.onlime.ru/json/cabinet/'
+    baseurl = 'https://my.rt.ru/'
+    cabinet_url = 'https://my.rt.ru/json/cabinet/'
     headers = {}
     session = store.Session(storename, headers=headers)
     response3 = session.post(cabinet_url, data={})
@@ -29,7 +29,7 @@ def get_balance(login, password, storename=None):
         data = {'_csrf_token': re.findall(re_csrf, response1.text),
                 'login': login,
                 'password': password,}
-        login_url = 'https://my.onlime.ru/session/checklogin/'
+        login_url = 'https://my.rt.ru/session/checklogin/'
         response2 = session.post(login_url, data=data)
         if response2.status_code != 200:
             raise RuntimeError(f'POST Login page {login_url} error: status_code {response2.status_code}')

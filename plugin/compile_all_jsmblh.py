@@ -2,7 +2,7 @@ import os, sys, re, glob
 import settings, store
 
 pluginpath = os.path.split(sys.argv[0])[0]
-port = store.read_ini()['HttpServer'].get('port', settings.port)
+port = store.options('port', section='HttpServer')
 tmpl = open(os.path.join(pluginpath, '..\\jsmblhplugin\\_template_localweb.jsmb'), encoding='cp1251').read()
 
 for fn in glob.glob(os.path.join(pluginpath, '..\\plugin\\*.py')):

@@ -161,7 +161,7 @@ class dbengine():
         line['QueryDateTime'] = datetime.datetime.now().replace(microsecond=0)  # no microsecond
         self.cur.execute(f"select cast(julianday('now')-julianday(max(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' and abs(balance-{result['Balance']})>0.02")
         line['NoChangeDays'] = self.cur.fetchall()[0][0]  # Дней без изм.
-        options_ini = store.read_ini('Options.ini')
+        options_ini = store.ini('Options.ini').read()
         if 'Additional' in options_ini and 'AverageDays' in options_ini['Additional']:
             average_days = int(options_ini['Additional']['AverageDays'])
         else:
@@ -228,7 +228,7 @@ class mdbengine():
         self.cur = self.conn.cursor()
         rows = self.cur.execute('SELECT top 1 * FROM phones')
         self.phoneheader = list(zip(*rows.description))[0]
-        phones_ini = store.read_ini('phones.ini')
+        phones_ini = store.ini('phones.ini').read()
         # phones - словарь key=MBphonenumber values=[phonenumber,region]
         self.phones = {v['Number']: (re.sub(r' #\d+', '', v['Number']), v['Region'])
                        for k, v in phones_ini.items() if k.isnumeric() and 'Monitor' in v}
@@ -255,13 +255,12 @@ class mdbengine():
 
 def update_sqlite_from_mdb_core(deep=None):
     'Обновляем данные из mdb в sqlite'
-    options = store.read_ini()['Options']
-    if options.get('updatefrommdb', settings.updatefrommdb) != '1':
+    if store.options('updatefrommdb') != '1':
         return
     logging.info(f'Добавляем данные из mdb')
     if deep is None:
-        deep = int(options.get('updatefrommdbdeep', settings.updatefrommdb))
-    dbfilename = options.get('dbfilename', settings.dbfilename)
+        deep = int(store.options('updatefrommdbdeep'))
+    dbfilename = store.options('dbfilename')
     # читаем sqlite БД
     db = dbengine(dbfilename, fast=True)
     mdbfilename = os.path.join(os.path.split(dbfilename)[0], 'BalanceHistory.mdb')
@@ -355,9 +354,8 @@ def update_sqlite_from_mdb(deep=None):
 def write_result_to_db(plugin, login, result):
     'пишем в базу если в ini установлен sqlitestore=1'
     try:
-        options = store.read_ini()['Options']
-        if options.get('sqlitestore', '0') == '1':
-            dbfilename = options.get('dbfilename', settings.dbfilename)
+        if store.options('sqlitestore') == '1':
+            dbfilename = store.options('dbfilename')
             logging.info(f'Пишем в базу {dbfilename}')
             db = dbengine(dbfilename)
             db.write_result(plugin, login, result)
@@ -370,8 +368,7 @@ def write_result_to_db(plugin, login, result):
 if __name__ == '__main__':
     print('This is module dbengine')
     if 'update_sqlite_from_mdb_all' in sys.argv:
-        options = store.read_ini()['Options']
-        logging.basicConfig(filename=options.get('loggingfilename', settings.loggingfilename),
+        logging.basicConfig(filename=store.options('loggingfilename'),
                             level=logging.DEBUG,
-                            format=options.get('loggingformat', settings.loggingformat))
+                            format=store.options('loggingformat'))
         update_sqlite_from_mdb(deep=10000)
