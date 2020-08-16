@@ -52,7 +52,8 @@ def getbalance_plugin(method, param_source):
         plugin = param['fplugin'].split('_', 1)[1]  # plugin это все что после p_
         module = __import__(plugin, globals(), locals(), [], 0)
         importlib.reload(module)  # обновляем модуль, на случай если он менялся
-        result = module.get_balance(param['login'], param['password'], f"{lang}_{plugin}_{param['login']}")
+        storename = re.sub(r'\W', '_', f"{lang}_{plugin}_{param['login']}")
+        result = module.get_balance(param['login'], param['password'], storename)
         text = store.result_to_html(result)
         # пишем в базу
         dbengine.write_result_to_db(f'{lang}_{plugin}', param['login'], result)

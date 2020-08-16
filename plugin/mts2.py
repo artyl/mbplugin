@@ -1,9 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
 import asyncio, time, re, subprocess, logging, shutil, os, traceback
+import win32gui, win32process, psutil
 import pyppeteer  # PYthon puPPETEER
 #import pprint; pp = pprint.PrettyPrinter(indent=4).pprint
 import store, settings
+import pyppeteeradd as pa
 
 interUnit = 'GB'  # В каких единицах идет выдача по интернету
 
@@ -12,58 +14,29 @@ icon = '789C75524D4F5341143D84B6A8C0EB2BAD856A4B0BE5E301A508A9F8158DC18498A88989
 async def async_main(login, password, storename=None):
     result = {}
     waitfor = set()
-    # можно зайти в lk через другой номер тогда логин номер_для_баланса@номер_для_входа
+    # можно зайти в lk через другой номер тогда логин номер_для_баланса/номер_для_входа
     # тогда пароль указывается от номера для входа
     main_login = login_ori = login
-    if '@' in login:
-        login, main_login = login_ori.split('@')
-        storename = storename.replace(login_ori,main_login)  # исправляем storename
+    if '/' in login:
+        login, main_login = login_ori.split('/')
+        storename = storename.replace(re.sub(r'\W', '_',login_ori) ,re.sub(r'\W', '_',main_login))  # исправляем storename
     # спецвариант по просьбе Mr. Silver в котором возвращаются не остаток интернета, а использованный
     mts_usedbyme = store.options('mts_usedbyme')
-    storefolder = store.options('storefolder')
-    user_data_dir = os.path.join(storefolder,'puppeteer')
-    profile_directory = storename
-    chrome_executable_path = store.options('chrome_executable_path')
-    if not os.path.exists(chrome_executable_path):
-        chrome_paths = [p for p in settings.chrome_executable_path_alternate if os.path.exists(p)]
-        if len(chrome_paths) == 0:
-            logging.error('Chrome.exe not found')
-            raise RuntimeError(f'Chrome.exe not found')
-        chrome_executable_path = chrome_paths[0]
-    logging.info(f'Launch chrome from {chrome_executable_path}')
-    browser = await pyppeteer.launch({
-        'headless': False,
-        'ignoreHTTPSErrors': True,
-        'defaultViewport': None,
-        'handleSIGINT':False,  # need for threading (https://stackoverflow.com/questions/53679905)
-        'handleSIGTERM':False,  
-        'handleSIGHUP':False,
-        # TODO хранить параметр в ini
-        'executablePath': chrome_executable_path,
-        'args': [f"--user-data-dir={user_data_dir}", f"--profile-directory={profile_directory}",
-                 '--wm-window-animations-disabled',
-                 '--no-sandbox',
-                 '--disable-setuid-sandbox',
-                 '--disable-dev-shm-usage',
-                 '--disable-accelerated-2d-canvas',
-                 '--no-first-run',
-                 '--no-zygote',
-                 '--log-level=3', # no logging                 
-                 #'--single-process', # <- this one doesn't works in Windows
-                 '--disable-gpu', ],
-    })
+    browser = await pa.launch_browser(storename)
 
     async def worker(response):
+        'Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)'
         if response.status != 200:
             return
+        # Список окончаний url которые мы будем смотреть, остальные игнорируем
         catch_elements = ['api/login/userInfo', 'for=api/accountInfo/balance', 'for=api/services/list/active', 'for=api/sharing/counters']
         for elem in catch_elements:
             if response.request.url.endswith(elem):
                 # Если это сложный заход, то проверяем что смотрим на нужный телефон
-                if '@' in login_ori:
-                    if await page.evaluate("document.getElementsByClassName('mts16-other-sites__phone').length") == 0:
+                if '/' in login_ori:
+                    numb = await pa.page_evaluate(page, "document.getElementsByClassName('mts16-other-sites__phone')[0].innerText")
+                    if numb is None:
                         return  # номера на странице нет - уходим
-                    numb = await page.evaluate("document.getElementsByClassName('mts16-other-sites__phone')[0].innerText")
                     logging.info(f'PHONE {numb}')
                     if re.sub(r'(?:\+7|\D)', '', numb) != login:
                         return  # Если номер не наш - уходим
@@ -73,16 +46,16 @@ async def async_main(login, password, storename=None):
                 break
         else:  # Если url не из списка - уходим
             return
-        if response.request.url.endswith('api/login/userInfo'):
+        if response.request.url.endswith('api/login/userInfo'):  # # # # # Баланс и еще
             data = response_json
             profile = data['userProfile']
             result['Balance'] = round(profile.get('balance', 0), 2)
             result['TarifPlan'] = profile.get('tariff', '')
             result['UserName'] = profile.get('displayName', '')                    
-        if response.request.url.endswith('for=api/accountInfo/balance'):
+        if response.request.url.endswith('for=api/accountInfo/balance'):  # # # # # Баланс поточнее
             data = response_json.get('data', {})
             result['Balance'] = round(data['amount'], 2)
-        if response.request.url.endswith('for=api/services/list/active'):
+        if response.request.url.endswith('for=api/services/list/active'):  # # # # # Услуги
             data = response_json.get('data', {})
             if 'services' in data:
                 services = [(i['name'], i.get('subscriptionFees', [{}])[0].get('value', 0)) for i in data['services']]
@@ -92,7 +65,7 @@ async def async_main(login, password, storename=None):
                 paid_sum = round(sum([b for a,b in services if b!=0]),2)
                 result['UslugiOn']=f'{free}/{paid}({paid_sum})'
                 result['UslugiList']='\n'.join([f'{a}\t{b}' for a,b in services])
-        if response.request.url.endswith('for=api/sharing/counters'):
+        if response.request.url.endswith('for=api/sharing/counters'):  # # # # # Остатки пакетов
             data = response_json.get('data', {})
             if 'counters' in data:
                 counters = data['counters']
@@ -127,77 +100,68 @@ async def async_main(login, password, storename=None):
                     if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
                         result['Internet'] = round(usedbyme[0]*unitMult/unitDiv, 2)
 
-    async def do_waitfor(tokens):
-        'Ждем пока прогрузятся все интересующие страницы с данными'
-        waitfor.update(tokens)
-        logging.info(f'Start wait {waitfor}')
-        for countdown in range(10):  # TODO подобрать параметр
-            if len(waitfor) == 0: break
-            logging.debug(f'Wait {waitfor} {countdown}')
-            await asyncio.sleep(1) 
-        else:  # так и не дождались - пробуем перезагрузить и еще подождать
-            logging.info(f'RELOAD')
-            await page.reload()
-            for countdown in range(20):  # TODO подобрать параметр
-                if len(waitfor) == 0: break
-                logging.debug(f'Wait {waitfor} {countdown}')
-        logging.info(f'End wait {waitfor}')
-
     pages = await browser.pages()
     for page in pages[1:]:
         await page.close() # Закрываем остальные страницы, если вдруг открыты
     page = pages[0]  # await browser.newPage()
     page.on("response", worker) # вешаем обработчик на страницы
-    logging.info(f'goto https://lk.mts.ru')
-    try:
-        await page.goto('https://lk.mts.ru', {'timeout': 20000})
-    except pyppeteer.errors.TimeoutError:
-        logging.info(f'page.goto timeout')
-    logging.info(f'waitForNavigation')
-    # почему-то иногда застревает 
-    await page.reload()
-    try:
-        await page.waitForNavigation({'timeout': 20000})
-    except pyppeteer.errors.TimeoutError:   
-        logging.info(f'waitForNavigation timeout')
-    #await page.screenshot({ 'path': 'image2.jpg', type: 'jpeg' });
+    await pa.page_goto(page, 'https://lk.mts.ru/')
 
-    if await page.evaluate("document.getElementById('password') !== null"):
-        logging.info(f'Login')
-        await page.type("#phone", main_login, {'delay': 10})
-        await page.type("#password", password, {'delay': 10})
-        await page.evaluate("document.getElementsByClassName('checkbox__input')[0].checked=true")
-        await asyncio.sleep(1)
-        await page.evaluate("document.getElementsByClassName('btn btn_large btn_wide')[0].click()")
-    else:
+    if await pa.page_evaluate(page, "document.getElementById('balance') !== null"):
         logging.info(f'Already login')
-    #await asyncio.sleep(1000)
-    # почему-то иногда застревает явно идем в https://lk.mts.ru
-    await page.goto('https://lk.mts.ru', {'timeout': 20000})
-    if main_login != login:
+    else:
+        for cnt in range(20):  # Почему-то иногда с первого раза логон не проскакивает
+            if await pa.page_evaluate(page, "document.getElementById('password') !== null"):
+                logging.info(f'Login')
+                #await page.type("#phone", main_login, {'delay': 10})
+                #await page.type("#password", password, {'delay': 10})
+                await pa.page_evaluate(page, f"document.getElementById('phone').value='{main_login}'")
+                await pa.page_evaluate(page, f"document.getElementById('password').value='{password}'")
+                await pa.page_evaluate(page, "document.getElementsByClassName('checkbox__input')[0].checked=true") 
+                await asyncio.sleep(1)
+                await pa.page_evaluate(page, "document.getElementsByClassName('btn btn_large btn_wide')[0].click()") 
+            elif await pa.page_evaluate(page, "document.getElementById('balance') !== null"):
+                logging.info(f'Logoned')
+                break 
+            elif await pa.page_evaluate(page, "document.body.innerText.search('Your support ID is:')>0"):
+                # Капча
+                pa.hide_chrome(hide=False) # Покажем хром и подождем вдруг кто-нибудь введет
+                logging.info(f'Captcha, wait human')
+                for _ in range(60):
+                    if await pa.page_evaluate(page, "document.body.innerText.search('Your support ID is:')<0"):
+                        break
+                    await asyncio.sleep(1)
+                else:
+                    logging.error('No wait for a human')
+                    raise RuntimeError(f'Captcha not solve')
+            await asyncio.sleep(1)
+            if cnt==10:
+                await page.reload()
+        else:
+            logging.error(f'Unknown state')
+            raise RuntimeError(f'Unknown state')
+    # почему-то иногда застревает явно идем в https://lk.mts.ru/ 
+    await pa.page_goto(page, 'https://lk.mts.ru')
+    if main_login != login:  # это финт для захода через другой номер
         # если заход через другой номер то переключаемся на нужный номер
-        # TODO возможно с прошлого раза может сохраниться переключенный но
+        # TODO возможно с прошлого раза может сохраниться переключенный но вроде работает и так
         for i in range(20):
-            if await page.evaluate("document.getElementsByClassName('mts16-other-sites__phone').length") > 0:
+            if await pa.page_evaluate(page, "document.getElementsByClassName('mts16-other-sites__phone').length") > 0:
                 break
             logging.info(f'wait mts16-other-sites__phone')
             await asyncio.sleep(1)
         url_redirect = f'https://login.mts.ru/amserver/UI/Login?service=idp2idp&IDButton=switch&IDToken1=id%3D{login}%2Cou%3Duser%2Co%3Dusers%2Cou%3Dservices%2Cdc%3Damroot&org=%2Fusers&ForceAuth=true&goto=https%3A%2F%2Flk.mts.ru'
-        await page.goto(url_redirect, {'timeout': 20000})
+        await pa.page_goto(page, url_redirect)
 
-    await do_waitfor({'api/login/userInfo', 'for=api/accountInfo/balance', 'for=api/sharing/counters'})
+    await pa.do_waitfor(page, waitfor, {'api/login/userInfo', 'for=api/accountInfo/balance', 'for=api/sharing/counters'})
 
-    await page.goto('https://lk.mts.ru/uslugi/podklyuchennye', {'timeout': 20000})
-    await do_waitfor({'for=api/services/list/active'})
-    logging.info(f'Data ready')
+    await pa.page_goto(page, 'https://lk.mts.ru/uslugi/podklyuchennye')
+    await pa.do_waitfor(page, waitfor, {'for=api/services/list/active'})
+    logging.info(f'Data ready {result.keys()}')
     await browser.close()
-    clear_cache(user_data_dir, profile_directory)
+    pa.clear_cache(storename)
     return result
 
-def clear_cache(user_data_dir, profile_directory):
-    profilepath = os.path.abspath(os.path.join(user_data_dir, profile_directory))
-    shutil.rmtree(os.path.join(profilepath, 'Cache'), ignore_errors=True)
-    shutil.rmtree(os.path.join(profilepath, 'Code Cache'), ignore_errors=True)
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
@@ -206,7 +170,6 @@ def get_balance(login, password, storename=None):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     result = asyncio.get_event_loop().run_until_complete(async_main(login, password, storename))
-    # TODO !!! kill chrome    
     return result    
 
 

@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import time, os, sys, logging, traceback
+import time, os, sys, re, logging, traceback
 import xml.etree.ElementTree as etree
 import dbengine, store, settings, httpserver_mobile
 
@@ -49,7 +49,8 @@ def main():
     # Запуск плагина
     logging.info(f'Start {lang} {plugin} {login}')
     try:
-        result = module.get_balance(login, password, f'{lang}_{plugin}_{login}')
+        storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
+        result = module.get_balance(login, password, storename)
     except Exception:
         exception_text = f'Ошибка при вызове модуля \n{plugin}: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)

@@ -4,38 +4,6 @@ import os, sys, re, json, pickle, requests, configparser
 import settings
 
 
-def save_session(storename, session):
-    'OBSOLETE, use store.Session Сохраняем сессию в файл' # TODO оставлены пока для совместимости в дальнейшем будут удалены 
-    storefolder = options('storefolder')
-    with open(os.path.join(storefolder, storename), 'wb') as f:
-        pickle.dump(session, f)
-
-
-def load_or_create_session(storename, headers=None):
-    'OBSOLETE, use store.Session Загружаем сессию из файла или создаем новую'
-    storefolder = options('storefolder')     
-    try:
-        with open(os.path.join(storefolder, storename), 'rb') as f:
-            return pickle.load(f)
-    except Exception:
-        session = requests.Session()
-        if headers:
-            session.headers.update(headers)
-        return session  # return new session
-
-
-def drop_and_create_session(storename, headers=None):
-    'OBSOLETE, use store.Session удаляем сессию и создаем новую'
-    storefolder = options('storefolder')    
-    try:
-        os.remove(os.path.join(storefolder, storename))
-    except Exception:
-        pass
-    session = requests.Session()
-    if headers:
-        session.headers.update(headers)
-    return session  # return new session
-
 def session_folder(storename):
     storefolder = options('storefolder')     
     os.path.join(storefolder, storename)
