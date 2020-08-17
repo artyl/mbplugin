@@ -22,10 +22,13 @@ def hide_chrome(hide=True):
     for hwnd, text, className in myWindows:
         _, _ = text, className  # dummy pylint
         win32gui.ShowWindow(hwnd, not hide)  # True-Show, False-Hide
-        win32gui.MoveWindow(hwnd, 0, 0, 1000, 1000, True) # Т.к.окно скрыто мы можем вернуть ему нормальные координаты 
+        if hide:
+            win32gui.MoveWindow(hwnd, -1000, -1000, 0, 0, True) # У скрытого окна бывают доп окна которые вылезают на экран
+        else:
+            win32gui.MoveWindow(hwnd, 0, 0, 1000, 1000, True) # Возвращаем нормальные координаты
 
 async def launch_browser(storename):
-    hide_chrome_flag = str(store.options('show_chrome')) == '0' or store.options('logginglevel') == 'DEBUG'
+    hide_chrome_flag = str(store.options('show_chrome')) == '0' and store.options('logginglevel') != 'DEBUG'
     storefolder = store.options('storefolder')
     user_data_dir = os.path.join(storefolder,'puppeteer')
     profile_directory = storename

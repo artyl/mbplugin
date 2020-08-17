@@ -135,23 +135,27 @@ class ini():
         if os.path.exists(mbpath):
             # Если нашли mobilebalance - cоздадим mbplugin.ini и sqlite базу там же где и ini-шники mobilebalance
             self.inipath = os.path.join(os.path.split(mbpath)[0], self.fn)
-            dbpath = os.path.abspath(os.path.join(os.path.split(mbpath)[0], os.path.split(settings.dbfilename)[1]))
+            dbpath = os.path.abspath(os.path.join(os.path.split(mbpath)[0], os.path.split(settings.ini['Options']['dbfilename'])[1]))
         else:
             # иначе создадим mbplugin.ini и базу в корне папки mbplugin
             self.ini['MobileBalance'] = {'path': ''}
-            dbpath = settings.dbfilename         
+            dbpath = settings.ini['Options']['dbfilename']
         self.ini['MobileBalance'] = {'path': os.path.split(mbpath)[0]}
-        self.ini['Options'] = {'logginglevel': settings.logginglevel,
-                          'sqlitestore': settings.sqlitestore,
+        # self.ini.update(settings.ini) # TODO in future
+        self.ini['MobileBalance'] = {'path': os.path.split(mbpath)[0]}
+        self.ini['Options'] = {'logginglevel': settings.ini['Options']['logginglevel'],
+                          'sqlitestore': settings.ini['Options']['sqlitestore'],
                           'dbfilename': dbpath,
-                          'createhtmlreport': settings.createhtmlreport,
-                          'balance_html': os.path.abspath(settings.balance_html),
-                          'updatefrommdb': settings.updatefrommdb,
-                          'updatefrommdbdeep': settings.updatefrommdbdeep,
+                          'createhtmlreport': settings.ini['Options']['createhtmlreport'],
+                          'balance_html': os.path.abspath(settings.ini['Options']['balance_html']),
+                          'updatefrommdb': settings.ini['Options']['updatefrommdb'],
+                          'updatefrommdbdeep': settings.ini['Options']['updatefrommdbdeep'],
                           }
-        self.ini['HttpServer'] = {'port': settings.port,
-                             'host': settings.host,
-                             'table_format': settings.table_format}    
+        self.ini['HttpServer'] = {'port': settings.ini['HttpServer']['port'],
+                             'host': settings.ini['HttpServer']['host'],
+                             'table_format': settings.ini['HttpServer']['table_format']
+                             }    
+
 
     def write(self):
         if self.fn.lower() != settings.mbplugin_ini:

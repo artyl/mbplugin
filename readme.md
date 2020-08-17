@@ -30,6 +30,7 @@ beeline - Билайн (сотовая связь)
 megafon - Мегафон (сотовая связь)  
 tele2 - ТЕЛЕ2 (сотовая связь)  
 yota - Yota (сотовая связь)  
+rostelecom - Ростелеком (телефония и интернет)  
 danycom - Danycom (сотовая связь)  
 strelka - Баланс карты стрелка  
 smile-net - Infoline/smile-net/Virgin connect (Интернет провайдер)  
