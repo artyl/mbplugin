@@ -45,6 +45,7 @@ def getbalance_plugin(method, param_source):
         param['fplugin'] = param['plugin']  # наш параметр plugin на самом деле fplugin
     else:
         logging.error(f'Unknown method {method}')
+    logging.info(f'Webserver thread_count={len(threading.enumerate())}')
     logging.info(f"Start {param['fplugin']} {param['login']}")
     # Это плагин от python ?
     if param['fplugin'].startswith(f'{lang}_'):

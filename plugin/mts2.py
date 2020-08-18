@@ -22,7 +22,6 @@ async def async_main(login, password, storename=None):
         storename = storename.replace(re.sub(r'\W', '_',login_ori) ,re.sub(r'\W', '_',main_login))  # исправляем storename
     # спецвариант по просьбе Mr. Silver в котором возвращаются не остаток интернета, а использованный
     mts_usedbyme = store.options('mts_usedbyme')
-    browser = await pa.launch_browser(storename)
 
     async def worker(response):
         'Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)'
@@ -100,11 +99,8 @@ async def async_main(login, password, storename=None):
                     if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
                         result['Internet'] = round(usedbyme[0]*unitMult/unitDiv, 2)
 
-    pages = await browser.pages()
-    for page in pages[1:]:
-        await page.close() # Закрываем остальные страницы, если вдруг открыты
-    page = pages[0]  # await browser.newPage()
-    page.on("response", worker) # вешаем обработчик на страницы
+    pa.clear_cache(storename)
+    browser, page = await pa.launch_browser(storename, worker)  
     await pa.page_goto(page, 'https://lk.mts.ru/')
 
     if await pa.page_evaluate(page, "document.getElementById('balance') !== null"):
@@ -113,8 +109,6 @@ async def async_main(login, password, storename=None):
         for cnt in range(20):  # Почему-то иногда с первого раза логон не проскакивает
             if await pa.page_evaluate(page, "document.getElementById('password') !== null"):
                 logging.info(f'Login')
-                #await page.type("#phone", main_login, {'delay': 10})
-                #await page.type("#password", password, {'delay': 10})
                 await pa.page_evaluate(page, f"document.getElementById('phone').value='{main_login}'")
                 await pa.page_evaluate(page, f"document.getElementById('password').value='{password}'")
                 await pa.page_evaluate(page, "document.getElementsByClassName('checkbox__input')[0].checked=true") 
@@ -124,16 +118,12 @@ async def async_main(login, password, storename=None):
                 logging.info(f'Logoned')
                 break 
             elif await pa.page_evaluate(page, "document.body.innerText.search('Your support ID is:')>0"):
-                # Капча
-                pa.hide_chrome(hide=False) # Покажем хром и подождем вдруг кто-нибудь введет
-                logging.info(f'Captcha, wait human')
-                for _ in range(60):
-                    if await pa.page_evaluate(page, "document.body.innerText.search('Your support ID is:')<0"):
-                        break
-                    await asyncio.sleep(1)
-                else:
-                    logging.error('No wait for a human')
-                    raise RuntimeError(f'Captcha not solve')
+                # Капча - эту капчу вводить бесполезно
+                logging.info(f'Captcha')
+                #logging.info(f'Delete profile')
+                #pa.delete_profile(storename)
+                raise RuntimeError(f'Captca')                
+                break
             await asyncio.sleep(1)
             if cnt==10:
                 await page.reload()

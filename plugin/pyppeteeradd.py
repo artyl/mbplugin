@@ -27,7 +27,7 @@ def hide_chrome(hide=True):
         else:
             win32gui.MoveWindow(hwnd, 0, 0, 1000, 1000, True) # Возвращаем нормальные координаты
 
-async def launch_browser(storename):
+async def launch_browser(storename, response_worker):
     hide_chrome_flag = str(store.options('show_chrome')) == '0' and store.options('logginglevel') != 'DEBUG'
     storefolder = store.options('storefolder')
     user_data_dir = os.path.join(storefolder,'puppeteer')
@@ -65,7 +65,13 @@ async def launch_browser(storename):
     })
     if hide_chrome_flag:
         hide_chrome()
-    return browser
+
+    pages = await browser.pages()
+    for page in pages[1:]:
+        await page.close() # Закрываем остальные страницы, если вдруг открыты
+    page = pages[0]  # await browser.newPage()
+    page.on("response", response_worker) # вешаем обработчик на страницы        
+    return browser, page
 
 def kill_chrome():
     'Киляем дебажный хром если вдруг какой-то висит'
@@ -78,17 +84,22 @@ def kill_chrome():
 
 
 def clear_cache(storename):
-    # Очищаем папку с кэшем профиля чтобы не разрастался
+    'Очищаем папку с кэшем профиля чтобы не разрастался'
+    #return  # С такой очисткой оказывается связаны наши проблемы с загрузкой
     storefolder = store.options('storefolder')
-    user_data_dir = os.path.join(storefolder,'puppeteer')
-    profile_directory = storename
-    profilepath = os.path.abspath(os.path.join(user_data_dir, profile_directory))
+    profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))  
     shutil.rmtree(os.path.join(profilepath, 'Cache'), ignore_errors=True)
     shutil.rmtree(os.path.join(profilepath, 'Code Cache'), ignore_errors=True)
 
+def delete_profile(storename):
+    'Удаляем профиль'
+    kill_chrome()  # Перед удалением киляем хром
+    storefolder = store.options('storefolder')
+    profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))    
+    shutil.rmtree(profilepath)
 
 async def page_evaluate(page, eval_string):
-    'Безопасный eval - не падает при ошибке'
+    'Безопасный eval - не падает при ошибке а возвращает None'
     try:
         res = await page.evaluate(eval_string)
         return res
@@ -99,16 +110,24 @@ async def page_evaluate(page, eval_string):
         return None
 
 
+async def page_reload(page, reason=''):
+    logging.info(f'RELOAD {reason}')
+    await page.reload()
+
 async def page_goto(page, url):
     logging.info(f'goto {url}')
     try:
         await page.goto(url, {'timeout': 20000})
     except pyppeteer.errors.TimeoutError:
         logging.info(f'page.goto timeout')
-    try:
-        await page.waitForNavigation({'timeout': 20000})
-    except pyppeteer.errors.TimeoutError:   
-        logging.info(f'waitForNavigation timeout')
+    await asyncio.sleep(3)  # Ждем 3 секунды 
+    if page_evaluate(page, 'setTimeout(function(){},1)<2'):
+        await page_reload(page, 'No timers on page (page_goto)')  # если на странице не появились таймеры - reload
+        await asyncio.sleep(3)  # Ждем еще 3 секунды 
+    #try:
+    #    await page.waitForNavigation({'timeout': 20000})
+    #except pyppeteer.errors.TimeoutError:   
+    #    logging.info(f'waitForNavigation timeout')
 
 
 async def do_waitfor(page, waitfor, tokens, wait_and_reload=10, wait_loop=30):
@@ -123,6 +142,5 @@ async def do_waitfor(page, waitfor, tokens, wait_and_reload=10, wait_loop=30):
         await asyncio.sleep(1) 
         if countdown == wait_and_reload:
             # так и не дождались - пробуем перезагрузить и еще подождать
-            logging.info(f'RELOAD')
-            await page.reload()
+            await page_reload(page, 'Not all page were received (do_waitfor)')
     logging.info(f'End wait {waitfor}')        

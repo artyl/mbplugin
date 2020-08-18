@@ -17,7 +17,6 @@ async def async_main(login, password, storename=None):
         storename =  storename.replace(re.sub(r'\W', '_', login_ori), re.sub(r'\W', '_', login))  # исправляем storename
     accounts = {}  # словарь хранения данных по аккауттам accounts[accountId]={}
     waitfor = set()
-    browser = await pa.launch_browser(storename)
 
     async def worker(response):
         'Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)'
@@ -39,20 +38,22 @@ async def async_main(login, password, storename=None):
                 accountId = elem['accountId']
                 accounts[accountId] = accounts.get(accountId, {})      
                 accounts[accountId]['number'] = elem['number']  #  ЛС
+                accounts[accountId]['client-api/getAccountServicesMainInfo'] = False  # Проходила ли загрузка доп
+                accounts[accountId]['client-api/getAccountBalanceV2'] = False  # Проходила ли загрузка доп
         if response.request.url.endswith('client-api/getAccountServicesMainInfo'):  # # # # # fee or TarifPlan
+            logging.debug(f'{data=}'.encode('cp1251',errors='ignore').decode('cp1251'))            
             accountId = json.loads(response.request.postData)['accountId']
             accounts[accountId] = accounts.get(accountId, {})
             accounts[accountId]['TarifPlan'] = ','.join([i['fee'] for i in data['services'].values()])
+            accounts[accountId]['client-api/getAccountServicesMainInfo'] = True
         if response.request.url.endswith('client-api/getAccountBalanceV2'):  # # # # # Баланс
             accountId = json.loads(response.request.postData)['accountId']
             accounts[accountId] = accounts.get(accountId, {})
             accounts[accountId]['Balance'] = data['balance']/100
+            accounts[accountId]['client-api/getAccountBalanceV2'] = True
 
-    pages = await browser.pages()
-    for page in pages[1:]:
-        await page.close() # Закрываем остальные страницы, если вдруг открыты
-    page = pages[0]  # await browser.newPage()
-    page.on("response", worker) # вешаем обработчик на страницы
+    pa.clear_cache(storename)
+    browser, page = await pa.launch_browser(storename, worker)
     await pa.page_goto(page, 'https://lk.rt.ru')
 
     if await pa.page_evaluate(page, "document.getElementById('root')!=null"):
@@ -73,21 +74,28 @@ async def async_main(login, password, storename=None):
             # TODO надо бы еще капчу проверять
             await asyncio.sleep(1)
             if cnt==10:
-                await page.reload()
+                await pa.page_reload(page, 'unclear: logged in or not')
         else:
             logging.error(f'Unknown state')
             raise RuntimeError(f'Unknown state')
     # почему-то иногда застревает явно идем в https://lk.mts.ru/ 
     #await pa.page_goto(page, 'https://lk.mts.ru')
     await pa.do_waitfor(page, waitfor, {'client-api/getProfile', 'client-api/getAccounts', 'client-api/getAccountServicesMainInfo', 'client-api/getAccountBalanceV2'})
-    await asyncio.sleep(3)
-    logging.info(f'{accounts=}')
+    logging.debug(f'Wait getAccountServicesMainInfo')
+    for cnt in range(40): # !!! TODO Ждем до получения результата, но не больше 40 секунд
+        await asyncio.sleep(1)
+        for elem in accounts.values():
+            if not elem['client-api/getAccountServicesMainInfo'] or not elem['client-api/getAccountServicesMainInfo']:
+                break  # Есть незагруженные - ждем
+        else:
+            break # все загрузили - выходим
+    logging.debug(f'{accounts=}'.replace('\u20bd','p'))
     for elem in accounts.values():
         if acc_num == elem.get('number','') or acc_num == '':
             result['Balance'] = elem['Balance']
             if 'TarifPlan' in elem:
                 result['TarifPlan'] = elem['TarifPlan'].replace('\u20bd','p')
-    logging.info(f'Data ready {result.keys()}')
+    logging.debug(f'Data ready {result.keys()}')
     await browser.close()
     pa.clear_cache(storename)
     return result
