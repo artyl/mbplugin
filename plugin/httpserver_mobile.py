@@ -130,6 +130,8 @@ def getreport(param=[]):
     table = db.report()
     if 'Alias' not in table_format:
         table_format = 'NN,Alias,' + table_format  # Если старый ini то этих столбцов нет - добавляем
+    table = [i for i in table if i['Alias']!='Unknown']  # filter Unknown
+    table.sort(key=lambda i:[i['NN'],i['Alias']])  # sort by NN, after by Alias        
     header = table_format.strip().split(',')
     # классы для формата заголовка
     header_class = {'Balance': 'p_b', 'RealAverage': 'p_r', 'BalDelta': 'p_r', 'BalDeltaQuery': 'p_r', 'NoChangeDays': 'p_r', 'CalcTurnOff': 'p_r', 'MinAverage': 'p_r', }
@@ -307,10 +309,12 @@ class TelegramBot():
         if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
             table_format = ' '.join([f'{{{i}}}' for i in table_format.strip().split(',')])
         table = db.report()
-        if filter == 'LASTCHANGE':
-            res = [table_format.format(**line) for line in table if line['BalDeltaQuery'] != 0]
+        table = [i for i in table if i['Alias']!='Unknown']  # filter Unknown
+        table.sort(key=lambda i:[i['NN'],i['Alias']])  # sort by NN, after by Alias
+        if filter == 'LASTCHANGE': # TODO сделать настройку в ini на счет line['Balance']
+            res = [table_format.format(**line) for line in table if line['BalDeltaQuery'] != 0 and line['Balance'] !=0]
         elif filter == 'LASTDAYCHANGE':
-            res = [table_format.format(**line) for line in table if line['BalDelta'] != 0]
+            res = [table_format.format(**line) for line in table if line['BalDelta'] != 0 and line['Balance'] !=0]
         else:  # 'FULL':
             res = [table_format.format(**line) for line in table]
         return '\n'.join(res)
@@ -319,13 +323,22 @@ class TelegramBot():
         url = store.options('mobilebalance_http', section='Telegram')
         tgmb_format = store.options('tgmb_format', section='Telegram')
         response1_text = requests.get(url).content.decode('cp1251')
+        # нет таблицы
+        if 'Введите пароль' in response1_text or '<table' not in response1_text: 
+            res = 'Неправильный пароль для страницы баланса в ini, проверьте параметр mobilebalance_http'
+            return res
         soup = bs4.BeautifulSoup(response1_text, 'html.parser')
         headers = [''.join(el.get('id')[1:]) for el in soup.find(id='header').findAll('th')]
-        data = [[''.join(el.contents) for el in line.findAll(['th', 'td'])]
-                for line in soup.findAll(id='row')]
+        data = [[''.join(el.contents) for el in line.findAll(['th', 'td'])] for line in soup.findAll(id='row')]
         if filter == 'LASTCHANGE':
+            if 'BalDeltaQuery' not in headers:  # нет колонки Delta (запрос) 
+                res = 'Включите показ колонки Delta (запрос) в настройках mobilebalance'
+                return res
             data = [line for line in data if line[headers.index('BalDeltaQuery')] != '']
         elif filter == 'LASTDAYCHANGE':
+            if 'BalDelta' not in headers:  # нет колонки Delta (день)
+                res = 'Включите показ колонки Delta (день) в настройках mobilebalance'
+                return res               
             data = [line for line in data if line[headers.index('BalDelta')] != '']
         res = '\n'.join([tgmb_format.format(**dict(list(zip(headers, line)))) for line in data])
         return res
