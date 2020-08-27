@@ -48,7 +48,6 @@ def get_balance(login, password, storename=None):
         result['TurnOffStr'] = time.strftime('%d.%m.%Y', time.localtime(nd))
     except Exception:
         logging.info(f"Couldn't take TurnOff")
-        raise
     try:
         avail_min = re.search(re_min, response3.text)
         if avail_min:
