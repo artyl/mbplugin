@@ -48,7 +48,8 @@ ini = {
         'mts_usedbyme': '0',
     },
     'Telegram': {  # Раздел mbplugin.ini [Telegram]
-        'api_token':'',  # токен для бота - прописывается в ini
+        'start_tgbot': 1,  # Стартовать telegram bot вместе с http
+        'api_token': '',  # токен для бота - прописывается в ini
         'auth_id': '',  # список id пользователей, которые получают баланс
         # формат для строки telegram bot из sqlite
         'tg_format': '<b>{Alias}</b>\t<code>{PhoneNumberFormat2}</code>\t<b>{Balance}</b>({BalDeltaQuery})',
@@ -59,6 +60,7 @@ ini = {
         'mobilebalance_http': 'http://localhost:19778/123456/',
     },
     'HttpServer': {  # Раздел mbplugin.ini [HttpServer]
+        'start_http': 1,  # Стартовать http сервер
         'port': '19777',  # порт http сервера с отчетами
         # host '127.0.0.1' - доступ только локально, '0.0.0.0' - разрешить доступ к по сети
         'host': '127.0.0.1',

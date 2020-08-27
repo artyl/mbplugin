@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys, re, logging
+import os, sys, re, logging, time
 import requests
 import store
 
@@ -35,12 +35,26 @@ def get_balance(login, password, storename=None):
         response2 = session.post('https://my.zadarma.com/auth/login/', data=data)
         _ = response2
         response3 = session.get('https://my.zadarma.com/')
-
+    
     result['Balance'] = re.search(re_balance, response3.text).group(1).replace(',', '.')
-    result['TarifPlan'] = re.search(re_tariff, response3.text).group(1).replace('&nbsp;', '').replace('Текущий тарифный план -', '').strip()
-    avail_min = re.search(re_min, response3.text)
-    if avail_min:
-        result['Min'] = avail_min.group(1)
+    try:
+        result['TarifPlan'] = re.search(re_tariff, response3.text).group(1).replace('&nbsp;', '').replace('Текущий тарифный план -', '').strip()
+    except Exception:
+        logging.info(f"Couldn't take TarifPlan")
+    try:
+        to_dates = re.findall(r'действует до (\d\d\.\d\d\.\d\d\d\d)', response3.text)
+        nd = min([time.mktime(time.strptime(d, '%d.%m.%Y')) for d in to_dates])
+        result['TurnOff'] = int((nd - time.time())/86400)
+        result['TurnOffStr'] = time.strftime('%d.%m.%Y', time.localtime(nd))
+    except Exception:
+        logging.info(f"Couldn't take TurnOff")
+        raise
+    try:
+        avail_min = re.search(re_min, response3.text)
+        if avail_min:
+            result['Min'] = avail_min.group(1)
+    except Exception:
+        logging.info(f"couldn't take Min")
     session.save_session()
     return result
 

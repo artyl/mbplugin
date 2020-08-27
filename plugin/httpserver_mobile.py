@@ -170,6 +170,98 @@ def write_report():
         logging.error(f'Ошибка генерации {balance_html} {"".join(traceback.format_exception(*sys.exc_info()))}')
 
 
+def prepare_balance_mobilebalance(filter='FULL', filter_tel=None):
+    """Формируем текст для отправки в telegram из html файла полученного из web сервера mobilebalance
+    filter = FULL - Все телефоны, LASTCHANGE - Изменивниеся за день, LASTCHANGE - Изменившиеся в последнем запросе
+    filter_tel = None - все, либо список через запятую псевдонимы или логины или какаято их уникальная часть
+    """
+    url = store.options('mobilebalance_http', section='Telegram')
+    tgmb_format = store.options('tgmb_format', section='Telegram')
+    response1_text = requests.get(url).content.decode('cp1251')
+    # нет таблицы
+    if 'Введите пароль' in response1_text or '<table' not in response1_text: 
+        res = 'Неправильный пароль для страницы баланса в ini, проверьте параметр mobilebalance_http'
+        return res
+    soup = bs4.BeautifulSoup(response1_text, 'html.parser')
+    headers = [''.join(el.get('id')[1:]) for el in soup.find(id='header').findAll('th')]
+    data = [[''.join(el.contents) for el in line.findAll(['th', 'td'])] for line in soup.findAll(id='row')]
+    # фильтр по filter_tel
+    if filter_tel is not None:
+        filter_tel=[re.sub(r'\W','',el) for el in filter_tel.split(',')]
+        data = [line for line in data if len([1 for i in filter_tel if i in re.sub('\W', '', '_'.join(line))])>0]
+    if filter == 'LASTCHANGE':
+        if 'BalDeltaQuery' not in headers:  # нет колонки Delta (запрос) 
+            res = 'Включите показ колонки Delta (запрос) в настройках mobilebalance'
+            return res
+        data = [line for line in data if line[headers.index('BalDeltaQuery')] != '']
+    elif filter == 'LASTDAYCHANGE':
+        if 'BalDelta' not in headers:  # нет колонки Delta (день)
+            res = 'Включите показ колонки Delta (день) в настройках mobilebalance'
+            return res               
+        data = [line for line in data if line[headers.index('BalDelta')] != '']
+    res = '\n'.join([tgmb_format.format(**dict(list(zip(headers, line)))) for line in data])
+    return res
+
+
+def prepare_balance_sqlite(filter='FULL', filter_tel=None):
+    db = dbengine.dbengine(store.options('dbfilename'))
+    table_format = store.options('tg_format', section='Telegram').replace('\\t','\t').replace('\\n','\n')
+    # table_format = 'Alias,PhoneNumber,Operator,Balance'
+    # Если формат задан как перечисление полей через запятую - переделываем под формат
+    if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
+        table_format = ' '.join([f'{{{i}}}' for i in table_format.strip().split(',')])
+    table = db.report()
+    table = [i for i in table if i['Alias']!='Unknown']  # filter Unknown
+    table.sort(key=lambda i:[i['NN'],i['Alias']])  # sort by NN, after by Alias
+    # фильтр по filter_tel
+    if filter_tel is not None:
+        filter_tel=[re.sub(r'\W','',el) for el in filter_tel.split(',')]
+        table = [line for line in table if len([1 for i in filter_tel if i in re.sub('\W', '', '_'.join(map(str,line.values())))])>0]    
+    if filter == 'LASTCHANGE': # TODO сделать настройку в ini на счет line['Balance']
+        res = [table_format.format(**line) for line in table if line['BalDeltaQuery'] != 0 and line['Balance'] !=0]
+    elif filter == 'LASTDAYCHANGE':
+        res = [table_format.format(**line) for line in table if line['BalDelta'] != 0 and line['Balance'] !=0]
+    else:  # 'FULL':
+        res = [table_format.format(**line) for line in table]
+    return '\n'.join(res)
+
+
+def prepare_balance(filter='FULL'):
+    """Prepare balance for TG."""
+    try:
+        baltxt = ''
+        if store.options('tg_from', section='Telegram') == 'sqlite':
+            baltxt = prepare_balance_sqlite(filter)
+        else:
+            baltxt = prepare_balance_mobilebalance(filter)
+        if baltxt == '' and str(store.options('send_empty', section='Telegram'))=='1':
+            baltxt = 'No changes'
+        return baltxt         
+    except Exception:
+        exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        logging.error(exception_text)
+        return 'error'    
+
+
+def send_telegtam_over_requests(text=None, auth_id=None, filter='LASTCHANGE'):
+    """Отправка сообщения в телеграм через requests без задействия python-telegram-bot
+    text - сообщение, если не указано, то это баланс для телефонов у которых он изменился
+    auth_id - список id через запятую на которые слать, если не указано, то берется список из mbplugin.ini 
+    """
+    if text is None:
+        text = prepare_balance(filter)
+    api_token = store.options('api_token', section='Telegram').strip()
+    if len(api_token) == 0:
+        logging.info('Telegtam api_token not found')
+        return
+    if auth_id is None:
+        auth_id = list(map(int,store.options('auth_id', section='Telegram').strip().split(',')))
+    else:
+        auth_id = list(map(int,str(auth_id).strip().split(',')))
+    r=[requests.post(f'https://api.telegram.org/bot{api_token}/sendMessage',data={'chat_id':chat_id,'text':text,'parse_mode':'HTML'}) for chat_id in auth_id if text!='']
+    return [repr(i) for i in r]
+
+
 def tray_icon(cmdqueue):
     'Выставляем для trayicon daemon, чтобы ушел вслед за нами функция нужна для запуска в отдельном thread'
     if str(store.options('show_tray_icon')) == '1':
@@ -289,65 +381,11 @@ class TelegramBot():
         logging.info(f'TG:{update.message.chat_id} /id')
         update.message.reply_text(update.message.chat_id)
 
-    def prepare_balance(self, filter='FULL'):
-        """Prepare balance for TG."""
-        try:
-            if store.options('tg_from', section='Telegram') == 'sqlite':
-                return self.prepare_balance_sqlite(filter)
-            else:
-                return self.prepare_balance_mobilebalance(filter)
-        except Exception:
-            exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
-            logging.error(exception_text)
-            return 'error'
-
-    def prepare_balance_sqlite(self, filter='FULL'):
-        db = dbengine.dbengine(store.options('dbfilename'))
-        table_format = store.options('tg_format', section='Telegram').replace('\\t','\t').replace('\\n','\n')
-        # table_format = 'Alias,PhoneNumber,Operator,Balance'
-        # Если формат задан как перечисление полей через запятую - переделываем под формат
-        if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
-            table_format = ' '.join([f'{{{i}}}' for i in table_format.strip().split(',')])
-        table = db.report()
-        table = [i for i in table if i['Alias']!='Unknown']  # filter Unknown
-        table.sort(key=lambda i:[i['NN'],i['Alias']])  # sort by NN, after by Alias
-        if filter == 'LASTCHANGE': # TODO сделать настройку в ini на счет line['Balance']
-            res = [table_format.format(**line) for line in table if line['BalDeltaQuery'] != 0 and line['Balance'] !=0]
-        elif filter == 'LASTDAYCHANGE':
-            res = [table_format.format(**line) for line in table if line['BalDelta'] != 0 and line['Balance'] !=0]
-        else:  # 'FULL':
-            res = [table_format.format(**line) for line in table]
-        return '\n'.join(res)
-
-    def prepare_balance_mobilebalance(self, filter='FULL'):
-        url = store.options('mobilebalance_http', section='Telegram')
-        tgmb_format = store.options('tgmb_format', section='Telegram')
-        response1_text = requests.get(url).content.decode('cp1251')
-        # нет таблицы
-        if 'Введите пароль' in response1_text or '<table' not in response1_text: 
-            res = 'Неправильный пароль для страницы баланса в ini, проверьте параметр mobilebalance_http'
-            return res
-        soup = bs4.BeautifulSoup(response1_text, 'html.parser')
-        headers = [''.join(el.get('id')[1:]) for el in soup.find(id='header').findAll('th')]
-        data = [[''.join(el.contents) for el in line.findAll(['th', 'td'])] for line in soup.findAll(id='row')]
-        if filter == 'LASTCHANGE':
-            if 'BalDeltaQuery' not in headers:  # нет колонки Delta (запрос) 
-                res = 'Включите показ колонки Delta (запрос) в настройках mobilebalance'
-                return res
-            data = [line for line in data if line[headers.index('BalDeltaQuery')] != '']
-        elif filter == 'LASTDAYCHANGE':
-            if 'BalDelta' not in headers:  # нет колонки Delta (день)
-                res = 'Включите показ колонки Delta (день) в настройках mobilebalance'
-                return res               
-            data = [line for line in data if line[headers.index('BalDelta')] != '']
-        res = '\n'.join([tgmb_format.format(**dict(list(zip(headers, line)))) for line in data])
-        return res
-
     @auth_decorator
     def get_balancetext(self, update, context):
         """Send balance only auth user."""
         logging.info(f'TG:{update.message.chat_id} /balance')
-        baltxt = self.prepare_balance('FULL')
+        baltxt = prepare_balance('FULL')
         update.message.reply_text(baltxt, parse_mode=telegram.ParseMode.HTML)
 
     @auth_decorator
@@ -367,9 +405,7 @@ class TelegramBot():
     def send_balance(self):
         if self.updater is None:
             return
-        baltxt = self.prepare_balance('LASTCHANGE')
-        if baltxt=='' and str(store.options('send_empty', section='Telegram'))=='1':
-            baltxt = 'No changes'
+        baltxt = prepare_balance('LASTCHANGE')
         if baltxt!='':
             self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML)
 
@@ -381,21 +417,27 @@ class TelegramBot():
     def __init__(self):
         api_token = store.options('api_token', section='Telegram').strip()
         self.updater = None
-        if api_token != '' and 'telegram' in sys.modules:
-            logging.info(f'Module telegram starting for id={self.auth_id()}')
-            self.updater = Updater(api_token, use_context=True)
-            logging.info(f'{self.updater}')
-            dp = self.updater.dispatcher
-            dp.add_handler(CommandHandler("id", self.get_id))
-            dp.add_handler(CommandHandler("balance", self.get_balancetext))
-            dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
-            self.updater.start_polling()  # Start the Bot
-            if str(store.options('send_empty', section='Telegram'))=='1':
-                self.send_message(text='Hey there!')
+        if api_token != '' and str(store.options('start_tgbot', section='Telegram')) == '1' and 'telegram' in sys.modules:
+            try:
+                logging.info(f'Module telegram starting for id={self.auth_id()}')
+                self.updater = Updater(api_token, use_context=True)
+                logging.info(f'{self.updater}')
+                dp = self.updater.dispatcher
+                dp.add_handler(CommandHandler("id", self.get_id))
+                dp.add_handler(CommandHandler("balance", self.get_balancetext))
+                dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
+                self.updater.start_polling()  # Start the Bot
+                if str(store.options('send_empty', section='Telegram'))=='1':
+                    self.send_message(text='Hey there!')
+            except Exception:
+                exception_text = f'Ошибка запуска telegram bot {"".join(traceback.format_exception(*sys.exc_info()))}'
+                logging.error(exception_text)
         elif 'telegram' not in sys.modules:
             logging.info('Module telegram not found')
-        elif api_token != '':
+        elif api_token == '':
             logging.info('Telegtam api_token not found')
+        elif str(store.options('start_tgbot', section='Telegram')) != '1':
+            logging.info('Telegtam bot start is disabled in mbplugin.ini (start_tgbot=0)')
 
 
 class Handler(wsgiref.simple_server.WSGIRequestHandler):
@@ -423,7 +465,7 @@ class WebServer():
                             level=store.options('logginglevel' ),
                             format=store.options('loggingformat'))
         self.port = int(store.options('port', section='HttpServer'))
-        self.host = '127.0.0.1'
+        self.host = store.options('host', section='HttpServer')
         with socket.socket() as sock:
             sock.settimeout(0.2)  # this prevents a 2 second lag when starting the server
             if sock.connect_ex((self.host, self.port)) == 0:
@@ -433,6 +475,9 @@ class WebServer():
                     time.sleep(3)  # Подождем пока сервер остановится
                 except Exception:
                     pass
+        if str(store.options('start_http', section='HttpServer')) != '1':
+            logging.info(f'Start http server disabled in mbplugin.ini (start_http=0)')
+            return
         with wsgiref.simple_server.make_server(self.host, self.port, self.simple_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
             logging.info(f'Listening {self.host}:{self.port}....')
             threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
@@ -482,7 +527,11 @@ class WebServer():
 
 
 def main():
-    WebServer()
+    try:
+        WebServer()
+    except Exception:
+        exception_text = f'Ошибка запуска WebServer: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        logging.error(exception_text)        
 
 
 if __name__ == '__main__':
