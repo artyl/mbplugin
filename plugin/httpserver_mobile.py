@@ -1,7 +1,7 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
 import os, sys,io, re, time, json, traceback, threading, logging, importlib, configparser, queue
-import wsgiref.simple_server, socketserver, socket, requests, urllib.parse, bs4
+import wsgiref.simple_server, socketserver, socket, requests, urllib.parse, urllib.request, bs4
 import settings, store, dbengine  # pylint: disable=import-error
 try:
     import win32api, win32gui, win32con, winerror
@@ -170,10 +170,30 @@ def write_report():
         logging.error(f'Ошибка генерации {balance_html} {"".join(traceback.format_exception(*sys.exc_info()))}')
 
 
-def prepare_balance_mobilebalance(filter='FULL', filter_tel=None):
-    """Формируем текст для отправки в telegram из html файла полученного из web сервера mobilebalance
+def filter_balance(table, filter='FULL', filter_include=None, filter_exclude=None):
+    ''' Фильтруем данные для отчета
     filter = FULL - Все телефоны, LASTCHANGE - Изменивниеся за день, LASTCHANGE - Изменившиеся в последнем запросе
-    filter_tel = None - все, либо список через запятую псевдонимы или логины или какаято их уникальная часть
+    filter_include = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат
+    filter_exclude = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат'''    
+    # фильтр по filter_include
+    if filter_include is not None:
+        filter_include=[re.sub(r'\W','',el) for el in filter_include.split(',')]
+        table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', '_'.join(map(str,line.values())))])>0]    
+    # фильтр по filter_exclude
+    if filter_exclude is not None:
+        filter_exclude=[re.sub(r'\W','',el) for el in filter_exclude.split(',')]
+        table = [line for line in table if len([1 for i in filter_exclude if i in re.sub(r'\W', '', '_'.join(map(str,line.values())))])==0]    
+    if filter == 'LASTCHANGE': # TODO сделать настройку в ini на счет line['Balance']
+        table = [line for line in table if line['BalDeltaQuery'] != 0 and line['Balance'] !=0]
+        table = [line for line in table if line['BalDeltaQuery'] != '' and line['Balance'] !='']
+    elif filter == 'LASTDAYCHANGE':
+        table = [line for line in table if line['BalDelta'] != 0 and line['Balance'] !=0]
+        table = [line for line in table if line['BalDelta'] != '' and line['Balance'] !='']
+    return table
+
+
+def prepare_balance_mobilebalance(filter='FULL', filter_include=None, filter_exclude=None):
+    """Формируем текст для отправки в telegram из html файла полученного из web сервера mobilebalance
     """
     url = store.options('mobilebalance_http', section='Telegram')
     tgmb_format = store.options('tgmb_format', section='Telegram')
@@ -184,26 +204,21 @@ def prepare_balance_mobilebalance(filter='FULL', filter_tel=None):
         return res
     soup = bs4.BeautifulSoup(response1_text, 'html.parser')
     headers = [''.join(el.get('id')[1:]) for el in soup.find(id='header').findAll('th')]
+    if filter == 'LASTCHANGE' and 'BalDeltaQuery' not in headers:  # нет колонки Delta (запрос) 
+        res = 'Включите показ колонки Delta (запрос) в настройках mobilebalance'
+        return res
+    elif filter == 'LASTDAYCHANGE' and 'BalDelta' not in headers:  # нет колонки Delta (день)
+        res = 'Включите показ колонки Delta (день) в настройках mobilebalance'
+        return res
     data = [[''.join(el.contents) for el in line.findAll(['th', 'td'])] for line in soup.findAll(id='row')]
-    # фильтр по filter_tel
-    if filter_tel is not None:
-        filter_tel=[re.sub(r'\W','',el) for el in filter_tel.split(',')]
-        data = [line for line in data if len([1 for i in filter_tel if i in re.sub('\W', '', '_'.join(line))])>0]
-    if filter == 'LASTCHANGE':
-        if 'BalDeltaQuery' not in headers:  # нет колонки Delta (запрос) 
-            res = 'Включите показ колонки Delta (запрос) в настройках mobilebalance'
-            return res
-        data = [line for line in data if line[headers.index('BalDeltaQuery')] != '']
-    elif filter == 'LASTDAYCHANGE':
-        if 'BalDelta' not in headers:  # нет колонки Delta (день)
-            res = 'Включите показ колонки Delta (день) в настройках mobilebalance'
-            return res               
-        data = [line for line in data if line[headers.index('BalDelta')] != '']
-    res = '\n'.join([tgmb_format.format(**dict(list(zip(headers, line)))) for line in data])
-    return res
+    table = [dict(zip(headers, line)) for line in data]
+    table = filter_balance(table, filter, filter_include, filter_exclude)        
+    res = [tgmb_format.format(**line) for line in table]
+    return '\n'.join(res)
 
 
-def prepare_balance_sqlite(filter='FULL', filter_tel=None):
+def prepare_balance_sqlite(filter='FULL', filter_include=None, filter_exclude=None):
+    'Готовим данные для отчета из sqlite базы'
     db = dbengine.dbengine(store.options('dbfilename'))
     table_format = store.options('tg_format', section='Telegram').replace('\\t','\t').replace('\\n','\n')
     # table_format = 'Alias,PhoneNumber,Operator,Balance'
@@ -213,27 +228,19 @@ def prepare_balance_sqlite(filter='FULL', filter_tel=None):
     table = db.report()
     table = [i for i in table if i['Alias']!='Unknown']  # filter Unknown
     table.sort(key=lambda i:[i['NN'],i['Alias']])  # sort by NN, after by Alias
-    # фильтр по filter_tel
-    if filter_tel is not None:
-        filter_tel=[re.sub(r'\W','',el) for el in filter_tel.split(',')]
-        table = [line for line in table if len([1 for i in filter_tel if i in re.sub('\W', '', '_'.join(map(str,line.values())))])>0]    
-    if filter == 'LASTCHANGE': # TODO сделать настройку в ini на счет line['Balance']
-        res = [table_format.format(**line) for line in table if line['BalDeltaQuery'] != 0 and line['Balance'] !=0]
-    elif filter == 'LASTDAYCHANGE':
-        res = [table_format.format(**line) for line in table if line['BalDelta'] != 0 and line['Balance'] !=0]
-    else:  # 'FULL':
-        res = [table_format.format(**line) for line in table]
+    table = filter_balance(table, filter, filter_include, filter_exclude)
+    res = [table_format.format(**line) for line in table]
     return '\n'.join(res)
 
 
-def prepare_balance(filter='FULL'):
+def prepare_balance(filter='FULL', filter_include=None, filter_exclude=None):
     """Prepare balance for TG."""
     try:
         baltxt = ''
         if store.options('tg_from', section='Telegram') == 'sqlite':
-            baltxt = prepare_balance_sqlite(filter)
+            baltxt = prepare_balance_sqlite(filter, filter_include, filter_exclude)
         else:
-            baltxt = prepare_balance_mobilebalance(filter)
+            baltxt = prepare_balance_mobilebalance(filter, filter_include, filter_exclude)
         if baltxt == '' and str(store.options('send_empty', section='Telegram'))=='1':
             baltxt = 'No changes'
         return baltxt         
@@ -243,13 +250,15 @@ def prepare_balance(filter='FULL'):
         return 'error'    
 
 
-def send_telegtam_over_requests(text=None, auth_id=None, filter='LASTCHANGE'):
+def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', filter_include=None, filter_exclude=None):
     """Отправка сообщения в телеграм через requests без задействия python-telegram-bot
+    Может пригодится при каких-то проблемах с ботом или в ситуации когда на одной машине у нас крутится бот, 
+    а с другой в этого бота мы еще хотим засылать инфу
     text - сообщение, если не указано, то это баланс для телефонов у которых он изменился
     auth_id - список id через запятую на которые слать, если не указано, то берется список из mbplugin.ini 
     """
     if text is None:
-        text = prepare_balance(filter)
+        text = prepare_balance(filter, filter_include, filter_exclude)
     api_token = store.options('api_token', section='Telegram').strip()
     if len(api_token) == 0:
         logging.info('Telegtam api_token not found')
@@ -396,18 +405,37 @@ class TelegramBot():
         for id in self.auth_id():
             self.updater.bot.send_document(chat_id=id, filename='balance.htm', document=io.BytesIO('\n'.join(res).strip().encode('cp1251')))
 
-    def send_message(self, text, parse_mode='HTML'):
-        if self.updater is None:
+    def send_message(self, text, parse_mode='HTML', ids=None):
+        if self.updater is None or text == '':
             return
-        for id in self.auth_id():
+        if ids is None:
+            lst = self.auth_id()
+        else:
+            lst = ids
+        for id in lst:
             self.updater.bot.sendMessage(chat_id=id, text=text, parse_mode=parse_mode)
 
     def send_balance(self):
+        'Отправляем баланс'
         if self.updater is None:
             return
         baltxt = prepare_balance('LASTCHANGE')
-        if baltxt!='':
-            self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML)
+        self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML)
+
+    def send_subsribtions(self):
+        'Отправляем подписки - это строки из ini вида:'
+        'subscribtionXXX = id:123456 include:1111,2222 exclude:6666'
+        if self.updater is None:
+            return
+        subscribtions = store.options('subscribtion', section='Telegram', listparam=True)
+        for subscr in subscribtions:
+            # id:123456 include:1111,2222 -> {'id':'123456','include':'1111,2222'}
+            param = {k:v.strip() for k,v in [i.split(':',1) for i in subscr.split(' ')]}
+            baltxt = prepare_balance('LASTCHANGE',
+                                     filter_include=param.get('include', None),
+                                     filter_exclude=param.get('exclude', None))
+            ids = [int(i) for i in param.get('id','').split(',') if i.isdigit()]
+            self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML, ids=ids)
 
     def stop(self):
         '''Stop bot'''
@@ -416,11 +444,19 @@ class TelegramBot():
 
     def __init__(self):
         api_token = store.options('api_token', section='Telegram').strip()
+        request_kwargs = {}
+        tg_proxy = store.options('tg_proxy', section='Telegram').strip()
+        if tg_proxy.lower() == 'auto':
+            request_kwargs['proxy_url'] = urllib.request.getproxies().get('https', '')
+        elif tg_proxy != '' and tg_proxy.lower() != 'auto':
+            request_kwargs['proxy_url'] = tg_proxy
+            # ??? Надо или не надо ?
+            # request_kwargs['urllib3_proxy_kwargs'] = {'assert_hostname': 'False', 'cert_reqs': 'CERT_NONE'}
         self.updater = None
         if api_token != '' and str(store.options('start_tgbot', section='Telegram')) == '1' and 'telegram' in sys.modules:
             try:
                 logging.info(f'Module telegram starting for id={self.auth_id()}')
-                self.updater = Updater(api_token, use_context=True)
+                self.updater = Updater(api_token, use_context=True, request_kwargs=request_kwargs)
                 logging.info(f'{self.updater}')
                 dp = self.updater.dispatcher
                 dp.add_handler(CommandHandler("id", self.get_id))
@@ -502,6 +538,8 @@ class WebServer():
                 ct, text = getbalance_plugin('url', param)  # TODO !!! Но правильно все-таки через POST
             elif cmd.lower() == 'sendtgbalance':
                 self.telegram_bot.send_balance()
+            elif cmd.lower() == 'sendtgsubscriptions':
+                self.telegram_bot.send_subsribtions()
             elif cmd.lower() == 'get':  # вариант через get запрос
                 param = urllib.parse.parse_qs(environ['QUERY_STRING'])
                 ct, text = getbalance_plugin('get', param)

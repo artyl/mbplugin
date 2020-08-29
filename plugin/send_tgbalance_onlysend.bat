@@ -2,6 +2,6 @@
 %~d0 
 cd "%~dp0"
 rem PING over requests
-REM ..\python\python -c "import requests,store,httpserver_mobile;httpserver_mobile.send_telegtam_over_requests(text='PING')"
+REM ..\python\python -c "import requests,store,httpserver_mobile;httpserver_mobile.send_telegram_over_requests(text='PING')"
 rem Balanse over requests
-..\python\python -c "import requests,store,httpserver_mobile;httpserver_mobile.send_telegtam_over_requests()"
+..\python\python -c "import requests,store,httpserver_mobile;httpserver_mobile.send_telegram_over_requests()"

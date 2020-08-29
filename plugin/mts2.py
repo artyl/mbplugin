@@ -107,7 +107,9 @@ async def async_main(login, password, storename=None):
         logging.info(f'Already login')
     else:
         for cnt in range(20):  # Почему-то иногда с первого раза логон не проскакивает
-            if await pa.page_evaluate(page, "document.getElementById('password') !== null"):
+            if await pa.page_evaluate(page, '''document.getElementById('password') !== null 
+                    && document.getElementById('phone') !== null 
+                    && document.getElementsByClassName('btn btn_large btn_wide')[0] !== undefined '''):
                 logging.info(f'Login')
                 await pa.page_evaluate(page, f"document.getElementById('phone').value='{main_login}'")
                 await pa.page_evaluate(page, f"document.getElementById('password').value='{password}'")
@@ -122,8 +124,24 @@ async def async_main(login, password, storename=None):
                 logging.info(f'Captcha')
                 #logging.info(f'Delete profile')
                 #pa.delete_profile(storename)
-                raise RuntimeError(f'Captca')                
+                raise RuntimeError(f'Captca Your support ID is')                
                 break
+            elif await pa.page_evaluate(page, "document.getElementById('captcha-wrapper') !== null"):
+                # Капча
+                # TODO включить проверку флага:
+                if str(store.options('show_captcha')) == '1':
+                    pa.hide_chrome(hide=False) # Покажем хром и подождем вдруг кто-нибудь введет
+                    logging.info(f'Captcha, wait human')
+                    for _ in range(90):
+                        if await pa.page_evaluate(page, "document.getElementById('captcha-wrapper') !== null"):
+                            break
+                        await asyncio.sleep(1)
+                    else:
+                        logging.error('No more wait for a human')
+                        raise RuntimeError(f'Captcha not solve')
+                else:
+                    logging.error('No wait for a human')
+                    raise RuntimeError(f'Captcha not solve')
             await asyncio.sleep(1)
             if cnt==10:
                 await page.reload()

@@ -106,7 +106,7 @@ async def page_evaluate(page, eval_string):
     except Exception:
         if 'password' in eval_string:
             eval_string = eval_string.split('eval_string')[0]+'password ....'
-        logging.info(f'eval fail: {eval_string}')
+        logging.info(f'eval fail: {repr(eval_string)}')
         return None
 
 

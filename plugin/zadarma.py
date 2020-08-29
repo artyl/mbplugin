@@ -43,9 +43,10 @@ def get_balance(login, password, storename=None):
         logging.info(f"Couldn't take TarifPlan")
     try:
         to_dates = re.findall(r'действует до (\d\d\.\d\d\.\d\d\d\d)', response3.text)
-        nd = min([time.mktime(time.strptime(d, '%d.%m.%Y')) for d in to_dates])
-        result['TurnOff'] = int((nd - time.time())/86400)
-        result['TurnOffStr'] = time.strftime('%d.%m.%Y', time.localtime(nd))
+        if len(to_dates) > 0:
+            nd = min([time.mktime(time.strptime(d, '%d.%m.%Y')) for d in to_dates])
+            result['TurnOff'] = int((nd - time.time())/86400)
+            result['TurnOffStr'] = time.strftime('%d.%m.%Y', time.localtime(nd))
     except Exception:
         logging.info(f"Couldn't take TurnOff")
     try:

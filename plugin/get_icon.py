@@ -1,3 +1,15 @@
+# -*- coding: utf8 -*-
+''' Получение иконки с сайта в виде строки для вставки в jsmb plugin
+иконка на сайте может быть в виде http://examples.com/favicon.ico
+либо на странице сайта в тексте html в теге link c rel="apple-touch-icon":
+<link rel="apple-touch-icon" sizes="48x48" href="/fav@3x.png">
+запуск:
+get_icon.py путь_к_иконке
+например:
+get_icon.py https://vscale.io/fav.png
+или
+get_icon.py https://my.mosenergosbyt.ru/favicon.ico
+'''
 import zlib,requests,io,sys
 from PIL import Image
 bb=io.BytesIO(requests.get(sys.argv[1]).content)

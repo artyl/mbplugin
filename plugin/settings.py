@@ -38,6 +38,8 @@ ini = {
         'updatefrommdbdeep': 30,
         # показывать иконку в трее - 1 прятать - 1, (по умолчанию 1)
         'show_tray_icon': '1',
+        # показывать окно chrome если на странице найдена капча
+        'show_captcha': '0',
         # Прятать окна Chrome (при logginglevel=DEBUG всегда показывает)
         'show_chrome': '0',
         # Путь к хрому - можно прописать явно в ini, иначе поищет из вариантов chrome_executable_path_alternate
@@ -49,6 +51,9 @@ ini = {
     },
     'Telegram': {  # Раздел mbplugin.ini [Telegram]
         'start_tgbot': 1,  # Стартовать telegram bot вместе с http
+        # Прокси сервер для работы телеграм пустая строка - без прокси, auto - брать из настроек браузера, 
+        # Либо адрес https://user:pass@host:port либо socks5://user:pass@host:port
+        'tg_proxy': '',  # По умолчанию без прокси
         'api_token': '',  # токен для бота - прописывается в ini
         'auth_id': '',  # список id пользователей, которые получают баланс
         # формат для строки telegram bot из sqlite
