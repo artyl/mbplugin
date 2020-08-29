@@ -417,7 +417,7 @@ class TelegramBot():
 
     def send_balance(self):
         'Отправляем баланс'
-        if self.updater is None or str(store.options('send_balancechanges', section='Telegram')) == '0':
+        if self.updater is None or str(store.options('send_balance_changes', section='Telegram')) == '0':
             return
         baltxt = prepare_balance('LASTCHANGE')
         self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML)
