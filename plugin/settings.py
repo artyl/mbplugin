@@ -56,6 +56,7 @@ ini = {
         'tg_proxy': '',  # По умолчанию без прокси
         'api_token': '',  # токен для бота - прописывается в ini
         'auth_id': '',  # список id пользователей, которые получают баланс
+        'send_balance_changes': '1',  # отправлять изменения баланса по sendtgbalance (может приходится если мы не хотим получать полняй список а фильтровать по подписке)
         # формат для строки telegram bot из sqlite
         'tg_format': '<b>{Alias}</b>\t<code>{PhoneNumberFormat2}</code>\t<b>{Balance}</b>({BalDeltaQuery})',
         'tg_from': 'sqlite',  # mobilebalance или sqlite
