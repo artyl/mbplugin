@@ -6,7 +6,7 @@
 //
 // FullName  : VoIP оператор SipNet
 // ShortName : SipNet
-// Version   : 07.06.2020 v2
+// Version   : 29.08.2020
 // Icon      : 789C73F2FDC600016540AC01C40250CCC8C002166F0062616E08166040060D10C9860608058240C6810307803448E43F1831FCFF0FA140102404E2E3007FCE43089CF49933E7A1FC337869A83A5C00009F949135
 // Author    : MTSoft Исправил ArtyLa
 // Types     : MTSoft
@@ -29,19 +29,19 @@ function main(){
             if(!external.WaitBrowser) return;
             response.pages[p++]=external.source;
     };
-	xmlhttp = external.getXmlHttp()
-	xmlhttp.open('GET', "https://www.sipnet.ru/cabinet-login", false);
-	xmlhttp.send(null);
-	if(xmlhttp.status == 200)
-	{
-		 external.SaveStrToLogFile(xmlhttp.responseText);
-	}    
+    xmlhttp = external.getXmlHttp()
+    xmlhttp.open('GET', "https://www.sipnet.ru/cabinet-login", false);
+    xmlhttp.send(null);
+    if(xmlhttp.status == 200)
+    {
+         external.SaveStrToLogFile(xmlhttp.responseText);
+    }    
  
-	// Забираем информацию
-	html=document.documentElement.outerHTML;
-	html=xmlhttp.responseText
-	// Преобразуем в одну стрку и удаляем лишние пробелы
-	html = html.replace(/\r|\n/g, "").replace(/>\s+/g, ">");
+    // Забираем информацию
+    html=document.documentElement.outerHTML;
+    html=xmlhttp.responseText
+    // Преобразуем в одну стрку и удаляем лишние пробелы
+    html = html.replace(/\r|\n/g, "").replace(/>\s+/g, ">");
 
     // Баланс
     balanceParsed=false;
@@ -72,11 +72,13 @@ function main(){
     };
     
 
-	// Если мы не в дебаге, то выходим.
-	if (!external.isDebugMode)
-	{
-		document.location="https://www.sipnet.ru/cabinet/?CabinetAction=logout";
-	}
+    // Если мы не в дебаге, то выходим.
+    //if (!external.isDebugMode)
+    //{
+        external.sleep(300);
+        document.location="https://www.sipnet.ru/cabinet/?CabinetAction=logout";
+        if(!external.WaitBrowser) return;
+    //}
 
 };
 main();
