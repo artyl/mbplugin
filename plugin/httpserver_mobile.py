@@ -131,7 +131,7 @@ def getreport(param=[]):
     if 'Alias' not in table_format:
         table_format = 'NN,Alias,' + table_format  # Если старый ini то этих столбцов нет - добавляем
     table = [i for i in table if i['Alias']!='Unknown']  # filter Unknown
-    table.sort(key=lambda i:[i['NN'],i['Alias']])  # sort by NN, after by Alias        
+    table.sort(key=lambda i:[i['NN'],i['Alias']])  # sort by NN, after by Alias
     header = table_format.strip().split(',')
     # классы для формата заголовка
     header_class = {'Balance': 'p_b', 'RealAverage': 'p_r', 'BalDelta': 'p_r', 'BalDeltaQuery': 'p_r', 'NoChangeDays': 'p_r', 'CalcTurnOff': 'p_r', 'MinAverage': 'p_r', }
@@ -170,19 +170,19 @@ def write_report():
         logging.error(f'Ошибка генерации {balance_html} {"".join(traceback.format_exception(*sys.exc_info()))}')
 
 
-def filter_balance(table, filter='FULL', filter_include=None, filter_exclude=None):
+def filter_balance(table, filter='FULL', params={}):
     ''' Фильтруем данные для отчета
     filter = FULL - Все телефоны, LASTCHANGE - Изменивниеся за день, LASTCHANGE - Изменившиеся в последнем запросе
-    filter_include = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат
-    filter_exclude = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат'''    
+    params['include'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат
+    params['exclude'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат'''
     # фильтр по filter_include
-    if filter_include is not None:
-        filter_include=[re.sub(r'\W','',el) for el in filter_include.split(',')]
-        table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', '_'.join(map(str,line.values())))])>0]    
+    if 'include' in params:
+        filter_include = [re.sub(r'\W', '', el) for el in params['include'].split(',')]
+        table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', '_'.join(map(str,line.values())))])>0]
     # фильтр по filter_exclude
-    if filter_exclude is not None:
-        filter_exclude=[re.sub(r'\W','',el) for el in filter_exclude.split(',')]
-        table = [line for line in table if len([1 for i in filter_exclude if i in re.sub(r'\W', '', '_'.join(map(str,line.values())))])==0]    
+    if 'exclude' in params:
+        filter_exclude = [re.sub(r'\W', '', el) for el in params['exclude'].split(',')]
+        table = [line for line in table if len([1 for i in filter_exclude if i in re.sub(r'\W', '', '_'.join(map(str,line.values())))])==0]
     if filter == 'LASTCHANGE': # TODO сделать настройку в ini на счет line['Balance']
         table = [line for line in table if line['BalDeltaQuery'] != 0 and line['Balance'] !=0]
         table = [line for line in table if line['BalDeltaQuery'] != '' and line['Balance'] !='']
@@ -192,19 +192,19 @@ def filter_balance(table, filter='FULL', filter_include=None, filter_exclude=Non
     return table
 
 
-def prepare_balance_mobilebalance(filter='FULL', filter_include=None, filter_exclude=None):
+def prepare_balance_mobilebalance(filter='FULL', params={}):
     """Формируем текст для отправки в telegram из html файла полученного из web сервера mobilebalance
     """
-    url = store.options('mobilebalance_http', section='Telegram')
-    tgmb_format = store.options('tgmb_format', section='Telegram')
+    url = store.options('mobilebalance_http', section='Telegram', mainparams=params)
+    tgmb_format = store.options('tgmb_format', section='Telegram', mainparams=params)
     response1_text = requests.get(url).content.decode('cp1251')
     # нет таблицы
-    if 'Введите пароль' in response1_text or '<table' not in response1_text: 
+    if 'Введите пароль' in response1_text or '<table' not in response1_text:
         res = 'Неправильный пароль для страницы баланса в ini, проверьте параметр mobilebalance_http'
         return res
     soup = bs4.BeautifulSoup(response1_text, 'html.parser')
     headers = [''.join(el.get('id')[1:]) for el in soup.find(id='header').findAll('th')]
-    if filter == 'LASTCHANGE' and 'BalDeltaQuery' not in headers:  # нет колонки Delta (запрос) 
+    if filter == 'LASTCHANGE' and 'BalDeltaQuery' not in headers:  # нет колонки Delta (запрос)
         res = 'Включите показ колонки Delta (запрос) в настройках mobilebalance'
         return res
     elif filter == 'LASTDAYCHANGE' and 'BalDelta' not in headers:  # нет колонки Delta (день)
@@ -212,15 +212,15 @@ def prepare_balance_mobilebalance(filter='FULL', filter_include=None, filter_exc
         return res
     data = [[''.join(el.contents) for el in line.findAll(['th', 'td'])] for line in soup.findAll(id='row')]
     table = [dict(zip(headers, line)) for line in data]
-    table = filter_balance(table, filter, filter_include, filter_exclude)        
+    table = filter_balance(table, filter, params)
     res = [tgmb_format.format(**line) for line in table]
     return '\n'.join(res)
 
 
-def prepare_balance_sqlite(filter='FULL', filter_include=None, filter_exclude=None):
+def prepare_balance_sqlite(filter='FULL', params={}):
     'Готовим данные для отчета из sqlite базы'
-    db = dbengine.dbengine(store.options('dbfilename'))
-    table_format = store.options('tg_format', section='Telegram').replace('\\t','\t').replace('\\n','\n')
+    db = dbengine.dbengine(store.options('dbfilename', mainparams=params))
+    table_format = store.options('tg_format', section='Telegram', mainparams=params).replace('\\t','\t').replace('\\n','\n')
     # table_format = 'Alias,PhoneNumber,Operator,Balance'
     # Если формат задан как перечисление полей через запятую - переделываем под формат
     if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
@@ -228,29 +228,29 @@ def prepare_balance_sqlite(filter='FULL', filter_include=None, filter_exclude=No
     table = db.report()
     table = [i for i in table if i['Alias']!='Unknown']  # filter Unknown
     table.sort(key=lambda i:[i['NN'],i['Alias']])  # sort by NN, after by Alias
-    table = filter_balance(table, filter, filter_include, filter_exclude)
+    table = filter_balance(table, filter, params)
     res = [table_format.format(**line) for line in table]
     return '\n'.join(res)
 
 
-def prepare_balance(filter='FULL', filter_include=None, filter_exclude=None):
+def prepare_balance(filter='FULL', params={}):
     """Prepare balance for TG."""
     try:
         baltxt = ''
-        if store.options('tg_from', section='Telegram') == 'sqlite':
-            baltxt = prepare_balance_sqlite(filter, filter_include, filter_exclude)
+        if store.options('tg_from', section='Telegram', mainparams=params) == 'sqlite':
+            baltxt = prepare_balance_sqlite(filter, params)
         else:
-            baltxt = prepare_balance_mobilebalance(filter, filter_include, filter_exclude)
-        if baltxt == '' and str(store.options('send_empty', section='Telegram'))=='1':
+            baltxt = prepare_balance_mobilebalance(filter, params)
+        if baltxt == '' and str(store.options('send_empty', section='Telegram', mainparams=params))=='1':
             baltxt = 'No changes'
-        return baltxt         
+        return baltxt
     except Exception:
         exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)
-        return 'error'    
+        return 'error'
 
 
-def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', filter_include=None, filter_exclude=None):
+def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={}):
     """Отправка сообщения в телеграм через requests без задействия python-telegram-bot
     Может пригодится при каких-то проблемах с ботом или в ситуации когда на одной машине у нас крутится бот, 
     а с другой в этого бота мы еще хотим засылать инфу
@@ -258,13 +258,13 @@ def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', filter_i
     auth_id - список id через запятую на которые слать, если не указано, то берется список из mbplugin.ini 
     """
     if text is None:
-        text = prepare_balance(filter, filter_include, filter_exclude)
-    api_token = store.options('api_token', section='Telegram').strip()
+        text = prepare_balance(filter, param)
+    api_token = store.options('api_token', section='Telegram', mainparams=params).strip()
     if len(api_token) == 0:
         logging.info('Telegtam api_token not found')
         return
     if auth_id is None:
-        auth_id = list(map(int,store.options('auth_id', section='Telegram').strip().split(',')))
+        auth_id = list(map(int, store.options('auth_id', section='Telegram', mainparams=params).strip().split(',')))
     else:
         auth_id = list(map(int,str(auth_id).strip().split(',')))
     r=[requests.post(f'https://api.telegram.org/bot{api_token}/sendMessage',data={'chat_id':chat_id,'text':text,'parse_mode':'HTML'}) for chat_id in auth_id if text!='']
@@ -430,11 +430,9 @@ class TelegramBot():
         subscribtions = store.options('subscribtion', section='Telegram', listparam=True)
         for subscr in subscribtions:
             # id:123456 include:1111,2222 -> {'id':'123456','include':'1111,2222'}
-            param = {k:v.strip() for k,v in [i.split(':',1) for i in subscr.split(' ')]}
-            baltxt = prepare_balance('LASTCHANGE',
-                                     filter_include=param.get('include', None),
-                                     filter_exclude=param.get('exclude', None))
-            ids = [int(i) for i in param.get('id','').split(',') if i.isdigit()]
+            params = {k: v.strip() for k, v in [i.split(':', 1) for i in subscr.split(' ')]}
+            baltxt = prepare_balance('LASTCHANGE', params)
+            ids = [int(i) for i in params.get('id', '').split(',') if i.isdigit()]
             self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML, ids=ids)
 
     def stop(self):
@@ -569,7 +567,7 @@ def main():
         WebServer()
     except Exception:
         exception_text = f'Ошибка запуска WebServer: {"".join(traceback.format_exception(*sys.exc_info()))}'
-        logging.error(exception_text)        
+        logging.error(exception_text)
 
 
 if __name__ == '__main__':

@@ -80,9 +80,12 @@ def find_files_up(fn):
         return os.path.join('..', fn)
 
 
-def options(param, default=None, section='Options', listparam=False):
+def options(param, default=None, section='Options', listparam=False, mainparams={}):
     'Читаем параметр из mbplugin.ini либо дефолт из settings'
     'Если listparam=True, то читаем список из всех, что начинается на param'
+    'mainparams - перекрывает любые другие варианты, если в нем присутствует - берем его'
+    if param in mainparams and listparam == False:
+        return mainparams[param]
     if default is None:
         default = settings.ini[section].get(param, None)
     options_all_sec = ini().read()
