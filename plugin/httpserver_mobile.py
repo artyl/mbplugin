@@ -258,7 +258,7 @@ def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={
     auth_id - список id через запятую на которые слать, если не указано, то берется список из mbplugin.ini 
     """
     if text is None:
-        text = prepare_balance(filter, param)
+        text = prepare_balance(filter, params)
     api_token = store.options('api_token', section='Telegram', mainparams=params).strip()
     if len(api_token) == 0:
         logging.info('Telegtam api_token not found')

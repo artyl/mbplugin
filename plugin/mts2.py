@@ -107,9 +107,17 @@ async def async_main(login, password, storename=None):
         logging.info(f'Already login')
     else:
         for cnt in range(20):  # Почему-то иногда с первого раза логон не проскакивает
-            if await pa.page_evaluate(page, '''document.getElementById('password') !== null 
-                    && document.getElementById('phone') !== null 
-                    && document.getElementsByClassName('btn btn_large btn_wide')[0] !== undefined '''):
+            if await pa.page_evaluate(page, 'document.getElementsByClassName("-loginForm")'):
+                logging.info(f'Login only')
+                await page.type('input[id="phoneInput"]', main_login, {'delay': 10})
+                await pa.page_evaluate(page, 'document.getElementById("submit").click()')
+            elif await pa.page_evaluate(page, 'document.getElementsByClassName("passwordForm")'):
+                logging.info(f'Password only')
+                #document.querySelector('input[id="password"]')
+                #document.getElementById("submit").disabled = false;
+                await page.type('input[id="password"]', password, {'delay': 10})
+                await pa.page_evaluate(page, 'document.getElementById("submit").click()')
+            elif await pa.page_evaluate(page, 'document.getElementById("passwordForm")'):
                 logging.info(f'Login')
                 await pa.page_evaluate(page, f"document.getElementById('phone').value='{main_login}'")
                 await pa.page_evaluate(page, f"document.getElementById('password').value='{password}'")
