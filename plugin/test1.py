@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys, re, logging
+import os, sys, re, logging, random
 import requests
 import store
 
@@ -8,7 +8,7 @@ def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     result = {}
     session = store.Session(storename)
-    result = {'Balance': 124.45,  # double
+    result = {'Balance': 124.45 + random.randint(1,5),  # double
             'Balance2': 22,  # double
             'Balance3': 33,  # double
             'LicSchet': 'Лицевой счет',

@@ -27,7 +27,7 @@ def hide_chrome(hide=True):
         else:
             win32gui.MoveWindow(hwnd, 0, 0, 1000, 1000, True) # Возвращаем нормальные координаты
 
-async def launch_browser(storename, response_worker):
+async def launch_browser(storename, response_worker=None):
     hide_chrome_flag = str(store.options('show_chrome')) == '0' and store.options('logginglevel') != 'DEBUG'
     storefolder = store.options('storefolder')
     user_data_dir = os.path.join(storefolder,'puppeteer')
@@ -70,7 +70,8 @@ async def launch_browser(storename, response_worker):
     for page in pages[1:]:
         await page.close() # Закрываем остальные страницы, если вдруг открыты
     page = pages[0]  # await browser.newPage()
-    page.on("response", response_worker) # вешаем обработчик на страницы        
+    if response_worker is not None:
+        page.on("response", response_worker) # вешаем обработчик на страницы        
     return browser, page
 
 def kill_chrome():
@@ -98,7 +99,7 @@ def delete_profile(storename):
     profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))    
     shutil.rmtree(profilepath)
 
-async def page_evaluate(page, eval_string):
+async def page_evaluate(page, eval_string, default=None):
     'Безопасный eval - не падает при ошибке а возвращает None'
     try:
         res = await page.evaluate(eval_string)
@@ -107,7 +108,7 @@ async def page_evaluate(page, eval_string):
         if 'password' in eval_string:
             eval_string = eval_string.split('eval_string')[0]+'password ....'
         logging.info(f'eval fail: {repr(eval_string)}')
-        return None
+        return default
 
 
 async def page_reload(page, reason=''):
@@ -121,7 +122,7 @@ async def page_goto(page, url):
     except pyppeteer.errors.TimeoutError:
         logging.info(f'page.goto timeout')
     await asyncio.sleep(3)  # Ждем 3 секунды 
-    if page_evaluate(page, 'setTimeout(function(){},1)<2'):
+    if await page_evaluate(page, 'setTimeout(function(){},1)<2'):
         await page_reload(page, 'No timers on page (page_goto)')  # если на странице не появились таймеры - reload
         await asyncio.sleep(3)  # Ждем еще 3 секунды 
     #try:

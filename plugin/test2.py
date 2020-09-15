@@ -16,7 +16,7 @@ def get_human_captcha(buffer):
     window = Tix.Tk()
     im = Image.open(io.BytesIO(buffer))
     img = ImageTk.PhotoImage(im)
-    lbl = Tix.Label(window, image=img).pack()
+    Tix.Label(window, image=img).pack()
     window.bind("<Return>", callback)
     inp = Tix.Entry(window)
     inp.pack()
