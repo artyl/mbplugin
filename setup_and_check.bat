@@ -19,11 +19,11 @@ echo Создаем lnk на run_webserver.bat и помещаем его в автозапуск и запускаем
 python\python -c "import os, sys, win32com.client;shell = win32com.client.Dispatch('WScript.Shell');shortcut = shell.CreateShortCut('run_webserver.lnk');shortcut.Targetpath = os.path.abspath('run_webserver.bat');shortcut.save()"
 copy run_webserver.lnk "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
 start "" /MIN "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\run_webserver.lnk"
-@REM подождем пока запустится
-ping 127.1 -n 11 >nul
+echo подождем пока запустится
+ping 127.0.0.1 -n 11 >nul
 
 cd "%~dp0"
-echo Проверяем что все модуди импортируются
+echo Проверяем что все модули импортируются
 python\python -c "import requests, telegram, win32api, win32gui, win32con, winerror, PIL, bs4, pyodbc, pyreadline, pyppeteer, psutil"
 
 cd "%~dp0"

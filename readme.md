@@ -42,13 +42,11 @@ zadarma - Zadarma.com (IP телефония)
 cardtel - Cardtel (IP телефония)  
 sipnet - Sipnet (IP телефония)  
 sodexo - Получение баланса карты Sodexo (подарочные карты)  
-usd - Курс доллара с RBC  
-eur - Курс евро с RBC  
-financeyahoo - Курс ценных бумаг с finance.yahoo.com  
-moex - Курс ценных бумаг с moex.com  
+currency - Курсы валют USD, EUR, с ЦБ и с MOEX, курсы акций с MOEX и yahoo finance (заменил плагины eur, usd, moex и yahoo)
 stock - Рассчет цены портфеля ценных бумаг  
 avtodor-tr - Автодор транспондер  
 parking_mos - parking.mos.ru оплата парковки (Вход через логин/пароль на login.mos.ru)
+mosenergosbyt - Сайт мосэнергосбыт (ЖКХ)
 
 ## Кроме простого использования есть еще:
 Телеграм бот  

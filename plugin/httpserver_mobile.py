@@ -120,11 +120,13 @@ def getreport(param=[]):
     </html>'''
     db = dbengine.dbengine(store.options('dbfilename'))
     # номера провайдеры и логины из phones.ini
-    options_ini = store.ini('options.ini').read()
-
-    edBalanceLessThen = float(options_ini['Mark']['edBalanceLessThen'])  # помечать балансы меньше чем
-    edTurnOffLessThen = float(options_ini['Mark']['edTurnOffLessThen'])  # помечать когда отключение CalcTurnOff меньше чем
-
+    try:
+        options_ini = store.ini('options.ini').read()
+        edBalanceLessThen = float(options_ini['Mark']['edBalanceLessThen'])  # помечать балансы меньше чем
+        edTurnOffLessThen = float(options_ini['Mark']['edTurnOffLessThen'])  # помечать когда отключение CalcTurnOff меньше чем
+    except Exception:
+        edBalanceLessThen=2.5
+        edTurnOffLessThen=2
     num_format = '' if len(param) == 0 or not param[0].isnumeric() else str(int(param[0]))
     table_format = store.options('table_format' + num_format, default=store.options('table_format',section='HttpServer'), section='HttpServer')
     table = db.report()
@@ -183,8 +185,10 @@ def filter_balance(table, filter='FULL', params={}):
     if 'exclude' in params:
         filter_exclude = [re.sub(r'\W', '', el) for el in params['exclude'].split(',')]
         table = [line for line in table if len([1 for i in filter_exclude if i in re.sub(r'\W', '', '_'.join(map(str,line.values())))])==0]
-    if filter == 'LASTCHANGE': # TODO сделать настройку в ini на счет line['Balance']
-        table = [line for line in table if line['BalDeltaQuery'] != 0 and line['Balance'] !=0]
+    if filter == 'LASTCHANGE':  # TODO сделать настройку в ini на счет line['Balance']
+        # Balance==0 Это скорее всего глюк проверки, соответственно его исключаем
+        # Также исключаем BalDeltaQuery==Balance - это возврат обратно с кривого нуля
+        table = [line for line in table if line['BalDeltaQuery'] != 0 and line['Balance'] !=0 and line['BalDeltaQuery'] != line['Balance']]
         table = [line for line in table if line['BalDeltaQuery'] != '' and line['Balance'] !='']
     elif filter == 'LASTDAYCHANGE':
         table = [line for line in table if line['BalDelta'] != 0 and line['Balance'] !=0]

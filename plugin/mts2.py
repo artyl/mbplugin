@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import asyncio, time, re, subprocess, logging, shutil, os, traceback
+import asyncio, time, re, subprocess, logging, shutil, os, sys, traceback
 import win32gui, win32process, psutil
 import pyppeteer  # PYthon puPPETEER
 #import pprint; pp = pprint.PrettyPrinter(indent=4).pprint
@@ -27,77 +27,80 @@ async def async_main(login, password, storename=None):
         'Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)'
         if response.status != 200:
             return
-        # Список окончаний url которые мы будем смотреть, остальные игнорируем
-        catch_elements = ['api/login/userInfo', 'for=api/accountInfo/balance', 'for=api/services/list/active', 'for=api/sharing/counters']
-        for elem in catch_elements:
-            if response.request.url.endswith(elem):
-                # Если это сложный заход, то проверяем что смотрим на нужный телефон
-                if '/' in login_ori:
-                    numb = await pa.page_evaluate(page, "document.getElementsByClassName('mts16-other-sites__phone')[0].innerText")
-                    if numb is None:
-                        return  # номера на странице нет - уходим
-                    logging.info(f'PHONE {numb}')
-                    if re.sub(r'(?:\+7|\D)', '', numb) != login:
-                        return  # Если номер не наш - уходим
-                waitfor.difference_update({elem}) # этот элемент больше не ждем
-                logging.info(f'await {response.request.url}')
-                response_json = await response.json()
-                break
-        else:  # Если url не из списка - уходим
-            return
-        if response.request.url.endswith('api/login/userInfo'):  # # # # # Баланс и еще
-            data = response_json
-            profile = data['userProfile']
-            result['Balance'] = round(profile.get('balance', 0), 2)
-            result['TarifPlan'] = profile.get('tariff', '')
-            result['UserName'] = profile.get('displayName', '')                    
-        if response.request.url.endswith('for=api/accountInfo/balance'):  # # # # # Баланс поточнее
-            data = response_json.get('data', {})
-            result['Balance'] = round(data['amount'], 2)
-        if response.request.url.endswith('for=api/services/list/active'):  # # # # # Услуги
-            data = response_json.get('data', {})
-            if 'services' in data:
-                services = [(i['name'], i.get('subscriptionFees', [{}])[0].get('value', 0)) for i in data['services']]
-                services.sort(key=lambda i:(-i[1],i[0]))
-                free = len([a for a,b in services if b==0 and (a,b)!=('Ежемесячная плата за тариф', 0)])
-                paid = len([a for a,b in services if b!=0])
-                paid_sum = round(sum([b for a,b in services if b!=0]),2)
-                result['UslugiOn']=f'{free}/{paid}({paid_sum})'
-                result['UslugiList']='\n'.join([f'{a}\t{b}' for a,b in services])
-        if response.request.url.endswith('for=api/sharing/counters'):  # # # # # Остатки пакетов
-            data = response_json.get('data', {})
-            if 'counters' in data:
-                counters = data['counters']
-                # Минуты
-                calling = [i for i in counters if i['packageType'] == 'Calling']
-                if calling != []:
-                    unit = {'Second': 60, 'Minute': 1}.get(calling[0]['unitType'], 1)
-                    nonused = [i['amount'] for i in calling[0] ['parts'] if i['partType'] == 'NonUsed']
-                    usedbyme = [i['amount'] for i in calling[0] ['parts'] if i['partType'] == 'UsedByMe']
-                    if nonused != []:
-                        result['Min'] = int(nonused[0]/unit)
-                    if usedbyme != []:
-                        result['SpendMin'] = int(usedbyme[0]/unit)
-                # SMS
-                messaging = [i for i in counters if i['packageType'] == 'Messaging']
-                if messaging != []:
-                    nonused = [i['amount'] for i in messaging[0] ['parts'] if i['partType'] == 'NonUsed']
-                    usedbyme = [i['amount'] for i in messaging[0] ['parts'] if i['partType'] == 'UsedByMe']
-                    if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
-                        result['SMS'] = int(nonused[0])
-                    if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
-                        result['SMS'] = int(usedbyme[0])
-                # Интернет
-                internet = [i for i in counters if i['packageType'] == 'Internet']
-                if internet != []:
-                    unitMult = settings.UNIT.get(internet[0]['unitType'], 1)
-                    unitDiv = settings.UNIT.get(interUnit, 1)
-                    nonused = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'NonUsed']
-                    usedbyme = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'UsedByMe']
-                    if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
-                        result['Internet'] = round(nonused[0]*unitMult/unitDiv, 2)
-                    if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
-                        result['Internet'] = round(usedbyme[0]*unitMult/unitDiv, 2)
+        try:
+            # Список окончаний url которые мы будем смотреть, остальные игнорируем
+            catch_elements = ['api/login/userInfo', 'for=api/accountInfo/balance', 'for=api/services/list/active', 'for=api/sharing/counters', 'for=api/accountInfo/mscpBalance']
+            for elem in catch_elements:
+                if response.request.url.endswith(elem):
+                    # Если это сложный заход, то проверяем что смотрим на нужный телефон
+                    if '/' in login_ori:
+                        numb = await pa.page_evaluate(page, "document.getElementById('ng-header__account-phone_desktop').innerText")
+                        if numb is None:
+                            return  # номера на странице нет - уходим
+                        logging.info(f'PHONE {numb}')
+                        if re.sub(r'(?:\+7|\D)', '', numb) != login:
+                            return  # Если номер не наш - уходим
+                    waitfor.difference_update({elem}) # этот элемент больше не ждем
+                    logging.info(f'await {response.request.url}')
+                    response_json = await response.json()
+                    break
+            else:  # Если url не из списка - уходим
+                return
+            if response.request.url.endswith('api/login/userInfo'):  # # # # # Баланс и еще
+                data = response_json
+                profile = data['userProfile']
+                result['Balance'] = round(profile.get('balance', 0), 2)
+                result['TarifPlan'] = profile.get('tariff', '')
+                result['UserName'] = profile.get('displayName', '')                    
+            if response.request.url.endswith('for=api/accountInfo/balance'):  # # # # # Баланс поточнее
+                data = response_json.get('data', {})
+                result['Balance'] = round(data['amount'], 2)
+            if response.request.url.endswith('for=api/services/list/active'):  # # # # # Услуги
+                data = response_json.get('data', {})
+                if 'services' in data:
+                    services = [(i['name'], i.get('subscriptionFees', [{}])[0].get('value', 0)) for i in data['services']]
+                    services.sort(key=lambda i:(-i[1],i[0]))
+                    free = len([a for a,b in services if b==0 and (a,b)!=('Ежемесячная плата за тариф', 0)])
+                    paid = len([a for a,b in services if b!=0])
+                    paid_sum = round(sum([b for a,b in services if b!=0]),2)
+                    result['UslugiOn']=f'{free}/{paid}({paid_sum})'
+                    result['UslugiList']='\n'.join([f'{a}\t{b}' for a,b in services])
+            if response.request.url.endswith('for=api/sharing/counters'):  # # # # # Остатки пакетов
+                data = response_json.get('data', {})
+                if 'counters' in data:
+                    counters = data['counters']
+                    # Минуты
+                    calling = [i for i in counters if i['packageType'] == 'Calling']
+                    if calling != []:
+                        unit = {'Second': 60, 'Minute': 1}.get(calling[0]['unitType'], 1)
+                        nonused = [i['amount'] for i in calling[0] ['parts'] if i['partType'] == 'NonUsed']
+                        usedbyme = [i['amount'] for i in calling[0] ['parts'] if i['partType'] == 'UsedByMe']
+                        if nonused != []:
+                            result['Min'] = int(nonused[0]/unit)
+                        if usedbyme != []:
+                            result['SpendMin'] = int(usedbyme[0]/unit)
+                    # SMS
+                    messaging = [i for i in counters if i['packageType'] == 'Messaging']
+                    if messaging != []:
+                        nonused = [i['amount'] for i in messaging[0] ['parts'] if i['partType'] == 'NonUsed']
+                        usedbyme = [i['amount'] for i in messaging[0] ['parts'] if i['partType'] == 'UsedByMe']
+                        if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
+                            result['SMS'] = int(nonused[0])
+                        if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
+                            result['SMS'] = int(usedbyme[0])
+                    # Интернет
+                    internet = [i for i in counters if i['packageType'] == 'Internet']
+                    if internet != []:
+                        unitMult = settings.UNIT.get(internet[0]['unitType'], 1)
+                        unitDiv = settings.UNIT.get(interUnit, 1)
+                        nonused = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'NonUsed']
+                        usedbyme = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'UsedByMe']
+                        if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
+                            result['Internet'] = round(nonused[0]*unitMult/unitDiv, 2)
+                        if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
+                            result['Internet'] = round(usedbyme[0]*unitMult/unitDiv, 2)
+        except Exception:
+            logging.info(f'worker on {response.request.url} error {"".join(traceback.format_exception(*sys.exc_info()))}')
 
     pa.clear_cache(storename)
     browser, page = await pa.launch_browser(storename, worker)  
@@ -162,9 +165,9 @@ async def async_main(login, password, storename=None):
         # если заход через другой номер то переключаемся на нужный номер
         # TODO возможно с прошлого раза может сохраниться переключенный но вроде работает и так
         for i in range(20):
-            if await pa.page_evaluate(page, "document.getElementsByClassName('mts16-other-sites__phone').length") > 0:
+            if await pa.page_evaluate(page, "document.getElementById('ng-header__account-phone_desktop')!=null") > 0:
                 break
-            logging.info(f'wait mts16-other-sites__phone')
+            logging.info(f'wait ng-header__account-phone_desktop')
             await asyncio.sleep(1)
         url_redirect = f'https://login.mts.ru/amserver/UI/Login?service=idp2idp&IDButton=switch&IDToken1=id%3D{login}%2Cou%3Duser%2Co%3Dusers%2Cou%3Dservices%2Cdc%3Damroot&org=%2Fusers&ForceAuth=true&goto=https%3A%2F%2Flk.mts.ru'
         await pa.page_goto(page, url_redirect)
