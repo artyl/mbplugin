@@ -230,6 +230,10 @@ class balance_over_puppeteer():
                 if response.request.method == 'POST' and response.request.postData is not None:
                     post = response.request.postData
                 self.responses[f'{response.request.method}:{post} URL:{response.request.url}'] = data
+                # TODO Сделать какой-нибудь механизм для поиска по загруженным страницам
+                # txt = await response.text()
+                # if '2336' in txt:
+                #    logging.info(f'2336 in {response.request.url}')
             except:
                 exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
                 logging.debug(exception_text)

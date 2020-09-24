@@ -39,6 +39,11 @@ class rostelecom_over_puppeteer(pa.balance_over_puppeteer):
             'name': 'UserName',
             'url_tag': ['client-api/getProfile'],
             'jsformula': 'data.lastName+" "+data.name+" "+data.middleName',
+        },{
+            # и со страницы client-api/getFplStatus соберем в Balance2 бонусы (для него не нужен accountId)
+            'name': 'Balance2',
+            'url_tag': ['client-api/getFplStatus'],
+            'jsformula': 'data.balance',            
         }])
 
 def get_balance(login, password, storename=None):
