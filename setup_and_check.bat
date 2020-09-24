@@ -1,10 +1,11 @@
 @echo OFF
 %~d0 
+cd "%~dp0"
+
 
 @REM добавляем в sys.path поиск в папке откуда запущен скрипт по умолчанию, в embedded он почему-то выключен
 cd python 
 ..\python\python -c "txt='''import os,sys\nsys.path.insert(0,os.path.split(sys.argv[0])[0])''';open('sitecustomize.py','w').write(txt)"
-
 
 cd "%~dp0"
 echo Пересобираем DLL 

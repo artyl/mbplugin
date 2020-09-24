@@ -179,7 +179,11 @@ class ini():
                 data[key] = {}
                 data[key]['NN'] = int(secnum)
                 data[key]['Alias'] = el.get('Alias','')
+                data[key]['Region'] = el.get('Region','')
+                data[key]['Number'] = el.get('Number','')
                 data[key]['PhoneDescription'] = el.get('PhoneDescription','')
+                data[key]['Monitor'] = el.get('Monitor','')
+                data[key]['Password2'] = el.get('Password2','')
         return data
 
 def read_stocks(stocks_name):

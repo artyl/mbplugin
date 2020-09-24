@@ -28,6 +28,19 @@ def find_ini_up(fn):
     if all_ini != []:
         return all_ini[0]
 
+def detbalance_standalone(filter=[]):
+    ''' Получаем балансы самостоятельно без mobilebalance 
+    Если filter пустой то по всем номерам из phones.ini
+    для автономной версии в поле Password2 находится незашифрованный пароль
+    ВНИМАНИЕ! при редактировании файла phones.ini через MobileBalance строки с паролями будут удалены
+    '''
+    phones = store.ini('phones.ini').phones()
+    for key,val in phones.items():
+        # Проверяем все у кого задан плагин, логин и пароль пароль
+        if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
+            if filter == [] or  val['Region'] in filter or val['Number'] in filter:
+                # TODO пока дергаем метод от вебсервера там уже все есть, потом может вынесем отдельно
+                getbalance_plugin('get',{'plugin':[val['Region']],'login':[val['Number']],'password':[val['Password2']],'date':['date']})
 
 def getbalance_plugin(method, param_source):
     'fplugin, login, password, date'
