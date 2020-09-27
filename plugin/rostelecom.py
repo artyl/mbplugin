@@ -17,23 +17,25 @@ class rostelecom_over_puppeteer(pa.balance_over_puppeteer):
                 'remember_checker': "document.querySelector('form input[name=rememberMe]').checked==false",  # Галка rememberMe почему-то нажимается только через js
                 'remember_js': "document.querySelector('form input[name=rememberMe]').click()",
                 })
-        # Сначала из файла client-api/getAccounts получаем accountId по номеру лицевого счета
-        res1 = await self.wait_params(params=[{
-            'name': 'accountId',
-            'url_tag': ['client-api/getAccounts'],
-            'jsformula': f'data.accounts.filter(el => el.number=="{self.acc_num}")[0].accountId',
-            #'pformula': f"[el['accountId'] for el in data['accounts'] if el['number']=='{self.acc_num}']"
-        }], save_to_result=False)  # Это промежуточные данные их не берем в результат
-        accountId = res1['accountId']  # Нам нужен accountId чтобы искать остальные данные
-
+        accountId = 0
+        # Если в логине указан лицевой счет, то нам нужно узнать accountId чтобы запросить баланс по конкретному ЛС
+        if self.acc_num != '':                
+            # Сначала из файла client-api/getAccounts получаем accountId по номеру лицевого счета
+            res1 = await self.wait_params(params=[{
+                'name': 'accountId',
+                'url_tag': ['client-api/getAccounts'],
+                'jsformula': f'data.accounts.filter(el => el.number=="{self.acc_num}")[0].accountId',
+                #'pformula': f"[el['accountId'] for el in data['accounts'] if el['number']=='{self.acc_num}']"
+            }], save_to_result=False)  # Это промежуточные данные их не берем в результат
+            accountId = res1['accountId']  # Нам нужен accountId чтобы искать остальные данные
         # Теперь со страницы client-api/getAccountBalanceV2 возьмем Balance (по accountId)
         await self.wait_params(params=[{
             'name': 'Balance',
-            'url_tag': ['client-api/getAccountBalanceV2', str(accountId)],
+            'url_tag': ['client-api/getAccountBalanceV2'] + ([str(accountId)] if self.acc_num != '' else []),
             'jsformula': r"data.balance/100",
         },{  # со страницы client-api/getAccountServicesMainInfo возьмем сумму всех месячных плат и назовем это тарифным планом (тоже по accountId)
             'name': 'TarifPlan',
-            'url_tag': ['client-api/getAccountServicesMainInfo', str(accountId)],
+            'url_tag': ['client-api/getAccountServicesMainInfo'] + ([str(accountId)] if self.acc_num != '' else []),
             'pformula': r"','.join([i['fee'] for i in data['services'].values()])",
         },{  # и со страницы client-api/getProfile соберем UserName (для него не нужен accountId)
             'name': 'UserName',

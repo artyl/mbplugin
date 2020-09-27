@@ -153,8 +153,9 @@ async def do_waitfor(page, waitfor, tokens, wait_and_reload=10, wait_loop=30):
 
 class balance_over_puppeteer():
     '''Основная часть общих действий вынесена сюда см mosenergosbyt для примера использования '''
-    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10):
+    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_attempt=1):
         self.wait_loop = wait_loop  # TODO подобрать параметр
+        self.login_attempt = login_attempt
         self.wait_and_reload = wait_and_reload
         self.password = password
         self.login_ori, self.acc_num = login, ''
@@ -262,7 +263,7 @@ class balance_over_puppeteer():
         if await self.page_evaluate(selectors['chk_lk_page_js']):
             logging.info(f'Already login')
         else:
-            for cnt in range(20):  # Почему-то иногда с первого раза логон не проскакивает
+            for cnt in range(self.login_attempt):  # Почему-то иногда с первого раза логон не проскакивает
                 if await self.page_evaluate(selectors['chk_login_page_js']):
                     logging.info(f'Login')
                     await self.page_evaluate(selectors['before_login_js'])
@@ -276,7 +277,9 @@ class balance_over_puppeteer():
                     await asyncio.sleep(1)
                     await self.page_click(selectors['submit_selector']) # почему-то так не заработало
                     await self.page_evaluate(selectors['submit_js'])
-                elif await self.page_evaluate(selectors['chk_lk_page_js']):
+                    await self.page_waitForNavigation()
+                    await asyncio.sleep(1)
+                if await self.page_evaluate(selectors['chk_lk_page_js']):
                     logging.info(f'Logoned')
                     break 
                 await asyncio.sleep(1)
@@ -298,6 +301,7 @@ class balance_over_puppeteer():
         либо
         {'name':'text', 'url_tag':[], 'jsformula':'text'} - url_tag - пустой список или не указан, на странице выполняется js из jsformula
         результат во всех случаях записывается с именем name в результирующий словарь 
+        Если параметр необязательный (т.е. его может и не быть) то чтобы его не ждать можно добавить в словарь по данному параметру 'wait':False
         ---
         save_to_result=True то записываем их в итоговый словарь результатов (self.result)
         и также результаты возвращаем в словаре (return result) 
@@ -320,13 +324,20 @@ class balance_over_puppeteer():
                     if len(response_result_)>0:
                         response_result = response_result_[0]
                         if param.get('pformula','') != '':
-                            result[param['name']] = eval(param['pformula'], {'data':response_result})
+                            res = eval(param['pformula'], {'data':response_result})
+                            if res is not None:
+                                result[param['name']] = res
                         if param.get('jsformula', '') != '':
-                            result[param['name']] = await self.page_evaluate(f"()=>{{data={json.dumps(response_result)};return {param['jsformula']};}}")
+                            res = await self.page_evaluate(f"()=>{{data={json.dumps(response_result)};return {param['jsformula']};}}")
+                            if res is not None:
+                                result[param['name']] = res
                 else:  # Ищем на самой странице - запускаем js 
-                    result[param['name']] = await self.page_evaluate(param['jsformula'])
-            if {i['name'] for i in params} == set(result):
-                break  # выходим если проверять все получили
+                    res = await self.page_evaluate(param['jsformula'])
+                    if res is not None:
+                        result[param['name']] = res
+            # Если все обязательные уже получили
+            if {i['name'] for i in params if i.get('wait',True)} - set(result) == set():
+                break  # выходим если все получили
             if countdown == self.wait_and_reload:
                 # так и не дождались - пробуем перезагрузить и еще подождать
                 await self.page_reload('Data not received')        

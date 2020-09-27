@@ -38,9 +38,12 @@ def detbalance_standalone(filter=[]):
     for key,val in phones.items():
         # Проверяем все у кого задан плагин, логин и пароль пароль
         if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
-            if filter == [] or  val['Region'] in filter or val['Number'] in filter:
+            if filter == [] or val['Region'] in filter or val['Number'] in filter or val['Alias'] in filter:
                 # TODO пока дергаем метод от вебсервера там уже все есть, потом может вынесем отдельно
-                getbalance_plugin('get',{'plugin':[val['Region']],'login':[val['Number']],'password':[val['Password2']],'date':['date']})
+                try:
+                    getbalance_plugin('get',{'plugin':[val['Region']],'login':[val['Number']],'password':[val['Password2']],'date':['date']})
+                except:
+                    logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {''.join(traceback.format_exception(*sys.exc_info()))}")
 
 def getbalance_plugin(method, param_source):
     'fplugin, login, password, date'

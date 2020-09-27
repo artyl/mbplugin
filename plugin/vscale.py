@@ -20,7 +20,8 @@ class vscale_over_puppeteer(pa.balance_over_puppeteer):
             'name': 'Balance',
             'url_tag': ['api.vscale.io/v1/billing/balance'], 
             'jsformula': 'data.balance',
-        }])
+        },], 
+        url='https://vscale.io/panel/scalets/')
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
