@@ -6,10 +6,10 @@
 //
 // FullName  : VoIP оператор SipNet
 // ShortName : SipNet
-// Version   : 29.08.2020
+// Version   : 05.10.2020
 // Icon      : 789C73F2FDC600016540AC01C40250CCC8C002166F0062616E08166040060D10C9860608058240C6810307803448E43F1831FCFF0FA140102404E2E3007FCE43089CF49933E7A1FC337869A83A5C00009F949135
 // Author    : MTSoft Исправил ArtyLa
-// Types     : MTSoft
+// Types     : MTSoft Исправил ArtyLa
 // Descript  : Текущий баланс у оператора IP-телефонии SipNet
 // Descript  : Сайт оператора: https://customer.sipnet.ru/
 // Descript  : Личный кабинет: https://customer.sipnet.ru/index.m
@@ -24,8 +24,9 @@ function main(){
     if(document.getElementById("login-field")){
             document.getElementById("login-field").value=request.loginValue;
             document.getElementById("password-field").value=request.passwValue;
-            document.getElementById("login-form-submit").click();
-
+            //document.getElementById("login-form-submit").click(); // Больше не работает
+            //document.querySelector("button[id=login-form-submit]").click() // так работало бы если бы не древний explorer
+            document.getElementsByClassName('form-btns')[1].getElementsByTagName('button')[0].click() //Костыль - так работает до ближайшего редизайна страницы
             if(!external.WaitBrowser) return;
             response.pages[p++]=external.source;
     };
@@ -42,7 +43,8 @@ function main(){
     html=xmlhttp.responseText
     // Преобразуем в одну стрку и удаляем лишние пробелы
     html = html.replace(/\r|\n/g, "").replace(/>\s+/g, ">");
-
+	//window.alert(html)
+	external.sleep(1000);
     // Баланс
     balanceParsed=false;
     regexp=/Баланс.*?>.*?>.*?>(.*?) /i;
