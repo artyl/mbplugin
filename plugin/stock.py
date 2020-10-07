@@ -23,7 +23,7 @@ https://iss.moex.com/iss/engines/stock/markets/shares/securities/TATNP
 https://iss.moex.com/iss/securities/TATNP.xml
 '''
 ''' Автор ArtyLa '''
-import os, sys, re, time, logging, threading, queue
+import os, sys, re, time, logging, threading, traceback, queue
 import xml.etree.ElementTree as etree
 import requests
 import store, settings
@@ -36,6 +36,7 @@ def get_usd_moex():
     res = re.findall(r'secid="USD/RUB" rate="(.*?)"',response.text)[0]
     return float(res)
 
+
 def get_yahoo(security, cnt, qu=None):
     session = requests.Session()
     url = time.strftime(f'https://query1.finance.yahoo.com/v8/finance/chart/{security}')
@@ -47,16 +48,37 @@ def get_yahoo(security, cnt, qu=None):
         qu.put(res)
     return res
 
+
 def get_moex(security, cnt, qu=None):
     session = requests.Session()
     url = time.strftime(f'https://iss.moex.com/iss/engines/stock/markets/shares/securities/{security}')
     response = session.get(url)
     root=etree.fromstring(response.text)
-    rows = root.findall('*[@id="marketdata"]/rows')[0]
-    res =  float([c.get('LAST') for c in list(rows) if c.get('LAST')!=''][0])*cnt, security, 'RUB'
+    # из securities возьмем стоимость бумаги за вчерашний день, если нет торгов
+    rows_securities = root.findall('*[@id="securities"]/rows')[0]
+    # из market возьмем стоимость самую свежую по торгам
+    rows_market = root.findall('*[@id="marketdata"]/rows')[0]
+    prevwarprices = [c.get('PREVWAPRICE') for c in list(rows_securities) if c.get('PREVWAPRICE')!='']
+    lasts = [c.get('LAST') for c in list(rows_market) if c.get('LAST')!='']
+    res =  float(lasts[0] if lasts != [] else prevwarprices[0])*cnt, security, 'RUB'
     if qu:
         qu.put(res)
     return res
+
+
+def thread_call_market(market,security,cnt,qu):
+    logging.info(f'Collect {market}:{security}')
+    try:    
+        if market=='Y':
+            return get_yahoo(security,cnt,qu)
+        elif market=='M':
+            return get_moex(security,cnt,qu)
+        else:
+            raise RuntimeError(f'Unknown market marker {market} for {security}')
+    except:
+        exception_text = f'Error {market},{security}:{"".join(traceback.format_exception(*sys.exc_info()))}'
+        logging.info(exception_text)    
+
     
 def count_all_scocks_multithread(stocks, remain, currenc):
     usd = get_usd_moex()
@@ -66,10 +88,9 @@ def count_all_scocks_multithread(stocks, remain, currenc):
     else:
         k['USD'] = usd
     qu = queue.Queue() # Очередь для данных из thread [val, sec_code, currency]
-    # Каждое получение данных в отдельном трэде
+    # Каждое получение данных в отдельном трэде для ускорения
     for sec,cnt,market in stocks:
-        target = get_yahoo if market=='Y' else get_moex
-        threading.Thread(target=target, name='stock', args=(sec,cnt,qu)).start()
+        threading.Thread(target=thread_call_market, name='stock', args=(market,sec,cnt,qu)).start()
     # Ждем завершения всех трэдов с получением данных
     while [1 for i in threading.enumerate() if i.name=='stock']:
         time.sleep(0.01)
