@@ -21,6 +21,10 @@ createhtmlreport = 1<br>
 После включения, запустите mbplugin\\setup_and_check.bat
 '''
 
+def turn_logging():
+    logging.basicConfig(filename=store.options('logginghttpfilename'),
+                        level=store.options('logginglevel'),
+                        format=store.options('loggingformat'))    
 
 def find_ini_up(fn):
     allroot = [os.getcwd().rsplit('\\', i)[0] for i in range(len(os.getcwd().split('\\')))]
@@ -35,6 +39,7 @@ def detbalance_standalone(filter=[]):
     для автономной версии в поле Password2 находится незашифрованный пароль
     ВНИМАНИЕ! при редактировании файла phones.ini через MobileBalance строки с паролями будут удалены
     '''
+    turn_logging()  # Т.к. сюда можем придти извне, то включаем логирование здесь
     phones = store.ini('phones.ini').phones()
     for key,val in phones.items():
         # Проверяем все у кого задан плагин, логин и пароль пароль
@@ -294,6 +299,7 @@ def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={
     text - сообщение, если не указано, то это баланс для телефонов у которых он изменился
     auth_id - список id через запятую на которые слать, если не указано, то берется список из mbplugin.ini 
     """
+    turn_logging()  # Т.к. сюда можем придти извне, то включаем логирование здесь
     if text is None:
         text = prepare_balance(filter, params)
     api_token = store.options('api_token', section='Telegram', mainparams=params).strip()
@@ -544,9 +550,7 @@ class ThreadingWSGIServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSG
 class WebServer():
     def __init__(self):
         self.cmdqueue = queue.Queue()
-        logging.basicConfig(filename=store.options('logginghttpfilename'),
-                            level=store.options('logginglevel' ),
-                            format=store.options('loggingformat'))
+        turn_logging()
         self.port = int(store.options('port', section='HttpServer'))
         self.host = store.options('host', section='HttpServer')
         with socket.socket() as sock:
