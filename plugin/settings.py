@@ -77,9 +77,13 @@ ini = {
         'port': '19777',  # порт http сервера с отчетами
         # host '127.0.0.1' - доступ только локально, '0.0.0.0' - разрешить доступ к по сети
         'host': '127.0.0.1',
-        # формат вывода по умолчанию, для форматирования номеров телефонов можно вместо PhoneNumber использовать 
+        # формат вывода по умолчанию, для страницы http://localhost:19777/report
+        # для форматирования номеров телефонов можно вместо PhoneNumber использовать 
         # PhoneNumberFormat1 - (916) 111-2234 или 
         # PhoneNumberFormat2 - (916)111-2234
+        # Также можно сделать несколько альтернативных видов с разными наборами полей 
+        # они должны быть вида table_formatNNN где NNN произвольное число, которое не должно повторяться, 
+        # зайти на такие альтернативные report можно по ссылке http://localhost:19777/report/NNN
         'table_format': 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime',  # ? UserName
         # edBalanceLessThen - если нет в Options.ini Mark\edBalanceLessThen то возьмем отсюда
         # в отчете будут показаны красным, если баланс меньше этой суммы
