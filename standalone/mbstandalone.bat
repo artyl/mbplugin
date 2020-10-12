@@ -18,8 +18,7 @@ if "%1"=="getbalance" goto :GETBALANCE
 
 GOTO :EOF
 
-
-@REM Инициализация
+@REM Инициализация можно втором параметром указать noweb тогда вебсервер не будет запускаться и помещаться в автозапуск
 :INIT
 cd mbplugin\plugin
 cd ..\plugin
@@ -27,7 +26,7 @@ cd ..\plugin
 ..\python\python -c "import store;ini=store.ini();ini.read();ini.ini['Options']['createhtmlreport']='1';ini.write()"
 ..\python\python -c "import store,os;ini=store.ini();ini.read();ini.ini['Options']['balance_html']=os.path.abspath('..\\..\\balance.html');ini.write()"
 echo %CD%
-call ..\setup_and_check.bat
+call ..\setup_and_check.bat %2
 GOTO :EOF
 
 @REM Проверка INI на корректность

@@ -10,7 +10,7 @@ class mosenergosbyt_over_puppeteer(pa.balance_over_puppeteer):
         await self.do_logon(
             url='https://my.mosenergosbyt.ru/auth',
             user_selectors={
-                #'before_login_js':"document.querySelector('div[data-tab=login]').click()", # Сначала кликаем по Логин
+                'before_login_js': "document.querySelectorAll('button[testid=skip]').forEach(s=>s.click())", # Сначала закрываем infomessage
                 'chk_lk_page_js': "document.querySelector('#authPage')!=null",  # Признак того что залогинились (на сложных страница лучше не оставлять по паролю а искать специфичный тэг)
                 'remember_checker': "document.querySelector('form input[name=remember]').checked==false",  
                 #'remember_js': "document.querySelector('form input[name=remember]').click()",
@@ -18,16 +18,16 @@ class mosenergosbyt_over_puppeteer(pa.balance_over_puppeteer):
                 })
         # Сначала из файла gate_lkcomu?action=sql&query=LSList& получаем id_service по номеру лицевого счета
         res1 = await self.wait_params(params=[{
-            'name': 'id_services',
+            'name': '#id_services',
             'url_tag': ['gate_lkcomu?action=sql&query=LSList&'],
             'jsformula': f'data.data.map(s=>[s.nn_ls,s.id_service])',
         },{
-            'name': 'vl_providers',
+            'name': '#vl_providers',
             'url_tag': ['gate_lkcomu?action=sql&query=LSList&'],
             'jsformula': f'data.data.map(s=>[s.nn_ls,s.vl_provider])',
-        }], save_to_result=False)  # Это промежуточные данные их не берем в результат
-        id_services = dict(res1['id_services'])  #   Нам нужен id_service
-        vl_providers = dict(res1['vl_providers'])  # и vl_provider чтобы искать остальные данные
+        }])  # Это промежуточные данные их не берем в результат (они начинаются с #)
+        id_services = dict(res1['#id_services'])  #   Нам нужен id_service
+        vl_providers = dict(res1['#vl_providers'])  # и vl_provider чтобы искать остальные данные
         if self.acc_num != '' and (self.acc_num not in id_services or self.acc_num not in vl_providers) :
             logging.error(f'Не найден лицевой счет')
             raise RuntimeError(f'Не найден лицевой счет')
@@ -38,9 +38,25 @@ class mosenergosbyt_over_puppeteer(pa.balance_over_puppeteer):
             id_service = id_services[nn_ls]
             vl_provider = vl_providers[nn_ls]
             res1 = await self.wait_params(params=[{
-                'name': 'Balance',
+                'name': 'Balance',  # Баланс в зависимости от вида ЛК может придти либо так
                 'url_tag': ['gate_lkcomu?action=sql&query=smorodinaTransProxy&', 'AbonentCurrentBalance', urllib.parse.quote(vl_provider)],
                 'jsformula': f'_.sum(data.data.map(s => s.sm_balance))',
+            },{
+                'name': 'Balance',  # Либо так (у dimon_s2020)
+                'url_tag': ['gate_lkcomu?action=sql&query=bytProxy&', 'proxyquery=CurrentBalance', urllib.parse.quote(vl_provider)],
+                'jsformula': f'_.sum(data.data.map(s => s.vl_balance))',
+            },{
+                'name': 'Balance',  # Либо так (у dimon_s2020) vesion2
+                'url_tag': ['gate_lkcomu?action=sql&query=bytProxy&', 'proxyquery=Invoice', urllib.parse.quote(vl_provider)],
+                'jsformula': f'-(data.data[0].sm_total)',
+            },{
+                'name': 'Balance2',  # Показания электросчетчика втарифе T1, Снятые сотрудниками Мосэнергосбыт
+                'url_tag': ['gate_lkcomu?action=sql&query=bytProxy&', 'proxyquery=Indications', urllib.parse.quote(vl_provider)],
+                'jsformula': f'(data.data.filter(s=>s.rn==2)[0].vl_t1)', 'wait':False,  # у некоторых этого параметра может и не быть
+            },{
+                'name': 'UserName',  # Username 
+                'url_tag': ['gate_lkcomu?action=sql&query=GetProfileAttributesValues&'],
+                'jsformula': f'data.data[0].attributes[0].vl_attribute+" "+data.data[0].attributes[1].vl_attribute+" "+data.data[0].attributes[2].vl_attribute',
             }], url=f'https://my.mosenergosbyt.ru/accounts/{id_service}',  # Соберем после захода на эту страницу
             )
             if 'Balance' in res1:
@@ -51,7 +67,7 @@ class mosenergosbyt_over_puppeteer(pa.balance_over_puppeteer):
 
         import pprint
         text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k,v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
-        open('..\log\\mosenergosbyt.log','w').write(text)
+        open('..\\log\\mosenergosbyt.log','w').write(text)
         
             
 

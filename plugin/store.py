@@ -173,6 +173,7 @@ class ini():
         if self.fn.lower() != 'phones.ini':
             raise RuntimeError(f'{self.fn} is not phones.ini')
         data = {}
+        BalanceNotChangedMoreThenDefault = int(options('BalanceNotChangedMoreThen', section='HttpServer'))
         for secnum,el in self.read().items():
             if secnum.isnumeric() and 'Monitor' in el:
                 key = (re.sub(r' #\d+','',el['Number']),el['Region'])
@@ -183,6 +184,7 @@ class ini():
                 data[key]['Number'] = el.get('Number','')
                 data[key]['PhoneDescription'] = el.get('PhoneDescription','')
                 data[key]['Monitor'] = el.get('Monitor','')
+                data[key]['BalanceNotChangedMoreThen'] = int(el.get('BalanceNotChangedMoreThen', BalanceNotChangedMoreThenDefault))
                 data[key]['Password2'] = el.get('Password2','')
         return data
 

@@ -22,12 +22,12 @@ class rostelecom_over_puppeteer(pa.balance_over_puppeteer):
         if self.acc_num != '':                
             # Сначала из файла client-api/getAccounts получаем accountId по номеру лицевого счета
             res1 = await self.wait_params(params=[{
-                'name': 'accountId',
+                'name': '#accountId',  # Помечаем решеткой, потому что не берем в результат
                 'url_tag': ['client-api/getAccounts'],
                 'jsformula': f'data.accounts.filter(el => el.number=="{self.acc_num}")[0].accountId',
                 #'pformula': f"[el['accountId'] for el in data['accounts'] if el['number']=='{self.acc_num}']"
-            }], save_to_result=False)  # Это промежуточные данные их не берем в результат
-            accountId = res1['accountId']  # Нам нужен accountId чтобы искать остальные данные
+            }])  # Это промежуточные данные их не берем в результат
+            accountId = res1['#accountId']  # Нам нужен accountId чтобы искать остальные данные
         # Теперь со страницы client-api/getAccountBalanceV2 возьмем Balance (по accountId)
         await self.wait_params(params=[{
             'name': 'Balance',

@@ -44,10 +44,17 @@ ini = {
         'show_chrome': '0',
         # Путь к хрому - можно прописать явно в ini, иначе поищет из вариантов chrome_executable_path_alternate
         'chrome_executable_path': 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        # Для плагинов через хром сохранять в папке логов полученные responses 
+        'log_responses': '0',
+        # Для плагинов через хром не обрезать вычисляемое выражение в логе
+        'log_full_eval_string': '0',
         # спецвариант по просьбе Mr. Silver в котором возвращаются не остаток интернета, а использованный
         # 1 - показывать использованный трафик (usedByMe) по всем  или 0 - показывать оставшийся трафик (NonUsed) по всем
         # список тел, через запятую - показать использованный только для этого списка телефонов
         'mts_usedbyme': '0',
+        # average_days - если нет в Options.ini Additional\AverageDays то возьмем отсюда
+        # Число дней по которому считаем среднее
+        'average_days': 30, 
     },
     'Telegram': {  # Раздел mbplugin.ini [Telegram]
         'start_tgbot': 1,  # Стартовать telegram bot вместе с http
@@ -72,5 +79,14 @@ ini = {
         'host': '127.0.0.1',
         # формат вывода по умолчанию
         'table_format': 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime',  # ? UserName
+        # edBalanceLessThen - если нет в Options.ini Mark\edBalanceLessThen то возьмем отсюда
+        # в отчете будут показаны красным, если баланс меньше этой суммы
+        'edBalanceLessThen': 2.5,
+        # edBalanceLessThen - если нет в Options.ini Mark\edTurnOffLessThen то возьмем отсюда
+        # в отчете будут показаны красным, если число дней до отключения меньше чем 
+        'edTurnOffLessThen': 2,
+        # В отчете будут показаны красным, если по номеру не было изменения более чем ... дней
+        # Если данный параметр не виставлен индивидуально для номера в phones.ini
+        'BalanceNotChangedMoreThen': 60
     },
 }

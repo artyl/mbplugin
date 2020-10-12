@@ -159,16 +159,13 @@ class dbengine():
         line['Operator'] = plugin
         line['PhoneNumber'] = login  # PhoneNumber=PhoneNum
         line['QueryDateTime'] = datetime.datetime.now().replace(microsecond=0)  # no microsecond
-        self.cur.execute(f"select cast(julianday('now')-julianday(max(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' and abs(balance-{result['Balance']})>0.02")
+        self.cur.execute(f"select cast(julianday('now')-julianday(max(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' and abs(balance-({result['Balance']}))>0.02")
         line['NoChangeDays'] = self.cur.fetchall()[0][0]  # Дней без изм.
         try:        
             options_ini = store.ini('Options.ini').read()
-            if 'Additional' in options_ini and 'AverageDays' in options_ini['Additional']:
-                average_days = int(options_ini['Additional']['AverageDays'])
-            else:
-                average_days = settings.ini['Options']['average_days']
+            average_days = int(options_ini['Additional']['AverageDays'])
         except:
-            average_days=30
+            average_days = int(store.options('average_days'))
         self.cur.execute(f"select {line['Balance']}-balance from phones where phonenumber='{login}' and operator='{plugin}' and QueryDateTime>date('now','-{average_days} day') and strftime('%Y%m%d', QueryDateTime)<>strftime('%Y%m%d', date('now')) order by QueryDateTime desc limit 1")
         qres = self.cur.fetchall()
         if qres != []:

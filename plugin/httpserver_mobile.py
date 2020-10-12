@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys,io, re, time, json, traceback, threading, logging, importlib, configparser, queue
+import os, sys,io, re, time, json, traceback, threading, logging, importlib, configparser, queue, argparse
 import wsgiref.simple_server, socketserver, socket, requests, urllib.parse, urllib.request, bs4
 import settings, store, dbengine  # pylint: disable=import-error
 try:
@@ -31,6 +31,7 @@ def find_ini_up(fn):
 def detbalance_standalone(filter=[]):
     ''' Получаем балансы самостоятельно без mobilebalance 
     Если filter пустой то по всем номерам из phones.ini
+    Если не пустой - то логин/алиас/оператор или его часть
     для автономной версии в поле Password2 находится незашифрованный пароль
     ВНИМАНИЕ! при редактировании файла phones.ini через MobileBalance строки с паролями будут удалены
     '''
@@ -38,7 +39,7 @@ def detbalance_standalone(filter=[]):
     for key,val in phones.items():
         # Проверяем все у кого задан плагин, логин и пароль пароль
         if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
-            if filter == [] or val['Region'] in filter or val['Number'] in filter or val['Alias'] in filter:
+            if filter == [] or [1 for i in filter if i.lower() in val['Region'].lower() or i.lower() in val['Number'].lower() or i.lower() in val['Alias'].lower()] != []:
                 # TODO пока дергаем метод от вебсервера там уже все есть, потом может вынесем отдельно
                 try:
                     getbalance_plugin('get',{'plugin':[val['Region']],'login':[val['Number']],'password':[val['Password2']],'date':['date']})
@@ -141,11 +142,12 @@ def getreport(param=[]):
         edBalanceLessThen = float(options_ini['Mark']['edBalanceLessThen'])  # помечать балансы меньше чем
         edTurnOffLessThen = float(options_ini['Mark']['edTurnOffLessThen'])  # помечать когда отключение CalcTurnOff меньше чем
     except Exception:
-        edBalanceLessThen=2.5
-        edTurnOffLessThen=2
+        edBalanceLessThen = float(store.options('edBalanceLessThen', section='HttpServer'))
+        edTurnOffLessThen = int(store.options('edTurnOffLessThen', section='HttpServer'))
     num_format = '' if len(param) == 0 or not param[0].isnumeric() else str(int(param[0]))
     table_format = store.options('table_format' + num_format, default=store.options('table_format',section='HttpServer'), section='HttpServer')
     table = db.report()
+    phones = store.ini('phones.ini').phones()
     if 'Alias' not in table_format:
         table_format = 'NN,Alias,' + table_format  # Если старый ini то этих столбцов нет - добавляем
     table = [i for i in table if i['Alias']!='Unknown']  # filter Unknown
@@ -157,6 +159,7 @@ def getreport(param=[]):
     html_table = []
     for line in table:
         html_line = []
+        pkey = (line['PhoneNumber'],line['Operator'])
         for he in header:
             if he not in line:
                 continue
@@ -166,6 +169,8 @@ def getreport(param=[]):
                 mark = ' class="mark" '  # Красим когда мало денег
             if he == 'CalcTurnOff' and el is not None and el < edTurnOffLessThen:
                 mark = ' class="mark" '  # Красим когда надолго не хватит
+            if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) > int(phones[pkey]['BalanceNotChangedMoreThen']):
+                mark = ' class="mark" '  # Красим когда давно не изменялся
             if el is None:
                 el = ''
             if he != 'Balance' and (el == 0.0 or el == 0):
@@ -194,13 +199,13 @@ def filter_balance(table, filter='FULL', params={}):
     params['include'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат
     params['exclude'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат'''
     # фильтр по filter_include
-    if 'include' in params:
-        filter_include = [re.sub(r'\W', '', el) for el in params['include'].split(',')]
-        table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', '_'.join(map(str,line.values())))])>0]
+    if params.get('include', None) is not None:
+        filter_include = [re.sub(r'\W', '', el).lower() for el in params['include'].split(',')]
+        table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', '_'.join(map(str,line.values())).lower())])>0]
     # фильтр по filter_exclude
-    if 'exclude' in params:
-        filter_exclude = [re.sub(r'\W', '', el) for el in params['exclude'].split(',')]
-        table = [line for line in table if len([1 for i in filter_exclude if i in re.sub(r'\W', '', '_'.join(map(str,line.values())))])==0]
+    if params.get('exclude', None) is not None:
+        filter_exclude = [re.sub(r'\W', '', el).lower() for el in params['exclude'].split(',')]
+        table = [line for line in table if len([1 for i in filter_exclude if i in re.sub(r'\W', '', '_'.join(map(str,line.values())).lower())])==0]
     if filter == 'LASTCHANGE':  # TODO сделать настройку в ini на счет line['Balance']
         # Balance==0 Это скорее всего глюк проверки, соответственно его исключаем
         # Также исключаем BalDeltaQuery==Balance - это возврат обратно с кривого нуля
@@ -241,6 +246,18 @@ def prepare_balance_sqlite(filter='FULL', params={}):
     'Готовим данные для отчета из sqlite базы'
     db = dbengine.dbengine(store.options('dbfilename', mainparams=params))
     table_format = store.options('tg_format', section='Telegram', mainparams=params).replace('\\t','\t').replace('\\n','\n')
+    edBalanceLessThen = float(store.options('edBalanceLessThen', section='HttpServer'))
+    edTurnOffLessThen = int(store.options('edTurnOffLessThen', section='HttpServer'))
+    phones = store.ini('phones.ini').phones()
+    def alert_suffix(line):
+        pkey = (line['PhoneNumber'],line['Operator'])
+        if line['Balance'] is not None and line['Balance'] < edBalanceLessThen:
+            return '<b> ! достигнут порог баланса !</b>'
+        if line['CalcTurnOff'] is not None and line['CalcTurnOff'] < edTurnOffLessThen:
+            return '<b> ! возможно скорое отключение !</b>'
+        if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] > phones[pkey]['BalanceNotChangedMoreThen']:
+            return f'<b> ! баланс не изменялся более {phones[pkey]["BalanceNotChangedMoreThen"]} дней !</b>'
+        return ''
     # table_format = 'Alias,PhoneNumber,Operator,Balance'
     # Если формат задан как перечисление полей через запятую - переделываем под формат
     if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
@@ -249,7 +266,7 @@ def prepare_balance_sqlite(filter='FULL', params={}):
     table = [i for i in table if i['Alias']!='Unknown']  # filter Unknown
     table.sort(key=lambda i:[i['NN'],i['Alias']])  # sort by NN, after by Alias
     table = filter_balance(table, filter, params)
-    res = [table_format.format(**line) for line in table]
+    res = [table_format.format(**line)+alert_suffix(line) for line in table]
     return '\n'.join(res)
 
 
@@ -342,7 +359,7 @@ class TrayIcon:
             hicon = win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
 
         flags = win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP
-        nid = (self.hwnd, 0, flags, win32con.WM_USER + 20, hicon, "Python Demo")
+        nid = (self.hwnd, 0, flags, win32con.WM_USER + 20, hicon, "MBplugin http server")
         try:
             win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, nid)
         except win32gui.error:
@@ -425,6 +442,17 @@ class TelegramBot():
         for id in self.auth_id():
             self.updater.bot.send_document(chat_id=id, filename='balance.htm', document=io.BytesIO('\n'.join(res).strip().encode('cp1251')))
 
+    @auth_decorator
+    def receivebalance(self, update, context):
+        """Receive balance by filter, only auth user."""
+        logging.info(f'TG:{update.message.chat_id} /receivebalance {context}')
+        #baltxt = prepare_balance('FULL')
+        update.message.reply_text('Request received. Wait...', parse_mode=telegram.ParseMode.HTML)
+        detbalance_standalone(filter=context.args)
+        params = {'include': None if context.args == [] else ','.join(context.args)}
+        baltxt = prepare_balance('FULL', params=params)
+        update.message.reply_text(baltxt, parse_mode=telegram.ParseMode.HTML)
+
     def send_message(self, text, parse_mode='HTML', ids=None):
         if self.updater is None or text == '':
             return
@@ -480,6 +508,7 @@ class TelegramBot():
                 dp.add_handler(CommandHandler("id", self.get_id))
                 dp.add_handler(CommandHandler("balance", self.get_balancetext))
                 dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
+                dp.add_handler(CommandHandler("receivebalance", self.receivebalance))
                 self.updater.start_polling()  # Start the Bot
                 if str(store.options('send_empty', section='Telegram'))=='1':
                     self.send_message(text='Hey there!')
@@ -582,9 +611,19 @@ class WebServer():
             return ['<html>ERROR</html>'.encode('cp1251')]
 
 
+def parse_arguments(argv, parcerclass=argparse.ArgumentParser):
+    parser = parcerclass()
+    parser.add_argument('--cmd', type=str, help='command for web server (start/stop)', default='start')
+    return parser.parse_args(argv)
+
 def main():
     try:
-        WebServer()
+        ARGS = parse_arguments(sys.argv[1:])
+        if ARGS.cmd.lower() == 'start':
+            WebServer()
+        if ARGS.cmd.lower() == 'stop':
+            port = int(store.options('port', section='HttpServer'))
+            requests.session().get(f'http://localhost:{port}/exit')
     except Exception:
         exception_text = f'Ошибка запуска WebServer: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)

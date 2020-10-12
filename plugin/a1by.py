@@ -15,7 +15,8 @@ class a1by_over_puppeteer(pa.balance_over_puppeteer):
                             'login_selector': 'form input[id=itelephone_new]', 
                             'remember_checker': '',
                             })
-        await self.page_evaluate( "document.getElementById('_root/USER_INFO').click()")
+        # Кликаем на '_root/PERSONAL_INFO' или на '_root/USER_INFO' т.е. '_root/...._INFO'
+        await self.page_evaluate( '''document.querySelector('span[id^="_root/"][id$=INFO]').click()''')
         await self.page_waitForNavigation()
         await self.wait_params(params=[{
             'name': 'Balance',
@@ -40,8 +41,8 @@ class a1by_over_puppeteer(pa.balance_over_puppeteer):
                 return (s1!=null?s1:s2).innerText
             }'''
             },
-            {'name': 'UserName','jsformula': 'document.getElementById("NAME").innerText'},
-            {'name': 'Expired', 'jsformula': 'document.getElementById("DEN").innerText', 'wait': False},
+            {'name': 'UserName','jsformula': "document.all.NAME==null?'':document.all.NAME.innerText"},
+            {'name': 'Expired', 'jsformula': "document.all.DEN==null?'':document.all.DEN.innerText", 'wait': False},
             ])
 
 def get_balance(login, password, storename=None):

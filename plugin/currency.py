@@ -55,10 +55,12 @@ def get_balance(login, password, storename=None):
         url = f'https://iss.moex.com/iss/engines/stock/markets/shares/securities/{login}'
         response = session.get(url)
         root=etree.fromstring(response.text)
-        rows_sec = root.findall('*[@id="securities"]/rows')[0]
-        result['TarifPlan'] = [c.get('SECNAME') for c in rows_sec if c.get('SECNAME')!=''][0]
-        rows_bal = root.findall('*[@id="marketdata"]/rows')[0]
-        result['Balance'] = [c.get('LAST') for c in rows_bal if c.get('LAST')!=''][0]
+        rows_securities = root.findall('*[@id="securities"]/rows')[0]  # Данные по бумаге
+        rows_market = root.findall('*[@id="marketdata"]/rows')[0]  # Последние данные по торгам
+        lasts = [c.get('LAST') for c in list(rows_market) if c.get('LAST')!='']  # берем последнюю цену по торгам
+        prevwarprices = [c.get('PREVWAPRICE') for c in list(rows_securities) if c.get('PREVWAPRICE')!='']  # Если сегодня торгов не было возьмем из rows_securities
+        result['TarifPlan'] = [c.get('SECNAME') for c in rows_securities if c.get('SECNAME')!=''][0]  # Название бумаги
+        result['Balance'] = float(lasts[0] if lasts != [] else prevwarprices[0])
     elif re.match(r'^(?usi)(?:YAHOO)[ _]?\w+$', login):  # Курсы акций на - YAHOO finance, напр YAHOO_AAPL
         login = re.findall(r'(?:YAHOO)[ _]?(\w+)', login)[0]
         url = time.strftime(f'https://query1.finance.yahoo.com/v8/finance/chart/{login}')

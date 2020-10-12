@@ -67,7 +67,7 @@ def get_moex(security, cnt, qu=None):
 
 
 def thread_call_market(market,security,cnt,qu):
-    logging.info(f'Collect {market}:{security}')
+    logging.debug(f'Collect {market}:{security}')
     try:    
         if market=='Y':
             return get_yahoo(security,cnt,qu)
@@ -77,7 +77,7 @@ def thread_call_market(market,security,cnt,qu):
             raise RuntimeError(f'Unknown market marker {market} for {security}')
     except:
         exception_text = f'Error {market},{security}:{"".join(traceback.format_exception(*sys.exc_info()))}'
-        logging.info(exception_text)    
+        logging.error(exception_text)    
 
     
 def count_all_scocks_multithread(stocks, remain, currenc):

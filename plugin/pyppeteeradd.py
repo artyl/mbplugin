@@ -6,6 +6,9 @@ import pyppeteer  # PYthon puPPETEER
 #import pprint; pp = pprint.PrettyPrinter(indent=4).pprint
 import store, settings
 
+# Какой бы ни был режим в mbplugin для всех сторониих модулей отключаем расширенное логирование
+# иначе в лог польется все тоннами
+[logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict]
 
 def hide_chrome(hide=True):
     'Прячем или показываем окно хрома'
@@ -103,10 +106,14 @@ async def page_evaluate(page, eval_string, default=None):
     try:
         if eval_string == '': 
             return default
-        eval_string_log = eval_string if len(eval_string)<200 else eval_string[:100]+'...'+eval_string[-100:]
-        if 'password' in eval_string:
-            eval_string_log = eval_string.split('password')[0]+'password ....'            
-        logging.info(f'page.eval: {repr(eval_string_log)}')            
+        logging.debug(f'page.eval: {repr(eval_string)}')
+        if str(store.options('log_full_eval_string')) == '0':
+            eval_string_log = eval_string if len(eval_string)<200 else eval_string[:100]+'...'+eval_string[-100:]
+            if 'password' in eval_string:
+                eval_string_log = eval_string.split('password')[0]+'password ....'            
+        else:
+            eval_string_log = eval_string
+        logging.info(f'page.eval: {repr(eval_string_log)}')
         res = await page.evaluate(eval_string)
         return res
     except Exception:
@@ -122,16 +129,14 @@ async def page_reload(page, reason=''):
 async def page_goto(page, url):
     logging.info(f'page.goto {url}')
     try:
-        await page.goto(url, {'timeout': 20000})
+        await page.goto(url, {'timeout': 10000})
     except pyppeteer.errors.TimeoutError:
         logging.info(f'page.goto timeout')
-    await asyncio.sleep(3)  # Ждем 3 секунды 
-    if await page_evaluate(page, 'setTimeout(function(){},1)<2'):
-        await page_reload(page, 'No timers on page (page_goto)')  # если на странице не появились таймеры - reload
-        await asyncio.sleep(3)  # Ждем еще 3 секунды 
-    #try:
+    # await asyncio.sleep(3)  # Ждем 3 секунды 
+    # if await page_evaluate(page, 'setTimeout(function(){},1)<2'):
+    # try:
     #    await page.waitForNavigation({'timeout': 20000})
-    #except pyppeteer.errors.TimeoutError:   
+    # except pyppeteer.errors.TimeoutError:   
     #    logging.info(f'waitForNavigation timeout')
 
 
@@ -184,39 +189,42 @@ class balance_over_puppeteer():
 
     async def page_type(self, selector, text, *args, **kwargs):
         'Безопасный type - не падает при ошибке а возвращает None'
-        logging.info(f'page.type: {repr(selector)}')
         try:
             if selector != '' and text != '': 
-                await self.page.type(selector, text, *args, **kwargs)
+                logging.info(f'page.type: {repr(selector)}')
+                return await self.page.type(selector, text, *args, **kwargs)
         except Exception:
             logging.info(f'page.type fail: {repr(selector)}')
 
     async def page_click(self, selector, *args, **kwargs):
         'Безопасный click - не падает при ошибке а возвращает None'
-        logging.info(f'page.click: {repr(selector)}')
         try:
             if selector != '': 
-                await self.page.click(selector, *args, **kwargs)
+                logging.info(f'page.click: {repr(selector)}')
+                return await self.page.click(selector, *args, **kwargs)
         except Exception:
             logging.info(f'page.click fail: {repr(selector)}')
 
     async def page_waitForNavigation(self, *args, **kwargs):
         'Безопасный waitForNavigation - не падает при ошибке а возвращает None'
-        logging.info(f'page.waitForNavigation')
         try:
+            # большой таймаут и нельзя, а то некоторые страницы злоупотребляют тем что никогда не открываются до конца
+            # поэтому ставим 10 сек. На краяняк через 10 сек само отвалится и к этому времени скорее всего откроется
+            logging.info(f'page.waitForNavigation')
             return await self.page.waitForNavigation({'timeout': 10000})
         except pyppeteer.errors.TimeoutError:   
             logging.info(f'page.waitForNavigation timeout')
 
     # !!! TODO есть page.waitForSelector - покопать в эту сторону
     async def page_waitForSelector(self, selector, *args, **kwargs):
-        'Безопасный type - не падает при ошибке а возвращает None'
-        logging.info(f'page.waitForSelector: {repr(selector)}')
+        'Безопасный waitForSelector - не падает при ошибке а возвращает None'
         try:
             if selector != '': 
-                await self.page.waitForSelector(selector, *args, **kwargs)
+                logging.info(f'page.waitForSelector: {repr(selector)}')
+                return await self.page.waitForSelector(selector, {'timeout': 10000})
         except Exception:
             logging.info(f'page.waitForSelector fail: {repr(selector)}')  
+            return None
 
     async def worker(self, response):
         'Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)'
@@ -230,7 +238,7 @@ class balance_over_puppeteer():
                 post = ''
                 if response.request.method == 'POST' and response.request.postData is not None:
                     post = response.request.postData
-                self.responses[f'{response.request.method}:{post} URL:{response.request.url}'] = data
+                self.responses[f'{response.request.method}:{post} URL:{response.request.url}$'] = data
                 # TODO Сделать какой-нибудь механизм для поиска по загруженным страницам
                 # txt = await response.text()
                 # if '2336' in txt:
@@ -243,47 +251,64 @@ class balance_over_puppeteer():
         'Делаем заход в личный кабинет/ проверяем не залогинены ли уже'
         'На вход передаем словарь селекторов и скриптов который перекроет действия по умолчанию'
         'Если какой-то из шагов по умолчанию хотим пропустить, передаем пустую строку'
+        'Смотрите актуальное описание напротив параметров в коментариях'
+        'Чтобы избежать ошибок - копируйте названия параметров'
         # Селекторы и скрипты по умолчанию
-        selectors = {'before_login_js': '',
-                    'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",
-                    'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",
-                    'login_clear_js': "document.querySelector('form input[type=text]').value=''",
-                    'login_selector': 'form input[type=text]',
-                    'password_clear_js': "document.querySelector('form input[type=password]').value=''",
-                    'password_selector': 'form input[type=password]',
-                    'remember_checker': "document.querySelector('form input[name=remember]').checked==false",
-                    'remember_js': "", #document.querySelector('form input[name=remember]').click()",
-                    'remember_selector': 'form input[name=remember]',
-                    'submit_selector': '',
-                    'submit_js': "document.querySelector('form [type=submit]').click()"
+        selectors = {
+                    'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",  # true если мы в личном кабинете
+                    'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",  # true если мы в окне логина
+                    'before_login_js': '',  # Команда которую надо выполнить перед вводом логина
+                    'login_clear_js': "document.querySelector('form input[type=text]').value=''",  # команда для очистки поля логина
+                    'login_selector': 'form input[type=text]',   # селектор поля ввода логина
+                    'chk_submit_after_login_js': "",  # проверка нужен ли submit после логина
+                    'submit_after_login_js': "document.querySelector('form [type=submit]').click()",  # Если после ввода логина нужно нажать submit через js
+                    'submit_after_login_selector': "",  # или через селектор
+                    'password_clear_js': "document.querySelector('form input[type=password]').value=''",  # команда на очистку поля пароля
+                    'password_selector': 'form input[type=password]',  # селектор для поля пароля
+                    'remember_checker': "",  # "document.querySelector('form input[name=remember]').checked==false",  # Проверка что флаг remember me не выставлен
+                    'remember_js': "",  # "document.querySelector('form input[name=remember]').click()",  # js для выставления remember me
+                    'remember_selector': "",  # 'form input[name=remember]',  # селектор для выставления remember me (не указывайте оба сразу а то может кликнуть два раза)
+                    'submit_selector': '',  # селектор для нажатия на финальный submit
+                    'submit_js': "document.querySelector('form [type=submit]').click()"  # js для нажатия на финальный submit
         }
+        # проверяем что все поля из user_selectors есть в селектор (если не так то скорее всего опечатка и надо сигналить)
+        if set(user_selectors)-set(selectors) != set():
+            logging.error(f'Не все ключи из user_selectors есть в selectord. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}')
         selectors.update(user_selectors)
         await self.page_goto(url)
+        await self.page_waitForNavigation()  
         # Logon form
         if await self.page_evaluate(selectors['chk_lk_page_js']):
             logging.info(f'Already login')
         else:
-            for cnt in range(self.login_attempt):  # Почему-то иногда с первого раза логон не проскакивает
+            # Почему-то иногда с первого раза логон не проскакивает, тогда можно задать несколько login_attempt
+            for cnt in range(self.login_attempt):
                 if await self.page_evaluate(selectors['chk_login_page_js']):
                     logging.info(f'Login')
-                    await self.page_evaluate(selectors['before_login_js'])
-                    await self.page_evaluate(selectors['login_clear_js'])
-                    await self.page_evaluate(selectors['password_clear_js'])
-                    await self.page_type(selectors['login_selector'], self.login, {'delay': 10})
-                    await self.page_type(selectors['password_selector'], self.password, {'delay': 10})
-                    if await self.page_evaluate(selectors['remember_checker'], default=False):
-                        await self.page_evaluate(selectors['remember_js'])
+                    await self.page_evaluate(selectors['before_login_js'])  # Если задано какое-то действие перед логином - выполняем
+                    await self.page_waitForSelector(selectors['login_selector'])  # Ожидаем наличия поля логина
+                    await self.page_evaluate(selectors['login_clear_js'])  # очищаем поле логина
+                    await self.page_type(selectors['login_selector'], self.login, {'delay': 10})  # вводим логин
+                    if (await self.page_evaluate(selectors['chk_submit_after_login_js'], default=False)):  # Если нужно после логина нажать submit
+                        await self.page_click(selectors['submit_after_login_selector']) # либо click
+                        await self.page_evaluate(selectors['submit_after_login_js'])  # либо через js
+                        await self.page_waitForSelector(selectors['password_selector'])  # и ждем появления поля с паролем
+                        await asyncio.sleep(1)
+                    await self.page_evaluate(selectors['password_clear_js'])  # очищаем поле пароля           
+                    await self.page_type(selectors['password_selector'], self.password, {'delay': 10})  # вводим пароль
+                    if await self.page_evaluate(selectors['remember_checker'], default=False):  # Если есть невыставленный check remember me
+                        await self.page_evaluate(selectors['remember_js'])  # выставляем его
                         await self.page_click(selectors['remember_selector'], {'delay': 10})
                     await asyncio.sleep(1)
-                    await self.page_click(selectors['submit_selector']) # почему-то так не заработало
-                    await self.page_evaluate(selectors['submit_js'])
-                    await self.page_waitForNavigation()
+                    await self.page_click(selectors['submit_selector']) #  нажимаем на submit form
+                    await self.page_evaluate(selectors['submit_js'])  # либо через js (на некоторых сайтах один из вариантов не срабатывает)
+                    await self.page_waitForNavigation()  # ждем отработки нажатия
                     await asyncio.sleep(1)
                 if await self.page_evaluate(selectors['chk_lk_page_js']):
                     logging.info(f'Logoned')
                     break 
                 await asyncio.sleep(1)
-                if cnt==10:
+                if cnt==10:  # На 10 попытку перезагружаем страницу
                     await self.page_reload('unclear: logged in or not')
             else:
                 logging.error(f'Unknown state')
@@ -302,8 +327,9 @@ class balance_over_puppeteer():
         {'name':'text', 'url_tag':[], 'jsformula':'text'} - url_tag - пустой список или не указан, на странице выполняется js из jsformula
         результат во всех случаях записывается с именем name в результирующий словарь 
         Если параметр необязательный (т.е. его может и не быть) то чтобы его не ждать можно добавить в словарь по данному параметру 'wait':False
+        #param если параметр не нужен а просто нужно выполнить действие, то в начале такого параметра ставим # 
         ---
-        save_to_result=True то записываем их в итоговый словарь результатов (self.result)
+        save_to_result=True то записываем их в итоговый словарь результатов (все, которые не начинаются с решетки) (self.result) 
         и также результаты возвращаем в словаре (return result) 
         ВАЖНО
         Из того что уже вылезло - если возникают проблемы со сложным eval надо завернуть его в ()=>{...;return ...}
@@ -324,14 +350,24 @@ class balance_over_puppeteer():
                     if len(response_result_)>0:
                         response_result = response_result_[0]
                         if param.get('pformula','') != '':
-                            res = eval(param['pformula'], {'data':response_result})
-                            if res is not None:
-                                result[param['name']] = res
+                            logging.info(f'pformula on {param["url_tag"]}:{param["pformula"]}')
+                            # Для скрипта на python делаем 
+                            try:
+                                res = eval(param['pformula'], {'data':response_result})
+                                if res is not None:
+                                    result[param['name']] = res
+                            except Exception:
+                                exception_text = f'Ошибка в pformula:{param["pformula"]} :{"".join(traceback.format_exception(*sys.exc_info()))}'
+                                logging.info(exception_text)    
                         if param.get('jsformula', '') != '':
-                            res = await self.page_evaluate(f"()=>{{data={json.dumps(response_result)};return {param['jsformula']};}}")
+                            logging.info(f'jsformula on {param["url_tag"]}:{param["jsformula"]}')
+                            res = await self.page_evaluate(f"()=>{{data={json.dumps(response_result,ensure_ascii=False)};return {param['jsformula']};}}")
                             if res is not None:
                                 result[param['name']] = res
-                else:  # Ищем на самой странице - запускаем js 
+                else:  # Ищем на самой странице - запускаем js
+                    logging.info(f'jsformula on url {self.page.url}:{param["jsformula"]}')
+                    content = await self.page.content()
+                    self.responses[f'CONTENT URL:{self.page.url}$'] = content
                     res = await self.page_evaluate(param['jsformula'])
                     if res is not None:
                         result[param['name']] = res
@@ -345,13 +381,18 @@ class balance_over_puppeteer():
             no_receved_keys = {i['name'] for i in params} - set(result)
             logging.error(f'Not found all param on {url}: {",".join(no_receved_keys)}')
         if save_to_result:
-            self.result.update(result)
+            self.result.update({k:v for k,v in result.items() if not k.startswith('#')})  # Не переносим те что с решеткой в начале
         return result
 
     async def _async_main(self):
         self.browser, self.page = await launch_browser(self.storename, self.worker)
         await self.async_main()  # !!! CALL async_main
         logging.debug(f'Data ready {self.result.keys()}')
+        if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
+            import pprint
+            text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
+                                for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
+            open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore').write(text)
         await self.browser.close()
         clear_cache(self.storename)
         return self.result
