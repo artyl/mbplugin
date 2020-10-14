@@ -101,6 +101,27 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
             self.result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
         except Exception:
             logging.info(f'Ошибка при получении списка услуг {"".join(traceback.format_exception(*sys.exc_info()))}')
+        
+        # Идем и пытаемся взять инфу со страницы https://lk.mts.ru/obshchiy_paket
+        # Но только если телефон в списке в поле mts_usedbyme или для всех телефонов если там 1
+        if (mts_usedbyme == '1' or self.login in mts_usedbyme.split(',')) and usedbyme != []:
+            await self.page_goto('https://lk.mts.ru/obshchiy_paket')
+            res3 = await self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/Widgets/GetUserClaims', '/longtask/'], 'jsformula': "data.result"}])
+            try:
+                if 'RoleDonor' in str(res3):  # Просто ищем подстроку во всем json вдруг что-то изменится
+                    res4 = await self.wait_params(params=[{'name': '#donor', 'url_tag': ['for=api/Widgets/AvailableCountersDonor$', '/longtask/'], 'jsformula': "data.result"}])
+                    # acceptorsTotalConsumption - иногда возвращается 0 приходится считать самим
+                    # data = {i['counterViewUnit']:i['groupConsumption']-i['acceptorsTotalConsumption'] for i in res4['#donor']}
+                    data = {i['counterViewUnit']:i['groupConsumption']-sum([j.get('consumption',0) for j in i.get('acceptorsConsumption',[])]) for i in res4['#donor']}
+                if 'RoleAcceptor' in str(res3):
+                    res4 = await self.wait_params(params=[{'name': '#acceptor', 'url_tag': ['for=api/Widgets/AvailableCountersAcceptor', '/longtask/'], 'jsformula': "data.result.counters"}])
+                    data = {i['counterViewUnit']:i['consumption'] for i in res4['#acceptor']}
+                if 'RoleDonor' in str(res3) or 'RoleAcceptor' in str(res3):
+                    self.result['SpendMin'] = data["MINUTE"]
+                    self.result['SMS'] = data["ITEM"]
+                    self.result['Internet'] = data["GBYTE"]
+            except:
+                logging.info(f'Ошибка при получении obshchiy_paket {"".join(traceback.format_exception(*sys.exc_info()))}')
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
