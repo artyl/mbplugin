@@ -125,3 +125,7 @@ __Автономная версия__:
 Рекомендую заглянуть в settings.py там описаны все параметры ini файла с коментариями.  
 Если setup_and_check.bat запустить с параметром noweb то он не дабавляет запуск webserver в автозапуск  
 Аналогично mbstandalone.bat init noweb - также не добавляет web сервер в автозапуск.
+
+## mbplugin 0.99.23 (16.10.20) Mts obshchiy_paket, standalone version addition parameter
+Плагин mts2 умеет забирать информацию из общего пакета для телефонов указанных в параетре mts_usedbyme, или по всем телефонам если mts_usedbyme=1  
+В автономной версии теперь можно прописывать параметры BalanceNotChangedMoreThen, BalanceChangedLessThen, BalanceLessThen, TurnOffLessThen для каждого телефона (пример см standalone\phones.ini)  

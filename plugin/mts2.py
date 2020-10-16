@@ -26,7 +26,7 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
                 'remember_js': "document.querySelector('form input[name=rememberme]').click()",  # js для выставления remember me
                 })
         # TODO close banner # document.querySelectorAll('div[class=popup__close]').forEach(s=>s.click())
-        if self.login_ori != self.login:  # это финт для захода через другой номер 
+        if self.login_ori != self.login and self.acc_num.isdigit():  # это финт для захода через другой номер 
             # если заход через другой номер то переключаемся на нужный номер
             # TODO возможно с прошлого раза может сохраниться переключенный но вроде работает и так
             await self.page_waitForSelector("[id=ng-header__account-phone_desktop]")
@@ -104,7 +104,7 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
         
         # Идем и пытаемся взять инфу со страницы https://lk.mts.ru/obshchiy_paket
         # Но только если телефон в списке в поле mts_usedbyme или для всех телефонов если там 1
-        if (mts_usedbyme == '1' or self.login in mts_usedbyme.split(',')) and usedbyme != []:
+        if mts_usedbyme == '1' or self.login in mts_usedbyme.split(',') or self.acc_num.startswith('common'):
             await self.page_goto('https://lk.mts.ru/obshchiy_paket')
             res3 = await self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/Widgets/GetUserClaims', '/longtask/'], 'jsformula': "data.result"}])
             try:
@@ -120,8 +120,28 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
                     self.result['SpendMin'] = data["MINUTE"]
                     self.result['SMS'] = data["ITEM"]
                     self.result['Internet'] = data["GBYTE"]
+                # Спецверсия для общего пакета, работает только для Donor
+                if self.acc_num.startswith('common'): 
+                    if 'RoleDonor' in str(res3):
+                        # потребление и остаток
+                        cdata_charge = {i['counterViewUnit']:i['groupConsumption'] for i in res4['#donor']}
+                        сdata_rest = {i['counterViewUnit']:i['counterLimit']-i['groupConsumption'] for i in res4['#donor']}
+                        self.result['Min'] = сdata_rest["MINUTE"]  # осталось минут
+                        self.result['SpendMin'] = cdata_charge["MINUTE"]  # Потрачено минут
+                        if 'rest' in self.acc_num:
+                            self.result['SMS'] = сdata_rest["ITEM"]  # остатки по инету и SMS
+                            self.result['Internet'] = сdata_rest["GBYTE"]
+                        else:
+                            self.result['SMS'] = cdata_charge["ITEM"]  # расход по инету и SMS
+                            self.result['Internet'] = cdata_charge["GBYTE"]
+                    else:  #  Со страницы общего пакета не отдали данные, чистим все, иначе будут кривые графики. ТОЛЬКО для common
+                        raise RuntimeError(f'Страница общего пакета не возвращает данных')
             except:
                 logging.info(f'Ошибка при получении obshchiy_paket {"".join(traceback.format_exception(*sys.exc_info()))}')
+                if self.acc_num.startswith('common'): 
+                    self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных'}
+                
+                
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''

@@ -142,13 +142,6 @@ def getreport(param=[]):
     </html>'''
     db = dbengine.dbengine(store.options('dbfilename'))
     # номера провайдеры и логины из phones.ini
-    try:
-        options_ini = store.ini('options.ini').read()
-        edBalanceLessThen = float(options_ini['Mark']['edBalanceLessThen'])  # помечать балансы меньше чем
-        edTurnOffLessThen = float(options_ini['Mark']['edTurnOffLessThen'])  # помечать когда отключение CalcTurnOff меньше чем
-    except Exception:
-        edBalanceLessThen = float(store.options('edBalanceLessThen', section='HttpServer'))
-        edTurnOffLessThen = int(store.options('edTurnOffLessThen', section='HttpServer'))
     num_format = '' if len(param) == 0 or not param[0].isnumeric() else str(int(param[0]))
     table_format = store.options('table_format' + num_format, default=store.options('table_format',section='HttpServer'), section='HttpServer')
     table = db.report()
@@ -170,12 +163,14 @@ def getreport(param=[]):
                 continue
             el = line[he]
             mark = ''  # class="mark"
-            if he == 'Balance' and el is not None and el < edBalanceLessThen:
+            if he == 'Balance' and el is not None and el < float(phones[pkey]['BalanceLessThen']):
                 mark = ' class="mark" '  # Красим когда мало денег
-            if he == 'CalcTurnOff' and el is not None and el < edTurnOffLessThen:
+            if he == 'CalcTurnOff' and el is not None and el < int(phones[pkey]['TurnOffLessThen']):
                 mark = ' class="mark" '  # Красим когда надолго не хватит
             if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) > int(phones[pkey]['BalanceNotChangedMoreThen']):
                 mark = ' class="mark" '  # Красим когда давно не изменялся
+            if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) < int(phones[pkey]['BalanceChangedLessThen']):
+                mark = ' class="mark" '  # Красим недавно поменялся а не должен был
             if el is None:
                 el = ''
             if he != 'Balance' and (el == 0.0 or el == 0):
@@ -251,17 +246,17 @@ def prepare_balance_sqlite(filter='FULL', params={}):
     'Готовим данные для отчета из sqlite базы'
     db = dbengine.dbengine(store.options('dbfilename', mainparams=params))
     table_format = store.options('tg_format', section='Telegram', mainparams=params).replace('\\t','\t').replace('\\n','\n')
-    edBalanceLessThen = float(store.options('edBalanceLessThen', section='HttpServer'))
-    edTurnOffLessThen = int(store.options('edTurnOffLessThen', section='HttpServer'))
     phones = store.ini('phones.ini').phones()
     def alert_suffix(line):
         pkey = (line['PhoneNumber'],line['Operator'])
-        if line['Balance'] is not None and line['Balance'] < edBalanceLessThen:
+        if line['Balance'] is not None and line['Balance'] < float(phones[pkey]['BalanceLessThen']):
             return '<b> ! достигнут порог баланса !</b>'
-        if line['CalcTurnOff'] is not None and line['CalcTurnOff'] < edTurnOffLessThen:
+        if line['CalcTurnOff'] is not None and line['CalcTurnOff'] < int(phones[pkey]['TurnOffLessThen']):
             return '<b> ! возможно скорое отключение !</b>'
         if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] > phones[pkey]['BalanceNotChangedMoreThen']:
             return f'<b> ! баланс не изменялся более {phones[pkey]["BalanceNotChangedMoreThen"]} дней !</b>'
+        if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] > phones[pkey]['BalanceNotChangedMoreThen']:
+            return f'<b> ! баланс изменился менее {phones[pkey]["BalanceChangedLessThen"]} дней назад!</b>'
         return ''
     # table_format = 'Alias,PhoneNumber,Operator,Balance'
     # Если формат задан как перечисление полей через запятую - переделываем под формат
@@ -365,7 +360,7 @@ class TrayIcon:
             hicon = win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
 
         flags = win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP
-        nid = (self.hwnd, 0, flags, win32con.WM_USER + 20, hicon, "MBplugin http server")
+        nid = (self.hwnd, 0, flags, win32con.WM_USER + 20, hicon, f"MBplugin http server on port {store.options('port', section='HttpServer')}")
         try:
             win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, nid)
         except win32gui.error:

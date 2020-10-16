@@ -93,6 +93,7 @@ def clear_cache(storename):
     profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))  
     shutil.rmtree(os.path.join(profilepath, 'Cache'), ignore_errors=True)
     shutil.rmtree(os.path.join(profilepath, 'Code Cache'), ignore_errors=True)
+    shutil.rmtree(os.path.join(profilepath, 'Service Worker', 'CacheStorage'), ignore_errors=True)
 
 def delete_profile(storename):
     'Удаляем профиль'
@@ -325,7 +326,8 @@ class balance_over_puppeteer():
         {'name':'text', 'url_tag':['text'], 'jsformula':'text'} - ожидается приход json с урлом содержащим url_tag из этого json через js eval возьмем tag_jformula
         либо
         {'name':'text', 'url_tag':[], 'jsformula':'text'} - url_tag - пустой список или не указан, на странице выполняется js из jsformula
-        результат во всех случаях записывается с именем name в результирующий словарь 
+        Если нужно указать что в url_tag url заканчивается этим текстом, то поставьте после него знак $
+        результат во всех случаях записывается с именем name в результирующий словарь
         Если параметр необязательный (т.е. его может и не быть) то чтобы его не ждать можно добавить в словарь по данному параметру 'wait':False
         #param если параметр не нужен а просто нужно выполнить действие, то в начале такого параметра ставим # 
         ---
