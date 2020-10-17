@@ -396,6 +396,7 @@ class balance_over_puppeteer():
                                 for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
             open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore').write(text)
         await self.browser.close()
+        kill_chrome()  # Добиваем  все наши незакрытые хромы, чтобы не появлялось кучи зависших
         clear_cache(self.storename)
         return self.result
 
