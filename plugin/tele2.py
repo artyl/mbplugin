@@ -77,12 +77,15 @@ def get_balance(login, password, storename=None):
     if len(rests) > 0:
         result['Min'] = 0
         result['Internet'] = 0
+        result['SMS'] = 0
         result['BlockStatus'] = ''
         for rest in rests:
             if rest['uom'] == 'min':
                 result['Min'] += rest['remain']
             if rest['uom'] == 'mb':
-                result['Internet'] += rest['remain']
+                result['Internet'] += rest['remain']*(settings.UNIT['MB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['MB']))
+            if rest['uom'] == 'pcs':
+                result['SMS'] += rest['remain']
             if 'billingServiceStatus' in rest.get('service', {}):
                 result['BlockStatus'] = rest['service']['billingServiceStatus']
     session.save_session()
