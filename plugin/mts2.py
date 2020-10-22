@@ -22,6 +22,7 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
                 'chk_submit_after_login_js': "document.querySelector('form input[id=phoneInput]')!=null || document.querySelector('form input[id=password]')==null",  
                 'remember_checker': "document.querySelector('form input[name=rememberme]')!=null && document.querySelector('form input[name=rememberme]').checked==false",  # Проверка что флаг remember me не выставлен
                 'remember_js': "document.querySelector('form input[name=rememberme]').click()",  # js для выставления remember me
+                'captcha_checker': "document.querySelector('div[id=captcha-wrapper]')!=null"
                 })
         # TODO close banner # document.querySelectorAll('div[class=popup__close]').forEach(s=>s.click())
         if self.login_ori != self.login and self.acc_num.isdigit():  # это финт для захода через другой номер 

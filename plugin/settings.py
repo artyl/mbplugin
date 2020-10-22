@@ -37,8 +37,12 @@ ini = {
         'updatefrommdbdeep': 30,
         # показывать иконку в трее - 1 прятать - 1, (по умолчанию 1)
         'show_tray_icon': '1',
+        # Прокси сервер для работы хром плагинов http://user:pass@12.23.34.56:6789 для socks5 пишем socks5://...
+        'proxy_server': '',
         # показывать окно chrome если на странице найдена капча
         'show_captcha': '0',
+        # максимальное время ожидания ввода капчи в секундах
+        'max_wait_captcha': '180',
         # Прятать окна Chrome (при logginglevel=DEBUG всегда показывает)
         'show_chrome': '0',
         # Путь к хрому - можно прописать явно в ini, иначе поищет из вариантов chrome_executable_path_alternate

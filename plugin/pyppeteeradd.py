@@ -44,7 +44,7 @@ async def launch_browser(storename, response_worker=None):
         chrome_executable_path = chrome_paths[0]
     kill_chrome()  # Превинтивно убиваем все наши хромы, чтобы не появлялось кучи зависших
     logging.info(f'Launch chrome from {chrome_executable_path}')
-    browser = await pyppeteer.launch({
+    launch_config = {
         'headless': False,
         'ignoreHTTPSErrors': True,
         'defaultViewport': None,
@@ -65,7 +65,10 @@ async def launch_browser(storename, response_worker=None):
                  #'--single-process', # <- this one doesn't works in Windows
                  '--disable-gpu', 
                  "--window-position=-2000,-2000" if hide_chrome_flag else "--window-position=1,1"],
-    })
+    }
+    if store.options('proxy_server').strip() != '':
+        launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}')
+    browser = await pyppeteer.launch(launch_config)
     if hide_chrome_flag:
         hide_chrome()
 
@@ -269,6 +272,7 @@ class balance_over_puppeteer():
                     'remember_checker': "",  # "document.querySelector('form input[name=remember]').checked==false",  # Проверка что флаг remember me не выставлен
                     'remember_js': "",  # "document.querySelector('form input[name=remember]').click()",  # js для выставления remember me
                     'remember_selector': "",  # 'form input[name=remember]',  # селектор для выставления remember me (не указывайте оба сразу а то может кликнуть два раза)
+                    'captcha_checker': "",  # проверка что на странице капча у MTS - document.querySelector("div[id=captcha-wrapper]")!=null
                     'submit_selector': '',  # селектор для нажатия на финальный submit
                     'submit_js': "document.querySelector('form [type=submit]').click()"  # js для нажатия на финальный submit
         }
@@ -312,8 +316,26 @@ class balance_over_puppeteer():
                 if cnt==10:  # На 10 попытку перезагружаем страницу
                     await self.page_reload('unclear: logged in or not')
             else:
-                logging.error(f'Unknown state')
-                raise RuntimeError(f'Unknown state')
+                # Проверяем - это не капча ?
+                if await self.page_evaluate(selectors['captcha_checker'], False):
+                    # Если стоит флаг показывать капчу то включаем видимость хрома и ждем заданное время
+                    if str(store.options('show_captcha')) == '1':
+                        logging.info('Show captcha')
+                        hide_chrome(hide=False)
+                        for cnt2 in range(int(store.options('max_wait_captcha'))):
+                            if not await self.page_evaluate(selectors['captcha_checker'], False):
+                                break
+                            await asyncio.sleep(1)
+                        else:  # Капчу так никто и не ввел
+                            logging.error(f'Show captcha timeout. A captcha appeared, but no one entered it')        
+                            raise RuntimeError(f'A captcha appeared, but no one entered it')
+                    else:  # Показ капчи не зададан выдаем ошибку и завершаем
+                        logging.error(f'Сaptcha appeared')        
+                        raise RuntimeError(f'Сaptcha appeared')
+                else:
+                    # Никуда не попали и это не капча
+                    logging.error(f'Unknown state')
+                    raise RuntimeError(f'Unknown state')
 
     async def wait_params(self, params, url='', save_to_result=True):
         ''' Переходим по url и ждем параметры
