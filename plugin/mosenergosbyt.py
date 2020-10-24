@@ -40,30 +40,31 @@ class mosenergosbyt_over_puppeteer(pa.balance_over_puppeteer):
             res1 = await self.wait_params(params=[{
                 'name': 'Balance',  # Баланс в зависимости от вида ЛК может придти либо так
                 'url_tag': ['gate_lkcomu?action=sql&query=smorodinaTransProxy&', 'AbonentCurrentBalance', urllib.parse.quote(vl_provider)],
-                'jsformula': f'_.sum(data.data.map(s => s.sm_balance))',
+                'jsformula': f'data.data.map(s => s.sm_balance).reduce((a,b)=>a+b)',
             },{
-                'name': 'Balance',  # Либо так (у dimon_s2020)
+                'name': 'Balance',  # Либо так (у dimon_s2020) эта версия работает 23.10.20
                 'url_tag': ['gate_lkcomu?action=sql&query=bytProxy&', 'proxyquery=CurrentBalance', urllib.parse.quote(vl_provider)],
-                'jsformula': f'_.sum(data.data.map(s => s.vl_balance))',
+                'jsformula': f'data.data.map(s => s.vl_balance).reduce((a,b)=>a+b)',
             },{
-                'name': 'Balance',  # Либо так (у dimon_s2020) vesion2
-                'url_tag': ['gate_lkcomu?action=sql&query=bytProxy&', 'proxyquery=Invoice', urllib.parse.quote(vl_provider)],
-                'jsformula': f'-(data.data[0].sm_total)',
-            },{
-                'name': 'Balance2',  # Показания электросчетчика втарифе T1, Снятые сотрудниками Мосэнергосбыт
+            #    'name': 'Balance',  # Либо так (у dimon_s2020) vesion2
+            #    'url_tag': ['gate_lkcomu?action=sql&query=bytProxy&', 'proxyquery=Invoice', urllib.parse.quote(vl_provider)],
+            #    'jsformula': f'-(data.data[0].sm_total)',
+            #},{
+                'name': 'Balance2',  # Показания электросчетчика втарифе T1, берем максимальные, они скорее всего будут правильные
                 'url_tag': ['gate_lkcomu?action=sql&query=bytProxy&', 'proxyquery=Indications', urllib.parse.quote(vl_provider)],
-                'jsformula': f'(data.data.filter(s=>s.rn==2)[0].vl_t1)', 'wait':False,  # у некоторых этого параметра может и не быть
+                'jsformula': f'Math.max(...data.data.map(s=>s.vl_t1))', 'wait':True,  # FIXME пока поставил обязательное ожидание, посмотрим будет ли получать. у некоторых этого параметра может и не быть
             },{
                 'name': 'UserName',  # Username 
                 'url_tag': ['gate_lkcomu?action=sql&query=GetProfileAttributesValues&'],
                 'jsformula': f'data.data[0].attributes[0].vl_attribute+" "+data.data[0].attributes[1].vl_attribute+" "+data.data[0].attributes[2].vl_attribute',
             }], url=f'https://my.mosenergosbyt.ru/accounts/{id_service}',  # Соберем после захода на эту страницу
             )
-            if 'Balance' in res1:
-                break
+            #if 'Balance' in res1:  # FIXME ждем до таймаута
+            #    break
         else:
-            logging.error(f'Не найден баланс')
-            #raise RuntimeError(f'Не найден баланс')
+            if 'Balance' not in res1:
+                logging.error(f'Не найден баланс')
+                #raise RuntimeError(f'Не найден баланс')
 
         import pprint
         text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k,v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
