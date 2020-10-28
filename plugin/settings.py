@@ -3,6 +3,7 @@
 Значения по умолчанию, здесь ничего не меняем, если хотим поменять меняем в mbplugin.ini
 подробное описание см в readme.md
 '''
+import os
 UNIT = {'TB': 1073741824, 'ТБ': 1073741824, 'TByte': 1073741824,
         'GB': 1048576, 'ГБ': 1048576, 'GByte': 1048576,
         'MB': 1024, 'МБ': 1024, 'MByte': 1024,
@@ -15,7 +16,13 @@ mbplugin_ini = 'mbplugin.ini'
 # сюда пропишем сразу возможные варианты для путя хрома
 chrome_executable_path_alternate = [
         'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',]
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        f'{os.environ.get("LOCALAPPDATA","")}\\Yandex\\YandexBrowser\\Application\\browser.exe',
+        'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+        'C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+        ]
 ########################################################################################
 ini = {
     'Options': {  # Раздел mbplugin.ini [Options]

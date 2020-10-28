@@ -17,8 +17,11 @@ def hide_chrome(hide=True):
         text = win32gui.GetWindowText(hwnd)
         className = win32gui.GetClassName(hwnd)
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
-        if text.find("Chrome")>=0 and 'remote-debugging-port' in ''.join(psutil.Process(pid).cmdline()):
-            windowList.append((hwnd, text, className))
+        try:  #  ??? text.lower().find('chrome')>=0
+            if text != '' and 'remote-debugging-port' in ''.join(psutil.Process(pid).cmdline()):
+                windowList.append((hwnd, text, className))
+        except Exception:
+            pass
     myWindows = []
     # enumerate thru all top windows and get windows which are ours
     win32gui.EnumWindows(enumWindowFunc, myWindows)
@@ -30,7 +33,7 @@ def hide_chrome(hide=True):
         else:
             win32gui.MoveWindow(hwnd, 0, 0, 1000, 1000, True) # Возвращаем нормальные координаты
 
-async def launch_browser(storename, response_worker=None):
+async def launch_browser(storename, response_worker=None, disconnected_worker=None):
     hide_chrome_flag = str(store.options('show_chrome')) == '0' and store.options('logginglevel') != 'DEBUG'
     storefolder = store.options('storefolder')
     user_data_dir = os.path.join(storefolder,'puppeteer')
@@ -77,14 +80,18 @@ async def launch_browser(storename, response_worker=None):
         await page.close() # Закрываем остальные страницы, если вдруг открыты
     page = pages[0]  # await browser.newPage()
     if response_worker is not None:
-        page.on("response", response_worker) # вешаем обработчик на страницы        
+        page.on("response", response_worker) # вешаем обработчик на страницы
+    if disconnected_worker is not None:
+        browser.on("disconnected", disconnected_worker) # вешаем обработчик закрытие браузера
     return browser, page
 
 def kill_chrome():
-    'Киляем дебажный хром если вдруг какой-то висит'
+    '''Киляем дебажный хром если вдруг какой-то висит, т.к. народ умудряется запускать не только хром, то имя exe возьмем из пути '''
+    chrome_executable_path = store.options('chrome_executable_path')
+    pname = os.path.split(chrome_executable_path)[-1].lower()
     for p in psutil.process_iter():
         try:
-            if p.name()=='chrome.exe' and 'remote-debugging-port' in ''.join(p.cmdline()):
+            if p.name().lower()==pname and 'remote-debugging-port' in ''.join(p.cmdline()):
                 p.kill()    
         except Exception:
             pass
@@ -162,7 +169,19 @@ async def do_waitfor(page, waitfor, tokens, wait_and_reload=10, wait_loop=30):
 
 class balance_over_puppeteer():
     '''Основная часть общих действий вынесена сюда см mosenergosbyt для примера использования '''
+
+    def check_browser_opened_decorator(func):  # pylint: disable=no-self-argument
+        async def wrapper(self, *args, **kwargs):
+            if self.browser_open:
+                res = await func(self, *args, **kwargs)  # pylint: disable=not-callable
+                return res
+            else:
+                logging.error(f'Browser was not open')
+                raise RuntimeError(f'Browser was not open')
+        return wrapper
+
     def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_attempt=1):
+        self.browser_open = True  # флаг что браузер рабобтает
         self.wait_loop = wait_loop  # TODO подобрать параметр
         self.login_attempt = login_attempt
         self.wait_and_reload = wait_and_reload
@@ -178,60 +197,8 @@ class balance_over_puppeteer():
         self.result = {}
         self.responses = {}
 
-    # потом наверно перенесем их совсем сюда, а отдельные прибьем
-    async def page_evaluate(self, eval_string, default=None):
-        ''' переносим вызов в класс для того чтобы каждый раз не указывать page'''
-        return (await page_evaluate(self.page, eval_string, default=None))
-
-    async def page_goto(self, url):
-        ''' переносим вызов в класс для того чтобы каждый раз не указывать page'''
-        return (await page_goto(self.page, url))
-
-    async def page_reload(self, reason=''):
-        ''' переносим вызов в класс для того чтобы каждый раз не указывать page'''
-        return (await page_reload(self.page, reason=''))
-
-    async def page_type(self, selector, text, *args, **kwargs):
-        'Безопасный type - не падает при ошибке а возвращает None'
-        try:
-            if selector != '' and text != '': 
-                logging.info(f'page.type: {repr(selector)}')
-                return await self.page.type(selector, text, *args, **kwargs)
-        except Exception:
-            logging.info(f'page.type fail: {repr(selector)}')
-
-    async def page_click(self, selector, *args, **kwargs):
-        'Безопасный click - не падает при ошибке а возвращает None'
-        try:
-            if selector != '': 
-                logging.info(f'page.click: {repr(selector)}')
-                return await self.page.click(selector, *args, **kwargs)
-        except Exception:
-            logging.info(f'page.click fail: {repr(selector)}')
-
-    async def page_waitForNavigation(self, *args, **kwargs):
-        'Безопасный waitForNavigation - не падает при ошибке а возвращает None'
-        try:
-            # большой таймаут и нельзя, а то некоторые страницы злоупотребляют тем что никогда не открываются до конца
-            # поэтому ставим 10 сек. На краяняк через 10 сек само отвалится и к этому времени скорее всего откроется
-            logging.info(f'page.waitForNavigation')
-            return await self.page.waitForNavigation({'timeout': 10000})
-        except pyppeteer.errors.TimeoutError:   
-            logging.info(f'page.waitForNavigation timeout')
-
-    # !!! TODO есть page.waitForSelector - покопать в эту сторону
-    async def page_waitForSelector(self, selector, *args, **kwargs):
-        'Безопасный waitForSelector - не падает при ошибке а возвращает None'
-        try:
-            if selector != '': 
-                logging.info(f'page.waitForSelector: {repr(selector)}')
-                return await self.page.waitForSelector(selector, {'timeout': 10000})
-        except Exception:
-            logging.info(f'page.waitForSelector fail: {repr(selector)}')  
-            return None
-
-    async def worker(self, response):
-        'Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)'
+    async def response_worker(self, response):
+        'Response Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)'
         'Проходящие запросы, которые json сохраняем в responses'
         if response.status == 200:
             try:
@@ -251,6 +218,71 @@ class balance_over_puppeteer():
                 exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
                 logging.debug(exception_text)
 
+    async def disconnected_worker(self):
+        'disconnected_worker вызывается когда закрыли браузер'
+        logging.info(f'Browser was closed')
+        self.browser_open = False  # выставляем флаг
+
+    # потом наверно перенесем их совсем сюда, а отдельные прибьем
+    @check_browser_opened_decorator
+    async def page_evaluate(self, eval_string, default=None):
+        ''' переносим вызов в класс для того чтобы каждый раз не указывать page'''
+        return (await page_evaluate(self.page, eval_string, default=None))
+
+    @check_browser_opened_decorator
+    async def page_goto(self, url):
+        ''' переносим вызов в класс для того чтобы каждый раз не указывать page'''
+        return (await page_goto(self.page, url))
+
+    @check_browser_opened_decorator
+    async def page_reload(self, reason=''):
+        ''' переносим вызов в класс для того чтобы каждый раз не указывать page'''
+        return (await page_reload(self.page, reason=''))
+
+    @check_browser_opened_decorator
+    async def page_type(self, selector, text, *args, **kwargs):
+        'Безопасный type - не падает при ошибке а возвращает None'
+        try:
+            if selector != '' and text != '': 
+                logging.info(f'page.type: {repr(selector)}')
+                return await self.page.type(selector, text, *args, **kwargs)
+        except Exception:
+            logging.info(f'page.type fail: {repr(selector)}')
+
+    @check_browser_opened_decorator
+    async def page_click(self, selector, *args, **kwargs):
+        'Безопасный click - не падает при ошибке а возвращает None'
+        try:
+            if selector != '': 
+                logging.info(f'page.click: {repr(selector)}')
+                return await self.page.click(selector, *args, **kwargs)
+        except Exception:
+            logging.info(f'page.click fail: {repr(selector)}')
+
+    @check_browser_opened_decorator
+    async def page_waitForNavigation(self, *args, **kwargs):
+        'Безопасный waitForNavigation - не падает при ошибке а возвращает None'
+        try:
+            # большой таймаут и нельзя, а то некоторые страницы злоупотребляют тем что никогда не открываются до конца
+            # поэтому ставим 10 сек. На краяняк через 10 сек само отвалится и к этому времени скорее всего откроется
+            logging.info(f'page.waitForNavigation')
+            return await self.page.waitForNavigation({'timeout': 10000})
+        except pyppeteer.errors.TimeoutError:   
+            logging.info(f'page.waitForNavigation timeout')
+
+    # !!! TODO есть page.waitForSelector - покопать в эту сторону
+    @check_browser_opened_decorator
+    async def page_waitForSelector(self, selector, *args, **kwargs):
+        'Безопасный waitForSelector - не падает при ошибке а возвращает None'
+        try:
+            if selector != '': 
+                logging.info(f'page.waitForSelector: {repr(selector)}')
+                return await self.page.waitForSelector(selector, {'timeout': 10000})
+        except Exception:
+            logging.info(f'page.waitForSelector fail: {repr(selector)}')  
+            return None
+
+    @check_browser_opened_decorator
     async def do_logon(self, url,user_selectors={}):
         'Делаем заход в личный кабинет/ проверяем не залогинены ли уже'
         'На вход передаем словарь селекторов и скриптов который перекроет действия по умолчанию'
@@ -337,6 +369,7 @@ class balance_over_puppeteer():
                     logging.error(f'Unknown state')
                     raise RuntimeError(f'Unknown state')
 
+    @check_browser_opened_decorator
     async def wait_params(self, params, url='', save_to_result=True):
         ''' Переходим по url и ждем параметры
         ---
@@ -409,7 +442,7 @@ class balance_over_puppeteer():
         return result
 
     async def _async_main(self):
-        self.browser, self.page = await launch_browser(self.storename, self.worker)
+        self.browser, self.page = await launch_browser(self.storename, response_worker=self.response_worker, disconnected_worker=self.disconnected_worker)
         await self.async_main()  # !!! CALL async_main
         logging.debug(f'Data ready {self.result.keys()}')
         if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':

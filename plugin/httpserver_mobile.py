@@ -173,7 +173,7 @@ def getreport(param=[]):
                 mark = ' class="mark" '  # Красим недавно поменялся а не должен был
             if el is None:
                 el = ''
-            if he != 'Balance' and (el == 0.0 or el == 0):
+            if he != 'Balance' and (el == 0.0 or el == 0) and mark == '':
                 el = ''
             html_line.append(f'<{"th" if he=="NN" else "td"} id="{he}"{mark}>{el}</td>')
         html_table.append(f'<tr id="row" class="n">{"".join(html_line)}</tr>')
