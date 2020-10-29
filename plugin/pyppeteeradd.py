@@ -14,12 +14,14 @@ def hide_chrome(hide=True):
     'Прячем или показываем окно хрома'
     def enumWindowFunc(hwnd, windowList):
         """ win32gui.EnumWindows() callback """
-        text = win32gui.GetWindowText(hwnd)
-        className = win32gui.GetClassName(hwnd)
+        text = win32gui.GetWindowText(hwnd).lower()
+        className = win32gui.GetClassName(hwnd).lower()
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
         try:  #  ??? text.lower().find('chrome')>=0
-            if text != '' and 'remote-debugging-port' in ''.join(psutil.Process(pid).cmdline()):
+            if (text != '' and 'remote-debugging-port' in ''.join(psutil.Process(pid).cmdline())
+            and not text.startswith('msct') and not text.startswith('default') and 'восстановить' not in text):
                 windowList.append((hwnd, text, className))
+                logging.debug(f'enumWindowFunc:{text=}, {className=}')
         except Exception:
             pass
     myWindows = []

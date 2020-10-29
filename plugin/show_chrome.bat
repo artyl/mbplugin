@@ -2,4 +2,4 @@
 %~d0 
 cd "%~dp0"
 
-..\python\python.exe ..\plugin\show_chrome.py
+..\python\python -c "import pyppeteeradd;pyppeteeradd.hide_chrome(hide=False)"
