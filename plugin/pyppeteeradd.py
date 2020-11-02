@@ -31,9 +31,9 @@ def hide_chrome(hide=True):
         _, _ = text, className  # dummy pylint
         win32gui.ShowWindow(hwnd, not hide)  # True-Show, False-Hide
         if hide:
-            win32gui.MoveWindow(hwnd, -1000, -1000, 0, 0, True) # У скрытого окна бывают доп окна которые вылезают на экран
+            win32gui.MoveWindow(hwnd, -1000, -1000, -100, -200, True) # У скрытого окна бывают доп окна которые вылезают на экран
         else:
-            win32gui.MoveWindow(hwnd, 0, 0, 1000, 1000, True) # Возвращаем нормальные координаты
+            win32gui.MoveWindow(hwnd, 80, 80, 980, 880, True) # Возвращаем нормальные координаты
 
 async def launch_browser(storename, response_worker=None, disconnected_worker=None):
     hide_chrome_flag = str(store.options('show_chrome')) == '0' and store.options('logginglevel') != 'DEBUG'
@@ -69,7 +69,7 @@ async def launch_browser(storename, response_worker=None, disconnected_worker=No
                  '--log-level=3', # no logging                 
                  #'--single-process', # <- this one doesn't works in Windows
                  '--disable-gpu', 
-                 "--window-position=-2000,-2000" if hide_chrome_flag else "--window-position=1,1"],
+                 "--window-position=-2000,-2000" if hide_chrome_flag else "--window-position=80,80"],
     }
     if store.options('proxy_server').strip() != '':
         launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}')
@@ -315,7 +315,11 @@ class balance_over_puppeteer():
             logging.error(f'Не все ключи из user_selectors есть в selectord. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}')
         selectors.update(user_selectors)
         await self.page_goto(url)
-        await self.page_waitForNavigation()  
+        await self.page_waitForNavigation()
+        if not await self.page_evaluate(selectors['chk_lk_page_js']) and not await self.page_evaluate(selectors['chk_login_page_js']):
+            # Мы не в личном кабинете и не на странице логона - попробуем обновить страницу
+            await self.page_reload('Not open login page')
+            await asyncio.sleep(10)
         # Logon form
         if await self.page_evaluate(selectors['chk_lk_page_js']):
             logging.info(f'Already login')

@@ -207,6 +207,29 @@ class dbengine():
                 row['PhoneNumberFormat2'] = row['PhoneNumberFormat1'].replace(' ', '')
             table.append(row)
         return table
+    
+    def history(self, phone_number, operator, days=7, lastonly=1):
+        'Генерирует исторические данные по номеру телефона'
+        if days == 0:
+            return []
+        historysql = f'''select * from phones where phonenumber=? and operator=? and QueryDateTime>date('now','-'|| ? ||' day') order by QueryDateTime desc'''
+        cur = self.cur.execute(historysql, [phone_number, operator, days])
+        dbheaders = list(zip(*cur.description))[0]
+        dbdata = cur.fetchall()
+        dbdata_sets = [set(l) for l in zip(*dbdata)]  # составляем список уникальных значений по каждой колонке
+        dbdata_sets = [{i for i in l if str(i).strip() not in ['','None','0.0','0'] } for l in dbdata_sets]  # подправляем косяки 
+        qtimes_num = dbheaders.index('QueryDateTime')
+        qtimes = [line[qtimes_num] for line in dbdata]  # Список всех времен получения баланса
+        qtimes_max = {max([k for k in qtimes if k.startswith(j)]) for j in {i.split()[0] for i in qtimes}}  # Последние даты получения баланса за сутки
+        table = []  # результат - каждая строчка словарь элементов
+        fields = store.options('HoverHistoryFormat').split(',')
+        # выкидываем неинтересные колонки Там где только нули и None
+        fields = [i for i in fields if i in dbheaders and dbdata_sets[dbheaders.index(i)] != set()]
+        for line in dbdata:
+            row = dict(zip(dbheaders, line))
+            if str(lastonly) == '0' or row['QueryDateTime'] in qtimes_max:  # фильруем данные по qtimes_max
+                table.append({k:row[k] for k in fields if k in row})
+        return table[::int(store.options('SkipDay'))+1]
 
     def check_and_add_addition(self):
         'Создаем таблицы, добавляем новые поля, и нужные индексы если их нет'

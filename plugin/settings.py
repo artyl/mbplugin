@@ -77,7 +77,18 @@ ini = {
         # В отчете будут показаны красным, если по номеру были изменения менее чем ... дней
         # Если данный параметр не выставлен индивидуально для номера в phones.ini
         # Полезно когда вы следите за балансом который не должен меняться и вдруг начал меняться
-        'BalanceChangedLessThen': '0',   
+        'BalanceChangedLessThen': '0',
+        # показывает в всплывающем окне историю на N дней назад. 0 - не показывает
+        'RealAverageDays': '0',
+        # показывает только последнее значение за день
+        'ShowOnlyLastPerDay': '1',
+        # Пропускает n дней в отчете, т.е. 0 - каждый день 1 - через день, и т.д.
+        'SkipDay': '0',
+        # Формат строк истории, можно выкинуть колонки, которые никогда не хотим видеть в истории
+        # Пустые он сам выкинет
+        'HoverHistoryFormat': 'QueryDateTime,KreditLimit,Currenc,Balance,BalanceRUB,Balance2,Balance3,SpendBalance,UslugiOn,NoChangeDays,CalcTurnOff,Average,TurnOff,Recomend,SMS,SMS_USD,SMS_RUB,Minutes,USDRate,LicSchet,BalDelta,JeansExpired,ObPlat,BeeExpired,RealAverage,Seconds,MinSonet,MinLocal,MinAverage,MinDelta,MinDeltaQuery,TurnOffStr,SpendMin,PhoneReal,Internet,InternetUSD,InternetRUB,Contract,BalDeltaQuery,AnyString,BlockStatus,TarifPlan',
+        # css для hover
+        'HoverCss': 'display: block;position: fixed;top: 0; height: 100vh; overflow: auto',
     },
     'Telegram': {  # Раздел mbplugin.ini [Telegram]
         'start_tgbot': 1,  # Стартовать telegram bot вместе с http
@@ -108,14 +119,5 @@ ini = {
         # они должны быть вида table_formatNNN где NNN произвольное число, которое не должно повторяться, 
         # зайти на такие альтернативные report можно по ссылке http://localhost:19777/report/NNN
         'table_format': 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime',  # ? UserName
-        # edBalanceLessThen - если нет в Options.ini Mark\edBalanceLessThen то возьмем отсюда
-        # в отчете будут показаны красным, если баланс меньше этой суммы
-        'edBalanceLessThen': 2.5,
-        # edBalanceLessThen - если нет в Options.ini Mark\edTurnOffLessThen то возьмем отсюда
-        # в отчете будут показаны красным, если число дней до отключения меньше чем 
-        'edTurnOffLessThen': 2,
-        # В отчете будут показаны красным, если по номеру не было изменения более чем ... дней
-        # Если данный параметр не выставлен индивидуально для номера в phones.ini
-        'BalanceNotChangedMoreThen': 60,
     },
 }

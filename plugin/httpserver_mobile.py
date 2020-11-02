@@ -41,7 +41,7 @@ def detbalance_standalone(filter=[]):
     '''
     turn_logging()  # Т.к. сюда можем придти извне, то включаем логирование здесь
     phones = store.ini('phones.ini').phones()
-    for key,val in phones.items():
+    for val in phones.values():
         # Проверяем все у кого задан плагин, логин и пароль пароль
         if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
             if filter == [] or [1 for i in filter if i.lower() in val['Region'].lower() or i.lower() in val['Number'].lower() or i.lower() in val['Alias'].lower()] != []:
@@ -106,10 +106,37 @@ def view_log(param):
     return 'text/html; charset=cp1251', ['<html><head></head><body><pre>']+res+['</pre><script>window.scrollTo(0,document.body.scrollHeight);</script></body></html>']
 
 def getreport(param=[]):
+    'Делает html отчет balance.html'
+    def pp_field(pkey, he, el, hover):
+        'форматирует поле, красит, выкидывает None и нули в полях баланса - возвращает готовый тэг th или tr'
+        'he - header'
+        'el - element'
+        'pkey - пара (номер,оператор)'
+        mark = ''  # class="mark"
+        if he == 'Balance' and el is not None and el < float(phones[pkey]['BalanceLessThen']):
+            mark = ' class="mark" '  # Красим когда мало денег
+        if he == 'CalcTurnOff' and el is not None and el < int(phones[pkey]['TurnOffLessThen']):
+            mark = ' class="mark" '  # Красим когда надолго не хватит
+        if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) > int(phones[pkey]['BalanceNotChangedMoreThen']):
+            mark = ' class="mark" '  # Красим когда давно не изменялся
+        if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) < int(phones[pkey]['BalanceChangedLessThen']):
+            mark = ' class="mark" '  # Красим недавно поменялся а не должен был
+        if el is None:
+            el = ''
+        if type(el) == float:
+            el = round(el,2)
+        if he != 'Balance' and (el == 0.0 or el == 0) and mark == '':
+            el = ''
+        if hover != '':
+            el = f'<div class="item">{el}<div class="hoverHistory">{hover}</div></div>'
+        return f'<{"th" if he=="NN" else "td"} id="{he}"{mark}>{el}</td>'
+
     style = '''<style type="text/css">
-    table{font-family: Verdana; font-size:85%}
+    .BackgroundTable, .InfoTable {font-family: Verdana; font-size:85%}
+    .HistoryBgTable, .HistoryTable {font-family: Verdana; font-size:100%}
     th {background-color: #D1D1D1}
     td{white-space: nowrap;text-align: right;}
+    tr:hover {background-color: #ffff99;}
     .hdr  {text-align:left;color:#FFFFFF; font-weight:bold; background-color:#0E3292; padding-left:5}
     .n    {background-color: #FFFFE1}
     .e    {background-color: #FFEBEB}
@@ -121,25 +148,38 @@ def getreport(param=[]):
     .p_n{color:#634276}
     .p_r{color:#006400}
     .p_b{color:#800000}
+    .hoverHistory {display: none;}
+    .item:hover .hoverHistory {{HoverCss}}
     #Balance, #SpendBalance {text-align: right; font-weight:bold}
     #Indication, #Alias, #KreditLimit, #PhoneDescr, #UserName, #PhoneNum, #PhoneNumber, #BalExpired, #LicSchet, #TarifPlan, #BlockStatus, #AnyString, #LastQueryTime{text-align: left}
     </style>'''
-    template = '''
+    template_page = '''
     <?xml version="1.0" encoding="windows-1251" ?>
     <html>
     <head><title>MobileBalance</title></head>{style}
     <body style="font-family: Verdana; cursor:default">
-    <table id="BackgroundTable">
+    <table class="BackgroundTable">
     <tr><td class="hdr">Информация о балансе телефонов - MobileBalance Mbplugin</td></tr>
     <tr><td bgcolor="#808080">
-    <table id="InfoTable" border="0" cellpadding="2" cellspacing="1">
-        <tr id="header">{html_header}</tr>
+    <table class="InfoTable" border="0" cellpadding="2" cellspacing="1">
+        <tr class="header">{html_header}</tr>
         {html_table}
     </table>
     </td></tr>
     </table>
     </body>
     </html>'''
+    template_history = '''
+    <table class="HistoryBgTable">
+    <tr><td class="hdr">История запросов по {h_header}</td></tr>
+    <tr><td bgcolor="#808080">
+    <table class="HistoryTable" border="0" cellpadding="2" cellspacing="1">
+        <tr class="header">{html_header}</tr>
+        {html_table}
+    </table>
+    </td></tr>
+    </table>
+    '''    
     db = dbengine.dbengine(store.options('dbfilename'))
     # номера провайдеры и логины из phones.ini
     num_format = '' if len(param) == 0 or not param[0].isnumeric() else str(int(param[0]))
@@ -161,23 +201,20 @@ def getreport(param=[]):
         for he in header:
             if he not in line:
                 continue
-            el = line[he]
-            mark = ''  # class="mark"
-            if he == 'Balance' and el is not None and el < float(phones[pkey]['BalanceLessThen']):
-                mark = ' class="mark" '  # Красим когда мало денег
-            if he == 'CalcTurnOff' and el is not None and el < int(phones[pkey]['TurnOffLessThen']):
-                mark = ' class="mark" '  # Красим когда надолго не хватит
-            if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) > int(phones[pkey]['BalanceNotChangedMoreThen']):
-                mark = ' class="mark" '  # Красим когда давно не изменялся
-            if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) < int(phones[pkey]['BalanceChangedLessThen']):
-                mark = ' class="mark" '  # Красим недавно поменялся а не должен был
-            if el is None:
-                el = ''
-            if he != 'Balance' and (el == 0.0 or el == 0) and mark == '':
-                el = ''
-            html_line.append(f'<{"th" if he=="NN" else "td"} id="{he}"{mark}>{el}</td>')
+            hover = ''
+            if he == 'Balance':  # На баланс вешаем hover с историей
+                history = db.history(line['PhoneNumber'], line['Operator'], int(store.options('RealAverageDays')), int(store.options('ShowOnlyLastPerDay')))
+                if history != []:
+                    h_html_header = ''.join([f'<th id="h{h}" class="{header_class.get(h,"p_n")}">{dbengine.PhonesHText.get(h,h)}</th>' for h in history[0].keys()])                      
+                    h_html_table = []
+                    for h_line in history:
+                        h_html_line = ''.join([pp_field(pkey, h, v, '') for h,v in h_line.items()])
+                        h_html_table.append(f'<tr id="row" class="n">{"".join(h_html_line)}</tr>')
+                    hover = template_history.format(h_header=line['Alias'], html_header=h_html_header, html_table='\n'.join(h_html_table))
+            html_line.append(pp_field(pkey, he, line[he], hover))  # append <td>...</td>
         html_table.append(f'<tr id="row" class="n">{"".join(html_line)}</tr>')
-    res = template.format(style=style, html_header=html_header, html_table='\n'.join(html_table))
+    style = style.replace('{HoverCss}',store.options('HoverCss'))
+    res = template_page.format(style=style, html_header=html_header, html_table='\n'.join(html_table))
     return 'text/html', [res]
 
 
