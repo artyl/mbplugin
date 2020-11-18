@@ -12,7 +12,7 @@ remain2 = RUB, 536
 currenc = USD
 
 имя набора берется из login - название секции [stocks_<логин>]
-строки  stockNN=код стока, количество акций, источник данных (Y yahoo, M moex)
+строки  stockNN=код стока, количество акций, источник данных (Y yahoo, M moex, F finex-etf)
 строки remainNN=валюта,сумма
 NN должны быть различными
 currenc - в какой валюте считать итог
@@ -21,6 +21,7 @@ https://finance.yahoo.com/quote/AAPL
 https://query1.finance.yahoo.com/v8/finance/chart/AAPL 
 https://iss.moex.com/iss/engines/stock/markets/shares/securities/TATNP 
 https://iss.moex.com/iss/securities/TATNP.xml
+https://finex-etf.ru/products/FXIT
 '''
 ''' Автор ArtyLa '''
 import os, sys, re, time, logging, threading, traceback, queue
@@ -44,6 +45,16 @@ def get_yahoo(security, cnt, qu=None):
     meta = response.json()['chart']['result'][0]['meta']
     meta['regularMarketPrice']
     res = meta['regularMarketPrice']*cnt, security, 'USD'
+    if qu:
+        qu.put(res)
+    return res
+
+
+def get_finex(security, cnt, qu=None):
+    session = requests.Session()
+    url = time.strftime(f'https://finex-etf.ru/products/{security}')
+    response = session.get(url)
+    res = float(re.sub(r'[^\d\.]','',re.findall(r'singleStockPrice.*?>(.*?)<',response.text)[0]))*cnt, security, 'RUB'
     if qu:
         qu.put(res)
     return res
@@ -73,6 +84,8 @@ def thread_call_market(market,security,cnt,qu):
             return get_yahoo(security,cnt,qu)
         elif market=='M':
             return get_moex(security,cnt,qu)
+        elif market=='F':
+            return get_finex(security,cnt,qu)
         else:
             raise RuntimeError(f'Unknown market marker {market} for {security}')
     except:
@@ -100,7 +113,7 @@ def count_all_scocks_multithread(stocks, remain, currenc):
         data.append(qu.get_nowait())
     orderlist = list(zip(*stocks))[0] # Порядок, в котором исходно шли бумаги
     data.sort(key=lambda i:orderlist.index(i[1])) # Сортируем в исходном порядке
-    res_full = '\n'.join([f'{sec:5} : {round(val*k[curr],2):7.2f} {curr}' for val,sec,curr in data])+'\n'
+    res_full = '\n'.join([f'{sec+"("+curr+")":10} : {round(val*k[curr],2):9.2f} {currenc}' for val,sec,curr in data])+'\n'
     res_balance = round(sum([val*k[curr] for val,sec,curr in data]) + remain['USD']*k['USD'] + remain['RUB']*k['RUB'],2)
     if len(data) != len(stocks):
         raise RuntimeError(f'Not all stock was return ({len(data)} of {len(stocks)})')

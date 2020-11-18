@@ -10,6 +10,8 @@
     Получение котировок с finance.yahoo.com в логин YAHOO_ и код ценной бумаги, напрмер YAHOO_AAPL
     https://finance.yahoo.com/quote/AAPL
     https://query1.finance.yahoo.com/v8/finance/chart/AAPL 
+    Получение котировок ETF c Finex-etf
+    https://finex-etf.ru/products/FXIT
 '''
 import os, sys, re, time, logging
 import xml.etree.ElementTree as etree
@@ -68,6 +70,11 @@ def get_balance(login, password, storename=None):
         meta = response.json()['chart']['result'][0]['meta']
         meta['regularMarketPrice']
         result['Balance'] = meta['regularMarketPrice']
+    elif re.match(r'^(?usi)(?:FINEX)[ _]?\w+$', login):  # Курсы ETF на - finex-etf например FINEX_FXIT
+        login = re.findall(r'(?:FINEX)[ _]?(\w+)', login)[0]
+        url = time.strftime(f'https://finex-etf.ru/products/{login}')
+        response = session.get(url)
+        result['Balance'] = float(re.sub(r'[^\d\.]','',re.findall(r'singleStockPrice.*?>(.*?)<',response.text)[0]))
 
     return result
 
