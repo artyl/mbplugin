@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import urllib, logging
+import urllib, logging, traceback, os, sys
+import store
 import pyppeteeradd as pa
 
 icon = '789c6d935d48935118c79f77f3462a596ab3ec26e8a68b8292284aadb02231a328d7726bdfefb677ab0d9766769176d177506441901559596494269446a5175a89b577aee92ad30b97d39272098184d0bff3ee9df4e5811fe71ccef33bdf4fde961549142f2b188b18aa041c2d9007d878478acc5401303f412623f548f3685686afd79be6ed7eac3e207e4d2f0b7c31df0c371f6efbe049adeafc6d6a5e244b0efd59cca289f8603fe70c8124f8ee38c925efa0f205fc19a5dd3348082f2677b4824cfe7ce6cf91c52a05c78b6714ae301442080a47e02f3847f027f1e21572f43428ddb18925bbcfbe264dbd92f973e33aef77c45d67f03f57460427f442b1f707d6e80e4028a249c30e1298af527bdf64281d818842e899d6e5ecd2faaced8e21d75c0efb2e824d4730eda4484343d5d2dee109d7fcf277208b28636658c5df7d3bc316c1aa0d2510b29957c0d0ca73d8b727efad6efddcaaf2f422bfba0fe6da3e54dc1e80b6a61f9acbef51796f10758171941fba8453db5623f8e82e5edeb9085f911ae662822b37a54d55268e91318082736ff1301845ff480cf75f0de1c68b8ff0d68de3d8d5568cf63dc7a78110aa9d85a8715a5069590603db4369766a8cbd718cacddc8dc1f44f4db77dc6e8fa02dfc199dd149d8ce34a3f1b407a3ef43187cd385da4a2f4e14acc579ef56b0fb832f7b664ce511dbc81142123be775ff30f6d5f723ffc208824f9a70f3b8015db76ad152731465eb16a2a3fe1ac22d4d38c2af84b18820e4cc6a5797047d9cb3071c1f00b17752ee1946d6ee0a58d62b61dc4ce0f33898586d60f1a60d04eb468abbbc9ef50b4938d91ccd225b609063ff861322c8b154c2c9ce66299631eb126df66e16d696ee4dba7b8b96861c7a9a27fd01b2fa056ecff0640e7f0aae62256c53f1d3602d96d766f3b813f93357c3fe629e81efb2eb9226d8bc0f185758dccf7f5d69ddb8aba5b3f1b4947db5613b6d7216d141878e96683494ccc63bed52dc2e196b62cf562d0d1835e4fa33e5a4dc959ca9be5e4f29c62de472e5ce7a5a9a9df6a534377dccbd2ee599479f5ed278b76a398b9fcd983795f7bf00e40304ec'
@@ -37,6 +38,12 @@ class mosenergosbyt_over_puppeteer(pa.balance_over_puppeteer):
                 continue  # Если он был указан то получаем по нему
             id_service = id_services[nn_ls]
             vl_provider = vl_providers[nn_ls]
+            try:
+                nm_indication_variants = dict([map(str.strip,i.split(':')) for i in store.options('mosenergosbyt_nm_indication_variants').strip().split(',')])
+                nm_indication_take = nm_indication_variants.get(str(store.options('mosenergosbyt_nm_indication_take').strip()),'')
+            except:
+                logging.error(f'Неправильные настройки для nm_indication в mbplugin.ini: {"".join(traceback.format_exception(*sys.exc_info()))}')
+                nm_indication_take = ''
             res1 = await self.wait_params(params=[{
                 'name': 'Balance',  # Баланс в зависимости от вида ЛК может придти либо так
                 'url_tag': ['gate_lkcomu?action=sql&query=smorodinaTransProxy&', 'AbonentCurrentBalance', urllib.parse.quote(vl_provider)],
@@ -52,7 +59,7 @@ class mosenergosbyt_over_puppeteer(pa.balance_over_puppeteer):
             #},{
                 'name': 'Balance2',  # Показания электросчетчика втарифе T1, берем максимальные, они скорее всего будут правильные
                 'url_tag': ['gate_lkcomu?action=sql&query=bytProxy&', 'proxyquery=Indications', urllib.parse.quote(vl_provider)],
-                'jsformula': f'Math.max(...data.data.map(s=>s.vl_t1))', 'wait':True,  # FIXME пока поставил обязательное ожидание, посмотрим будет ли получать. у некоторых этого параметра может и не быть
+                'jsformula': f'Math.max(...data.data.filter(s=>s.nm_indication_take=="{nm_indication_take}"||"{nm_indication_take}"=="").map(s=>s.vl_t1))', 'wait':True,  # FIXME пока поставил обязательное ожидание, посмотрим будет ли получать. у некоторых этого параметра может и не быть
             },{
                 'name': 'UserName',  # Username 
                 'url_tag': ['gate_lkcomu?action=sql&query=GetProfileAttributesValues&'],
@@ -78,4 +85,6 @@ def get_balance(login, password, storename=None):
 
 
 if __name__ == '__main__':
+    print(store.options('mosenergosbyt_nm_indication_variants'))
+    print(dict([map(str.strip,i.split(':')) for i in store.options('mosenergosbyt_nm_indication_variants').strip().split(',')]))
     print('This is module mosenergosbyt on puppeteer')
