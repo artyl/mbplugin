@@ -35,7 +35,7 @@ def get_balance(login, password, storename=None):
 
     response4 = session.get('https://lk.megafon.ru/api/profile/name')
     if response4.status_code == 200 and 'json' in response4.headers.get('content-type'):
-        result['UserName'] = response4.json()['name']
+        result['UserName'] = response4.json()['name'].replace('"','').replace("'",'').replace('&quot;','')
 
     response5 = session.get('https://lk.megafon.ru/api/tariff/current')
     if response5.status_code == 200 and 'json' in response5.headers.get('content-type'):
