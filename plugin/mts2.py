@@ -22,7 +22,8 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
                 'chk_submit_after_login_js': "document.querySelector('form input[id=phoneInput]')!=null || document.querySelector('form input[id=password]')==null",  
                 'remember_checker': "document.querySelector('form input[name=rememberme]')!=null && document.querySelector('form input[name=rememberme]').checked==false",  # Проверка что флаг remember me не выставлен
                 'remember_js': "document.querySelector('form input[name=rememberme]').click()",  # js для выставления remember me
-                'captcha_checker': "document.querySelector('div[id=captcha-wrapper]')!=null"
+                'captcha_checker': "document.querySelector('div[id=captcha-wrapper]')!=null",
+                'captcha_focus': "document.getElementById('password').focus()", 
                 })
         # TODO close banner # document.querySelectorAll('div[class=popup__close]').forEach(s=>s.click())
         if self.login_ori != self.login and self.acc_num.isdigit():  # это финт для захода через другой номер 
@@ -53,6 +54,7 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
             {'name': 'TarifPlan', 'url_tag': ['api/login/userInfo'], 'jsformula': "data.userProfile.tariff"},
             {'name': 'UserName', 'url_tag': ['api/login/userInfo'], 'jsformula': "data.userProfile.displayName"},
             {'name': 'Balance', 'url_tag': ['for=api/accountInfo/mscpBalance'], 'jsformula': "parseFloat(data.data.amount).toFixed(2)"},
+            {'name': 'Balance2', 'url_tag': ['for=api/cashback/account'], 'jsformula': "parseFloat(data.data.balance).toFixed(2)"},
             {'name': '#counters', 'url_tag': ['for=api/sharing/counters'], 'jsformula': "data.data.counters"},
             ])
         if '#counters' in res1 and type(res1['#counters']) == list and len(res1['#counters'])>0:
@@ -116,9 +118,12 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
                     res4 = await self.wait_params(params=[{'name': '#acceptor', 'url_tag': ['for=api/Widgets/AvailableCountersAcceptor', '/longtask/'], 'jsformula': "data.result.counters"}])
                     data = {i['counterViewUnit']:i['consumption'] for i in res4['#acceptor']}
                 if 'RoleDonor' in str(res3) or 'RoleAcceptor' in str(res3):
-                    self.result['SpendMin'] = data["MINUTE"]
-                    self.result['SMS'] = data["ITEM"]
-                    self.result['Internet'] = data["GBYTE"]
+                    if 'SpendMin' in data:
+                        self.result['SpendMin'] = data["MINUTE"]
+                    if 'SMS' in data:
+                        self.result['SMS'] = data["ITEM"]
+                    if 'Internet' in data:
+                        self.result['Internet'] = data["GBYTE"]
                 # Спецверсия для общего пакета, работает только для Donor
                 if self.acc_num.startswith('common'): 
                     if 'RoleDonor' in str(res3):
