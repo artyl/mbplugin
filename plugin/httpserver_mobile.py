@@ -499,7 +499,11 @@ class TelegramBot():
         else:
             lst = ids
         for id in lst:
-            self.updater.bot.sendMessage(chat_id=id, text=text, parse_mode=parse_mode)
+            try:
+                self.updater.bot.sendMessage(chat_id=id, text=text, parse_mode=parse_mode)
+            except Exception:
+                exception_text = f'Ошибка отправки сообщения {text} для {id} telegram bot {"".join(traceback.format_exception(*sys.exc_info()))}'
+                logging.error(exception_text)            
 
     def send_balance(self):
         'Отправляем баланс'
