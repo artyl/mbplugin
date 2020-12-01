@@ -6,7 +6,7 @@
 [stocks_broker_ru]
 stock1 = AAPL, 1, Y 
 stock2 = TATNP, 16, M 
-stock3 = FXIT, 1, M
+stock3 = FXIT, 1, F
 remain1 = USD, 5
 remain2 = RUB, 536
 currenc = USD
@@ -21,10 +21,19 @@ https://finance.yahoo.com/quote/AAPL
 https://query1.finance.yahoo.com/v8/finance/chart/AAPL 
 https://iss.moex.com/iss/engines/stock/markets/shares/securities/TATNP 
 https://iss.moex.com/iss/securities/TATNP.xml
+Для moex можно указать рынок в виде M_TQBR M_TQTF M_TQTD  если не указывать - то M_TQBR
+Акции
+https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.xml?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST
+ETF в рублях
+https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQTF/securities.xml?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST
+ETF в USD
+https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQTD/securities.xml?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST
+ETF в EUR
+https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQTE/securities.xml?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST
 https://finex-etf.ru/products/FXIT
 '''
 ''' Автор ArtyLa '''
-import os, sys, re, time, logging, threading, traceback, queue
+import os, sys, re, time, logging, threading, traceback, queue, json
 import xml.etree.ElementTree as etree
 import requests
 import store, settings
@@ -38,7 +47,7 @@ def get_usd_moex():
     return float(res)
 
 
-def get_yahoo(security, cnt, qu=None):
+def get_yahoo(market, security, cnt, qu=None):
     session = requests.Session()
     url = time.strftime(f'https://query1.finance.yahoo.com/v8/finance/chart/{security}')
     response = session.get(url)
@@ -50,17 +59,24 @@ def get_yahoo(security, cnt, qu=None):
     return res
 
 
-def get_finex(security, cnt, qu=None):
+def get_finex(market, security, cnt, qu=None):
     session = requests.Session()
-    url = time.strftime(f'https://finex-etf.ru/products/{security}')
-    response = session.get(url)
-    res = float(re.sub(r'[^\d\.]','',re.findall(r'singleStockPrice.*?>(.*?)<',response.text)[0]))*cnt, security, 'RUB'
+    #url = f'https://finex-etf.ru/products/{security}'
+    #response = session.get(url)
+    #res = float(re.sub(r'[^\d\.]', '', re.findall(r'singleStockPrice.*?>(.*?)<', response.text)[0]))*cnt, security, 'RUB'
+    url = 'https://api.finex-etf.ru/graphql/'
+    data = {"operationName": "GetFondDetail",
+            "variables": json.dumps({"ticker": security}),
+            "query": "query GetFondDetail($ticker: String!) {fonds(ticker: $ticker){edges {node{price} __typename } __typename }}"}
+    response = session.post(url, data)
+    res = response.json()['data']['fonds']['edges'][0]['node']['price'], security, 'RUB'  # 
     if qu:
         qu.put(res)
     return res
 
 
-def get_moex(security, cnt, qu=None):
+def get_moex_old(market, security, cnt, qu=None):
+    'Старая версия берет данные со страницы о бумаге'
     session = requests.Session()
     url = time.strftime(f'https://iss.moex.com/iss/engines/stock/markets/shares/securities/{security}')
     response = session.get(url)
@@ -76,16 +92,29 @@ def get_moex(security, cnt, qu=None):
         qu.put(res)
     return res
 
+def get_moex(market, security, cnt, qu=None):
+    session = requests.Session()
+    moexmarket = market.upper()[-4:] if len(market)>2 else 'TQBR'
+    marketval = {'TQBR': 'RUB', 'TQTF': 'RUB', 'TQTD': 'USD', 'TQTE': 'EUR'}
+    url = f'https://iss.moex.com/iss/engines/stock/markets/shares/boards/{moexmarket}/securities.xml?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST'
+    response = session.get(url)
+    root=etree.fromstring(response.text)
+    rows = root.find('*[@id="marketdata"]/rows')
+    allsec = {l.items()[0][1]:l.items()[1][1] for l in rows}
+    res =  float(allsec[security.upper()])*cnt, security, marketval[moexmarket]
+    if qu:
+        qu.put(res)
+    return res
 
 def thread_call_market(market,security,cnt,qu):
     logging.debug(f'Collect {market}:{security}')
     try:    
-        if market=='Y':
-            return get_yahoo(security,cnt,qu)
-        elif market=='M':
-            return get_moex(security,cnt,qu)
-        elif market=='F':
-            return get_finex(security,cnt,qu)
+        if market.upper().startswith('Y'):
+            return get_yahoo(market,security,cnt,qu)
+        elif market.upper().startswith('M'):
+            return get_moex(market,security,cnt,qu)
+        elif market.upper().startswith('F'):
+            return get_finex(market,security,cnt,qu)
         else:
             raise RuntimeError(f'Unknown market marker {market} for {security}')
     except:
@@ -116,7 +145,8 @@ def count_all_scocks_multithread(stocks, remain, currenc):
     res_full = '\n'.join([f'{sec+"("+curr+")":10} : {round(val*k[curr],2):9.2f} {currenc}' for val,sec,curr in data])+'\n'
     res_balance = round(sum([val*k[curr] for val,sec,curr in data]) + remain['USD']*k['USD'] + remain['RUB']*k['RUB'],2)
     if len(data) != len(stocks):
-        raise RuntimeError(f'Not all stock was return ({len(data)} of {len(stocks)})')
+        diff = ','.join(set([i[1] for i in data]).symmetric_difference(set([i[0] for i in stocks])))
+        raise RuntimeError(f'Not all stock was return ({len(data)} of {len(stocks)}):{diff}')
     return res_balance, res_full
 
 def get_balance(login, password, storename=None):
