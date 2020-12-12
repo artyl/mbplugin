@@ -70,6 +70,8 @@ ini = {
         # 3 - Поступившее через портал городских услуг (ПГУ)
         'mosenergosbyt_nm_indication_take': '0',
         'mosenergosbyt_nm_indication_variants': '1:ЛКК,2:АИИС КУЭ,3:ПГУ',
+        # Вести отдельный полный лог по стокам (stock.py)
+        'stock_fulllog': '0',
         # average_days - если нет в Options.ini Additional\AverageDays то возьмем отсюда
         # Количество дней для расчета среднего по истории
         'average_days': 30,

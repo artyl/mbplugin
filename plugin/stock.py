@@ -52,8 +52,8 @@ def get_yahoo(market, security, cnt, qu=None):
     url = time.strftime(f'https://query1.finance.yahoo.com/v8/finance/chart/{security}')
     response = session.get(url)
     meta = response.json()['chart']['result'][0]['meta']
-    meta['regularMarketPrice']
-    res = meta['regularMarketPrice']*cnt, security, 'USD'
+    price = meta['regularMarketPrice']
+    res = {'security':security, 'price':price,'value':price*cnt, 'cnt': cnt, 'currency':'USD'}
     if qu:
         qu.put(res)
     return res
@@ -69,7 +69,8 @@ def get_finex(market, security, cnt, qu=None):
             "variables": json.dumps({"ticker": security}),
             "query": "query GetFondDetail($ticker: String!) {fonds(ticker: $ticker){edges {node{price} __typename } __typename }}"}
     response = session.post(url, data)
-    res = response.json()['data']['fonds']['edges'][0]['node']['price'], security, 'RUB'  # 
+    price = response.json()['data']['fonds']['edges'][0]['node']['price']
+    res = {'security':security, 'price':price,'value':price*cnt, 'cnt': cnt, 'currency':'RUB'}
     if qu:
         qu.put(res)
     return res
@@ -87,7 +88,8 @@ def get_moex_old(market, security, cnt, qu=None):
     rows_market = root.findall('*[@id="marketdata"]/rows')[0]
     prevwarprices = [c.get('PREVWAPRICE') for c in list(rows_securities) if c.get('PREVWAPRICE')!='']
     lasts = [c.get('LAST') for c in list(rows_market) if c.get('LAST')!='']
-    res =  float(lasts[0] if lasts != [] else prevwarprices[0])*cnt, security, 'RUB'
+    price =  float(lasts[0] if lasts != [] else prevwarprices[0])
+    res = {'security':security, 'price':price,'value':price*cnt, 'cnt': cnt, 'currency':'RUB'}
     if qu:
         qu.put(res)
     return res
@@ -101,7 +103,8 @@ def get_moex(market, security, cnt, qu=None):
     root=etree.fromstring(response.text)
     rows = root.find('*[@id="marketdata"]/rows')
     allsec = {l.items()[0][1]:l.items()[1][1] for l in rows}
-    res =  float(allsec[security.upper()])*cnt, security, marketval[moexmarket]
+    price = float(allsec[security.upper()])
+    res = {'security':security, 'price':price,'value':price*cnt, 'cnt': cnt, 'currency':marketval[moexmarket]}
     if qu:
         qu.put(res)
     return res
@@ -141,13 +144,15 @@ def count_all_scocks_multithread(stocks, remain, currenc):
     while qu.qsize()>0:
         data.append(qu.get_nowait())
     orderlist = list(zip(*stocks))[0] # Порядок, в котором исходно шли бумаги
-    data.sort(key=lambda i:orderlist.index(i[1])) # Сортируем в исходном порядке
-    res_full = '\n'.join([f'{sec+"("+curr+")":10} : {round(val*k[curr],2):9.2f} {currenc}' for val,sec,curr in data])+'\n'
-    res_balance = round(sum([val*k[curr] for val,sec,curr in data]) + remain['USD']*k['USD'] + remain['RUB']*k['RUB'],2)
+    data.sort(key=lambda i:orderlist.index(i['security'])) # Сортируем в исходном порядке
+    for line in data:
+        line['value_priv'] = line['value']*k[line['currency']]
+    res_full = '\n'.join([f'{i["security"]+"("+i["currency"]+")":10} : {round(i["value_priv"],2):9.2f} {currenc}' for i in data])+'\n'
+    res_balance = round(sum([i['value_priv'] for i in data]) + remain['USD']*k['USD'] + remain['RUB']*k['RUB'],2)
     if len(data) != len(stocks):
-        diff = ','.join(set([i[1] for i in data]).symmetric_difference(set([i[0] for i in stocks])))
+        diff = ','.join(set([i['security'] for i in data]).symmetric_difference(set([i[0] for i in stocks])))
         raise RuntimeError(f'Not all stock was return ({len(data)} of {len(stocks)}):{diff}')
-    return res_balance, res_full
+    return res_balance, res_full, data
 
 def get_balance(login, password, storename=None):
     result = {}
@@ -155,7 +160,10 @@ def get_balance(login, password, storename=None):
     stocks = data['stocks']
     remain = data['remain']
     currenc = data['currenc']
-    res_balance, res_full = count_all_scocks_multithread(stocks, remain, currenc)
+    res_balance, res_full, res_data = count_all_scocks_multithread(stocks, remain, currenc)
+    if store.options('stock_fulllog'):
+        fulllog = '\n'.join(f'{time.strftime("%Y.%m.%d %H:%M:%S",time.localtime())}\t{i["security"]}\t{i["price"]}\t{i["currency"]}\t{i["cnt"]}\t{round(i["value"],2)}\t{round(i["value_priv"],2)}' for i in res_data)
+        open(os.path.join(store.options('loggingfolder'),f'stock_{login}.log'),'a').write(fulllog+'\n')
     result['Stock'] = res_full # Полная информация по стокам
     result['Balance'] = res_balance # Сумма в заданной валюте
     result['Currenc'] = currenc # Валюта
