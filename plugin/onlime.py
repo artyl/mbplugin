@@ -14,7 +14,7 @@ class sipnet_over_puppeteer(pa.balance_over_puppeteer):
                             'password_clear_js': "document.querySelector('div.lk-login input[type=password]').value=''",
                             'login_selector': 'div.lk-login input[name=auth_login]', 
                             'password_selector': 'div.lk-login input[type=password]', 
-                            'submit_selector': 'div.lk-login input[type=submit]'
+                            'submit_js': 'document.querySelector("div.lk-login input[type=submit]").click()',
                             })
         # Здесь мы берем данные с загружаемой страницы 
         await self.wait_params(params=[
