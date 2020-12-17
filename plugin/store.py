@@ -123,9 +123,12 @@ class ini():
                 # phones.ini - нечестный ini читать приходится с извратами
                 # replace [Phone] #123 -> [Phone #123]
                 prep1 = re.sub(r'(?usi)\[Phone\] #(\d+)', r'[\1]', open(self.inipath).read())
-                # TODO костыль, мы подменяем p_pluginLH на p_plugin чтобы при переключении плагина не разъезжались данные
+                # TODO костыль N1, мы подменяем p_pluginLH на p_plugin чтобы при переключении плагина не разъезжались данные
                 prep2 = re.sub(r'(?usi)(Region\s*=\s*p_\S+)LH', r'\1', prep1)
-                self.ini.read_string(prep2)
+                # TODO костыль N2, у Number то что идет в конце вида <пробел>#<цифры> это не относиться к логину а 
+                # сделано для уникальности логинов - выкидываем, оно нас тольк сбивает - мы работаем по паре Region_Number
+                prep3 = re.sub(r'(?usi)(Number\s*=\s*\S+) #\d+', r'\1', prep2)
+                self.ini.read_string(prep3)
             else:
                 self.ini.read(self.inipath)
         elif not os.path.exists(self.inipath) and self.fn.lower() == settings.mbplugin_ini:

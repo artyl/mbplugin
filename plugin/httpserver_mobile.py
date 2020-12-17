@@ -46,7 +46,7 @@ def detbalance_standalone(filter=[]):
     for val in phones.values():
         # Проверяем все у кого задан плагин, логин и пароль пароль
         if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
-            if filter == [] or [1 for i in filter if i.lower() in val['Region'].lower() or i.lower() in val['Number'].lower() or i.lower() in val['Alias'].lower()] != []:
+            if filter == [] or [1 for i in filter if i.lower() in f"{val['Region']}_{val['Number']}_{val['Alias']}".lower()] != []:
                 # Формируем очередь на получение балансов и размечаем балансы из очереди в таблице flags чтобы красить их по другому
                 queue_balance.append(val)
                 dbengine.flags('set',f"{val['Region']}_{val['Number']}",'queue')  # выставляем флаг о постановке в очередь
@@ -269,7 +269,7 @@ def filter_balance(table, filter='FULL', params={}):
     # фильтр по filter_include - оставляем только строчки попавшие в фильтр
     if params.get('include', None) is not None:
         filter_include = [re.sub(r'\W', '', el).lower() for el in params['include'].split(',')]
-        table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', '_'.join(map(str,line.values())).lower())])>0]
+        table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', ('_'.join(map(str,line.values()))+line.get('Operator','')+'_'+line.get('PhoneNumber','')).lower())])>0]
     # фильтр по filter_exclude - выкидываем строчки попавшие в фильтр
     if params.get('exclude', None) is not None:
         filter_exclude = [re.sub(r'\W', '', el).lower() for el in params['exclude'].split(',')]
@@ -537,8 +537,8 @@ class TelegramBot():
         logging.info(f'TG:{update.message.chat_id} /getone {context}')
         phones = store.ini('phones.ini').phones()
         keyboard = []
-        for val in list(phones.values())+[{'Alias':'Cancel', 'Number':'Cancel'}]:
-            pair = InlineKeyboardButton(val['Alias'], callback_data=val['Number'])
+        for val in list(phones.values())+[{'Alias':'Cancel', 'Region':'Cancel', 'Number':'Cancel'}]:
+            pair = InlineKeyboardButton(val['Alias'], callback_data=f"{val['Region']}_{val['Number']}")
             if len(keyboard) == 0 or len(keyboard[-1]) == 3:
                 keyboard.append([pair])
             else:
@@ -550,24 +550,22 @@ class TelegramBot():
     def button(self, update, context) -> None:
         query = update.callback_query
         query.answer()
-        if query.data == 'Cancel':
+        if query.data.startswith('Cancel'):
             query.edit_message_text('Canceled', parse_mode=telegram.ParseMode.HTML)
             return
-        phones = store.ini('phones.ini').phones()
         logging.info(f'TG:reply /getone CHOISE:{context}')
         query.edit_message_text('Request received. Wait...', parse_mode=telegram.ParseMode.HTML)
-        detbalance_standalone(filter=[query.data])
+        detbalance_standalone(filter=query.data)
         params = {'include': query.data}
         baltxt = prepare_balance('FULL', params=params)
         query.edit_message_text(baltxt, parse_mode=telegram.ParseMode.HTML)
-        # Детализация UslugiList
-        values = [i for i in phones.values() if i['Number']==query.data]
-        if len(values)>0:
-            val=values[0]
+        # Детализация UslugiList по ключу val['Region']}_{val['Number']
         responses = dbengine.responses()
-        region = val['Region']
-        number = re.sub(' #\d+','',val['Number'])
-        response = json.loads(responses[f"{region}_{number}"])
+        if query.data in responses:
+            response = json.loads(responses[f"{query.data}"])
+        else:
+            logging.info(f'Not found responce in responses for {query.data}')
+            return 
         if response.get('UslugiList','') != '':
             msgtxt = f"{baltxt}\n{response['UslugiList']}"
             try:
@@ -575,6 +573,9 @@ class TelegramBot():
             except Exception:
                 msgtxt = msgtxt.replace('<','').replace('>','')
                 query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
+        else:
+            logging.info(f'Not found UslugiList in response for {query.data}')
+            return 
 
     def send_message(self, text, parse_mode='HTML', ids=None):
         if self.updater is None or text == '':
