@@ -279,7 +279,7 @@ class balance_over_puppeteer():
         return await self.page.waitForSelector(selector, {'timeout': 10000})
 
     @async_check_browser_opened_decorator
-    async def do_logon(self, url,user_selectors={}):
+    async def do_logon(self, url, user_selectors={}):
         'Делаем заход в личный кабинет/ проверяем не залогинены ли уже'
         'На вход передаем словарь селекторов и скриптов который перекроет действия по умолчанию'
         'Если какой-то из шагов по умолчанию хотим пропустить, передаем пустую строку'
@@ -309,7 +309,8 @@ class balance_over_puppeteer():
         if set(user_selectors)-set(selectors) != set():
             logging.error(f'Не все ключи из user_selectors есть в selectord. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}')
         selectors.update(user_selectors)
-        await self.page_goto(url)
+        if url != '':  # Иногда мы должны слежным путем попасть на страницу - тогда указываемпустой url
+            await self.page_goto(url)
         await self.page_waitForNavigation()
         if not await self.page_evaluate(selectors['chk_lk_page_js']) and not await self.page_evaluate(selectors['chk_login_page_js']):
             # Мы не в личном кабинете и не на странице логона - попробуем обновить страницу

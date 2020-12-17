@@ -9,7 +9,8 @@ except ModuleNotFoundError:
     print('No win32 installed, no tray icon')
 try:
     import telegram
-    from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
 except ModuleNotFoundError:
     print('No telegram installed, no telegram bot')
 
@@ -41,15 +42,20 @@ def detbalance_standalone(filter=[]):
     '''
     turn_logging()  # Т.к. сюда можем придти извне, то включаем логирование здесь
     phones = store.ini('phones.ini').phones()
+    queue_balance = []  # Очередь телефонов на получение баданса
     for val in phones.values():
         # Проверяем все у кого задан плагин, логин и пароль пароль
         if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
             if filter == [] or [1 for i in filter if i.lower() in val['Region'].lower() or i.lower() in val['Number'].lower() or i.lower() in val['Alias'].lower()] != []:
-                # TODO пока дергаем метод от вебсервера там уже все есть, потом может вынесем отдельно
-                try:
-                    getbalance_plugin('get',{'plugin':[val['Region']],'login':[val['Number']],'password':[val['Password2']],'date':['date']})
-                except:
-                    logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {''.join(traceback.format_exception(*sys.exc_info()))}")
+                # Формируем очередь на получение балансов и размечаем балансы из очереди в таблице flags чтобы красить их по другому
+                queue_balance.append(val)
+                dbengine.flags('set',f"{val['Region']}_{val['Number']}",'queue')  # выставляем флаг о постановке в очередь
+    for val in queue_balance:
+        # TODO пока дергаем метод от вебсервера там уже все есть, потом может вынесем отдельно
+        try:
+            getbalance_plugin('get',{'plugin':[val['Region']],'login':[val['Number']],'password':[val['Password2']],'date':['date']})
+        except:
+            logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {''.join(traceback.format_exception(*sys.exc_info()))}")
 
 def getbalance_plugin(method, param_source):
     'fplugin, login, password, date'
@@ -76,8 +82,14 @@ def getbalance_plugin(method, param_source):
         module = __import__(plugin, globals(), locals(), [], 0)
         importlib.reload(module)  # обновляем модуль, на случай если он менялся
         storename = re.sub(r'\W', '_', f"{lang}_{plugin}_{param['login']}")
-        result = module.get_balance(param['login'], param['password'], storename)
+        dbengine.flags('set',f"{lang}_{plugin}_{param['login']}",'start')  # выставляем флаг о начале запроса
+        try:
+            result = module.get_balance(param['login'], param['password'], storename)
+        except:
+            dbengine.flags('set',f"{lang}_{plugin}_{param['login']}",'error call')  # выставляем флаг о ошибке вызова
+            return 'text/html', [f"<html>Error call {param['fplugin']}</html>"]
         text = store.result_to_html(result)
+        dbengine.flags('delete',f"{lang}_{plugin}_{param['login']}",'start')  # запрос завершился успешно - сбрасываем флаг
         # пишем в базу
         dbengine.write_result_to_db(f'{lang}_{plugin}', param['login'], result)
         # обновляем данные из mdb
@@ -123,10 +135,10 @@ def getreport(param=[]):
             mark = ' class="mark" '  # Красим недавно поменялся а не должен был
         if el is None:
             el = ''
-        if type(el) == float:
-            el = round(el,2)
         if he != 'Balance' and (el == 0.0 or el == 0) and mark == '':
             el = ''
+        if type(el) == float:
+            el = f'{el:.2f}'  #round(el,2)
         if hover != '':
             el = f'<div class="item">{el}<div class="hoverHistory">{hover}</div></div>'
         return f'<{"th" if he=="NN" else "td"} id="{he}"{mark}>{el}</td>'
@@ -154,9 +166,8 @@ def getreport(param=[]):
     #Indication, #Alias, #KreditLimit, #PhoneDescr, #UserName, #PhoneNum, #PhoneNumber, #BalExpired, #LicSchet, #TarifPlan, #BlockStatus, #AnyString, #LastQueryTime{text-align: left}
     </style>'''
     template_page = '''
-    <?xml version="1.0" encoding="windows-1251" ?>
-    <html>
-    <head><title>MobileBalance</title></head>{style}
+     <html>
+    <head><title>MobileBalance</title><meta http-equiv="content-type" content="text/html; charset=windows-1251"></head>{style}
     <body style="font-family: Verdana; cursor:default">
     <table class="BackgroundTable">
     <tr><td class="hdr">Информация о балансе телефонов - MobileBalance Mbplugin</td></tr>
@@ -171,7 +182,7 @@ def getreport(param=[]):
     </html>'''
     template_history = '''
     <table class="HistoryBgTable">
-    <tr><td class="hdr">История запросов по {h_header}</td></tr>
+    <tr><td class="hdr">{h_header}</td></tr>
     <tr><td bgcolor="#808080">
     <table class="HistoryTable" border="0" cellpadding="2" cellspacing="1">
         <tr class="header">{html_header}</tr>
@@ -181,6 +192,8 @@ def getreport(param=[]):
     </table>
     '''    
     db = dbengine.dbengine(store.options('dbfilename'))
+    flags = dbengine.flags('getall')  # берем все флаги словарем
+    responses = dbengine.responses()  # все ответы по запросам
     # номера провайдеры и логины из phones.ini
     num_format = '' if len(param) == 0 or not param[0].isnumeric() else str(int(param[0]))
     table_format = store.options('table_format' + num_format, default=store.options('table_format',section='HttpServer'), section='HttpServer')
@@ -202,17 +215,35 @@ def getreport(param=[]):
             if he not in line:
                 continue
             hover = ''
+            if he == 'UslugiOn':  # На услуги вешаем hover со списоком услуг
+                uslugi = json.loads(responses.get(f"{line['Operator']}_{line['PhoneNumber']}",'{}')).get('UslugiList','')
+                if uslugi !='':
+                    h_html_header = f'<th id="hUsluga" class="p_n">Услуга</th><th id="hPrice" class="p_n">р/мес</th>'
+                    h_html_table = []
+                    for h_line in [l.split('\t',1) for l in sorted(uslugi.split('\n')) if '\t' in l]:
+                        txt = h_line[0].replace("  "," &nbsp;")
+                        bal = f'{float(h_line[1]):.2f}' if re.match(r'^ *-?\d+(?:\.\d+)? *$', h_line[1]) else h_line[1]
+                        h_html_line = f'<td id="Alias">{txt}</td><td id="Balance">{bal}</td>'
+                        h_html_table.append(f'<tr id="row" class="n">{h_html_line}</tr>')
+                    hover = template_history.format(h_header=f"Список услуг по {line['Alias']}", html_header=h_html_header, html_table='\n'.join(h_html_table))
             if he == 'Balance':  # На баланс вешаем hover с историей
                 history = db.history(line['PhoneNumber'], line['Operator'], int(store.options('RealAverageDays')), int(store.options('ShowOnlyLastPerDay')))
                 if history != []:
-                    h_html_header = ''.join([f'<th id="h{h}" class="{header_class.get(h,"p_n")}">{dbengine.PhonesHText.get(h,h)}</th>' for h in history[0].keys()])                      
+                    h_html_header = ''.join([f'<th id="h{h}" class="{header_class.get(h,"p_n")}">{dbengine.PhonesHText.get(h,h)}</th>' for h in history[0].keys()])
                     h_html_table = []
                     for h_line in history:
                         h_html_line = ''.join([pp_field(pkey, h, v, '') for h,v in h_line.items()])
-                        h_html_table.append(f'<tr id="row" class="n">{"".join(h_html_line)}</tr>')
-                    hover = template_history.format(h_header=line['Alias'], html_header=h_html_header, html_table='\n'.join(h_html_table))
+                        h_html_table.append(f'<tr id="row" class="n">{h_html_line}</tr>')
+                    hover = template_history.format(h_header=f"История запросов по {line['Alias']}", html_header=h_html_header, html_table='\n'.join(h_html_table))
             html_line.append(pp_field(pkey, he, line[he], hover))  # append <td>...</td>
-        html_table.append(f'<tr id="row" class="n">{"".join(html_line)}</tr>')
+        classflag = 'n'  # красим строки - с ошибкой красным, еще в очереди - серым и т.д.
+        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}",'').startswith('error'):  
+            classflag = 'e_us'
+        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}",'').startswith('start'):
+            classflag = 'n_us'
+        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}",'').startswith('queue'):
+            classflag = 'n_us'
+        html_table.append(f'<tr id="row" class="{classflag}">{"".join(html_line)}</tr>')
     style = style.replace('{HoverCss}',store.options('HoverCss'))
     res = template_page.format(style=style, html_header=html_header, html_table='\n'.join(html_table))
     return 'text/html', [res]
@@ -225,29 +256,34 @@ def write_report():
             _, res = getreport()
             balance_html = store.options('balance_html')
             logging.info(f'Создаем {balance_html}')
-            open(balance_html, encoding='utf8', mode='w').write('\n'.join(res))
+            open(balance_html, encoding='cp1251', mode='w').write('\n'.join(res))
     except Exception:
-        logging.error(f'Ошибка генерации {balance_html} {"".join(traceback.format_exception(*sys.exc_info()))}')
-
+        logging.error(f'Ошибка генерации balance_html {"".join(traceback.format_exception(*sys.exc_info()))}')
 
 def filter_balance(table, filter='FULL', params={}):
     ''' Фильтруем данные для отчета
     filter = FULL - Все телефоны, LASTCHANGE - Изменивниеся за день, LASTCHANGE - Изменившиеся в последнем запросе
     params['include'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат
-    params['exclude'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат'''
-    # фильтр по filter_include
+    params['exclude'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для исключения из результата'''
+    flags = dbengine.flags('getall') 
+    # фильтр по filter_include - оставляем только строчки попавшие в фильтр
     if params.get('include', None) is not None:
         filter_include = [re.sub(r'\W', '', el).lower() for el in params['include'].split(',')]
         table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', '_'.join(map(str,line.values())).lower())])>0]
-    # фильтр по filter_exclude
+    # фильтр по filter_exclude - выкидываем строчки попавшие в фильтр
     if params.get('exclude', None) is not None:
         filter_exclude = [re.sub(r'\W', '', el).lower() for el in params['exclude'].split(',')]
         table = [line for line in table if len([1 for i in filter_exclude if i in re.sub(r'\W', '', '_'.join(map(str,line.values())).lower())])==0]
     if filter == 'LASTCHANGE':  # TODO сделать настройку в ini на счет line['Balance']
         # Balance==0 Это скорее всего глюк проверки, соответственно его исключаем
         # Также исключаем BalDeltaQuery==Balance - это возврат обратно с кривого нуля
-        table = [line for line in table if line['BalDeltaQuery'] != 0 and line['Balance'] !=0 and line['BalDeltaQuery'] != line['Balance']]
-        table = [line for line in table if line['BalDeltaQuery'] != '' and line['Balance'] !='']
+        # BUG: line['Operator'] и line['PhoneNumber']в случае получения отчета через MobileBalance будет давать KeyError: 
+        # Так что делаем костыль с .get который приведет к тому что это условие мы не зацепим
+        table = [line for line in table
+                 if line['BalDeltaQuery'] != 0 and line['Balance'] != 0 and line['BalDeltaQuery'] != line['Balance']
+                 and line['BalDeltaQuery'] != '' and line['Balance'] != ''
+                 or flags.get(f"{line.get('Operator','')}_{line.get('PhoneNumber','')}", '').startswith('error')
+                 ]
     elif filter == 'LASTDAYCHANGE':
         table = [line for line in table if line['BalDelta'] != 0 and line['Balance'] !=0]
         table = [line for line in table if line['BalDelta'] != '' and line['Balance'] !='']
@@ -284,8 +320,11 @@ def prepare_balance_sqlite(filter='FULL', params={}):
     db = dbengine.dbengine(store.options('dbfilename', mainparams=params))
     table_format = store.options('tg_format', section='Telegram', mainparams=params).replace('\\t','\t').replace('\\n','\n')
     phones = store.ini('phones.ini').phones()
+    flags = dbengine.flags('getall')
     def alert_suffix(line):
         pkey = (line['PhoneNumber'],line['Operator'])
+        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}",'').startswith('error'):
+            return '<b> ! последняя попытка получить баланс завершилась ошибкой !</b>'
         if line['Balance'] is not None and line['Balance'] < float(phones[pkey]['BalanceLessThen']):
             return '<b> ! достигнут порог баланса !</b>'
         if line['CalcTurnOff'] is not None and line['CalcTurnOff'] < int(phones[pkey]['TurnOffLessThen']):
@@ -447,7 +486,8 @@ class TrayIcon:
 class TelegramBot():
     def auth_decorator(func):  # pylint: disable=no-self-argument
         def wrapper(self, update, context):
-            if update.message.chat_id in self.auth_id():
+            # update.message.chat_id отсутствует у CallbackQueryHandler пробуем через update.effective_chat.id:
+            if update.effective_chat.id in self.auth_id():
                 res = func(self, update, context)  # pylint: disable=not-callable
                 return res
             else:
@@ -490,6 +530,51 @@ class TelegramBot():
         params = {'include': None if context.args == [] else ','.join(context.args)}
         baltxt = prepare_balance('FULL', params=params)
         update.message.reply_text(baltxt, parse_mode=telegram.ParseMode.HTML)
+
+    @auth_decorator
+    def getone(self, update, context):
+        """Receive one balance with inline keyboard, only auth user."""
+        logging.info(f'TG:{update.message.chat_id} /getone {context}')
+        phones = store.ini('phones.ini').phones()
+        keyboard = []
+        for val in list(phones.values())+[{'Alias':'Cancel', 'Number':'Cancel'}]:
+            pair = InlineKeyboardButton(val['Alias'], callback_data=val['Number'])
+            if len(keyboard) == 0 or len(keyboard[-1]) == 3:
+                keyboard.append([pair])
+            else:
+                keyboard[-1].append(pair)
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        update.message.reply_text('Please choose:', reply_markup=reply_markup)
+
+    @auth_decorator
+    def button(self, update, context) -> None:
+        query = update.callback_query
+        query.answer()
+        if query.data == 'Cancel':
+            query.edit_message_text('Canceled', parse_mode=telegram.ParseMode.HTML)
+            return
+        phones = store.ini('phones.ini').phones()
+        logging.info(f'TG:reply /getone CHOISE:{context}')
+        query.edit_message_text('Request received. Wait...', parse_mode=telegram.ParseMode.HTML)
+        detbalance_standalone(filter=[query.data])
+        params = {'include': query.data}
+        baltxt = prepare_balance('FULL', params=params)
+        query.edit_message_text(baltxt, parse_mode=telegram.ParseMode.HTML)
+        # Детализация UslugiList
+        values = [i for i in phones.values() if i['Number']==query.data]
+        if len(values)>0:
+            val=values[0]
+        responses = dbengine.responses()
+        region = val['Region']
+        number = re.sub(' #\d+','',val['Number'])
+        response = json.loads(responses[f"{region}_{number}"])
+        if response.get('UslugiList','') != '':
+            msgtxt = f"{baltxt}\n{response['UslugiList']}"
+            try:
+                query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
+            except Exception:
+                msgtxt = msgtxt.replace('<','').replace('>','')
+                query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
 
     def send_message(self, text, parse_mode='HTML', ids=None):
         if self.updater is None or text == '':
@@ -551,6 +636,8 @@ class TelegramBot():
                 dp.add_handler(CommandHandler("balance", self.get_balancetext))
                 dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
                 dp.add_handler(CommandHandler("receivebalance", self.receivebalance))
+                dp.add_handler(CommandHandler("getone", self.getone))
+                dp.add_handler(CallbackQueryHandler(self.button))
                 self.updater.start_polling()  # Start the Bot
                 if str(store.options('send_empty', section='Telegram'))=='1':
                     self.send_message(text='Hey there!')

@@ -9,10 +9,10 @@ https://stackoverflow.com/questions/45362440/32bit-pyodbc-for-32bit-python-3-6-w
 set up some constants
 
 '''
-import time, os, sys, re, logging, traceback, pyodbc, sqlite3, datetime
+import time, os, sys, re, logging, traceback, pyodbc, sqlite3, datetime, json
 import settings, store
 
-DB_SCHEMA = '''
+DB_SCHEMA = ['''
 CREATE TABLE IF NOT EXISTS Phones (
     NN INTEGER NOT NULL DEFAULT NULL PRIMARY KEY AUTOINCREMENT,
     [PhoneNumber] [nvarchar] (150), -- COLLATE Cyrillic_General_CI_AS NULL ,
@@ -61,10 +61,18 @@ CREATE TABLE IF NOT EXISTS Phones (
     [NoChangeDays] [int] NULL ,
     [AnyString] [nchar] (250), -- COLLATE Cyrillic_General_CI_AS NULL ,
     [CalcTurnOff] [int] NULL
+);''','''
+CREATE TABLE IF NOT EXISTS Flags (
+    [key] [nvarchar] (150) PRIMARY KEY, 
+    [value] [nvarchar] (150) NULL
+);''','''
+CREATE TABLE IF NOT EXISTS Responses (
+    [key] [nvarchar] (150) PRIMARY KEY, 
+    [value] [nvarchar] (10000) NULL
 )
 -- CREATE INDEX idx_PhoneNumber_Operator ON Phones (PhoneNumber,Operator);
 -- CREATE INDEX idx_QueryDateTime ON Phones (QueryDateTime);
-'''
+''']
 PhonesHText = {
     'NN': 'NN',
     'Alias': 'Псевдоним',
@@ -181,6 +189,8 @@ class dbengine():
         if line.get('RealAverage', 0.0) < 0:
             line['CalcTurnOff'] = round(-line['Balance'] / line['RealAverage'], 2)
         self.cur.execute(f'insert into phones ({",".join(line.keys())}) VALUES ({",".join(list("?"*len(line)))})', list(line.values()))
+        result2['QueryDateTime']=datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
+        self.cur.execute('REPLACE INTO responses(key,value) VALUES(?,?)', [f'{plugin}_{login}', json.dumps(result2, ensure_ascii=False)])
         if commit:
             self.conn.commit()
 
@@ -217,7 +227,9 @@ class dbengine():
         dbheaders = list(zip(*cur.description))[0]
         dbdata = cur.fetchall()
         dbdata_sets = [set(l) for l in zip(*dbdata)]  # составляем список уникальных значений по каждой колонке
-        dbdata_sets = [{i for i in l if str(i).strip() not in ['','None','0.0','0'] } for l in dbdata_sets]  # подправляем косяки 
+        dbdata_sets = [{i for i in l if str(i).strip() not in ['','None','0.0','0'] } for l in dbdata_sets]  # подправляем косяки
+        if len(dbdata_sets) == 0:  # Истории нет - возвращаем пустой
+            return []
         qtimes_num = dbheaders.index('QueryDateTime')
         qtimes = [line[qtimes_num] for line in dbdata]  # Список всех времен получения баланса
         qtimes_max = {max([k for k in qtimes if k.startswith(j)]) for j in {i.split()[0] for i in qtimes}}  # Последние даты получения баланса за сутки
@@ -233,7 +245,7 @@ class dbengine():
 
     def check_and_add_addition(self):
         'Создаем таблицы, добавляем новые поля, и нужные индексы если их нет'
-        self.cur.execute(DB_SCHEMA)
+        [self.cur.execute(query) for query in DB_SCHEMA]
         for k, v in addition_phone_fields.items():
             self.cur.execute("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('phones') WHERE name=?", [k])
             if self.cur.fetchall()[0][0] == 0:
@@ -387,6 +399,52 @@ def write_result_to_db(plugin, login, result):
     except Exception:
         logging.error(f'Ошибка при записи в БД {"".join(traceback.format_exception(*sys.exc_info()))}')
 
+
+def flags(cmd, key=None, value=None):
+    'Работаем с флагами (таблица Flags) если в ini установлен sqlitestore=1, если нет просто вернем None'
+    try:
+        if store.options('sqlitestore') == '1':
+            dbfilename = store.options('dbfilename')
+            logging.debug(f'Flag:{cmd}')
+            db = dbengine(dbfilename)
+            if cmd.lower() == 'set':
+                db.cur.execute('REPLACE INTO flags(key,value) VALUES(?,?)', [key, value])
+                db.conn.commit()
+            elif cmd.lower() == 'get':
+                db.cur.execute('select value from flags where key=?', [key])
+                qres = db.cur.fetchall()
+                if len(qres) > 0:
+                    return qres[0][0]
+            elif cmd.lower() == 'getall':
+                db.cur.execute('select * from flags')
+                qres = db.cur.fetchall()
+                return {k: v for k, v in qres}
+            elif cmd.lower() == 'deleteall':
+                db.cur.execute('delete from flags')
+                db.conn.commit()
+            elif cmd.lower() == 'delete':
+                db.cur.execute('delete from flags where key=?', [key])
+                db.conn.commit()
+        else:
+            if cmd.lower() == 'getall':
+                return {}
+    except Exception:
+        logging.error(f'Ошибка при записи в БД {"".join(traceback.format_exception(*sys.exc_info()))}')
+
+def responses():
+    'Возвращаем все responses словарем'
+    try:
+        if store.options('sqlitestore') == '1':
+            dbfilename = store.options('dbfilename')
+            logging.debug(f'Responses from sqlite')
+            db = dbengine(dbfilename)
+            db.cur.execute('select key,value from responses')
+            qres = db.cur.fetchall()
+            return {k: v for k, v in qres}
+        else:
+            return {}
+    except Exception:
+        logging.error(f'Ошибка при записи в БД {"".join(traceback.format_exception(*sys.exc_info()))}')
 
 if __name__ == '__main__':
     print('This is module dbengine')

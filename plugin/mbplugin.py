@@ -48,6 +48,7 @@ def main():
     
     # Запуск плагина
     logging.info(f'Start {lang} {plugin} {login}')
+    dbengine.flags('set',f'{lang}_{plugin}_{login}','start')  # выставляем флаг о начале запроса
     try:
         storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
         result = module.get_balance(login, password, storename)
@@ -55,6 +56,7 @@ def main():
         exception_text = f'Ошибка при вызове модуля \n{plugin}: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)
         sys.stdout.write(exception_text)
+        dbengine.flags('set',f'{lang}_{plugin}_{login}','error call')  # выставляем флаг о ошибке вызова
         return -1
     # Готовим результат
     try:
@@ -63,7 +65,9 @@ def main():
         exception_text = f'Ошибка при подготовке результата: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)
         sys.stdout.write(exception_text)
+        dbengine.flags('set',f'{lang}_{plugin}_{login}','error result')  # выставляем флаг о плохом результате]
         return -1
+    dbengine.flags('delete',f'{lang}_{plugin}_{login}','start')  # запрос завершился успешно - сбрасываем флаг
     # пишем в базу
     dbengine.write_result_to_db(f'{lang}_{plugin}', login, result)
     # обновляем данные из mdb
