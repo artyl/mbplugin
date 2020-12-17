@@ -56,7 +56,7 @@ def get_balance(login, password, storename=None):
     # Тарифный план у tele2 за услугу не считается, так что просто прибавляем его цену
     tarif_fee = get_data(response_t).get('currentAbonentFee', {}).get('amount', 0)
     tarif_period = get_data(response_t).get('period')
-    paid_sum = tarif_fee*settings.UNIT.get(tarif_period, 1)
+    paid_tarif = tarif_fee*settings.UNIT.get(tarif_period, 1)
     services = []
     for el in get_data(response_с):
         name = el.get('name', '')
@@ -67,8 +67,9 @@ def get_balance(login, password, storename=None):
         services.append((name, fee*kperiod))
     free = len([a for a, b in services if b == 0])  # бесплатные
     paid = len([a for a, b in services if b != 0])  # платные
-    paid_sum = paid_sum+round(sum([b for a, b in services if b != 0]), 2)
+    paid_sum = paid_tarif+round(sum([b for a, b in services if b != 0]), 2)
     result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
+    services.append(['Tarif:'+result['TarifPlan'], paid_tarif])  # Добавляем тарифный план как бы как услугу (но после того как все посчитали)
     result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
 
     # остатки

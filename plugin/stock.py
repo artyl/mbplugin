@@ -146,7 +146,7 @@ def count_all_scocks_multithread(stocks, remain, currenc):
     orderlist = list(zip(*stocks))[0] # Порядок, в котором исходно шли бумаги
     data.sort(key=lambda i:orderlist.index(i['security'])) # Сортируем в исходном порядке
     for line in data:
-        line['value_priv'] = line['value']*k[line['currency']]
+        line['value_priv'] = round(line['value']*k[line['currency']],2)
     res_full = '\n'.join([f'{i["security"]+"("+i["currency"]+")":10} : {round(i["value_priv"],2):9.2f} {currenc}' for i in data])+'\n'
     res_balance = round(sum([i['value_priv'] for i in data]) + remain['USD']*k['USD'] + remain['RUB']*k['RUB'],2)
     if len(data) != len(stocks):
@@ -156,17 +156,29 @@ def count_all_scocks_multithread(stocks, remain, currenc):
 
 def get_balance(login, password, storename=None):
     result = {}
+    session = store.Session(storename)  # Используем костылем для хранения предыдущих данных 
+    # если у нас еще нет переменной для истории - создаем (грязный хак - не делайте так, а если делаете - не пользуйтесь этой сессией для хождения в инет, а только для сохранения):
+    session.session.params['history'] = session.session.params.get('history',[])
     data = store.read_stocks(login.lower())
     stocks = data['stocks']
     remain = data['remain']
     currenc = data['currenc']
     res_balance, res_full, res_data = count_all_scocks_multithread(stocks, remain, currenc)
+    session.session.params['history'].append({'timestamp':time.time(),'data':res_data})  # Полученное значение сразу добавляем в хвост истории
     if store.options('stock_fulllog'):
         fulllog = '\n'.join(f'{time.strftime("%Y.%m.%d %H:%M:%S",time.localtime())}\t{i["security"]}\t{i["price"]}\t{i["currency"]}\t{i["cnt"]}\t{round(i["value"],2)}\t{round(i["value_priv"],2)}' for i in res_data)
         open(os.path.join(store.options('loggingfolder'),f'stock_{login}.log'),'a').write(fulllog+'\n')
     result['Stock'] = res_full # Полная информация по стокам
+    result['UslugiOn'] = len(res_data)
+    # Берем два последних элемента, а из них берем первый т.е. [1,2,3][-2:][0] -> 2 а [3][-2:][0] -> 3 чтобы не морочаться с проверкой есть ли предпоследний
+    prev_data = session.session.params['history'][-2:][0]['data'] # TODO подумать какой из истории брать для вычисления. Пока беру предудущий
+    hst={i['security']:i['value_priv'] for i in prev_data}
+    result['UslugiList'] = '\n'.join([f'{i["security"]:5}({i["currency"]}) {i["value_priv"]-hst.get(i["security"],i["value_priv"]):+.2f}\t{i["value_priv"]:.2f}' for i in res_data])
+    # Полная информация подправленная для показа в balance.html
     result['Balance'] = res_balance # Сумма в заданной валюте
     result['Currenc'] = currenc # Валюта
+    session.session.params['history'] = session.session.params['history'][-100:]  # оставляем последние 100 значений чтобы не росло бесконечно
+    session.save_session()
     return result
 
 

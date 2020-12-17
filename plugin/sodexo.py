@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys, re, random, logging
+import os, sys, re, random, logging, traceback, datetime
 import requests
 import store
 
@@ -9,15 +9,33 @@ icon = '789C73F235636100033320D600620128666450804840E5918182BCF2A0C04A8AAA38E574
 def get_balance(login, password, storename=None):
     result = {}
     cardno = login
-    session = store.Session(storename)
+    session = store.Session(storename, headers={})
     session.update_headers({'X-Requested-With': 'XMLHttpRequest'})
     cardtype = 'virtual-cards' if cardno.startswith('+') else 'cards'
     response = session.get(f'https://sodexo.gift-cards.ru/api/1/{cardtype}/{cardno}?limit=100&rid={random.randint(1000000000,9999999999)}')
     data = response.json()['data']
     logging.debug(data)
+
+    import pprint
+    open('..\\log\\sodexo.log','w').write(pprint.PrettyPrinter(indent=4).pformat(data))
+
     result['Balance'] = 0.001+data['balance']['availableAmount']
-    result['Currenc'] = data['balance']['currency']
-    result['TurnOffStr'] = data['validUntil']
+    if 'currency' in data['balance']:
+        result['Currenc'] = data['balance']['currency']
+    if 'validUntil' in data:
+        result['TurnOffStr'] = data['validUntil']
+    try:
+        history = []
+        for hist in data['history']:
+            t_tz = datetime.datetime.strptime(hist['time'],'%Y-%m-%dT%H:%M:%S.%f%z')
+            t_fix = t_tz.replace(tzinfo=None)-datetime.timedelta(hours=3)
+            histdate = datetime.datetime.strftime(t_fix,'%Y-%m-%d %H:%M:%S')
+            history.append([f"{histdate} {','.join([i.replace('3DI ','').replace('MD00','').replace('EPS*','') for i in hist['locationName']])}",f"{hist['amount']}"])
+        result['UslugiOn'] = f'{len(data["history"])}'
+        result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in sorted(history)])
+    except:
+        logging.info(f'Ошибка при получении списка транзакций {"".join(traceback.format_exception(*sys.exc_info()))}')
+
     return result
 
 
