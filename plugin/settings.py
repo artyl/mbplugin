@@ -110,6 +110,7 @@ ini = {
         'tg_format': '<b>{Alias}</b>\t<code>{PhoneNumberFormat2}</code>\t<b>{Balance}</b>({BalDeltaQuery})',
         'tg_from': 'sqlite',  # mobilebalance или sqlite
         'send_empty': '1',  # посылать сообщения если изменений не было
+        'ShowOnlyPaid': '1',  # в детализации услуг в TG показывать только платные
         # формат для строки telegram bot из mobilebalance
         'tgmb_format': '<b>{Alias}</b>\t<code>{PhoneNum}</code>\t<b>{Balance}</b>({BalDeltaQuery})',
         'mobilebalance_http': 'http://localhost:19778/123456/',

@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys,io, re, time, json, traceback, threading, logging, importlib, configparser, queue, argparse
+import os, sys,io, re, time, json, traceback, threading, logging, importlib, configparser, queue, argparse, subprocess, psutil
 import wsgiref.simple_server, socketserver, socket, requests, urllib.parse, urllib.request, bs4
 import settings, store, dbengine  # pylint: disable=import-error
 try:
@@ -41,14 +41,16 @@ def detbalance_standalone(filter=[]):
     ВНИМАНИЕ! при редактировании файла phones.ini через MobileBalance строки с паролями будут удалены
     '''
     turn_logging()  # Т.к. сюда можем придти извне, то включаем логирование здесь
+    logging.info(f'detbalance_standalone: {filter=}')
     phones = store.ini('phones.ini').phones()
-    queue_balance = []  # Очередь телефонов на получение баданса
+    queue_balance = []  # Очередь телефонов на получение баланса
     for val in phones.values():
         # Проверяем все у кого задан плагин, логин и пароль пароль
         if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
-            if filter == [] or [1 for i in filter if i.lower() in f"{val['Region']}_{val['Number']}_{val['Alias']}".lower()] != []:
+            if filter == [] or [1 for i in filter if i.lower() in f"__{val['Region']}_{val['Number']}__{val['Alias']}".lower()] != []:
                 # Формируем очередь на получение балансов и размечаем балансы из очереди в таблице flags чтобы красить их по другому
                 queue_balance.append(val)
+                logging.info(f"detbalance_standalone queued: {val['Region']}_{val['Number']}")
                 dbengine.flags('set',f"{val['Region']}_{val['Number']}",'queue')  # выставляем флаг о постановке в очередь
     for val in queue_balance:
         # TODO пока дергаем метод от вебсервера там уже все есть, потом может вынесем отдельно
@@ -85,17 +87,27 @@ def getbalance_plugin(method, param_source):
         dbengine.flags('set',f"{lang}_{plugin}_{param['login']}",'start')  # выставляем флаг о начале запроса
         try:
             result = module.get_balance(param['login'], param['password'], storename)
+            text = store.result_to_html(result)
+            if 'Balance' not in result:
+                raise RuntimeError(f'В result отсутствеут баланс')
         except:
             dbengine.flags('set',f"{lang}_{plugin}_{param['login']}",'error call')  # выставляем флаг о ошибке вызова
             return 'text/html', [f"<html>Error call {param['fplugin']}</html>"]
-        text = store.result_to_html(result)
         dbengine.flags('delete',f"{lang}_{plugin}_{param['login']}",'start')  # запрос завершился успешно - сбрасываем флаг
-        # пишем в базу
-        dbengine.write_result_to_db(f'{lang}_{plugin}', param['login'], result)
-        # обновляем данные из mdb
-        dbengine.update_sqlite_from_mdb()
-        # генерируем balance_html
-        write_report()
+        try:    
+            # пишем в базу
+            dbengine.write_result_to_db(f'{lang}_{plugin}', param['login'], result)
+            # обновляем данные из mdb
+            dbengine.update_sqlite_from_mdb()
+        except Exception:    
+            exception_text = f'Ошибка при подготовке работе с БД: {"".join(traceback.format_exception(*sys.exc_info()))}'
+            logging.error(exception_text)   
+        try:
+            # генерируем balance_html
+            write_report()
+        except Exception:    
+            exception_text = f'Ошибка при подготовке report: {"".join(traceback.format_exception(*sys.exc_info()))}'
+            logging.error(exception_text)        
         logging.info(f"Complete {param['fplugin']} {param['login']}")
         return 'text/html', text
     logging.error(f"Unknown plugin {param['fplugin']}")
@@ -269,7 +281,7 @@ def filter_balance(table, filter='FULL', params={}):
     # фильтр по filter_include - оставляем только строчки попавшие в фильтр
     if params.get('include', None) is not None:
         filter_include = [re.sub(r'\W', '', el).lower() for el in params['include'].split(',')]
-        table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', ('_'.join(map(str,line.values()))+line.get('Operator','')+'_'+line.get('PhoneNumber','')).lower())])>0]
+        table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', ('_'.join(map(str,line.values()))+'__'+line.get('Operator','')+'_'+line.get('PhoneNumber','')+'__').lower())])>0]
     # фильтр по filter_exclude - выкидываем строчки попавшие в фильтр
     if params.get('exclude', None) is not None:
         filter_exclude = [re.sub(r'\W', '', el).lower() for el in params['exclude'].split(',')]
@@ -521,9 +533,18 @@ class TelegramBot():
             self.updater.bot.send_document(chat_id=id, filename='balance.htm', document=io.BytesIO('\n'.join(res).strip().encode('cp1251')))
 
     @auth_decorator
+    def restartservice(self, update, context):
+        """Hard reset service"""
+        logging.info(f'TG:{update.message.chat_id} /restart {context.args}')
+        update.message.reply_text('Service will be restarted', parse_mode=telegram.ParseMode.HTML)
+        cmd = subprocess.list2cmdline(psutil.Process().cmdline())
+        os.system('call start "" ' + cmd)
+        psutil.Process().kill()
+
+    @auth_decorator
     def receivebalance(self, update, context):
         """Receive balance by filter, only auth user."""
-        logging.info(f'TG:{update.message.chat_id} /receivebalance {context}')
+        logging.info(f'TG:{update.message.chat_id} /receivebalance {context.args}')
         #baltxt = prepare_balance('FULL')
         update.message.reply_text('Request received. Wait...', parse_mode=telegram.ParseMode.HTML)
         detbalance_standalone(filter=context.args)
@@ -534,48 +555,62 @@ class TelegramBot():
     @auth_decorator
     def getone(self, update, context):
         """Receive one balance with inline keyboard, only auth user."""
-        logging.info(f'TG:{update.message.chat_id} /getone {context}')
+        '/checkone - получаем баланс /getone - показываем'
+        logging.info(f'TG:{update.message.chat_id} {update.message.text}')
         phones = store.ini('phones.ini').phones()
         keyboard = []
         for val in list(phones.values())+[{'Alias':'Cancel', 'Region':'Cancel', 'Number':'Cancel'}]:
-            pair = InlineKeyboardButton(val['Alias'], callback_data=f"{val['Region']}_{val['Number']}")
+            # ключом для calback у нас <3 буквы команды>_Region_Number
+            btn = InlineKeyboardButton(val['Alias'], callback_data=f"{update.message.text[1:4]}_{val['Region']}_{val['Number']}")
             if len(keyboard) == 0 or len(keyboard[-1]) == 3:
-                keyboard.append([pair])
+                keyboard.append([btn])
             else:
-                keyboard[-1].append(pair)
+                keyboard[-1].append(btn)
         reply_markup = InlineKeyboardMarkup(keyboard)
         update.message.reply_text('Please choose:', reply_markup=reply_markup)
 
     @auth_decorator
     def button(self, update, context) -> None:
+        'Ответ для команд /checkone - получаем баланс и /getone - показываем'
         query = update.callback_query
         query.answer()
-        if query.data.startswith('Cancel'):
+        cmd = query.data[:3]
+        keypair = query.data[4:]
+        if keypair.startswith('Cancel'):
             query.edit_message_text('Canceled', parse_mode=telegram.ParseMode.HTML)
             return
-        logging.info(f'TG:reply /getone CHOISE:{context}')
+        logging.info(f'TG:reply /getone to {update.effective_chat.id} CHOISE:{context}')
         query.edit_message_text('Request received. Wait...', parse_mode=telegram.ParseMode.HTML)
-        detbalance_standalone(filter=query.data)
-        params = {'include': query.data}
+        if cmd.lower() == 'che':  # /checkone - получаем баланс /getone - показываем
+            detbalance_standalone(filter=[f'__{keypair}__'])  # приходится добавлять попчеркивания чтобы исключить попадание по части строки
+        params = {'include': f'__{keypair}__'}
         baltxt = prepare_balance('FULL', params=params)
         query.edit_message_text(baltxt, parse_mode=telegram.ParseMode.HTML)
         # Детализация UslugiList по ключу val['Region']}_{val['Number']
         responses = dbengine.responses()
-        if query.data in responses:
-            response = json.loads(responses[f"{query.data}"])
+        if keypair in responses:
+            response = json.loads(responses[f"{keypair}"])
         else:
-            logging.info(f'Not found responce in responses for {query.data}')
-            return 
+            logging.info(f'Not found responce in responses for {keypair}')
+            return
+        # берем всю информацию по номеру
+        response = {k:(round(v,2) if type(v)==float else v)for k,v in response.items()}
+        detailed = '\n'.join([f'{name} = {response[k]}' for k,name in dbengine.PhonesHText.items() if k in response])
+        uslugi = ''
         if response.get('UslugiList','') != '':
-            msgtxt = f"{baltxt}\n{response['UslugiList']}"
+            ul = response['UslugiList'].split('\n')
+            if str(store.options('ShowOnlyPaid', section='Telegram')) == '1':
+                ul = [line for line in ul if '\t0' not in line]
+            uslugi = '\n'.join(ul).replace('\t',' = ')
+        else:
+            logging.info(f'Not found UslugiList in response for {keypair}')
+        msgtxt = f"{baltxt}\n{detailed}\n{uslugi}".strip()
+        if baltxt != msgtxt:  # TG ругается если новое сообщение совпадает со старым, приходится проверять
             try:
                 query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
             except Exception:
                 msgtxt = msgtxt.replace('<','').replace('>','')
                 query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
-        else:
-            logging.info(f'Not found UslugiList in response for {query.data}')
-            return 
 
     def send_message(self, text, parse_mode='HTML', ids=None):
         if self.updater is None or text == '':
@@ -637,7 +672,9 @@ class TelegramBot():
                 dp.add_handler(CommandHandler("balance", self.get_balancetext))
                 dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
                 dp.add_handler(CommandHandler("receivebalance", self.receivebalance))
+                dp.add_handler(CommandHandler("restart", self.restartservice))
                 dp.add_handler(CommandHandler("getone", self.getone))
+                dp.add_handler(CommandHandler("checkone", self.getone))
                 dp.add_handler(CallbackQueryHandler(self.button))
                 self.updater.start_polling()  # Start the Bot
                 if str(store.options('send_empty', section='Telegram'))=='1':

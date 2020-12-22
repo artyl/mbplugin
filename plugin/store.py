@@ -119,14 +119,16 @@ class ini():
         
     def read(self):
         if os.path.exists(self.inipath):
-            if self.fn.lower() == 'phones.ini':
+            if self.fn.lower() == 'phones.ini' or self.fn.lower() == 'phones_add.ini':
                 # phones.ini - нечестный ini читать приходится с извратами
+                # дополнительно читаем рядом phones_add.ini и дополняем результат данными из него
+                # это нужно чтобы при использовании с MobileBalance использовать фишки Standalone версии
                 # replace [Phone] #123 -> [Phone #123]
                 prep1 = re.sub(r'(?usi)\[Phone\] #(\d+)', r'[\1]', open(self.inipath).read())
                 # TODO костыль N1, мы подменяем p_pluginLH на p_plugin чтобы при переключении плагина не разъезжались данные
                 prep2 = re.sub(r'(?usi)(Region\s*=\s*p_\S+)LH', r'\1', prep1)
                 # TODO костыль N2, у Number то что идет в конце вида <пробел>#<цифры> это не относиться к логину а 
-                # сделано для уникальности логинов - выкидываем, оно нас тольк сбивает - мы работаем по паре Region_Number
+                # сделано для уникальности логинов - выкидываем, оно нас только сбивает - мы работаем по паре Region_Number
                 prep3 = re.sub(r'(?usi)(Number\s*=\s*\S+) #\d+', r'\1', prep2)
                 self.ini.read_string(prep3)
             else:
@@ -134,6 +136,8 @@ class ini():
         elif not os.path.exists(self.inipath) and self.fn.lower() == settings.mbplugin_ini:
             self.create()
             self.write()
+        elif not os.path.exists(self.inipath) and self.fn.lower() == 'phones_add.ini':
+            self.ini.read_string('')  # Если нет - тихо вернем пустой
         else:
             raise RuntimeError(f'Not found {self.fn}')
         return self.ini
@@ -175,6 +179,8 @@ class ini():
     def phones(self):
         if self.fn.lower() != 'phones.ini':
             raise RuntimeError(f'{self.fn} is not phones.ini')
+        # Читаем вспомогательный phones_add.ini - из него возьмем данные если они там есть, они перекроют данные в phones.ini
+        phones_add = ini('phones_add.ini').read()
         data = {}
         for secnum,el in self.read().items():
             if secnum.isnumeric() and 'Monitor' in el:
@@ -191,6 +197,15 @@ class ini():
                 data[key]['BalanceNotChangedMoreThen'] = int(el.get('BalanceNotChangedMoreThen', options('BalanceNotChangedMoreThen')))
                 data[key]['BalanceChangedLessThen'] = int(el.get('BalanceChangedLessThen', options('BalanceChangedLessThen')))
                 data[key]['Password2'] = el.get('Password2','')
+                if secnum in phones_add:
+                    try:
+                        # Проблема - configparser возвращает ключи в lowercase - так что приходится перебирать 
+                        # ключи чтобы не оказалось два одинаковых ключа с разным кейсом
+                        for k in data[key].keys():
+                            if k in phones_add[secnum]:
+                                data[key][k] = phones_add[secnum][k]
+                    except Exception:
+                        raise RuntimeError(f'Parse phones_add.ini error in section{secnum}')
         return data
 
 def read_stocks(stocks_name):
