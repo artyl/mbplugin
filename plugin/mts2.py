@@ -110,19 +110,22 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
             res3 = await self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/Widgets/GetUserClaims', '/longtask/'], 'jsformula': "data.result"}])
             try:
                 if 'RoleDonor' in str(res3):  # Просто ищем подстроку во всем json вдруг что-то изменится
+                    logging.info(f'mts_usedbyme: RoleDonor')
                     res4 = await self.wait_params(params=[{'name': '#donor', 'url_tag': ['for=api/Widgets/AvailableCountersDonor$', '/longtask/'], 'jsformula': "data.result"}])
                     # acceptorsTotalConsumption - иногда возвращается 0 приходится считать самим
                     # data = {i['counterViewUnit']:i['groupConsumption']-i['acceptorsTotalConsumption'] for i in res4['#donor']}
                     data = {i['counterViewUnit']:i['groupConsumption']-sum([j.get('consumption',0) for j in i.get('acceptorsConsumption',[])]) for i in res4['#donor']}
                 if 'RoleAcceptor' in str(res3):
+                    logging.info(f'mts_usedbyme: RoleAcceptor')
                     res4 = await self.wait_params(params=[{'name': '#acceptor', 'url_tag': ['for=api/Widgets/AvailableCountersAcceptor', '/longtask/'], 'jsformula': "data.result.counters"}])
                     data = {i['counterViewUnit']:i['consumption'] for i in res4['#acceptor']}
                 if 'RoleDonor' in str(res3) or 'RoleAcceptor' in str(res3):
-                    if 'SpendMin' in data:
+                    logging.info(f'mts_usedbyme collect: {data=}')
+                    if 'MINUTE' in data:
                         self.result['SpendMin'] = data["MINUTE"]
-                    if 'SMS' in data:
+                    if 'ITEM' in data:
                         self.result['SMS'] = data["ITEM"]
-                    if 'Internet' in data:
+                    if 'GBYTE' in data:
                         self.result['Internet'] = data["GBYTE"]
                 # Спецверсия для общего пакета, работает только для Donor
                 if self.acc_num.startswith('common'): 
@@ -138,6 +141,7 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
                         else:
                             self.result['SMS'] = cdata_charge["ITEM"]  # расход по инету и SMS
                             self.result['Internet'] = cdata_charge["GBYTE"]
+                        logging.info(f'mts_usedbyme common collect: {сdata_rest=} {cdata_charge=}')
                     else:  #  Со страницы общего пакета не отдали данные, чистим все, иначе будут кривые графики. ТОЛЬКО для common
                         raise RuntimeError(f'Страница общего пакета не возвращает данных')
             except:
