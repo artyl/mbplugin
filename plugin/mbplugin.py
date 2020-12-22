@@ -52,6 +52,8 @@ def main():
     try:
         storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
         result = module.get_balance(login, password, storename)
+        if 'Balance' not in result:
+            raise RuntimeError(f'В result отсутствеут баланс')
     except Exception:
         exception_text = f'Ошибка при вызове модуля \n{plugin}: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)
@@ -68,12 +70,20 @@ def main():
         dbengine.flags('set',f'{lang}_{plugin}_{login}','error result')  # выставляем флаг о плохом результате]
         return -1
     dbengine.flags('delete',f'{lang}_{plugin}_{login}','start')  # запрос завершился успешно - сбрасываем флаг
-    # пишем в базу
-    dbengine.write_result_to_db(f'{lang}_{plugin}', login, result)
-    # обновляем данные из mdb
-    dbengine.update_sqlite_from_mdb()
-    # генерируем balance_html
-    httpserver_mobile.write_report()
+    try:    
+        # пишем в базу
+        dbengine.write_result_to_db(f'{lang}_{plugin}', login, result)
+        # обновляем данные из mdb
+        dbengine.update_sqlite_from_mdb()
+    except Exception:    
+        exception_text = f'Ошибка при подготовке работе с БД: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        logging.error(exception_text)        
+    try:
+        # генерируем balance_html
+        httpserver_mobile.write_report()
+    except Exception:    
+        exception_text = f'Ошибка при подготовке report: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        logging.error(exception_text)        
     logging.debug(f'result = {result}')
     logging.info(f'Complete {lang} {plugin} {login}\n')
     return 0
