@@ -16,6 +16,8 @@ if "%1"=="check" goto :CHECK
 
 if "%1"=="getbalance" goto :GETBALANCE
 
+if "%1"=="getbalancefailed" goto :GETBALANCEFAILED
+
 if "%1"=="updatehtml" goto :UPDATEHTML
 
 GOTO :EOF
@@ -47,6 +49,13 @@ GOTO :EOF
 cd mbplugin\plugin
 cd ..\plugin
 ..\python\python.exe -c "import httpserver_mobile,sys;httpserver_mobile.detbalance_standalone(filter=sys.argv[2:])" %*
+GOTO :EOF
+
+@REM Получение балансов (запрос по неудачным)
+:GETBALANCEFAILED
+cd mbplugin\plugin
+cd ..\plugin
+..\python\python.exe -c "import httpserver_mobile,sys;httpserver_mobile.detbalance_standalone(filter=sys.argv[2:],only_failed=True)" %*
 GOTO :EOF
 
 @REM Обновление balance.html

@@ -19,7 +19,7 @@ def main():
     # Это плагин от python ?
     if not sys.argv[1].startswith(f'{lang}_'):
         # Это плагин не от python, тихо выходим
-        logging.info(f'Not python preffix')
+        logging.info(f'Not python prefix')
         return -2
     plugin = sys.argv[1].split('_', 1)[1]  # plugin это все что после p_
     # Такой модуль есть ? Он грузится ?

@@ -344,7 +344,7 @@ class balance_over_puppeteer():
                     await self.page_waitForNavigation()  # ждем отработки нажатия
                     await asyncio.sleep(1)
                 if await self.page_evaluate(selectors['chk_lk_page_js']):
-                    logging.info(f'Logoned')
+                    logging.info(f'Logged on')
                     break 
                 await asyncio.sleep(1)
                 if cnt==10:  # На 10 попытку перезагружаем страницу

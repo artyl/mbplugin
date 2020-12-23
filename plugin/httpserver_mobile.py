@@ -33,28 +33,38 @@ def find_ini_up(fn):
     if all_ini != []:
         return all_ini[0]
 
-def detbalance_standalone(filter=[]):
+def detbalance_standalone(filter=[], only_failed=False, feedback=None) :
     ''' Получаем балансы самостоятельно без mobilebalance 
     Если filter пустой то по всем номерам из phones.ini
     Если не пустой - то логин/алиас/оператор или его часть
     для автономной версии в поле Password2 находится незашифрованный пароль
     ВНИМАНИЕ! при редактировании файла phones.ini через MobileBalance строки с паролями будут удалены
+    для совместного использования с MobileBalance храните пароли password2 и другие специфидняе опции
+    для Standalone версии в файле phones_add.ini
+    only_failed=True - делать запросы только по тем номерам, по которым прошлый запрос был неудачный
+    feedback - если не None - то это функция, которая умеет выдавать статус на экран
     '''
     turn_logging()  # Т.к. сюда можем придти извне, то включаем логирование здесь
     logging.info(f'detbalance_standalone: {filter=}')
     phones = store.ini('phones.ini').phones()
     queue_balance = []  # Очередь телефонов на получение баланса
     for val in phones.values():
+        keypair = f"{val['Region']}_{val['Number']}"
         # Проверяем все у кого задан плагин, логин и пароль пароль
         if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
-            if filter == [] or [1 for i in filter if i.lower() in f"__{val['Region']}_{val['Number']}__{val['Alias']}".lower()] != []:
-                # Формируем очередь на получение балансов и размечаем балансы из очереди в таблице flags чтобы красить их по другому
-                queue_balance.append(val)
-                logging.info(f"detbalance_standalone queued: {val['Region']}_{val['Number']}")
-                dbengine.flags('set',f"{val['Region']}_{val['Number']}",'queue')  # выставляем флаг о постановке в очередь
+            if filter == [] or [1 for i in filter if i.lower() in f"__{keypair}__{val['Alias']}".lower()] != []:
+                if not only_failed or only_failed and str(dbengine.flags('get',keypair)).startswith('error'):
+                    # Формируем очередь на получение балансов и размечаем балансы из очереди в таблице flags чтобы красить их по другому
+                    queue_balance.append(val)
+                    logging.info(f'detbalance_standalone queued: {keypair}')
+                    dbengine.flags('set',f'{keypair}','queue')  # выставляем флаг о постановке в очередь
+    if feedback is not None:
+        feedback(f'Queued {len(queue_balance)} numbers')
     for val in queue_balance:
         # TODO пока дергаем метод от вебсервера там уже все есть, потом может вынесем отдельно
         try:
+            if feedback is not None:
+                feedback(f"Receive {val['Alias']}:{val['Region']}_{val['Number']}")
             getbalance_plugin('get',{'plugin':[val['Region']],'login':[val['Number']],'password':[val['Password2']],'date':['date']})
         except:
             logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {''.join(traceback.format_exception(*sys.exc_info()))}")
@@ -535,14 +545,14 @@ class TelegramBot():
     @auth_decorator
     def restartservice(self, update, context):
         """Hard reset service"""
-        logging.info(f'TG:{update.message.chat_id} /restart {context.args}')
-        update.message.reply_text('Service will be restarted', parse_mode=telegram.ParseMode.HTML)
         cmd = subprocess.list2cmdline(psutil.Process().cmdline())
+        logging.info(f'TG:{update.message.chat_id} /restart {context.args} with cmd:{cmd}')
+        update.message.reply_text('Service will be restarted', parse_mode=telegram.ParseMode.HTML)
         os.system('call start "" ' + cmd)
         psutil.Process().kill()
 
     @auth_decorator
-    def receivebalance(self, update, context):
+    def receivebalance_OLD(self, update, context):
         """Receive balance by filter, only auth user."""
         logging.info(f'TG:{update.message.chat_id} /receivebalance {context.args}')
         #baltxt = prepare_balance('FULL')
@@ -551,6 +561,25 @@ class TelegramBot():
         params = {'include': None if context.args == [] else ','.join(context.args)}
         baltxt = prepare_balance('FULL', params=params)
         update.message.reply_text(baltxt, parse_mode=telegram.ParseMode.HTML)
+
+    @auth_decorator
+    def receivebalance(self, update, context):
+        """ Запросить балансы по всем номерам 
+        /receivebalance
+        /receivebalancefailed
+        """
+        def feedback(txt):
+            'команда для показа прогреса'
+            try:
+                msg.edit_text(txt, parse_mode=telegram.ParseMode.HTML)
+            except Exception:
+                logging.info(f'Unsuccess tg send:{txt} {"".join(traceback.format_exception(*sys.exc_info()))}')
+        filtertext = '' if len(context.args)==0 else f", with filter by {' '.join(context.args)}"
+        msg = update.message.reply_text(f'Request all number{filtertext}. Wait...', parse_mode=telegram.ParseMode.HTML)
+        detbalance_standalone(filter=context.args, only_failed=(update.message.text=="/receivebalancefailed"), feedback=feedback)
+        params = {'include': None if context.args == [] else ','.join(context.args)}
+        baltxt = prepare_balance('FULL', params=params)
+        msg.edit_text(baltxt, parse_mode=telegram.ParseMode.HTML)
 
     @auth_decorator
     def getone(self, update, context):
@@ -672,6 +701,7 @@ class TelegramBot():
                 dp.add_handler(CommandHandler("balance", self.get_balancetext))
                 dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
                 dp.add_handler(CommandHandler("receivebalance", self.receivebalance))
+                dp.add_handler(CommandHandler("receivebalancefailed", self.receivebalance))
                 dp.add_handler(CommandHandler("restart", self.restartservice))
                 dp.add_handler(CommandHandler("getone", self.getone))
                 dp.add_handler(CommandHandler("checkone", self.getone))
