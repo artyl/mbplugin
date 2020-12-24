@@ -287,7 +287,7 @@ def filter_balance(table, filter='FULL', params={}):
     filter = FULL - Все телефоны, LASTCHANGE - Изменивниеся за день, LASTCHANGE - Изменившиеся в последнем запросе
     params['include'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат
     params['exclude'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для исключения из результата'''
-    flags = dbengine.flags('getall') 
+    flags = dbengine.flags('getall')
     # фильтр по filter_include - оставляем только строчки попавшие в фильтр
     if params.get('include', None) is not None:
         filter_include = [re.sub(r'\W', '', el).lower() for el in params['include'].split(',')]
@@ -315,6 +315,8 @@ def filter_balance(table, filter='FULL', params={}):
 def prepare_balance_mobilebalance(filter='FULL', params={}):
     """Формируем текст для отправки в telegram из html файла полученного из web сервера mobilebalance
     """
+    phones = store.ini('phones.ini').phones()
+    phones_by_num = {v['NN']:v for v in phones.values()}
     url = store.options('mobilebalance_http', section='Telegram', mainparams=params)
     tgmb_format = store.options('tgmb_format', section='Telegram', mainparams=params)
     response1_text = requests.get(url).content.decode('cp1251')
@@ -331,7 +333,10 @@ def prepare_balance_mobilebalance(filter='FULL', params={}):
         res = 'Включите показ колонки Delta (день) в настройках mobilebalance'
         return res
     data = [[''.join(el.contents) for el in line.findAll(['th', 'td'])] for line in soup.findAll(id='row')]
-    table = [dict(zip(headers, line)) for line in data]
+    table = [dict(zip(headers, line)) for line in data]  # Берем данные из html
+    for line in table:  # Добавляем Region/Operator и  из phones.ini - нужен для фильтра
+        line['Operator'] = line['Region'] = phones_by_num.get(int(line['NN']),'')['Region']
+        line['PhoneNumber'] = phones_by_num.get(int(line['NN']),'')['Number'].split(' #')[0]  # Также отрезаем хвост <space>#num
     table = filter_balance(table, filter, params)
     res = [tgmb_format.format(**line) for line in table]
     return '\n'.join(res)
@@ -351,9 +356,9 @@ def prepare_balance_sqlite(filter='FULL', params={}):
             return '<b> ! достигнут порог баланса !</b>'
         if line['CalcTurnOff'] is not None and line['CalcTurnOff'] < int(phones[pkey]['TurnOffLessThen']):
             return '<b> ! возможно скорое отключение !</b>'
-        if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] > phones[pkey]['BalanceNotChangedMoreThen']:
+        if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] > int(phones[pkey]['BalanceNotChangedMoreThen']):
             return f'<b> ! баланс не изменялся более {phones[pkey]["BalanceNotChangedMoreThen"]} дней !</b>'
-        if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] > phones[pkey]['BalanceNotChangedMoreThen']:
+        if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] > int(phones[pkey]['BalanceNotChangedMoreThen']):
             return f'<b> ! баланс изменился менее {phones[pkey]["BalanceChangedLessThen"]} дней назад!</b>'
         return ''
     # table_format = 'Alias,PhoneNumber,Operator,Balance'
