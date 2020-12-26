@@ -105,7 +105,7 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
         
         # Идем и пытаемся взять инфу со страницы https://lk.mts.ru/obshchiy_paket
         # Но только если телефон в списке в поле mts_usedbyme или для всех телефонов если там 1
-        if mts_usedbyme == '1' or self.login in mts_usedbyme.split(',') or self.acc_num.startswith('common'):
+        if mts_usedbyme == '1' or self.login in mts_usedbyme.split(',') or self.acc_num.lower().startswith('common'):
             await self.page_goto('https://lk.mts.ru/obshchiy_paket')
             res3 = await self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/Widgets/GetUserClaims', '/longtask/'], 'jsformula': "data.result"}])
             try:
@@ -128,7 +128,7 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
                     if 'GBYTE' in data:
                         self.result['Internet'] = data["GBYTE"]
                 # Спецверсия для общего пакета, работает только для Donor
-                if self.acc_num.startswith('common'): 
+                if self.acc_num.lower().startswith('common'): 
                     if 'RoleDonor' in str(res3):
                         # потребление и остаток
                         cdata_charge = {i['counterViewUnit']:i['groupConsumption'] for i in res4['#donor']}
@@ -146,7 +146,7 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
                         raise RuntimeError(f'Страница общего пакета не возвращает данных')
             except:
                 logging.info(f'Ошибка при получении obshchiy_paket {"".join(traceback.format_exception(*sys.exc_info()))}')
-                if self.acc_num.startswith('common'): 
+                if self.acc_num.lower().startswith('common'): 
                     self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных'}
                 
                 
