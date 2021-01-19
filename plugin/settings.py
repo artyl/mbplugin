@@ -31,16 +31,17 @@ ini = {
         'loggingfolder': '..\\log',  # папка для логов
         'loggingfilename': '..\\log\\mbplugin.log',  # лог для ручного запуска и dll плагинов
         'logginghttpfilename': '..\\log\\http.log',  # лог http сервера и плагинов из него
-        'logginglevel': 'INFO',  # Уровень логгирования
+        'logginglevel': 'INFO',  # Уровень логгирования Варианты: DEBUG INFO WARNING ERROR CRITICAL
         'storefolder': '..\\store',  # Папка для хранения сессий
-        'sqlitestore': '0',  # Записывать результаты в sqlite БД 0 нет, 1 да
-        'createhtmlreport': '0',  # Создавать файлик html отчета, после получения данных
+        'sqlitestore': '0',  # Записывать результаты в sqlite БД 0 нет, 1 да Варианты: 1 0
+        'createhtmlreport': '0',  # Создавать файлик html отчета, после получения данных Варианты: 1 0
         # путь к БД sqlite если нужно поменять - mbplugin.ini Option dbfilename
         'dbfilename': '..\\BalanceHistory.sqlite',
         # путь к html файлу, который создается после получения баланса
         'balance_html': '..\\DB\\balance.html',
-        'updatefrommdb': 0,  # Обновлять SQLite базу данными из MDB и на сколько дней в глубино
-        # Обновлять SQLite базу данными из MDB и на сколько дней в глубино
+        # Обновлять SQLite базу данными из MDB и на сколько дней в глубину
+        'updatefrommdb': 0,
+        # Обновлять SQLite базу данными из MDB и на сколько дней в глубину
         'updatefrommdbdeep': 30,
         # показывать иконку в трее - 1 прятать - 1, (по умолчанию 1)
         'show_tray_icon': '1',
@@ -97,6 +98,9 @@ ini = {
         'HoverHistoryFormat': 'QueryDateTime,KreditLimit,Currenc,Balance,BalanceRUB,Balance2,Balance3,SpendBalance,UslugiOn,NoChangeDays,CalcTurnOff,Average,TurnOff,Recomend,SMS,SMS_USD,SMS_RUB,Minutes,USDRate,LicSchet,BalDelta,JeansExpired,ObPlat,BeeExpired,RealAverage,Seconds,MinSonet,MinLocal,MinAverage,MinDelta,MinDeltaQuery,TurnOffStr,SpendMin,PhoneReal,Internet,InternetUSD,InternetRUB,Contract,BalDeltaQuery,AnyString,BlockStatus,TarifPlan',
         # css для hover
         'HoverCss': 'display: block;position: fixed;top: 0; height: 100vh; overflow: auto',
+        # Разрешить изменения в конфиге через http сервер config edit (пока не реализовано)
+        # Внимание, при сохранении все параметры будут в нижнем регистре а коментарии будут удалены
+        'HttpConfigEdit': '0',
     },
     'Telegram': {  # Раздел mbplugin.ini [Telegram]
         'start_tgbot': 1,  # Стартовать telegram bot вместе с http

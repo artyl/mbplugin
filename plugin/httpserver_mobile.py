@@ -101,6 +101,7 @@ def getbalance_plugin(method, param_source):
             if 'Balance' not in result:
                 raise RuntimeError(f'В result отсутствеут баланс')
         except:
+            logging.info(f'{plugin} fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
             dbengine.flags('set',f"{lang}_{plugin}_{param['login']}",'error call')  # выставляем флаг о ошибке вызова
             return 'text/html', [f"<html>Error call {param['fplugin']}</html>"]
         dbengine.flags('delete',f"{lang}_{plugin}_{param['login']}",'start')  # запрос завершился успешно - сбрасываем флаг
@@ -411,6 +412,11 @@ def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={
     r=[requests.post(f'https://api.telegram.org/bot{api_token}/sendMessage',data={'chat_id':chat_id,'text':text,'parse_mode':'HTML'}) for chat_id in auth_id if text!='']
     return [repr(i) for i in r]
 
+def restart_program(reason=''):
+    cmd = subprocess.list2cmdline(psutil.Process().cmdline())
+    logging.info(f'Restart by {reason} with cmd:{cmd}')
+    os.system('call start "" ' + cmd)
+    psutil.Process().kill()
 
 def tray_icon(cmdqueue):
     'Выставляем для trayicon daemon, чтобы ушел вслед за нами функция нужна для запуска в отдельном thread'
@@ -487,7 +493,8 @@ class TrayIcon:
             menu = win32gui.CreatePopupMenu()
             win32gui.AppendMenu(menu, win32con.MF_STRING, 1024, "Open report")
             win32gui.AppendMenu(menu, win32con.MF_STRING, 1025, "View log")
-            win32gui.AppendMenu(menu, win32con.MF_STRING, 1026, "Exit program")
+            win32gui.AppendMenu(menu, win32con.MF_STRING, 1026, "Restart server")
+            win32gui.AppendMenu(menu, win32con.MF_STRING, 1027, "Exit program")
             pos = win32gui.GetCursorPos()
             # See http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/menus_0hdi.asp
             win32gui.SetForegroundWindow(self.hwnd)
@@ -502,7 +509,9 @@ class TrayIcon:
             os.system(f'start http://localhost:{port}/report')
         if id == 1025:
             os.system(f'start http://localhost:{port}/log?lines=40')
-        elif id == 1026:
+        if id == 1026:
+            restart_program(reason='tray icon command')
+        elif id == 1027:
             print("Goodbye")
             win32gui.DestroyWindow(self.hwnd)
             self.cmdqueue.put('STOP')
@@ -533,6 +542,13 @@ class TelegramBot():
         update.message.reply_text(update.message.chat_id)
 
     @auth_decorator
+    def get_help(self, update, context):
+        """Send help."""
+        help_text = '''/help\n/id\n/balance\n/balancefile\n/receivebalance\n/receivebalancefailed\n/restart\n/getone\n/checkone'''
+        logging.info(f'TG:{update.message.chat_id} /help')
+        update.message.reply_text(help_text, parse_mode=telegram.ParseMode.HTML)
+   
+    @auth_decorator
     def get_balancetext(self, update, context):
         """Send balance only auth user."""
         logging.info(f'TG:{update.message.chat_id} /balance')
@@ -550,11 +566,8 @@ class TelegramBot():
     @auth_decorator
     def restartservice(self, update, context):
         """Hard reset service"""
-        cmd = subprocess.list2cmdline(psutil.Process().cmdline())
-        logging.info(f'TG:{update.message.chat_id} /restart {context.args} with cmd:{cmd}')
         update.message.reply_text('Service will be restarted', parse_mode=telegram.ParseMode.HTML)
-        os.system('call start "" ' + cmd)
-        psutil.Process().kill()
+        restart_program(reason=f'TG:{update.message.chat_id} /restart {context.args}')
 
     @auth_decorator
     def receivebalance_OLD(self, update, context):
@@ -702,6 +715,7 @@ class TelegramBot():
                 self.updater = Updater(api_token, use_context=True, request_kwargs=request_kwargs)
                 logging.info(f'{self.updater}')
                 dp = self.updater.dispatcher
+                dp.add_handler(CommandHandler("help", self.get_help))
                 dp.add_handler(CommandHandler("id", self.get_id))
                 dp.add_handler(CommandHandler("balance", self.get_balancetext))
                 dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
