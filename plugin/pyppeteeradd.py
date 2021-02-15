@@ -80,6 +80,17 @@ def kill_chrome():
             pass
 
 @safe_run_decorator
+def fix_crash_banner(storename):
+    'Исправляем Preferences чтобы убрать баннер Работа Chrome была завершена некорректно'
+    storefolder = store.options('storefolder')
+    fn_pref = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename, 'Preferences'))
+    data = open(fn_pref).read()
+    data1 = data.replace('"exit_type":"Crashed"','"exit_type":"Normal"').replace('"exited_cleanly":false','"exited_cleanly":true')
+    if data != data1:
+        logging.info(f'Fix chrome crash banner')
+        open(fn_pref, mode='w').write(data1)        
+
+@safe_run_decorator
 def clear_cache(storename):
     'Очищаем папку с кэшем профиля чтобы не разрастался'
     #return  # С такой очисткой оказывается связаны наши проблемы с загрузкой
@@ -136,7 +147,7 @@ class balance_over_puppeteer():
 
     def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_attempt=1):
         self.browser, self.page = None, None  # откроем браузер - заполним
-        self.browser_open = True  # флаг что браузер рабобтает
+        self.browser_open = True  # флаг что браузер работает
         self.wait_loop = wait_loop  # TODO подобрать параметр
         self.login_attempt = login_attempt
         self.wait_and_reload = wait_and_reload
@@ -216,6 +227,7 @@ class balance_over_puppeteer():
         }
         if store.options('proxy_server').strip() != '':
             launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}')
+        fix_crash_banner(self.storename)
         self.browser = await pyppeteer.launch(launch_config)
         if hide_chrome_flag:
             hide_chrome()
