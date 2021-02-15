@@ -10,14 +10,10 @@ class yota_over_puppeteer(pa.balance_over_puppeteer):
             url='https://my.yota.ru/selfcare/devices',
             user_selectors={'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",
                             'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",
-                            'login_clear_js': "document.querySelector('form input[name=phoneNumber]').value=''",
-                            'login_selector': 'form input[name=phoneNumber]', 
+                            'login_clear_js': "document.querySelector('form input[formcontrolname=username]').value=''",
+                            'login_selector': 'form input[formcontrolname=username]', 
                             })
-        # Здесь мы берем данные с загружаемой страницы 
-        await self.wait_params(params=[{
-            'name': 'Balance',
-            'jsformula': r"parseFloat(document.querySelector('dd[id=balance-holder]').innerText.split('\n')[0].replace(',','.'))",
-        }])
+        await self.wait_params(params=[{'name': 'Balance', 'url_tag': ['finance/getBalance'], 'jsformula': "parseFloat(data.amount).toFixed(2)"},])
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
