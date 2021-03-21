@@ -69,7 +69,7 @@ def get_balance(login, password, storename=None):
     jsonStatus = api(session, token, login, 'info/status')
     if jsonStatus['meta']['status'] == 'OK':
         result['BlockStatus'] = jsonStatus['status']
-
+    
     jsonRests = api(session, token, login, 'info/rests')
     if jsonRests['meta']['status'] == 'OK' and 'rests' in jsonRests:
         result['Min'] = 0
@@ -83,9 +83,24 @@ def get_balance(login, password, storename=None):
             if elem['unitType'] == 'SMS_MMS':
                 result['SMS'] += elem['currValue']
 
+    # похоже теперь у билайна не rests а accumulators, данных мало так что пробуем так
+    # и не понятно как определить про что аккумулятор, так что пока ориентируемся на поле unit, у интернета он 'unit': 'KBYTE'
+    jsonAcc = api(session, token, login, 'info/accumulators')
+    if jsonAcc['meta']['status'] == 'OK' and 'accumulators' in jsonAcc:
+        result['Min'] = result.get('Min', 0)
+        result['Internet'] = result.get('Internet', 0)
+        result['SMS'] = result.get('SMS', 0)
+        for elem in jsonAcc['accumulators']:
+            if elem['unit'] == 'SECONDS':
+                result['Min'] += elem['rest']//60
+            if elem['unit'] == 'KBYTE':
+                result['Internet'] += elem['rest']*(settings.UNIT['KB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
+            if elem['unit'] == 'SMS':
+                result['SMS'] += elem['rest']
+
     session.save_session()
     return result
 
 
 if __name__ == '__main__':
-    print('This is module mts')
+    print('This is module beeline')

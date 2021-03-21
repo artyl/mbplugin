@@ -2,16 +2,16 @@
 # -*- coding: utf8 -*-
 import pyppeteeradd as pa
 
+login_url = 'https://lk.saures.ru/dashboard'
+user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",
+                  'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",
+                  'login_clear_js': "document.querySelector('form input[type=text]').value=''",
+                  'login_selector': 'form input[type=text]', }
 
 # введите логин demo@saures.ru и пароль demo вручную
 class test4_over_puppeteer(pa.balance_over_puppeteer):
     async def async_main(self):
-        await self.do_logon(
-            url='https://lk.saures.ru/dashboard',
-            user_selectors={'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",
-                            'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",
-                            'login_clear_js': "document.querySelector('form input[type=text]').value=''",
-                            'login_selector': 'form input[type=text]', })
+        await self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берет данные непосредственно с отрендеренной страницы, поэтому url_tag не указан
         await self.wait_params(params=[{
             'name': 'Balance',

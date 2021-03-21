@@ -8,7 +8,29 @@ import store, settings
 
 # Какой бы ни был режим в mbplugin для всех сторониих модулей отключаем расширенное логирование
 # иначе в лог польется все тоннами
-[logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict]
+[logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict]  # pylint: disable=no-member
+
+# Селекторы и скрипты по умолчанию для формы логона
+default_logon_selectors = {
+            'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",  # true если мы в личном кабинете
+            'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",  # true если мы в окне логина
+            'before_login_js': '',  # Команда которую надо выполнить перед вводом логина
+            'login_clear_js': "document.querySelector('form input[type=text]').value=''",  # команда для очистки поля логина
+            'login_selector': 'form input[type=text]',   # селектор поля ввода логина
+            'chk_submit_after_login_js': "",  # проверка нужен ли submit после логина
+            'submit_after_login_js': "document.querySelector('form [type=submit]').click()",  # Если после ввода логина нужно нажать submit через js
+            'submit_after_login_selector': "",  # или через селектор
+            'password_clear_js': "document.querySelector('form input[type=password]').value=''",  # команда на очистку поля пароля
+            'password_selector': 'form input[type=password]',  # селектор для поля пароля
+            'remember_checker': "",  # "document.querySelector('form input[name=remember]').checked==false",  # Проверка что флаг remember me не выставлен
+            'remember_js': "",  # "document.querySelector('form input[name=remember]').click()",  # js для выставления remember me
+            'remember_selector': "",  # 'form input[name=remember]',  # селектор для выставления remember me (не указывайте оба сразу а то может кликнуть два раза)
+            'captcha_checker': "",  # проверка что на странице капча у MTS - document.querySelector("div[id=captcha-wrapper]")!=null
+            'submit_selector': '',  # селектор для нажатия на финальный submit
+            'submit_js': "document.querySelector('form [type=submit]').click()",  # js для нажатия на финальный submit
+            'captcha_focus': '',  # перевод фокуса на поле капчи
+            'pause_press_submit': '1',  # Пауза перед нажатием submit не меньше 1
+}
 
 
 def safe_run_decorator(func):
@@ -84,7 +106,8 @@ def fix_crash_banner(storename):
     'Исправляем Preferences чтобы убрать баннер Работа Chrome была завершена некорректно'
     storefolder = store.options('storefolder')
     fn_pref = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename, 'Preferences'))
-    data = open(fn_pref).read()
+    with open(fn_pref) as f:
+        data = f.read()
     data1 = data.replace('"exit_type":"Crashed"','"exit_type":"Normal"').replace('"exited_cleanly":false','"exited_cleanly":true')
     if data != data1:
         logging.info(f'Fix chrome crash banner')
@@ -136,6 +159,7 @@ class balance_over_puppeteer():
                 log_string = log_string if len(log_string) < 200 else log_string[:100]+'...'+log_string[-100:]
                 if 'password' in log_string:
                     log_string = log_string.split('password')[0]+'password ....'
+            log_string = log_string.encode('cp1251', errors='ignore').decode('cp1251', errors='ignore')  # Убираем всякую хрень
             try:
                 res = await func(self, *args, **kwargs)  # pylint: disable=not-callable
                 logging.info(f'{log_string} OK')
@@ -145,7 +169,13 @@ class balance_over_puppeteer():
                 return default
         return wrapper
 
-    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_attempt=1):
+    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_attempt=1, login_url=None, user_selectors=None):
+        'Передаем стандартно login, password, storename'
+        'Дополнительно'
+        'wait_loop=30 - Сколько секунд ждать появления информации на странице'
+        'wait_and_reload=10 - Сколько секунд ждать, после чего перезагрузить страницу'
+        'login_attempt=1 - Количество попыток логона' 
+        'login_url, user_selectors - можно передать параметры для логона при создании класса'
         self.browser, self.page = None, None  # откроем браузер - заполним
         self.browser_open = True  # флаг что браузер работает
         self.wait_loop = wait_loop  # TODO подобрать параметр
@@ -155,6 +185,8 @@ class balance_over_puppeteer():
         self.login_ori, self.acc_num = login, ''
         self.login = login
         self.storename = storename
+        self.login_url = login_url
+        self.user_selectors = user_selectors
         if '/' in login:
             self.login, self.acc_num = self.login_ori.split('/')
             # !!! в storename уже преобразован поэтому чтобы выкинуть из него ненужную часть нужно по ним тоже регуляркой пройтись
@@ -223,7 +255,8 @@ class balance_over_puppeteer():
                     '--log-level=3', # no logging                 
                     #'--single-process', # <- this one doesn't works in Windows
                     '--disable-gpu', 
-                    "--window-position=-2000,-2000" if hide_chrome_flag else "--window-position=80,80"],
+                    "--window-position=-2000,-2000" if hide_chrome_flag else "--window-position=80,80",
+                    "--window-size=800,900"],
         }
         if store.options('proxy_server').strip() != '':
             launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}')
@@ -291,39 +324,52 @@ class balance_over_puppeteer():
         return await self.page.waitForSelector(selector, {'timeout': 10000})
 
     @async_check_browser_opened_decorator
-    async def do_logon(self, url, user_selectors={}):
+    async def check_logon_selectors(self):
+        selectors = default_logon_selectors.copy()
+        login_url = self.login_url
+        user_selectors = self.user_selectors
+        assert set(user_selectors)-set(selectors) == set(), f'Не все ключи из user_selectors есть в selectors. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}'
+        selectors.update(user_selectors)
+        # TODO fix for submit_js -> chk_submit_js
+        selectors['chk_submit_js'] = selectors['submit_js'].replace('.click()','!== null')
+        print(f'{login_url=}')
+        if login_url != '':
+            await self.page_goto(login_url)
+        await self.page_waitForNavigation()
+        await asyncio.sleep(1)
+        for sel in ['chk_login_page_js', 'login_clear_js', 'password_clear_js', 'chk_submit_js']:
+            if selectors[sel] !='':
+                print(f'Check {selectors[sel]}')
+                eval_res = await self.page_evaluate(selectors[sel])
+                if sel.startswith('chk_'):
+                    assert eval_res == True , f'Bad result for js:{sel}:{selectors[sel]}'
+                else:
+                    assert eval_res == '' , f'Bad result for js:{sel}:{selectors[sel]}'
+        for sel in ['login_selector', 'password_selector', 'submit_selector']:
+            if selectors[sel] !='':
+                print(f'Check {selectors[sel]}')
+                assert await self.page_evaluate(f"document.querySelector('{selectors['login_selector']}') !== null")==True, f'Not found on page:{sel}:{selectors[sel]}'
+
+    @async_check_browser_opened_decorator
+    async def do_logon(self, url=None, user_selectors=None):
         'Делаем заход в личный кабинет/ проверяем не залогинены ли уже'
         'На вход передаем словарь селекторов и скриптов который перекроет действия по умолчанию'
         'Если какой-то из шагов по умолчанию хотим пропустить, передаем пустую строку'
         'Смотрите актуальное описание напротив параметров в коментариях'
         'Чтобы избежать ошибок - копируйте названия параметров'
-        # Селекторы и скрипты по умолчанию
-        selectors = {
-                    'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",  # true если мы в личном кабинете
-                    'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",  # true если мы в окне логина
-                    'before_login_js': '',  # Команда которую надо выполнить перед вводом логина
-                    'login_clear_js': "document.querySelector('form input[type=text]').value=''",  # команда для очистки поля логина
-                    'login_selector': 'form input[type=text]',   # селектор поля ввода логина
-                    'chk_submit_after_login_js': "",  # проверка нужен ли submit после логина
-                    'submit_after_login_js': "document.querySelector('form [type=submit]').click()",  # Если после ввода логина нужно нажать submit через js
-                    'submit_after_login_selector': "",  # или через селектор
-                    'password_clear_js': "document.querySelector('form input[type=password]').value=''",  # команда на очистку поля пароля
-                    'password_selector': 'form input[type=password]',  # селектор для поля пароля
-                    'remember_checker': "",  # "document.querySelector('form input[name=remember]').checked==false",  # Проверка что флаг remember me не выставлен
-                    'remember_js': "",  # "document.querySelector('form input[name=remember]').click()",  # js для выставления remember me
-                    'remember_selector': "",  # 'form input[name=remember]',  # селектор для выставления remember me (не указывайте оба сразу а то может кликнуть два раза)
-                    'captcha_checker': "",  # проверка что на странице капча у MTS - document.querySelector("div[id=captcha-wrapper]")!=null
-                    'submit_selector': '',  # селектор для нажатия на финальный submit
-                    'submit_js': "document.querySelector('form [type=submit]').click()",  # js для нажатия на финальный submit
-                    'captcha_focus': '',  # перевод фокуса на поле капчи
-        }
+        selectors = default_logon_selectors.copy()
+        if url is None:
+            url = self.login_url
+        if user_selectors is None:
+            user_selectors = self.user_selectors if user_selectors is not None else {}
         # проверяем что все поля из user_selectors есть в селектор (если не так то скорее всего опечатка и надо сигналить)
         if set(user_selectors)-set(selectors) != set():
-            logging.error(f'Не все ключи из user_selectors есть в selectord. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}')
+            logging.error(f'Не все ключи из user_selectors есть в selectors. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}')
         selectors.update(user_selectors)
-        if url != '':  # Иногда мы должны слежным путем попасть на страницу - тогда указываемпустой url
+        if url is not None:  # Иногда мы должны сложным путем попасть на страницу - тогда указываем пустой url
             await self.page_goto(url)
         await self.page_waitForNavigation()
+        await asyncio.sleep(1)
         if not await self.page_evaluate(selectors['chk_lk_page_js']) and not await self.page_evaluate(selectors['chk_login_page_js']):
             # Мы не в личном кабинете и не на странице логона - попробуем обновить страницу
             await self.page_reload('Not open login page')
@@ -350,7 +396,7 @@ class balance_over_puppeteer():
                     if await self.page_evaluate(selectors['remember_checker'], default=False):  # Если есть невыставленный check remember me
                         await self.page_evaluate(selectors['remember_js'])  # выставляем его
                         await self.page_click(selectors['remember_selector'], {'delay': 10})
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(int(selectors['pause_press_submit']))
                     await self.page_click(selectors['submit_selector']) #  нажимаем на submit form
                     await self.page_evaluate(selectors['submit_js'])  # либо через js (на некоторых сайтах один из вариантов не срабатывает)
                     await self.page_waitForNavigation()  # ждем отработки нажатия
@@ -457,25 +503,33 @@ class balance_over_puppeteer():
             self.result.update({k:v for k,v in result.items() if not k.startswith('#')})  # Не переносим те что с решеткой в начале
         return result
 
-    async def _async_main(self):
+    async def _async_main(self, run):
         await self.launch_browser()
-        await self.async_main()  # !!! CALL async_main
+        if run == 'normal':
+            await self.async_main()  # !!! CALL async_main
+        elif run == 'check_logon':
+            await self.async_check_logon_selectors_prepare()
+            await self.check_logon_selectors()
         logging.debug(f'Data ready {self.result.keys()}')
         if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
             import pprint
             text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
                                 for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
-            open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore').write(text)
+            with open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
+                f.write(text)
         await self.browser.close()
         kill_chrome()  # Добиваем  все наши незакрытые хромы, чтобы не появлялось кучи зависших
         clear_cache(self.storename)
         return self.result
 
+    async def async_check_logon_selectors_prepare(self):
+        pass
+
     async def async_main(self):
         pass
 
-    def main(self):
+    def main(self, run='normal'):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        asyncio.get_event_loop().run_until_complete(self._async_main())
+        asyncio.get_event_loop().run_until_complete(self._async_main(run))
         return self.result   

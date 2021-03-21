@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
-import os, sys, re, json, pickle, requests, configparser
+import os, sys, io, re, json, pickle, requests, configparser, pprint
 import settings
 
 
@@ -14,6 +14,7 @@ class Session():
         self.storename = storename
         self.storefolder = options('storefolder')
         self.pagecounter = 1  # Счетчик страниц для сохранения
+        self.json_response = {}  # Сохраняем json ответы
         self.headers = headers
         try:
             with open(os.path.join(self.storefolder, self.storename), 'rb') as f:
@@ -45,39 +46,40 @@ class Session():
         with open(os.path.join(self.storefolder, self.storename), 'wb') as f:
             pickle.dump(self.session, f)
 
-    def save_response(self, response):
+    def save_response(self, url, response):
         'debug save response'
-        if options('logginglevel') == 'DEBUG' and hasattr(response, 'content'):
+        # Сохраняем по старинке в режиме DEBUG каждую страницу в один файл
+        if not hasattr(response, 'content'):
+            return
+        if options('logginglevel') == 'DEBUG':
             fld = options('loggingfolder')
             fn = os.path.join(fld, f'{self.storename}_{self.pagecounter}.html')
             open(fn, mode='wb').write(response.content)
-            self.pagecounter += 1        
+        # Новый вариант сохранения - все json в один файл
+        if options('logginglevel') == 'DEBUG' or str(options('log_responses')) == '1':
+            try:
+                js = response.json()
+                self.json_response[f'{url}_{self.pagecounter}'] = js
+                text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k, v in self.json_response.items()])
+                open(os.path.join(options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore').write(text)
+            except Exception:
+                pass
+        self.pagecounter += 1
 
-    def get(self, *args, **kwargs):
-        response = self.session.get(*args, **kwargs)
-        self.save_response(response)
+    def get(self, url, **kwargs):
+        response = self.session.get(url, **kwargs)
+        self.save_response(url, response)
         return response
         
-    def post(self, *args, **kwargs):
-        response = self.session.post(*args, **kwargs)
-        self.save_response(response)
+    def post(self, url, data=None, json=None, **kwargs):
+        response = self.session.post(url, data, json, **kwargs)
+        self.save_response(url, response)
         return response
 
-    def put(self, *args, **kwargs):
-        response = self.session.put(*args, **kwargs)
-        self.save_response(response)
+    def put(self, url, data=None, **kwargs):
+        response = self.session.put(url, data, **kwargs)
+        self.save_response(url, response)
         return response
-
-
-def find_files_up(fn):
-    'Ищем файл вверх по дереву путей'
-    allroot = [os.getcwd().rsplit('\\', i)[0]
-               for i in range(len(os.getcwd().split('\\')))]
-    all_ini = [i for i in allroot if os.path.exists(os.path.join(i, fn))]
-    if all_ini != []:
-        return os.path.join(all_ini[0], fn)
-    else:
-        return os.path.join('..', fn)
 
 
 def options(param, default=None, section='Options', listparam=False, mainparams={}):
@@ -87,7 +89,7 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     if param in mainparams and listparam == False:
         return mainparams[param]
     if default is None:
-        default = settings.ini[section].get(param, None)
+        default = settings.ini[section].get(param.lower(), None)
     options_all_sec = ini().read()
     if section in options_all_sec:
         options_sec = options_all_sec[section]
@@ -100,6 +102,8 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     
 class ini():
     def __init__(self, fn=settings.mbplugin_ini):
+        'файл mbplugin.ini ищем в вышележащих папках либо в settings.mbplugin_root_path если он не пустой'
+        'остальные ini ищем в пути прописанном в mbplugin.ini\\MobileBalance\\path'
         self.ini = configparser.ConfigParser()
         self.fn = fn
         if self.fn.lower() == settings.mbplugin_ini:
@@ -110,21 +114,25 @@ class ini():
             
     def find_files_up(self, fn):
         'Ищем файл вверх по дереву путей'
+        'Для тестов можно явно указать папку с mbplugin.ini в settings.mbplugin_root_path '
+        if hasattr(settings,'mbplugin_root_path') and settings.mbplugin_root_path != '':
+            return os.path.abspath(os.path.join(settings.mbplugin_root_path, fn))
         allroot = [os.getcwd().rsplit('\\', i)[0] for i in range(len(os.getcwd().split('\\')))]
         all_ini = [i for i in allroot if os.path.exists(os.path.join(i, fn))]
         if all_ini != []:
             return os.path.join(all_ini[0], fn)
         else:
-            return os.path.join('..', fn)        
+            return os.path.join('..', fn)
         
     def read(self):
+        'Читаем ini из файла'
+        'phones.ini и phones_add.ini- нечестный ini читать приходится с извратами'
+        'replace [Phone] #123 -> [123]'
+        'Для чтения phones.ini с добавлением данных из phones_add.ini см метод ini.phones'
         if os.path.exists(self.inipath):
             if self.fn.lower() == 'phones.ini' or self.fn.lower() == 'phones_add.ini':
-                # phones.ini - нечестный ini читать приходится с извратами
-                # дополнительно читаем рядом phones_add.ini и дополняем результат данными из него
-                # это нужно чтобы при использовании с MobileBalance использовать фишки Standalone версии
-                # replace [Phone] #123 -> [Phone #123]
-                prep1 = re.sub(r'(?usi)\[Phone\] #(\d+)', r'[\1]', open(self.inipath).read())
+                with open(self.inipath) as f_ini:
+                    prep1 = re.sub(r'(?usi)\[Phone\] #(\d+)', r'[\1]', f_ini.read())
                 # TODO костыль N1, мы подменяем p_pluginLH на p_plugin чтобы при переключении плагина не разъезжались данные
                 prep2 = re.sub(r'(?usi)(Region\s*=\s*p_\S+)LH', r'\1', prep1)
                 # TODO костыль N2, у Number то что идет в конце вида <пробел>#<цифры> это не относиться к логину а 
@@ -170,13 +178,45 @@ class ini():
                              'table_format': settings.ini['HttpServer']['table_format']
                              }    
 
-
     def write(self):
+        'Сохраняем только mbplugin.ini для остальных - игнорим'
         if self.fn.lower() != settings.mbplugin_ini:
             return  # only mbplugin.ini
-        self.ini.write(open(self.inipath, 'w'))
-        
+        # TODO если сохраняем коменты:
+        sf = io.StringIO()
+        self.ini.write(sf)
+        raw = sf.getvalue().splitlines()  # инишник без комментариев
+        with open(self.inipath, encoding='cp1251') as f_ini_r:
+            for num,line in enumerate(f_ini_r.read().splitlines()):
+                if line.startswith(';'):
+                    raw.insert(num, line)
+        with open(self.inipath, encoding='cp1251', mode='w') as f_ini_w:
+            f_ini_w.write('\n'.join(raw))
+        # TODO Если просто сохраняем то так
+        # self.ini.write(open(self.inipath, 'w'))
+
+    def ini_to_json(self):
+        'Преобразуем ini в js для редактора editcfg'
+        result = {}
+        for sec in self.ini.values():
+            if sec.name != 'DEFAULT':
+                # Кидаем ключи из ini после Добавляем дефолтные ключи из settings если их не было в ini
+                # TODO продумать, может их помечать цветом и сделать кнопку вернуть к дефолту, т.е. удалить ключ из ini
+                for key,val in list(sec.items())+list(settings.ini.get(sec.name).items()):
+                    if key.endswith('_'):
+                        continue
+                    param = settings.ini.get(sec.name, {}).get(key+'_', {})
+                    param = {k:v for k,v in param.items() if k not in ['validate']}
+                    line = {'section': sec.name, 'id': key, 'type': 'text', 'descr': f'DESC {sec.name}_{key}', 
+                            'value': val, 'default': key not in sec, 'default_val': settings.ini.get(sec.name, {}).get(key, None)}
+                    line.update(param)
+                    if f'{sec.name}_{key}' not in result:
+                        result[f'{sec.name}_{key}'] = line
+        return json.dumps(result, ensure_ascii=False)
+
     def phones(self):
+        'Читает phones.ini добавляет данные из phones_add.ini дополнительную инфу'
+        'И возвращает словарь с ключами в виде пары вида (number,region)'
         if self.fn.lower() != 'phones.ini':
             raise RuntimeError(f'{self.fn} is not phones.ini')
         # Читаем вспомогательный phones_add.ini - из него возьмем данные если они там есть, они перекроют данные в phones.ini
@@ -207,6 +247,7 @@ class ini():
                     except Exception:
                         raise RuntimeError(f'Parse phones_add.ini error in section{secnum}')
         return data
+
 
 def read_stocks(stocks_name):
     'Читаем список стоков для плагина stock.py из mbplugin.ini'

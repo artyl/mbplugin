@@ -1,0 +1,41 @@
+[MobileBalance]
+path = tests\data
+
+[Options]
+logginglevel = INFO
+sqlitestore = 1
+dbfilename = tests\data\BalanceHistory.sqlite
+loggingfolder = log
+createhtmlreport = 1
+; ѕоказывать окно хрома во врем€ запроса
+show_chrome = 1
+log_responses = 1
+balance_html = db\balance.html
+updatefrommdb = 0
+updatefrommdbdeep = 30
+balancenotchangedmorethen = 40
+balancelessthen = 1
+turnofflessthen = 10
+realaveragedays = 30
+;interUnit = MB
+showonlylastperday = 1
+
+[HttpServer]
+port = 19777
+host = 127.0.0.1
+table_format = PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime
+table_format1 = PhoneNumberFormat1,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime
+table_format2 = PhoneNumberFormat2,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime
+
+[Telegram]
+api_token = 1111111111:AAFqrrrrrrrrrrrrrr_S5FEEEEEEEEEEEEE
+auth_id = 211444444
+tg_from = sqlite
+
+[stocks_broker_ru]
+stock1 = AAPL, 1, Y
+stock2 = TATNP, 16, M
+stock3 = FXIT, 1, F
+remain1 = USD, 5
+remain2 = RUB, 536
+currenc = USD
