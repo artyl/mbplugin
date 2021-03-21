@@ -22,7 +22,11 @@ print('\t'+'\t'.join(all_stock.keys()))
 for date,line in table.items():
     print(date+'\t'+'\t'.join([str(i).replace('.',',') for i in line.values()]))
 
-xlsapp = win32com.client.gencache.EnsureDispatch ("Excel.Application") # Если создавать COM объект так то Sheets.Add отрабатывает правильно
+try:
+    xlsapp = win32com.client.gencache.EnsureDispatch("Excel.Application") # Если создавать COM объект так то Sheets.Add отрабатывает правильно
+except AttributeError:
+    print(f'Проблемы с gen_py пробуем очистить {win32com.gen_py.__path__}')
+    sys.exit()
 xlsapp.Visible = True # Окно EXCEL видимое
 xlsapp.DisplayAlerts = False # Подавить ошибки
 wb_res=xlsapp.Workbooks.Add()
