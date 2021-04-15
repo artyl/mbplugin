@@ -244,7 +244,7 @@ class balance_over_puppeteer():
             'handleSIGHUP':False,
             # TODO хранить параметр в ini
             'executablePath': chrome_executable_path,
-            'args': [f"--user-data-dir={user_data_dir}", f"--profile-directory={profile_directory}",
+            'args': [f"--user-data-dir={os.path.abspath(user_data_dir)}", f"--profile-directory={profile_directory}",
                     '--wm-window-animations-disabled',
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
