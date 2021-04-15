@@ -148,9 +148,16 @@ ini = {
         'hovercss_': {'descr':'css для hover (всплывающего окна)', 'type':'text', 'size':200},
         'hovercss': 'display: block;position: fixed;top: 0; height: 100vh; overflow: auto',
         # Разрешить изменения в конфиге через http сервер config edit (пока до конца не реализовано)
-        # Внимание, при сохранении все параметры будут в нижнем регистре а коментарии будут удалены
+        # Внимание, при сохранении все параметры будут в нижнем регистре, коментарии будут сохранены
         'httpconfigedit_': {'descr':'Включить редактор конфига', 'type':'checkbox'},
         'httpconfigedit': '0',
+        'httpconfigeditnolocalauth_': {'descr':'Без авторизации при заходе локально', 'type':'checkbox'},
+        'httpconfigeditnolocalauth': '1',
+        'httpconfigeditpassword_': {'descr':'Пароль для входа в редактор, должен быть не пустой', 'type':'text'},
+        'httpconfigeditpassword': '',
+        # Undo пока ручное - идем в архив и копаемся там
+        'httpconfigeditundo_': {'descr':'Сколько предыдущих версий ini сохранять для undo', 'type':'text', 'validate':lambda i:i.isdigit()},
+        'httpconfigeditundo': '1000',
     },
     'Telegram': {  # Раздел mbplugin.ini [Telegram]
         'start_tgbot_': {'descr':'Стартовать telegram bot вместе с http', 'type':'checkbox'},
@@ -177,7 +184,7 @@ ini = {
         # формат для строки telegram bot из mobilebalance
         'tgmb_format_': {'descr':'Формат для строки telegram bot из mobilebalance', 'type':'text', 'size':200},
         'tgmb_format': '<b>{Alias}</b>\t<code>{PhoneNum}</code>\t<b>{Balance}</b>({BalDeltaQuery})',
-        'mobilebalance_http_': {'descr':'Адрес web страницы mobilebalance (настройки\WWW). На конце обязательно слэш', 'type':'text', 'size':100},
+        'mobilebalance_http_': {'descr':'Адрес web страницы mobilebalance (настройки\\WWW). На конце обязательно слэш', 'type':'text', 'size':100},
         'mobilebalance_http': 'http://localhost:19778/123456/',
     },
     'HttpServer': {  # Раздел mbplugin.ini [HttpServer]
@@ -199,3 +206,187 @@ ini = {
         'table_format': 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime',  # ? UserName
     },
 }
+
+editor_html=r'''
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Editor</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1251">
+    <div id=logon class=hidden>
+        <form action='' method='POST' accept-charset='utf-8'>Пароль1
+            <input type="password" text='Aaaaa' name="password"/>
+            <input type="hidden" name="cmd" value="logon">
+            <input type="submit" value='Logon2'>
+        </form>
+
+    </div>
+    <div id=logout class=hidden>
+        <form action='' method='POST'>
+            <input type="submit" value='Logoff2'>
+            <input type="hidden" name="cmd" value="logout">
+        </form>
+    </div>
+    <p id=wrongPassword class=hidden>Wrong Password</p>
+    <p id=buttonBlock class=hidden><Button onclick='show_default()'>Показать умолчания</Button>
+        <Button onclick='hide_default()'>Cкрыть умолчания</Button></p>
+    <div id=formIni class=hidden></div>
+
+
+    <style>
+        body,p {
+         margin: 0; /* Убираем отступы */
+        }
+        button {
+            padding: 0;
+        }
+        p.default {
+            color:gray;
+        }
+        p.default button{
+            display:none;
+        }
+        p#wrongPassword{
+            color:red;
+        }
+        .hidden{
+            display: none;
+        }
+       </style>
+</head>
+
+<body>
+
+    <script>
+        inifile = JSON.parse('') // Сюда вcтавим JSON сгенерированный из ini
+        function getCookie(name) {
+            let matches = document.cookie.match(new RegExp(
+                "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
+            ));
+            return matches ? decodeURIComponent(matches[1]) : undefined;
+        }
+        function SendPost(url, params, reload=false){
+            var http = new XMLHttpRequest();
+            http.open('POST', url, true);
+            http.setRequestHeader('Content-type', 'application/json');
+            http.onreadystatechange = function() {//Call a function when the state changes.
+                if(http.readyState === 4){
+                    if (http.status === 200) {
+                        console.log(http.responseText);
+                        if (http.responseText!='OK') {alert('Ошибка')}
+                        if (reload==true) {document.location.reload(true)}
+                    }else {
+                    console.log("Error", http.readyState, http.status, http.statusText);
+                    alert('Потеряна связь с сервером')
+                    }
+                }
+            }
+            http.send(params);
+        }
+        //TODO Надо решить как быть с параметрами по умолчанию как их показывать может сделать кнопку - очистить все что не отличается от умолчания ?
+        function change(val){
+            //val.parentElement.querySelector('button').classList.remove('default') // показываем кнопку default
+            val.parentElement.classList.remove('default');
+
+            inp = val
+            console.log('id=',inp.dataset.id,' val=',inp.value)
+            if(inp.type=='checkbox'){value=inp.checked?'1':'0'}
+            else{value=inp.value}
+            var params = JSON.stringify({ cmd: 'update', sec: inp.dataset.section, id: inp.dataset.id, type: inp.type, value: value });
+            console.log(params)
+            SendPost('editcfg', params, false)
+        }
+        function reset_to_default(val) {
+            val.parentElement.classList.add('default');
+            // set value to default on screen
+            var inp = val.parentElement.children[0]
+            if (inp.dataset.default_val !== null) {
+                inp.value = inp.dataset.default_val
+                if (inp.type == 'checkbox') {
+                    inp.checked = (inp.dataset.default_val == '1')
+                }
+            }
+            //val.classList.add('default');
+            var params = JSON.stringify({ cmd: 'delete', sec: inp.dataset.section, id: inp.dataset.id, type: inp.type});
+            console.log(params)
+            SendPost('editcfg', params, false)
+            // POST delete from ini
+            // HIDE val.parentElement.removeChild(val);
+        }
+        function show_default(){
+            document.querySelectorAll('p.default').forEach(function(item){item.style.display=''})
+        }
+        function hide_default(){
+            document.querySelectorAll('p.default').forEach(function(item){item.style.display='none'})
+        }
+        function main(){
+            console.log(12345)
+            localAuthorized = false // init
+            if(getCookie('auth')==undefined && !localAuthorized){
+                document.getElementById("logon").classList.remove('hidden')
+            } else {
+                if(!localAuthorized) {
+                    document.getElementById("logout").classList.remove('hidden')
+                }
+                document.getElementById("buttonBlock").classList.remove('hidden')
+                document.getElementById("formIni").classList.remove('hidden')                
+            }
+            if(getCookie('wrongpassword')!=undefined){
+                document.getElementById("wrongPassword").classList.remove('hidden')
+            }
+
+            var section=''
+            for(var key in inifile) {
+                if(section!=inifile[key].section){
+                    formIni.appendChild(document.createTextNode('['+(inifile[key].section)+']'));
+                    section=inifile[key].section;
+                }
+                var newdiv = document.createElement("div");
+                if(inifile[key].type=='select'){
+                    var inp = document.createElement("select");
+                    newdiv.appendChild(inp)
+                    inifile[key].variants.split(' ').forEach(function(item, i, arr) {
+                        var opt = document.createElement('option')
+                        opt.text = item
+                        inp.appendChild(opt)
+                    })
+                } else {
+                    var inp = document.createElement("input");
+                    if (inifile[key].type == 'text' && inifile[key].hasOwnProperty('size')) { inp.size = inifile[key]['size'] }
+                    if (inifile[key].type == 'checkbox') { inp.checked = (inifile[key].value == '1') }
+                }
+                inp.value=inifile[key].value
+                inp.id=inifile[key].id
+                inp.type=inifile[key].type
+                inp.dataset.section = inifile[key].section
+                inp.dataset.id = inifile[key].id
+                inp.dataset.default_val = inifile[key].default_val
+                inp.oninput=function(){change(this)}
+                var newtxt = document.createElement("p");
+                newtxt.innerText = inifile[key].descr+' '+inifile[key].id+'='
+                newtxt.appendChild(inp)
+                newdiv.appendChild(newtxt);
+                var newbtn = document.createElement("button");
+                newbtn.appendChild(document.createTextNode("default"));
+                newtxt.appendChild(newbtn);
+                newbtn.onclick = function () {reset_to_default(this)};
+                //newtxt.style.margin=0
+                if(inifile[key].default == true){
+                    newtxt.classList.add('default');
+                    //newbtn.classList.add('default')
+                } else {
+
+                    //Hide ->default button
+                }
+                formIni.appendChild(newdiv)
+                hide_default()
+            }
+        }
+        main()
+    </script>
+
+</body>
+
+</html>
+'''

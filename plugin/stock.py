@@ -40,10 +40,19 @@ import store, settings
 
 icon = '789C73F235636100033320D600620128666450804840E591C1F7EFDF19BE7DFB06A641F8C78F1F0C7FFEFC61F8FBF72FC3FFFFFFC118C4068981E460EA607A90F582D4C0F4E0C22035E8668030B27D84F0BF7FFFE0FA90ED7DF5F2274365DE1D86C6B27B0CF3A73F659837F529437CD0558669BD8F19E64F7BCA30A5FB11863B407E8289BD7EF58BE1C695AF0CE9D1D719BA1A1F3074363C60B0D33BC3D000340FC4AF2DBE8BE20E585881D8EFDEFC62B0503FCD90147A8D61E796B70C0B663E63B874FE334373E53D9CFA91C3F9CFEF7F607B8D144F82CD7878EF3B43B0EB2586558B5F82DD8F4D3F281C90F9DFBFFD65488F829861AA720A4C1B2B9D6458BEE005C32EA09BD0F563C3DF8066A4455E03EBCD8ABBC160AD7D1A6CC6CA452F180EEC7AC7F0F8E17714F5D8E20D64C68219CF80FEFBC770F6E427B81993BB1E31043A5F44713F3169066606C84D4E466751C20F39FE70E11B57BF32381A9EC5D00F4BCF84DC70FAF84786DDDBDE82F1C9A31F31D23125E9971AF9075BFE454E1BB070C6967F01C1D1A7CC'
 
-def get_usd_moex():
+def get_curs_moex(currenc):
+    'Возвращает курсы валют относительно заданной'
     response = requests.get('https://iss.moex.com/iss/statistics/engines/futures/markets/indicativerates/securities')
-    res = re.findall(r'secid="USD/RUB" rate="(.*?)"',response.text)[0]
-    return float(res)
+    data = re.findall(r'secid="(\w{3})/(\w{3})" rate="(.*?)"',response.text)
+    rate = dict([[(a,b),float(c)] for a,b,c in data] + [[(b,a),1/float(c)] for a,b,c in data])
+    all_val = set(sum([[i,j] for i,j,_ in data],[])) # Все валюты
+    p_val = [(v1,v2) for v1 in all_val for v2 in all_val] # все пары валют
+    for pair in p_val:
+        if pair not in rate:
+            v1,v2 = pair
+            rate[pair] = 1 if v1==v2 else rate[v1, 'RUB']*rate['RUB', v2]
+    res = {pair[0]:val for pair,val in rate.items() if pair[1] == currenc}
+    return res
 
 
 def get_yahoo(market, security, cnt, qu=None):
@@ -121,12 +130,16 @@ def thread_call_market(market,security,cnt,qu):
 
     
 def count_all_scocks_multithread(stocks, remain, currenc):
-    usd = get_usd_moex()
-    k = {'USD': 1, 'RUB': 1}  # Коэффициенты для приведения к одной валюте
-    if currenc == 'USD':
-        k['RUB'] = 1/usd
-    else:
-        k['USD'] = usd
+    '''
+    Возвращает инфу по стокам в виде списка словарей:
+    'security' - код бумаги, 
+    'price' - цена бумаги, 
+    'value' - цена всех бумаг в валюте бумаги, 
+    'cnt' - количество , 
+    'currency' - валюта, 
+    'value_priv' - цена всего вакета в приведенной к результату валюте
+    '''
+    k = get_curs_moex(currenc)  # Коэффициенты для приведения к одной валюте
     qu = queue.Queue() # Очередь для данных из thread [val, sec_code, currency]
     # Каждое получение данных в отдельном трэде для ускорения
     for sec,cnt,market in stocks:
@@ -142,12 +155,13 @@ def count_all_scocks_multithread(stocks, remain, currenc):
     data.sort(key=lambda i:orderlist.index(i['security'])) # Сортируем в исходном порядке
     for line in data:
         line['value_priv'] = round(line['value']*k[line['currency']],2)
-    res_full = '\n'.join([f'{i["security"]+"("+i["currency"]+")":10} : {round(i["value_priv"],2):9.2f} {currenc}' for i in data])+'\n'
-    res_balance = round(sum([i['value_priv'] for i in data]) + remain['USD']*k['USD'] + remain['RUB']*k['RUB'],2)
     if len(data) != len(stocks):
         diff = ','.join(set([i['security'] for i in data]).symmetric_difference(set([i[0] for i in stocks])))
         raise RuntimeError(f'Not all stock was return ({len(data)} of {len(stocks)}):{diff}')
-    return res_balance, res_full, data
+    # Добавляем строчки с остатками в USD и RUB
+    for val,cnt in remain.items():
+        data.append({'security': '_'+val, 'price': round(k[val], 2), 'value': round(k[val], 2), 'cnt': cnt, 'currency': val, 'value_priv': round(k[val]*cnt, 2)})
+    return data
 
 def get_balance(login, password, storename=None):
     result = {}
@@ -158,20 +172,21 @@ def get_balance(login, password, storename=None):
     stocks = data['stocks']
     remain = data['remain']
     currenc = data['currenc']
-    res_balance, res_full, res_data = count_all_scocks_multithread(stocks, remain, currenc)
+    res_data = count_all_scocks_multithread(stocks, remain, currenc)
     session.session.params['history'].append({'timestamp':time.time(),'data':res_data})  # Полученное значение сразу добавляем в хвост истории
     if store.options('stock_fulllog'):
         fulllog = '\n'.join(f'{time.strftime("%Y.%m.%d %H:%M:%S",time.localtime())}\t{i["security"]}\t{i["price"]}\t{i["currency"]}\t{i["cnt"]}\t{round(i["value"],2)}\t{round(i["value_priv"],2)}' for i in res_data)
         with open(os.path.join(store.options('loggingfolder'),f'stock_{login}.log'),'a') as f_log:
             f_log.write(fulllog+'\n')
-    result['Stock'] = res_full # Полная информация по стокам
+    # Полная информация по стокам
+    result['Stock'] = '\n'.join([f'{i["security"]+"("+i["currency"]+")":10} : {round(i["value_priv"],2):9.2f} {currenc}' for i in res_data])+'\n'
     result['UslugiOn'] = len(res_data)
     # Берем два последних элемента, а из них берем первый т.е. [1,2,3][-2:][0] -> 2 а [3][-2:][0] -> 3 чтобы не морочаться с проверкой есть ли предпоследний
-    prev_data = session.session.params['history'][-2:][0]['data'] # TODO подумать какой из истории брать для вычисления. Пока беру предудущий
+    prev_data = session.session.params['history'][-2:][0]['data'] # TODO подумать какой из истории брать для вычисления. Пока беру предыдущий
     hst={i['security']:i['value_priv'] for i in prev_data}
     result['UslugiList'] = '\n'.join([f'{i["security"]:5}({i["currency"]}) {i["value_priv"]-hst.get(i["security"],i["value_priv"]):+.2f}\t{i["value_priv"]:.2f}' for i in res_data])
     # Полная информация подправленная для показа в balance.html
-    result['Balance'] = res_balance # Сумма в заданной валюте
+    result['Balance'] = round(sum([i['value_priv'] for i in res_data]), 2)  # Сумма в заданной валюте
     result['Currenc'] = currenc # Валюта
     session.session.params['history'] = session.session.params['history'][-100:]  # оставляем последние 100 значений чтобы не росло бесконечно
     session.save_session()

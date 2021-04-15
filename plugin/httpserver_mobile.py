@@ -1,7 +1,7 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
 import os, sys,io, re, time, json, traceback, threading, logging, importlib, configparser, queue, argparse, subprocess, psutil
-import wsgiref.simple_server, socketserver, socket, requests, urllib.parse, urllib.request, bs4
+import wsgiref.simple_server, socketserver, socket, requests, urllib.parse, urllib.request, bs4, uuid
 import settings, store, dbengine  # pylint: disable=import-error
 try:
     import win32api, win32gui, win32con, winerror
@@ -27,11 +27,6 @@ def turn_logging():
                         level=store.options('logginglevel'),
                         format=store.options('loggingformat'))    
 
-def find_ini_up(fn):
-    allroot = [os.getcwd().rsplit('\\', i)[0] for i in range(len(os.getcwd().split('\\')))]
-    all_ini = [i for i in allroot if os.path.exists(os.path.join(i, fn))]
-    if all_ini != []:
-        return all_ini[0]
 
 def detbalance_standalone(filter=[], only_failed=False, feedback=None) :
     ''' Получаем балансы самостоятельно без mobilebalance 
@@ -492,9 +487,12 @@ class TrayIcon:
             print("You right clicked me.")
             menu = win32gui.CreatePopupMenu()
             win32gui.AppendMenu(menu, win32con.MF_STRING, 1024, "Open report")
-            win32gui.AppendMenu(menu, win32con.MF_STRING, 1025, "View log")
-            win32gui.AppendMenu(menu, win32con.MF_STRING, 1026, "Restart server")
-            win32gui.AppendMenu(menu, win32con.MF_STRING, 1027, "Exit program")
+            if store.options('HttpConfigEdit') == '1':
+                win32gui.AppendMenu(menu, win32con.MF_STRING, 1025, "Edit config")
+            win32gui.AppendMenu(menu, win32con.MF_STRING, 1026, "View log")
+            win32gui.AppendMenu(menu, win32con.MF_STRING, 1027, "Flush log")
+            win32gui.AppendMenu(menu, win32con.MF_STRING, 1028, "Restart server")
+            win32gui.AppendMenu(menu, win32con.MF_STRING, 1029, "Exit program")
             pos = win32gui.GetCursorPos()
             # See http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/menus_0hdi.asp
             win32gui.SetForegroundWindow(self.hwnd)
@@ -507,11 +505,15 @@ class TrayIcon:
         port = int(store.options('port', section='HttpServer'))
         if id == 1024:
             os.system(f'start http://localhost:{port}/report')
-        if id == 1025:
+        elif id == 1025:
+            os.system(f'start http://localhost:{port}/editcfg')            
+        elif id == 1026:
             os.system(f'start http://localhost:{port}/log?lines=40')
-        if id == 1026:
-            restart_program(reason='tray icon command')
         elif id == 1027:
+            store.logging_restart()
+        elif id == 1028:
+            restart_program(reason='tray icon command')
+        elif id == 1029:
             print("Goodbye")
             win32gui.DestroyWindow(self.hwnd)
             self.cmdqueue.put('STOP')
@@ -775,7 +777,7 @@ class WebServer():
         if str(store.options('start_http', section='HttpServer')) != '1':
             logging.info(f'Start http server disabled in mbplugin.ini (start_http=0)')
             return
-        with wsgiref.simple_server.make_server(self.host, self.port, self.simple_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
+        with wsgiref.simple_server.make_server(self.host, self.port, self.web_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
             logging.info(f'Listening {self.host}:{self.port}....')
             threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
             if 'win32api' in sys.modules:  # Иконка в трее
@@ -788,9 +790,108 @@ class WebServer():
             self.httpd.shutdown()
         logging.info(f'Shutdown server {self.host}:{self.port}....')
 
-    def simple_app(self, environ, start_response):
+    def editor(self, environ):
+        ''' Редактор конфигов editcfg
+        возвращаем Content-type, text, status, add_headers'''
+        ## print(environ)
+        # т.к. возвращаем разные статусы и куки, готовим переменные под них
+        autorized = False  # Изначально считаем что пользователь не авторизован
+        # breakpoint() if os.path.exists('breakpoint') else None
+        status = '200 OK'
+        add_headers = []
+        cookie_store_name = os.path.join(store.options('storefolder'), 'authcookie')
+        # Читаем список сохраненных кук
+        if os.path.exists(cookie_store_name):
+            with open(cookie_store_name) as f:
+                authcookies = [i for i in map(str.strip,f.readlines()) if i!='']
+        else:
+            authcookies = []
+        # Получаем переданные куки из заголовка
+        cookies = {k:v[0] for k,v in urllib.parse.parse_qs(environ.get('HTTP_COOKIE','{}')).items()}
+        # Авторизованы если переданная кука в списке сохраненных
+        autorized = cookies.get('auth', 'None') in authcookies
+        # Если пришли с localhost и разрешено локалхосту без авторизации
+        local_autorized = environ.get('REMOTE_ADDR','None')=='127.0.0.1' and str(store.options('httpconfigeditnolocalauth'))=='1'
+        if local_autorized:
+            autorized = True        
+        # если еще не открывали редактируемый ini открываем
+        if not hasattr(self,'editini'):
+            self.editini = store.ini()
+        print(cookies, f"{cookies.get('auth', 'None') in authcookies=}",f'{autorized=}')
+        if environ['REQUEST_METHOD'] == 'POST':
+            try:
+                request_size = int(environ['CONTENT_LENGTH'])
+                request_raw = environ['wsgi.input'].read(request_size)
+            except (TypeError, ValueError):
+                request_raw = "0"
+            try:
+                request = json.loads(request_raw)
+            except Exception:
+                try:
+                    request = urllib.parse.parse_qs(request_raw.decode())
+                    request = {k:v[0] for k,v, in request.items()}
+                except Exception:
+                    request = {'cmd':'error'}
+            print(f'{request=}')
+            if autorized and request['cmd'] == 'update':
+                params = settings.ini[request['sec']].get(request['id']+'_',{})
+                # Если для параметра указана функция валидации - вызываем ее
+                if not params.get('validate',lambda i:True)(request['value']):
+                    return 'text/plain', 'ERROR', status, add_headers
+                logging.info(f"ini change key [{request['sec']}] {request['id']} {self.editini.ini[request['sec']].get(request['id'],'default')}->{request['value']}")
+                self.editini.ini[request['sec']][request['id']] = request['value']
+                self.editini.write()
+                #print('\n'.join([f'{k}={v}' for k,v in self.editini.ini[request['sec']].items()]))
+            elif autorized and request['cmd'] == 'delete':
+                logging.info(f"ini delete key [{request['sec']}] {request['id']} {self.editini.ini[request['sec']].get(request['id'],'default')}")
+                self.editini.ini[request['sec']].pop(request['id'], None)
+                self.editini.write()
+            elif request['cmd'] == 'logon':
+                status = '303 See Other'
+                # Пароль совпал (и не пустой !!!) - выдаем токен
+                passwd_from_ini = store.options('httpconfigeditpassword').strip()
+                passwd_from_user = request.get('password', 'None').strip()
+                if passwd_from_user == passwd_from_ini and passwd_from_ini != '':
+                    auth_token = uuid.uuid4().hex  # auth cookie
+                    authcookies.append(auth_token)
+                    with open(cookie_store_name, 'w') as f:
+                        f.write('\n'.join(authcookies))
+                    add_headers = [('Set-Cookie', f'auth={auth_token}'),
+                                    ('Set-Cookie', 'wrongpassword=deleted; expires=Thu, 01 Jan 1970 00:00:00 GMT')]
+                else:
+                    add_headers = [('Set-Cookie', 'wrongpassword=true')]
+                return 'text/html', 'redirect', status, add_headers
+            elif request['cmd'] == 'logout':
+                # выкидываем куку
+                with open(cookie_store_name, 'w') as f:
+                    f.write('\n'.join([i for i in authcookies if i != cookies.get('auth', 'None')]))
+                status = '303 See Other'
+                add_headers = [('Set-Cookie', 'auth=deleted; expires=Thu, 01 Jan 1970 00:00:00 GMT')]
+                return 'text/html', 'redirect', status, add_headers
+            elif request['cmd'] == 'error':
+                return 'text/plain', 'Error', status, add_headers
+            else: 
+                return 'text/plain', 'Error, unknown cmd', status, add_headers
+            return 'text/plain', 'OK', status, add_headers
+        if environ['REQUEST_METHOD']=='GET':
+            self.editini = store.ini()
+            self.editini.read()
+            # TODO в финале editor.html будем брать из settings.py
+            # editor_html = open('editor.html', encoding='cp1251').read()
+            editor_html = settings.editor_html
+            inidata = '{}'
+            if autorized:
+                inidata = self.editini.ini_to_json().replace('\\','\\\\')
+            editor_html = editor_html.replace("inifile = JSON.parse('')", f"inifile = JSON.parse('{inidata}')")
+            if local_autorized:
+                editor_html = editor_html.replace('localAuthorized = false // init', f'localAuthorized = true // init')
+            return 'text/html',editor_html, status, add_headers
+
+    def web_app(self, environ, start_response):
         try:
+            logging.debug('web_app start')
             status = '200 OK'
+            add_headers = []
             ct, text = 'text/html', []
             fn = environ.get('PATH_INFO', None)
             _, cmd, *param = fn.split('/')
@@ -807,16 +908,28 @@ class WebServer():
             elif cmd.lower() == 'log': # просмотр лога
                 param = urllib.parse.parse_qs(environ['QUERY_STRING'])
                 ct, text = view_log(param)
+            elif cmd == 'logging_restart':  # logging_restart
+                store.logging_restart()
+                ct, text = 'text/html', 'OK'
             elif cmd == '' or cmd == 'report':  # report
                 if store.options('sqlitestore') == '1':
                     ct, text = getreport(param)
                 else:
                     ct, text = 'text/html', HTML_NO_REPORT
+
+                    
+            elif cmd.lower() == 'editcfg':  # вариант через get запрос
+                if store.options('HttpConfigEdit') == '1':
+                    ct, text, status, add_headers = self.editor(environ)
             elif cmd == 'exit':  # exit cmd
                 self.cmdqueue.put('STOP')
                 text = ['exit']
-            headers = [('Content-type', ct)]
+            if status.startswith('200'):
+                headers = [('Content-type', ct)]
+            if status.startswith('303'):
+                headers = [('Location', '')] + add_headers
             start_response(status, headers)
+            logging.debug('web_app done')
             return [line.encode('cp1251', errors='ignore') for line in text]
         except Exception:
             exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'

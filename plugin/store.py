@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
-import os, sys, io, re, json, pickle, requests, configparser, pprint
+import os, sys, time, io, re, json, pickle, requests, configparser, pprint, zipfile, logging
 import settings
 
 
@@ -178,14 +178,41 @@ class ini():
                              'table_format': settings.ini['HttpServer']['table_format']
                              }    
 
+    def save_bak(self, fn):
+        'Сохраняем резервную копию файла в папку с логами в zip'
+        # Делаем резервную копию ini перед сохранением
+        undozipname = os.path.join(options('storefolder'), 'mbplugin.ini.bak.zip')
+        arc = []
+        if os.path.exists(undozipname):
+            # Предварительно читаем сохраненные варианты, открываем на чтение
+            with zipfile.ZipFile(undozipname, 'r', zipfile.ZIP_DEFLATED) as zf1:
+                for i in zf1.infolist(): # Во временную переменную прочитали
+                    arc.append((i, zf1.read(i)))
+        arc = sorted(arc, reverse=True, key=lambda i: i[0].filename)[0:int(options('httpconfigeditundo'))]
+        name_bak = f'{os.path.split(fn)[-1]}_{time.strftime("%Y%m%d%H%M%S", time.localtime())}'
+        # Если быстро менять конфиг - то успеваем в одну секунду сохранить несколько раз - это лишнее
+        # Если в эту секунду уже сохраняли - пропускаем
+        if name_bak in [i[0].filename for i in arc]:
+            print('We create undo too often - lets skip this one')
+            return
+        with zipfile.ZipFile(undozipname+'~tmp', 'w', zipfile.ZIP_DEFLATED) as zf2:
+            # Sic! Для write write(filename, arcname) vs writestr(arcname, data)
+            zf2.write(fn, f'{name_bak}')
+            for a_name, a_data in arc:
+                zf2.writestr(a_name, a_data)
+        if os.path.exists(undozipname):
+            os.remove(undozipname)  # Удаляем первоначальный файл
+        os.rename(undozipname+"~tmp", undozipname) # Переименовываем временный на место первоначального
+
     def write(self):
         'Сохраняем только mbplugin.ini для остальных - игнорим'
         if self.fn.lower() != settings.mbplugin_ini:
             return  # only mbplugin.ini
-        # TODO если сохраняем коменты:
         sf = io.StringIO()
         self.ini.write(sf)
         raw = sf.getvalue().splitlines()  # инишник без комментариев
+        self.save_bak(self.inipath)
+        # TODO если сохраняем коменты:
         with open(self.inipath, encoding='cp1251') as f_ini_r:
             for num,line in enumerate(f_ini_r.read().splitlines()):
                 if line.startswith(';'):
@@ -290,6 +317,16 @@ def result_to_html(result):
     return f'<html><meta charset="windows-1251"><p id=response>{body}</p></html>'    
 
 
+def logging_restart():
+    'Останавливаем логирование и откидываем в отдельный файл'
+    'Чтобы можно было почистить'
+    filename = options('logginghttpfilename')
+    filename_new = filename + time.strftime('%Y%m%d%H%M%S.log',time.localtime())
+    logging.shutdown()
+    os.rename(filename, filename_new)
+    logging.info(f'Old log was renamed to {filename_new}')
+
+
 if __name__ == '__main__':
     print('Module store')
     # print(list(ini('phones.ini').read().keys()))
@@ -307,3 +344,4 @@ if __name__ == '__main__':
     # import io;f = io.StringIO();ini.write(f);print(f.getvalue())
     #{'STOCKS':(('AAPL',1,'Y'),('TATNP',16,'M'),('FXIT',1,'M')), 'REMAIN': {'USD':5, 'RUB':536}, 'CURRENC': 'USD'}
     #p=ini('phones.ini').read()
+    # import store;ini=store.ini();ini.read();ini.ini['Options']['httpconfigedit']='1';ini.write()
