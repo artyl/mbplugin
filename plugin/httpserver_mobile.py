@@ -2,7 +2,7 @@
 ''' Автор ArtyLa '''
 import os, sys,io, re, time, json, traceback, threading, logging, importlib, configparser, queue, argparse, subprocess, psutil
 import wsgiref.simple_server, socketserver, socket, requests, urllib.parse, urllib.request, bs4, uuid
-import settings, store, dbengine  # pylint: disable=import-error
+import settings, store, dbengine, compile_all_jsmblh  # pylint: disable=import-error
 try:
     import win32api, win32gui, win32con, winerror
 except ModuleNotFoundError:
@@ -491,6 +491,7 @@ class TrayIcon:
                 win32gui.AppendMenu(menu, win32con.MF_STRING, 1025, "Edit config")
             win32gui.AppendMenu(menu, win32con.MF_STRING, 1026, "View log")
             win32gui.AppendMenu(menu, win32con.MF_STRING, 1027, "Flush log")
+            win32gui.AppendMenu(menu, win32con.MF_STRING, 1030, "Recompile jsmblh plugin")
             win32gui.AppendMenu(menu, win32con.MF_STRING, 1028, "Restart server")
             win32gui.AppendMenu(menu, win32con.MF_STRING, 1029, "Exit program")
             pos = win32gui.GetCursorPos()
@@ -509,6 +510,8 @@ class TrayIcon:
             os.system(f'start http://localhost:{port}/editcfg')            
         elif id == 1026:
             os.system(f'start http://localhost:{port}/log?lines=40')
+        elif id == 1030:
+            compile_all_jsmblh.recompile()
         elif id == 1027:
             store.logging_restart()
         elif id == 1028:
