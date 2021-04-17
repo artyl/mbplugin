@@ -131,7 +131,7 @@ addition_indexes = ['idx_QueryDateTime ON Phones (QueryDateTime ASC)',
                     'idx_Phonenumber ON Phones (PhoneNumber)',
                     'idx_MBPhonenumber ON Phones (MBPhoneNumber)']
 addition_queries = [
-    "delete from phones where phonenumber like 'p_%' or operator='p_test1' or (phonenumber='tinkoff' and operator='???')"]
+    "delete from phones where phonenumber like 'p_%' or operator='p_test1' or (phonenumber='tinkoff' and operator='???') or operator in ('#01','#02')"]
 
 
 class dbengine():
