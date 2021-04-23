@@ -18,6 +18,7 @@ class lovit_over_puppeteer(pa.balance_over_puppeteer):
             {'name': 'Balance', 'url_tag': ['api/user/info'], 'jsformula': "parseFloat(data.data.balance).toFixed(2)"},
             {'name': 'UserName', 'url_tag': ['api/user/info'], 'jsformula': "data.data.company"},
             {'name': 'TurnOff', 'url_tag': ['api/user/info'], 'jsformula': "data.data.days_to_off"},
+            {'name': 'Expired', 'url_tag': ['api/user/info'], 'jsformula': "data.data.days_to_off"},  # Некоторые хотят чтобы было в этом поле
             {'name': 'LicSchet', 'url_tag': ['api/user/info'], 'jsformula': "data.data.login"},
             {'name': 'TarifPlan', 'url_tag': ['api/user/info'], 'jsformula': "data.data.tariff_name"},
             {'name': 'BlockStatus', 'url_tag': ['api/user/info'], 'jsformula': "data.status"},
