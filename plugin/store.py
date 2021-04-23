@@ -180,6 +180,8 @@ class ini():
 
     def save_bak(self, fn):
         'Сохраняем резервную копию файла в папку с логами в zip'
+        if not os.path.exists(self.inipath): # Сохраняем bak, только если файл есть
+            return
         # Делаем резервную копию ini перед сохранением
         undozipname = os.path.join(options('storefolder'), 'mbplugin.ini.bak.zip')
         arc = []
@@ -211,12 +213,13 @@ class ini():
         sf = io.StringIO()
         self.ini.write(sf)
         raw = sf.getvalue().splitlines()  # инишник без комментариев
-        self.save_bak(self.inipath)
-        # TODO если сохраняем коменты:
-        with open(self.inipath, encoding='cp1251') as f_ini_r:
-            for num,line in enumerate(f_ini_r.read().splitlines()):
-                if line.startswith(';'):
-                    raw.insert(num, line)
+        if os.path.exists(self.inipath):  # Если файл ini на диске есть сверяем с предыдущей версией
+            self.save_bak(self.inipath)
+            # TODO если сохраняем коменты:
+            with open(self.inipath, encoding='cp1251') as f_ini_r:
+                for num,line in enumerate(f_ini_r.read().splitlines()):
+                    if line.startswith(';'):
+                        raw.insert(num, line)
         with open(self.inipath, encoding='cp1251', mode='w') as f_ini_w:
             f_ini_w.write('\n'.join(raw))
         # TODO Если просто сохраняем то так
