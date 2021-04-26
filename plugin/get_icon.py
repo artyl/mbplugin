@@ -14,13 +14,18 @@ get_icon.py имя_файла_на_диске.ico
 '''
 import zlib,requests,io,sys,os
 from PIL import Image
-if os.path.exists(sys.argv[1]):
-    img = Image.open(sys.argv[1])
-else:
-    bb = io.BytesIO(requests.get(sys.argv[1]).content)
-    img = Image.open(bb)
-img = img.resize((16,16))
-bb=io.BytesIO()
-img.save(bb, 'bmp')
-bb.getvalue()
-print(zlib.compress(bb.getvalue()).hex())
+
+def get_icon(fn):
+    if os.path.exists(fn):
+        img = Image.open(fn)
+    else:
+        bb = io.BytesIO(requests.get(fn).content)
+        img = Image.open(bb)
+    img = img.resize((16,16))
+    bb=io.BytesIO()
+    img.save(bb, 'bmp')
+    bb.getvalue()
+    print(zlib.compress(bb.getvalue()).hex())
+
+if __name__ == '__main__':
+    get_icon(sys.argv[1])

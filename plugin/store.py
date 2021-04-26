@@ -178,7 +178,7 @@ class ini():
                              'table_format': settings.ini['HttpServer']['table_format']
                              }    
 
-    def save_bak(self, fn):
+    def save_bak(self):
         'Сохраняем резервную копию файла в папку с логами в zip'
         if not os.path.exists(self.inipath): # Сохраняем bak, только если файл есть
             return
@@ -191,7 +191,7 @@ class ini():
                 for i in zf1.infolist(): # Во временную переменную прочитали
                     arc.append((i, zf1.read(i)))
         arc = sorted(arc, reverse=True, key=lambda i: i[0].filename)[0:int(options('httpconfigeditundo'))]
-        name_bak = f'{os.path.split(fn)[-1]}_{time.strftime("%Y%m%d%H%M%S", time.localtime())}'
+        name_bak = f'{os.path.split(self.inipath)[-1]}_{time.strftime("%Y%m%d%H%M%S", time.localtime())}'
         # Если быстро менять конфиг - то успеваем в одну секунду сохранить несколько раз - это лишнее
         # Если в эту секунду уже сохраняли - пропускаем
         if name_bak in [i[0].filename for i in arc]:
@@ -199,7 +199,7 @@ class ini():
             return
         with zipfile.ZipFile(undozipname+'~tmp', 'w', zipfile.ZIP_DEFLATED) as zf2:
             # Sic! Для write write(filename, arcname) vs writestr(arcname, data)
-            zf2.write(fn, f'{name_bak}')
+            zf2.write(self.inipath, f'{name_bak}')
             for a_name, a_data in arc:
                 zf2.writestr(a_name, a_data)
         if os.path.exists(undozipname):
@@ -214,7 +214,7 @@ class ini():
         self.ini.write(sf)
         raw = sf.getvalue().splitlines()  # инишник без комментариев
         if os.path.exists(self.inipath):  # Если файл ini на диске есть сверяем с предыдущей версией
-            self.save_bak(self.inipath)
+            self.save_bak()
             # TODO если сохраняем коменты:
             with open(self.inipath, encoding='cp1251') as f_ini_r:
                 for num,line in enumerate(f_ini_r.read().splitlines()):
