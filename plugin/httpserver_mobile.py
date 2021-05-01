@@ -94,7 +94,7 @@ def getbalance_plugin(method, param_source):
             result = module.get_balance(param['login'], param['password'], storename)
             text = store.result_to_html(result)
             if 'Balance' not in result:
-                raise RuntimeError(f'В result отсутствеут баланс')
+                raise RuntimeError(f'В result отсутствует баланс')
         except:
             logging.info(f'{plugin} fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
             dbengine.flags('set',f"{lang}_{plugin}_{param['login']}",'error call')  # выставляем флаг о ошибке вызова

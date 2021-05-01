@@ -106,6 +106,8 @@ def fix_crash_banner(storename):
     'Исправляем Preferences чтобы убрать баннер Работа Chrome была завершена некорректно'
     storefolder = store.options('storefolder')
     fn_pref = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename, 'Preferences'))
+    if not os.path.exists(fn_pref):
+        return  # Нет Preferences - выходим
     with open(fn_pref) as f:
         data = f.read()
     data1 = data.replace('"exit_type":"Crashed"','"exit_type":"Normal"').replace('"exited_cleanly":false','"exited_cleanly":true')

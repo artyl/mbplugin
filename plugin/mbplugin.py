@@ -53,7 +53,7 @@ def main():
         storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
         result = module.get_balance(login, password, storename)
         if 'Balance' not in result:
-            raise RuntimeError(f'В result отсутствеут баланс')
+            raise RuntimeError(f'В result отсутствует баланс')
     except Exception:
         exception_text = f'Ошибка при вызове модуля \n{plugin}: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)

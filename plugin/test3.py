@@ -15,10 +15,10 @@ class test4_over_puppeteer(pa.balance_over_puppeteer):
         # Здесь мы берет данные непосредственно с отрендеренной страницы, поэтому url_tag не указан
         await self.wait_params(params=[{
             'name': 'Balance',
-            'jsformula': r"parseFloat(document.querySelector('.sensor-5 .d-inline').innerText.replace(/[^\d,.]/g, '').replace(',','.'))",
+            'jsformula': r"parseFloat(document.querySelector('div.card-body div.counter__row').innerText.replace(/[^\d,.]/g, '').replace(',','.'))",
         }, {
             'name': 'BlockStatus',
-            'jsformula': r"document.querySelector('.sensor-9 .d-inline').innerText",
+            'jsformula': r"document.querySelector('div.devices p.small').innerText",
         }])
 
 
