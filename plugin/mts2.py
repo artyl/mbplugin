@@ -9,9 +9,17 @@ icon = '789C75524D4F5341143D84B6A8C0EB2BAD856A4B0BE5E301A508A9F8158DC18498A88989
 login_url = 'https://login.mts.ru/amserver/UI/Login?service=newlk'  # - другая форма логина - там оба поля на одной странице, и можно запомнить сессию
 # url='https://lk.mts.ru/', # а на этой запомнить сессию нельзя
 user_selectors = {
-    'chk_lk_page_js': "document.querySelector('form input[id^=phone]')==null && document.querySelector('form input[id=password]')==null",
+    # Возможно 2 разных формы логина, кроме того при заходе через мобильный МТС форма будет отличаться поэтому в выражении предусмотрены все варианты
+    'chk_lk_page_js': "document.querySelector('form input[id^=phone]')==null && document.querySelector('form input[id=password]')==null && document.querySelector('form button[value=Ignore]')==null && document.getElementById('enter-with-phone-form')==null",
     # У нас форма из двух последовательных окон (хотя иногода бывает и одно, у МТС две разных формы логона)
-    'chk_login_page_js': "document.querySelector('form input[id=phoneInput]')!=null || document.querySelector('form input[id=password]')!=null",
+    'chk_login_page_js': "document.querySelector('form input[id=phoneInput]')!=null || document.querySelector('form input[id=password]')!=null || document.querySelector('form button[value=Ignore]')!=null || document.getElementById('enter-with-phone-form')!=null",
+    # Если мы зашли с интернета МТС то предлагается вариант зайти под номером владельца (есть два варианта этой формы), надо нажать кнопку проигнорить этот вариант
+    'before_login_js': """b1=document.querySelector('button[value=Ignore]');
+                          if(b1!==null){b1.click()};
+                          b2=document.getElementById('enter-with-phone-form');
+                          i2=document.getElementById('IDButton');
+                          if(b2!==null && i2!==null){i2.value='Ignore';b2.submit.click();}
+                        """,
     'login_clear_js': "document.querySelector('form input[id^=phone]').value=''",
     'login_selector': 'form input[id^=phone]', 
     # проверка нужен ли submit после логина (если поле пароля уже есть то не нужен, иначе нужен)
