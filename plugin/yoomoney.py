@@ -24,7 +24,7 @@ class yoomoney_over_puppeteer(pa.balance_over_puppeteer):
                     await asyncio.sleep(1)                
         await self.wait_params(params=[{
             'name': 'Balance',
-            'jsformula': r"parseFloat(document.querySelector('div[class=balance-widget__amount]').innerText.replace(/[^\d\.,]/g,'').replace(',','.'))",
+            'jsformula': r"parseFloat(document.querySelector('div[class=balance-widget__amount]').innerText.replace(/[^\d\.,-]/g,'').replace(',','.'))",
         },], 
         url='https://yoomoney.ru/actions')
 

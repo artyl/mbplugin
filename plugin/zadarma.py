@@ -5,7 +5,7 @@ import requests
 import store
 
 # Строка для поиска баланса на странице
-re_balance = r'(?usi)balance.*?>\D*?(\d*?[\.,]\d*?)\D*?<'
+re_balance = r'(?usi)balance.*?>\D*?(-?\d*?[\.,]\d*?)\D*?<'
 re_tariff = r'(?usi)tariffInfo\W+>([^\<]+)<'  # Строка для поиска тарифа
 re_min = r'(?usi)доступно: (\d+) минут'  # Строка для поиска доступных минут
 

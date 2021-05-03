@@ -9,13 +9,13 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
                   'login_selector': 'form input[type=text]', }
 
 # введите логин demo@saures.ru и пароль demo вручную
-class test4_over_puppeteer(pa.balance_over_puppeteer):
+class test3_over_puppeteer(pa.balance_over_puppeteer):
     async def async_main(self):
         await self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берет данные непосредственно с отрендеренной страницы, поэтому url_tag не указан
         await self.wait_params(params=[{
             'name': 'Balance',
-            'jsformula': r"parseFloat(document.querySelector('div.card-body div.counter__row').innerText.replace(/[^\d,.]/g, '').replace(',','.'))",
+            'jsformula': r"parseFloat(document.querySelector('div.card-body div.counter__row').innerText.replace(/[^\d,.-]/g, '').replace(',','.'))",
         }, {
             'name': 'BlockStatus',
             'jsformula': r"document.querySelector('div.devices p.small').innerText",
@@ -24,8 +24,8 @@ class test4_over_puppeteer(pa.balance_over_puppeteer):
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    return test4_over_puppeteer(login, password, storename).main()
+    return test3_over_puppeteer(login, password, storename).main()
 
 
 if __name__ == '__main__':
-    print('This is module test4 for test chrome on puppeteer with class balance_over_puppeteer')
+    print('This is module test3 for test chrome on puppeteer with class balance_over_puppeteer')

@@ -10,7 +10,7 @@ login_url = 'https://user.smile-net.ru/newpa/?handler=Login'
 login_checkers = ['<input[^>]*name="login"[^>]*', '<input[^>]*name="password"[^>]*', '<input[^>]*type="submit"[^>]*']
 
 # regexp для поиска баланса на странице
-re_balance = r'(?usi)>Баланс.*?value.*?>\s*(\d+[.,]\d+) '
+re_balance = r'(?usi)>Баланс.*?value.*?>\s*(-?\d+[.,]\d+) '
 re_expired = r'(?usi)Дата окончания.*?value.*?>\s*(.*?)<'
 re_userName = r'(?usi)handler=Customer.*?>(.*?)<'
 re_licSchet = r'(?usi)Номер лицевого счета.*?value.*?>\s*(.*?)<'
