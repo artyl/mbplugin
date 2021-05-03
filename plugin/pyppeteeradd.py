@@ -34,8 +34,8 @@ default_logon_selectors = {
 
 
 def safe_run_decorator(func):
-    'Обертка для функций, выполнение которых не влияет на результат, чтобы при падении они не портили остальное'
     def wrapper(*args, **kwargs):
+        'decorator:Обертка для функций, выполнение которых не влияет на результат, чтобы при падении они не портили остальное'
         # Готовим строку для лога
         default = kwargs.pop('default', None)
         log_string = f'call: {getattr(func,"__name__","")}({", ".join(map(repr,args))}, {", ".join([f"{k}={repr(v)}" for k,v in kwargs.items()])})'
@@ -50,6 +50,7 @@ def safe_run_decorator(func):
         except Exception:
             logging.info(f'{log_string} fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
             return default
+    wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
     return wrapper    
 
 def safe_run(func, *args, **kwargs):
@@ -137,21 +138,22 @@ class balance_over_puppeteer():
     '''Основная часть общих действий вынесена сюда см mosenergosbyt для примера использования '''
 
     def async_check_browser_opened_decorator(func):  # pylint: disable=no-self-argument
-        'Проверка на закрытый браузер, если браузера нет пишем в лог и падаем'
         async def wrapper(self, *args, **kwargs):
+            'await decorator Проверка на закрытый браузер, если браузера нет пишем в лог и падаем'
             if self.browser_open:
                 res = await func(self, *args, **kwargs)  # pylint: disable=not-callable
                 return res
             else:
                 logging.error(f'Browser was not open')
                 raise RuntimeError(f'Browser was not open')
+        wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
         return wrapper
 
     def async_safe_run_with_log_decorator(func):  # pylint: disable=no-self-argument
-        '''await Декоратор для безопасного запуска функции не падает в случае ошибки, а пишет в лог и возвращяет Null
+        async def wrapper(self, *args, **kwargs):
+            '''await decorator для безопасного запуска функции не падает в случае ошибки, а пишет в лог и возвращяет Null
         параметры предназначенные декоратору, и не передаются в вызываемую функцию:
         default: возвращаемое в случае ошибки значение'''
-        async def wrapper(self, *args, **kwargs):
             default = kwargs.pop('default', None)
             if len(args) > 0 and args[0] == '':
                 return default            
@@ -169,6 +171,7 @@ class balance_over_puppeteer():
             except Exception:
                 logging.info(f'{log_string} fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
                 return default
+        wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
         return wrapper
 
     def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_attempt=1, login_url=None, user_selectors=None):
@@ -327,6 +330,9 @@ class balance_over_puppeteer():
 
     @async_check_browser_opened_decorator
     async def check_logon_selectors(self):
+        ''' Этот метод для тестирования, поэтому здесь assert
+        Проверяем что селекторы на долгоне выполняются - это максимум того что мы можем проверить без ввода логина и пароля
+        '''
         selectors = default_logon_selectors.copy()
         login_url = self.login_url
         user_selectors = self.user_selectors
@@ -354,11 +360,11 @@ class balance_over_puppeteer():
 
     @async_check_browser_opened_decorator
     async def do_logon(self, url=None, user_selectors=None):
-        'Делаем заход в личный кабинет/ проверяем не залогинены ли уже'
-        'На вход передаем словарь селекторов и скриптов который перекроет действия по умолчанию'
-        'Если какой-то из шагов по умолчанию хотим пропустить, передаем пустую строку'
-        'Смотрите актуальное описание напротив параметров в коментариях'
-        'Чтобы избежать ошибок - копируйте названия параметров'
+        '''Делаем заход в личный кабинет/ проверяем не залогинены ли уже
+        На вход передаем словарь селекторов и скриптов который перекроет действия по умолчанию
+        Если какой-то из шагов по умолчанию хотим пропустить, передаем пустую строку
+        Смотрите актуальное описание напротив параметров в коментариях
+        Чтобы избежать ошибок - копируйте названия параметров'''
         selectors = default_logon_selectors.copy()
         if url is None:
             url = self.login_url
