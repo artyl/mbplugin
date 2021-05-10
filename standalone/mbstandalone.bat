@@ -2,12 +2,12 @@
 %~d0 
 cd "%~dp0"
 
-REM Если лежит mobilebalance - не работаем, а то только запутаем всех
+REM я┐╜сли я┐╜я┐╜я┐╜я┐╜я┐╜ mobilebalance - я┐╜я┐╜ рабя┐╜таея┐╜, я┐╜ я┐╜ только я┐╜я┐╜я┐╜я┐╜таея┐╜ я┐╜я┐╜я┐╜
 if EXIST MobileBalance.exe goto :ERROR1
-REM Если нет Phones.ini - то тоже выходит
+REM я┐╜сли я┐╜я┐╜я┐╜ Phones.ini - я┐╜ тожя┐╜ я┐╜я┐╜ходя┐╜я┐╜
 if not EXIST phones.ini goto :ERROR1
 
-REM Если нет mbplugin.ini - создаем и запускаем инициализацию
+REM я┐╜сли я┐╜я┐╜я┐╜ mbplugin.ini - созя┐╜я┐╜я┐╜я┐╜ я┐╜ я┐╜я┐╜я┐╜я┐╜ская┐╜я┐╜ я┐╜я┐╜я┐╜циая┐╜я┐╜я┐╜я┐╜я┐╜я┐╜
 if not EXIST mbplugin.ini goto :INIT
 
 if "%1"=="init" goto :INIT
@@ -23,20 +23,20 @@ if "%1"=="updatehtml" goto :UPDATEHTML
 GOTO :EOF
 
 
-@REM Инициализация
+@REM я┐╜я┐╜я┐╜циая┐╜я┐╜я┐╜я┐╜я┐╜я┐╜
 :INIT
 cd mbplugin\plugin
 cd ..\plugin
 ..\python\python -c "import store;ini=store.ini();ini.read();ini.ini['Options']['sqlitestore']='1';ini.write()"
 ..\python\python -c "import store;ini=store.ini();ini.read();ini.ini['Options']['createhtmlreport']='1';ini.write()"
-..\python\python -c "import store,os;ini=store.ini();ini.read();ini.ini['Options']['balance_html']=os.path.abspath('..\\..\\balance.html');ini.write()"
+..\python\python -c "import store,os;ini=store.ini();ini.read();ini.ini['Options']['balance_html']=os.path.abspath(os.path.join('..','..',balance.html'));ini.write()"
 echo %CD%
 call ..\setup_and_check.bat %2 %3
 GOTO :EOF
 
-@REM Проверка INI на корректность
+@REM я┐╜ровя┐╜рка INI я┐╜я┐╜ я┐╜я┐╜я┐╜ректноя┐╜я┐╜я┐╜
 :CHECK
-ECHO Проверку сделаю позже, пока ее нет
+ECHO я┐╜ровя┐╜я┐╜я┐╜ сдея┐╜я┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜, я┐╜я┐╜я┐╜я┐╜ я┐╜я┐╜ я┐╜я┐╜я┐╜
 cd mbplugin\plugin
 cd ..\plugin
 ..\python\python -c "import store;ini=store.ini()"
@@ -44,21 +44,21 @@ cd ..\plugin
 timeout 15
 GOTO :EOF
 
-@REM Получение балансов
+@REM я┐╜я┐╜я┐╜я┐╜ченя┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜сов
 :GETBALANCE
 cd mbplugin\plugin
 cd ..\plugin
 ..\python\python.exe -c "import httpserver_mobile,sys;httpserver_mobile.detbalance_standalone(filter=sys.argv[2:])" %*
 GOTO :EOF
 
-@REM Получение балансов (запрос по неудачным)
+@REM я┐╜я┐╜я┐╜я┐╜ченя┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜сов (я┐╜я┐╜я┐╜я┐╜я┐╜ я┐╜я┐╜ я┐╜я┐╜удая┐╜я┐╜)
 :GETBALANCEFAILED
 cd mbplugin\plugin
 cd ..\plugin
 ..\python\python.exe -c "import httpserver_mobile,sys;httpserver_mobile.detbalance_standalone(filter=sys.argv[2:],only_failed=True)" %*
 GOTO :EOF
 
-@REM Обновление balance.html
+@REM я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜ balance.html
 :UPDATEHTML
 cd mbplugin\plugin
 cd ..\plugin
@@ -66,7 +66,7 @@ cd ..\plugin
 GOTO :EOF
 
 :ERROR1
-ECHO В папке не должно быть файла Mobilebalance.exe
-ECHO И должен быть файл Phones.ini
+ECHO я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜ я┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜ файя┐╜я┐╜ Mobilebalance.exe
+ECHO я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜ файя┐╜ Phones.ini
 timeout 15
 GOTO :EOF

@@ -1,7 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
 import asyncio, time, re, json, subprocess, logging, shutil, os, sys, traceback
-import win32gui, win32process, psutil
+try:
+    import win32gui, win32process
+except:
+    print('No win32 installed, no fake-headless mode')
+import psutil
 import pyppeteer  # PYthon puPPETEER
 #import pprint; pp = pprint.PrettyPrinter(indent=4).pprint
 import store, settings
@@ -77,6 +81,9 @@ def hide_chrome(hide=True, foreground=False):
                 logging.debug(f'enumWindowFunc:{text=}, {className=}')
         except Exception:
             pass
+    if 'win32gui' not in sys.modules:
+        logging.info(f'No win32 modules, can't hide chrome windows')
+        return
     myWindows = []
     # enumerate thru all top windows and get windows which are ours
     win32gui.EnumWindows(enumWindowFunc, myWindows)
