@@ -82,7 +82,7 @@ def hide_chrome(hide=True, foreground=False):
         except Exception:
             pass
     if 'win32gui' not in sys.modules:
-        logging.info(f'No win32 modules, can't hide chrome windows')
+        logging.info(f"No win32 modules, can't hide chrome windows")
         return
     myWindows = []
     # enumerate thru all top windows and get windows which are ours
