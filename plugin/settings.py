@@ -38,19 +38,19 @@ ini = {
         'loggingformat': u'[%(asctime)s] %(levelname)s %(funcName)s %(message)s',
         # папка для логов
         'loggingfolder_': {'descr': 'папка для логов', 'type':'text', 'validate':lambda i:os.path.isdir(i)},
-        'loggingfolder': '..\\log',
+        'loggingfolder': os.path.join('..','log'), # ..\log
         # лог для ручного запуска и dll плагинов
         'loggingfilename_': {'descr':'лог для ручного запуска и dll плагинов', 'type':'text'},
-        'loggingfilename': '..\\log\\mbplugin.log',
+        'loggingfilename': os.path.join('..', 'log', 'mbplugin.log'), # ..\log\mbplugin.log
         # лог http сервера и плагинов из него
         'logginghttpfilename_': {'descr':'лог http сервера и плагинов из него', 'type':'text'},
-        'logginghttpfilename': '..\\log\\http.log',
+        'logginghttpfilename': os.path.join('..', 'log', 'http.log'), # ..\log\http.log
         # Уровень логгирования
         'logginglevel_': {'descr':'Уровень логгирования', 'type':'select', 'variants':'DEBUG INFO WARNING ERROR CRITICAL'},
         'logginglevel': 'INFO',
         # Папка для хранения сессий
         'storefolder_': {'descr':'Папка для хранения сессий', 'type':'text'},
-        'storefolder': '..\\store',
+        'storefolder': os.path.join('..','store'), # ..\store
         # Записывать результаты в sqlite БД
         'sqlitestore_': {'descr':'Записывать результаты в sqlite БД', 'type':'checkbox'},
         'sqlitestore': '0',
@@ -59,10 +59,10 @@ ini = {
         'createhtmlreport': '0',
         # путь к БД sqlite
         'dbfilename_': {'descr':'путь к БД sqlite', 'type':'text', 'size':100},
-        'dbfilename': '..\\BalanceHistory.sqlite',
+        'dbfilename': os.path.join('..', 'BalanceHistory.sqlite'), # ..\BalanceHistory.sqlite
         # путь к html файлу, который создается после получения баланса
         'balance_html_': {'descr':'путь к html файлу, который создается после получения баланса', 'type':'text', 'size':100},
-        'balance_html': '..\\DB\\balance.html',
+        'balance_html': os.path.join('..', 'DB', 'balance.html'), # ..\DB\balance.html
         # Обновлять SQLite базу данными из MDB
         'updatefrommdb_': {'descr':'Обновлять SQLite базу данными из MDB', 'type':'checkbox'},
         'updatefrommdb': 0,

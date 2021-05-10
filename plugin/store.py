@@ -117,7 +117,7 @@ class ini():
         'Для тестов можно явно указать папку с mbplugin.ini в settings.mbplugin_root_path '
         if hasattr(settings,'mbplugin_root_path') and settings.mbplugin_root_path != '':
             return os.path.abspath(os.path.join(settings.mbplugin_root_path, fn))
-        allroot = [os.getcwd().rsplit('\\', i)[0] for i in range(len(os.getcwd().split('\\')))]
+        allroot = [os.getcwd().rsplit(os.path.sep, i)[0] for i in range(len(os.getcwd().split(os.path.sep)))]
         all_ini = [i for i in allroot if os.path.exists(os.path.join(i, fn))]
         if all_ini != []:
             return os.path.join(all_ini[0], fn)
@@ -232,7 +232,7 @@ class ini():
             if sec.name != 'DEFAULT':
                 # Кидаем ключи из ini после Добавляем дефолтные ключи из settings если их не было в ini
                 # TODO продумать, может их помечать цветом и сделать кнопку вернуть к дефолту, т.е. удалить ключ из ini
-                for key,val in list(sec.items())+list(settings.ini.get(sec.name).items()):
+                for key,val in list(sec.items()) + list(settings.ini.get(sec.name, {}).items()):
                     if key.endswith('_'):
                         continue
                     param = settings.ini.get(sec.name, {}).get(key+'_', {})

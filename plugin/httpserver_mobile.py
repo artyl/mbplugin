@@ -8,6 +8,10 @@ try:
 except ModuleNotFoundError:
     print('No win32 installed, no tray icon')
 try:
+    import pystray, PIL.Image
+except ModuleNotFoundError:
+    print('No pystray installed, no tray icon')
+try:
     import telegram
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
@@ -21,6 +25,17 @@ sqlitestore = 1<br>Также можно настроить импорт из б
 createhtmlreport = 1<br>
 После включения, запустите mbplugin\\setup_and_check.bat
 '''
+
+PORT = int(store.options('port', section='HttpServer'))
+TRAY_MENU = (
+    {'text':"Open report", 'cmd':lambda:os.system(f'start http://localhost:{PORT}/report'), 'show':True},
+    {'text':"Edit config", 'cmd':lambda:os.system(f'start http://localhost:{PORT}/editcfg'), 'show':store.options('HttpConfigEdit') == '1'},
+    {'text':"View log", 'cmd':lambda:os.system(f'start http://localhost:{PORT}/log?lines=40'), 'show':True},
+    {'text':"Flush log", 'cmd':lambda:store.logging_restart(), 'show':True},
+    {'text':"Recompile jsmblh plugin",'cmd':lambda:compile_all_jsmblh.recompile(), 'show':True},
+    {'text':"Restart server", 'cmd':lambda:restart_program(reason='tray icon command'), 'show':True},
+    {'text':"Exit program", 'cmd':lambda:restart_program(reason='Tray icon exit', exit_only=True), 'show':True}
+)
 
 def turn_logging():
     logging.basicConfig(filename=store.options('logginghttpfilename'),
@@ -407,19 +422,49 @@ def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={
     r=[requests.post(f'https://api.telegram.org/bot{api_token}/sendMessage',data={'chat_id':chat_id,'text':text,'parse_mode':'HTML'}) for chat_id in auth_id if text!='']
     return [repr(i) for i in r]
 
-def restart_program(reason=''):
+def restart_program(reason='', exit_only=False):
     cmd = subprocess.list2cmdline(psutil.Process().cmdline())
     logging.info(f'Restart by {reason} with cmd:{cmd}')
-    os.system('call start "" ' + cmd)
+    if tray_icon.stop is not None:
+        tray_icon.stop()
+    if not exit_only:
+        os.system('call start "" ' + cmd)
     psutil.Process().kill()
 
 def tray_icon(cmdqueue):
-    'Выставляем для trayicon daemon, чтобы ушел вслед за нами функция нужна для запуска в отдельном thread'
+    'Выставляем для trayicon daemon, чтобы ушел вслед за нами функция нужна для запуска в отдельном thread '\
+    'На самом деле уже нет, теперь мы просто вышибаем процесс через psutil.Process().kill()'
+    tray_icon.stop = None
     if str(store.options('show_tray_icon')) == '1':
-        TrayIcon(cmdqueue).run_forever()
+        # сначала пытаемся сделать через pystray !!! TODO потом вообще выкинем вариант через win32api
+        if 'pystray' in sys.modules:
+            print('pystray traymeny')
+            tic = TrayIcon_pystray(cmdqueue)
+            tray_icon.stop = tic.stop
+        elif 'win32api' in sys.modules:
+            print('win32api traymeny')
+            tic = TrayIcon_win32(cmdqueue)
+        tic.run_forever()
+
+class TrayIcon_pystray:
+    def __init__(self, cmdqueue):
+        self.image = PIL.Image.open('httpserver.ico')
+        items = []
+        for item in TRAY_MENU:
+            if item['show']:
+                items.append(pystray.MenuItem(item['text'], item['cmd']))
+        self.menu = pystray.Menu(*items)
+        self.icon = pystray.Icon("mbplugin", self.image, "mbplugin", self.menu)
+
+    def run_forever(self):
+        self.icon.run()
+
+    def stop(self):
+        print('STOP')
+        self.icon.stop()
 
 
-class TrayIcon:
+class TrayIcon_win32:
     def __init__(self, cmdqueue):
         self.cmdqueue = cmdqueue
         msg_TaskbarRestart = win32gui.RegisterWindowMessage("TaskbarCreated")
@@ -452,6 +497,10 @@ class TrayIcon:
 
     def run_forever(self):
         win32gui.PumpMessages()
+
+    def stop(self):
+        win32gui.DestroyWindow(self.hwnd)
+        self.cmdqueue.put('STOP')
 
     def _DoCreateIcons(self, iconame='httpserver.ico'):
         # Try and find a custom icon
@@ -486,14 +535,9 @@ class TrayIcon:
         elif lparam == win32con.WM_RBUTTONUP:
             print("You right clicked me.")
             menu = win32gui.CreatePopupMenu()
-            win32gui.AppendMenu(menu, win32con.MF_STRING, 1024, "Open report")
-            if store.options('HttpConfigEdit') == '1':
-                win32gui.AppendMenu(menu, win32con.MF_STRING, 1025, "Edit config")
-            win32gui.AppendMenu(menu, win32con.MF_STRING, 1026, "View log")
-            win32gui.AppendMenu(menu, win32con.MF_STRING, 1027, "Flush log")
-            win32gui.AppendMenu(menu, win32con.MF_STRING, 1030, "Recompile jsmblh plugin")
-            win32gui.AppendMenu(menu, win32con.MF_STRING, 1028, "Restart server")
-            win32gui.AppendMenu(menu, win32con.MF_STRING, 1029, "Exit program")
+            for num,item in enumerate(TRAY_MENU):
+                if item['show']:
+                    win32gui.AppendMenu(menu, win32con.MF_STRING, 1024 + num, item['text'])
             pos = win32gui.GetCursorPos()
             # See http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/menus_0hdi.asp
             win32gui.SetForegroundWindow(self.hwnd)
@@ -502,24 +546,11 @@ class TrayIcon:
         return 1
 
     def OnCommand(self, hwnd, msg, wparam, lparam):
-        id = win32api.LOWORD(wparam)
-        port = int(store.options('port', section='HttpServer'))
-        if id == 1024:
-            os.system(f'start http://localhost:{port}/report')
-        elif id == 1025:
-            os.system(f'start http://localhost:{port}/editcfg')            
-        elif id == 1026:
-            os.system(f'start http://localhost:{port}/log?lines=40')
-        elif id == 1030:
-            compile_all_jsmblh.recompile()
-        elif id == 1027:
-            store.logging_restart()
-        elif id == 1028:
-            restart_program(reason='tray icon command')
-        elif id == 1029:
-            print("Goodbye")
-            win32gui.DestroyWindow(self.hwnd)
-            self.cmdqueue.put('STOP')
+        id = win32api.LOWORD(wparam)-1024
+        print("command -", id)
+        if 0 <= id < len(TRAY_MENU):
+            print("command -", TRAY_MENU[id]['text'])
+            TRAY_MENU[id]['cmd']()
         else:
             print("Unknown command -", id)
 
@@ -783,7 +814,7 @@ class WebServer():
         with wsgiref.simple_server.make_server(self.host, self.port, self.web_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
             logging.info(f'Listening {self.host}:{self.port}....')
             threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
-            if 'win32api' in sys.modules:  # Иконка в трее
+            if 'win32api' in sys.modules or 'pystray' in sys.modules:  # Иконка в трее
                 threading.Thread(target=lambda i=self.cmdqueue: tray_icon(i), daemon=True).start()
             if 'telegram' in sys.modules:  # telegram bot (он сам все запустит в threading)
                 self.telegram_bot = TelegramBot()
