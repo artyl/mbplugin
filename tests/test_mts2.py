@@ -1,8 +1,13 @@
 import pytest
+import importlib.metadata
 import conftest
 import pyppeteeradd as pa  # pylint: disable=import-error
 import mts2  # pylint: disable=import-error
 
+# Открываем основную страницу чтобы в response попали страницы для проверки что response отрабатывает
+class balance_over_mts2(pa.balance_over_puppeteer):
+    async def async_check_logon_selectors_prepare(self):
+        await self.page_goto('https://mts.ru')
 
 # Игнорирование RuntimeWarning пришлось включить из-за того что pytest думает что нужен await в 
 # self.browser.on("disconnected", self.disconnected_worker)
@@ -10,6 +15,12 @@ import mts2  # pylint: disable=import-error
 @pytest.mark.filterwarnings('ignore::RuntimeWarning')
 @pytest.mark.slow
 def test_mts2_logon_selectors():
+    # pytest.set_trace() # breakpoint 
+    # assert 0 # uncomment for post mortem debug and run py.test --pdb
     print(f'login_url={mts2.login_url}')
-    self = pa.balance_over_puppeteer('test', 'test', 'test', login_url=mts2.login_url, user_selectors=mts2.user_selectors)
+    print(f"{importlib.metadata.version('pyee')=}")
+    print(f"{importlib.metadata.version('pyppeteer')=}")
+    self = balance_over_mts2('test', 'test', 'test', login_url=mts2.login_url, user_selectors=mts2.user_selectors)
     self.main('check_logon')
+    assert len(self.responses) != 0, 'Check make call response_worker == []'
+
