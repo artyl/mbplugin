@@ -9,6 +9,6 @@ import uminet  # pylint: disable=import-error
 @pytest.mark.filterwarnings('ignore::RuntimeWarning')
 @pytest.mark.slow
 def test_test3_logon_selectors():
-    print(f'{uminet.login_url=}')
+    print(f'login_url={uminet.login_url}')
     self = pa.balance_over_puppeteer('test', 'test', 'test', login_url=uminet.login_url, user_selectors=uminet.user_selectors)
     self.main('check_logon')

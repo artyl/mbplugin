@@ -10,6 +10,6 @@ import rostelecom  # pylint: disable=import-error
 @pytest.mark.filterwarnings('ignore::RuntimeWarning')
 @pytest.mark.slow
 def test_rostelecom_logon_selectors():
-    print(f'{rostelecom.login_url=}')
+    print(f'login_url={rostelecom.login_url}')
     self = pa.balance_over_puppeteer('test', 'test', 'test', login_url=rostelecom.login_url, user_selectors=rostelecom.user_selectors)
     self.main('check_logon')

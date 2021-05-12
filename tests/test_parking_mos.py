@@ -14,6 +14,6 @@ class balance_over_puppeteer_parking_mos(pa.balance_over_puppeteer):
 @pytest.mark.filterwarnings('ignore::RuntimeWarning')
 @pytest.mark.slow
 def test_parking_mos_logon_selectors():
-    print(f'{parking_mos.login_url=}')
+    print(f'login_url={parking_mos.login_url}')
     self = balance_over_puppeteer_parking_mos('test', 'test', 'test', login_url=parking_mos.login_url, user_selectors=parking_mos.user_selectors)
     self.main('check_logon')

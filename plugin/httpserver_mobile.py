@@ -26,11 +26,11 @@ createhtmlreport = 1<br>
 После включения, запустите mbplugin\\setup_and_check.bat
 '''
 
-PORT = int(store.options('port', section='HttpServer'))
 TRAY_MENU = (
-    {'text':"Open report", 'cmd':lambda:os.system(f'start http://localhost:{PORT}/report'), 'show':True},
-    {'text':"Edit config", 'cmd':lambda:os.system(f'start http://localhost:{PORT}/editcfg'), 'show':store.options('HttpConfigEdit') == '1'},
-    {'text':"View log", 'cmd':lambda:os.system(f'start http://localhost:{PORT}/log?lines=40'), 'show':True},
+    {'text':"Main page", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/main'), 'show':True, 'default':True},
+    {'text':"View report", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/report'), 'show':True},
+    {'text':"Edit config", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/editcfg'), 'show':store.options('HttpConfigEdit') == '1'},
+    {'text':"View log", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log?lines=40'), 'show':True},
     {'text':"Flush log", 'cmd':lambda:store.logging_restart(), 'show':True},
     {'text':"Recompile jsmblh plugin",'cmd':lambda:compile_all_jsmblh.recompile(), 'show':True},
     {'text':"Restart server", 'cmd':lambda:restart_program(reason='tray icon command'), 'show':True},
@@ -55,7 +55,7 @@ def detbalance_standalone(filter=[], only_failed=False, feedback=None) :
     feedback - если не None - то это функция, которая умеет выдавать статус на экран
     '''
     turn_logging()  # Т.к. сюда можем придти извне, то включаем логирование здесь
-    logging.info(f'detbalance_standalone: {filter=}')
+    logging.info(f'detbalance_standalone: filter={filter}')
     phones = store.ini('phones.ini').phones()
     queue_balance = []  # Очередь телефонов на получение баланса
     for val in phones.values():
@@ -452,7 +452,7 @@ class TrayIcon_pystray:
         items = []
         for item in TRAY_MENU:
             if item['show']:
-                items.append(pystray.MenuItem(item['text'], item['cmd']))
+                items.append(pystray.MenuItem(item['text'], item['cmd'], default=item.get('default', False)))
         self.menu = pystray.Menu(*items)
         self.icon = pystray.Icon("mbplugin", self.image, "mbplugin", self.menu)
 
@@ -851,7 +851,7 @@ class WebServer():
         # если еще не открывали редактируемый ini открываем
         if not hasattr(self,'editini'):
             self.editini = store.ini()
-        print(cookies, f"{cookies.get('auth', 'None') in authcookies=}",f'{autorized=}')
+        print(cookies, f"auth in authcookies={cookies.get('auth', 'None') in authcookies}",f'autorized={autorized}')
         if environ['REQUEST_METHOD'] == 'POST':
             try:
                 request_size = int(environ['CONTENT_LENGTH'])
@@ -866,7 +866,7 @@ class WebServer():
                     request = {k:v[0] for k,v, in request.items()}
                 except Exception:
                     request = {'cmd':'error'}
-            print(f'{request=}')
+            print(f'request={request}')
             if autorized and request['cmd'] == 'update':
                 params = settings.ini[request['sec']].get(request['id']+'_',{})
                 # Если для параметра указана функция валидации - вызываем ее
@@ -950,14 +950,21 @@ class WebServer():
                     ct, text = getreport(param)
                 else:
                     ct, text = 'text/html', HTML_NO_REPORT
-
-                    
+            elif cmd.lower() == 'main':  # главная страница
+                ct, text = 'text/html; charset=cp1251', [settings.main_html]
             elif cmd.lower() == 'editcfg':  # вариант через get запрос
                 if store.options('HttpConfigEdit') == '1':
                     ct, text, status, add_headers = self.editor(environ)
+            elif cmd == 'flushlog':  # Start new log
+                store.logging_restart()
+                ct, text = 'text/html; charset=cp1251', ['OK']
+            elif cmd == 'recompile':  # Recompile js lsmblh plugin
+                compile_all_jsmblh.recompile()
+                ct, text = 'text/html; charset=cp1251', ['OK']
+            elif cmd == 'restart':  # exit cmd
+                restart_program(reason=f'WEB: /restart') # TODO нужен редирект иначе она зацикливается на рестарте
             elif cmd == 'exit':  # exit cmd
-                self.cmdqueue.put('STOP')
-                text = ['exit']
+                restart_program(reason=f'WEB: /exit', exit_only=True)
             if status.startswith('200'):
                 headers = [('Content-type', ct)]
             if status.startswith('303'):

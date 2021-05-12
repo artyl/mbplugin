@@ -130,7 +130,7 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
                     res4 = await self.wait_params(params=[{'name': '#acceptor', 'url_tag': ['for=api/Widgets/AvailableCountersAcceptor', '/longtask/'], 'jsformula': "data.result.counters"}])
                     data = {i['counterViewUnit']:i['consumption'] for i in res4['#acceptor']}
                 if 'RoleDonor' in str(res3) or 'RoleAcceptor' in str(res3):
-                    logging.info(f'mts_usedbyme collect: {data=}')
+                    logging.info(f'mts_usedbyme collect: data={data}')
                     if 'MINUTE' in data:
                         self.result['SpendMin'] = data["MINUTE"]
                     if 'ITEM' in data:
@@ -151,7 +151,7 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
                         else:
                             self.result['SMS'] = cdata_charge["ITEM"]  # расход по инету и SMS
                             self.result['Internet'] = cdata_charge["GBYTE"]
-                        logging.info(f'mts_usedbyme common collect: {сdata_rest=} {cdata_charge=}')
+                        logging.info(f'mts_usedbyme common collect: сdata_rest={сdata_rest} cdata_charge={cdata_charge}')
                     else:  #  Со страницы общего пакета не отдали данные, чистим все, иначе будут кривые графики. ТОЛЬКО для common
                         raise RuntimeError(f'Страница общего пакета не возвращает данных')
             except:

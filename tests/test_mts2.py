@@ -10,6 +10,6 @@ import mts2  # pylint: disable=import-error
 @pytest.mark.filterwarnings('ignore::RuntimeWarning')
 @pytest.mark.slow
 def test_mts2_logon_selectors():
-    print(f'{mts2.login_url=}')
+    print(f'login_url={mts2.login_url}')
     self = pa.balance_over_puppeteer('test', 'test', 'test', login_url=mts2.login_url, user_selectors=mts2.user_selectors)
     self.main('check_logon')

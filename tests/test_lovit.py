@@ -9,6 +9,6 @@ import lovit  # pylint: disable=import-error
 @pytest.mark.filterwarnings('ignore::RuntimeWarning')
 @pytest.mark.slow
 def test_lovit_logon_selectors():
-    print(f'{lovit.login_url=}')
+    print(f'login_url={lovit.login_url}')
     self = pa.balance_over_puppeteer('test', 'test', 'test', login_url=lovit.login_url, user_selectors=lovit.user_selectors)
     self.main('check_logon')

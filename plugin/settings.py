@@ -207,6 +207,22 @@ ini = {
     },
 }
 
+main_html=r'''
+<!DOCTYPE html>
+<html>
+<head></head>
+<body>
+<a href=report>View report</a><br>
+<a href=editcfg>Edit config</a><br>
+<a href=log>View log</a><br>
+<button onclick="fetch('flushlog').then(function(response) {return response})">Flush log</button><br>
+<button onclick="fetch('recompile').then(function(response) {return response})">Recompile jsmblh plugin</button><br>
+<button onclick="fetch('restart').then(function(response) {return response})">Restart web server</button><br>
+<button onclick="fetch('exit').then(function(response) {return response})">Exit web server</button><br>
+</body>
+</html>
+'''
+
 editor_html=r'''
 <!DOCTYPE html>
 <html>

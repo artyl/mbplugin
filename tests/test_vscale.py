@@ -9,6 +9,6 @@ import vscale  # pylint: disable=import-error
 @pytest.mark.filterwarnings('ignore::RuntimeWarning')
 @pytest.mark.slow
 def test_vscale_logon_selectors():
-    print(f'{vscale.login_url=}')
+    print(f'login_url={vscale.login_url}')
     self = pa.balance_over_puppeteer('test', 'test', 'test', login_url=vscale.login_url, user_selectors=vscale.user_selectors)
     self.main('check_logon')

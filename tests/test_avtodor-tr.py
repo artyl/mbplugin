@@ -5,7 +5,7 @@ import conftest
 avtodor_tr = __import__('avtodor-tr')  # pylint: disable=import-error
 
 def test_avtodor_tr():
-    print(f'{avtodor_tr.login_url=}')
+    print(f'login_url={avtodor_tr.login_url}')
     session = requests.session()
     response1 = session.get(avtodor_tr.login_url)
     for chk in avtodor_tr.login_checkers:

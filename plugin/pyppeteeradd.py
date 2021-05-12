@@ -78,7 +78,7 @@ def hide_chrome(hide=True, foreground=False):
             if (text != '' and 'remote-debugging-port' in ''.join(psutil.Process(pid).cmdline())
             and not text.startswith('msct') and not text.startswith('default') and 'восстановить' not in text):
                 windowList.append((hwnd, text, className))
-                logging.debug(f'enumWindowFunc:{text=}, {className=}')
+                logging.debug(f'enumWindowFunc:text={text}, className={className}')
         except Exception:
             pass
     if 'win32gui' not in sys.modules:
@@ -347,7 +347,7 @@ class balance_over_puppeteer():
         selectors.update(user_selectors)
         # TODO fix for submit_js -> chk_submit_js
         selectors['chk_submit_js'] = selectors['submit_js'].replace('.click()','!== null')
-        print(f'{login_url=}')
+        print(f'login_url={login_url}')
         if login_url != '':
             await self.page_goto(login_url)
         await self.page_waitForNavigation()

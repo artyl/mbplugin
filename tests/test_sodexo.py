@@ -5,7 +5,7 @@ import conftest
 import sodexo  # pylint: disable=import-error
 
 def test_sodexo():
-    print(f'{sodexo.api_url=}')
+    print(f'login_url={sodexo.api_url}')
     session = requests.session()
     response1 = session.get(f'{sodexo.api_url}cards/1234567890123')
     expected_result1 = '{"status":"FAIL","messages":[{"type":"ERROR","context":"FIELD","code":"EAN_OUT_OF_RANGE","path":"ean"}]}'

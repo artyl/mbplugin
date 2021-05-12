@@ -9,6 +9,6 @@ import a1by  # pylint: disable=import-error
 @pytest.mark.filterwarnings('ignore::RuntimeWarning')
 @pytest.mark.slow
 def test_a1by_logon_selectors():
-    print(f'{a1by.login_url=}')
+    print(f'login_url={a1by.login_url}')
     self = pa.balance_over_puppeteer('test', 'test', 'test', login_url=a1by.login_url, user_selectors=a1by.user_selectors)
     self.main('check_logon')

@@ -9,6 +9,6 @@ import mosenergosbyt  # pylint: disable=import-error
 @pytest.mark.filterwarnings('ignore::RuntimeWarning')
 @pytest.mark.slow
 def test_mosenergosbyt_logon_selectors():
-    print(f'{mosenergosbyt.login_url=}')
+    print(f'login_url={mosenergosbyt.login_url}')
     self = pa.balance_over_puppeteer('test', 'test', 'test', login_url=mosenergosbyt.login_url, user_selectors=mosenergosbyt.user_selectors)
     self.main('check_logon')

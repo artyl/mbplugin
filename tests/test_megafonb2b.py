@@ -9,6 +9,6 @@ import megafonb2b  # pylint: disable=import-error
 @pytest.mark.filterwarnings('ignore::RuntimeWarning')
 @pytest.mark.slow
 def test_megafonb2b_logon_selectors():
-    print(f'{megafonb2b.login_url=}')
+    print(f'login_url={megafonb2b.login_url}')
     self = pa.balance_over_puppeteer('test', 'test', 'test', login_url=megafonb2b.login_url, user_selectors=megafonb2b.user_selectors)
     self.main('check_logon')

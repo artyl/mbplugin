@@ -5,7 +5,7 @@ import conftest
 import sipnet  # pylint: disable=import-error
 
 def test_sipnet():
-    print(f'{sipnet.login_url=}')
+    print(f'login_url={sipnet.login_url}')
     session = requests.session()
     response1 = session.get(sipnet.login_url)
     for chk in sipnet.login_checkers:
