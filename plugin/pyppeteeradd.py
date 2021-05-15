@@ -229,6 +229,16 @@ class balance_over_puppeteer():
                 exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
                 logging.debug(exception_text)
 
+    async def request_intercept(self, request):
+        try:
+            stop_url = ['google-analytics', '.yandex.ru/', 'dynamicyield.com/', 'googletagmanager.com/', 'yastatic.net/', 'cloudflare.com/', 'facebook.net/', 'vk.com/']
+            if request.resourceType in ('image','stylesheet','font','manifest') or len([u for u in stop_url if u in request.url])>0:
+                await request.abort()
+            else:
+                await request.continue_()                
+        except Exception:
+            logging.info(f'request_intercept fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
+
     async def disconnected_worker(self):
         'disconnected_worker вызывается когда закрыли браузер'
         logging.info(f'Browser was closed')
@@ -282,14 +292,25 @@ class balance_over_puppeteer():
         self.page = pages[0]  # await browser.newPage()
         if self.response_worker is not None:
             self.page.on("response", self.response_worker) # вешаем обработчик на страницы
+        if str(store.options('intercept_request')) == '1' and self.request_intercept is not None:
+            # TODO похоже есть проблема с редиректом:
+            # https://github.com/puppeteer/puppeteer/issues/3421
+            await self.page.setRequestInterception(True)
+            self.page.on('request', self.request_intercept)            
         if self.disconnected_worker is not None:
             self.browser.on("disconnected", self.disconnected_worker) # вешаем обработчик закрытие браузера
+
+    def sync_page_evaluate(self, eval_string, default=None):
+        return self.loop.run_until_complete(self.page_evaluate(eval_string, default))
 
     @async_check_browser_opened_decorator
     @async_safe_run_with_log_decorator
     async def page_evaluate(self, eval_string, default=None):
         ''' переносим вызов evaluate в класс для того чтобы каждый раз не указывать page и обернуть декораторами'''
         return await self.page.evaluate(eval_string)
+
+    def sync_page_goto(self, url):
+        return self.loop.run_until_complete(self.page_goto(url))
 
     @async_check_browser_opened_decorator
     @async_safe_run_with_log_decorator
@@ -319,6 +340,9 @@ class balance_over_puppeteer():
         ''' переносим вызов click в класс для того чтобы каждый раз не указывать page'''
         return await self.page.click(selector, *args, **kwargs)
 
+    def sync_page_waitForNavigation(self):
+        return self.loop.run_until_complete(self.page_waitForNavigation())
+
     @async_check_browser_opened_decorator
     @async_safe_run_with_log_decorator
     async def page_waitForNavigation(self):
@@ -327,6 +351,12 @@ class balance_over_puppeteer():
             return await self.page.waitForNavigation({'timeout': 10000})
         except pyppeteer.errors.TimeoutError:
             logging.info(f'waitForNavigation timeout')
+
+    def sync_sleep(self, delay):
+        return self.loop.run_until_complete(asyncio.sleep(delay))
+
+    def sync_page_waitForSelector(self, selector, *args, **kwargs):
+        return self.loop.run_until_complete(self.page_waitForSelector(selector, *args, **kwargs))
 
     # !!! TODO есть page.waitForSelector - покопать в эту сторону
     @async_check_browser_opened_decorator
@@ -365,6 +395,9 @@ class balance_over_puppeteer():
                 print(f'Check {selectors[sel]}')
                 assert await self.page_evaluate(f"document.querySelector('{selectors['login_selector']}') !== null")==True, f'Not found on page:{sel}:{selectors[sel]}'
 
+    def sync_do_logon(self, url=None, user_selectors=None):
+        return self.loop.run_until_complete(self.do_logon(url, user_selectors))
+
     @async_check_browser_opened_decorator
     async def do_logon(self, url=None, user_selectors=None):
         '''Делаем заход в личный кабинет/ проверяем не залогинены ли уже
@@ -383,12 +416,15 @@ class balance_over_puppeteer():
         selectors.update(user_selectors)
         if url is not None:  # Иногда мы должны сложным путем попасть на страницу - тогда указываем пустой url
             await self.page_goto(url)
-        await self.page_waitForNavigation()
         await asyncio.sleep(1)
         if not await self.page_evaluate(selectors['chk_lk_page_js']) and not await self.page_evaluate(selectors['chk_login_page_js']):
-            # Мы не в личном кабинете и не на странице логона - попробуем обновить страницу
-            await self.page_reload('Not open login page')
-            await asyncio.sleep(10)
+            # Если сразу никуда не попали пробуем по разному
+            await self.page_waitForNavigation()
+            await asyncio.sleep(1)
+            if not await self.page_evaluate(selectors['chk_lk_page_js']) and not await self.page_evaluate(selectors['chk_login_page_js']):
+                # Мы не в личном кабинете и не на странице логона - попробуем обновить страницу
+                await self.page_reload('Not open login page')
+                await asyncio.sleep(10)
         # Logon form
         if await self.page_evaluate(selectors['chk_lk_page_js']):
             logging.info(f'Already login')
@@ -445,6 +481,9 @@ class balance_over_puppeteer():
                     # Никуда не попали и это не капча
                     logging.error(f'Unknown state')
                     raise RuntimeError(f'Unknown state')
+
+    def sync_wait_params(self, params, url='', save_to_result=True):
+        return self.loop.run_until_complete(self.wait_params(params, url, save_to_result))
 
     @async_check_browser_opened_decorator
     async def wait_params(self, params, url='', save_to_result=True):
@@ -537,14 +576,41 @@ class balance_over_puppeteer():
         clear_cache(self.storename)
         return self.result
 
+    def _sync_main(self, run):
+        self.loop.run_until_complete(self.launch_browser())
+        if run == 'normal':
+            self.sync_main()  # !!! CALL sync_main
+        elif run == 'check_logon':
+            self.loop.run_until_complete(self.async_check_logon_selectors_prepare())
+            self.loop.run_until_complete(self.check_logon_selectors())
+        logging.debug(f'Data ready {self.result.keys()}')
+        if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
+            import pprint
+            text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
+                                for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
+            with open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
+                f.write(text)
+        self.loop.run_until_complete(self.browser.close())
+        kill_chrome()  # Добиваем  все наши незакрытые хромы, чтобы не появлялось кучи зависших
+        clear_cache(self.storename)
+        return self.result
+
+
     async def async_check_logon_selectors_prepare(self):
         pass
 
     async def async_main(self):
         pass
 
-    def main(self, run='normal'):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        asyncio.get_event_loop().run_until_complete(self._async_main(run))
+    def sync_main(self):
+        pass
+
+    def main(self, run='normal', run_type='async'):
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        if run_type == 'async':
+            asyncio.get_event_loop().run_until_complete(self._async_main(run))
+        else: # sync
+            self._sync_main(run)
+
         return self.result   

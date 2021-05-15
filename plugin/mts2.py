@@ -31,21 +31,21 @@ user_selectors = {
     }
 
 class mts_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
+    def sync_main(self):
         mts_usedbyme = store.options('mts_usedbyme')
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
+        self.sync_do_logon(url=login_url, user_selectors=user_selectors)
 
         # TODO close banner # document.querySelectorAll('div[class=popup__close]').forEach(s=>s.click())
         if self.login_ori != self.login and self.acc_num.isdigit():  # это финт для захода через другой номер 
             # если заход через другой номер то переключаемся на нужный номер
             # TODO возможно с прошлого раза может сохраниться переключенный но вроде работает и так
-            await self.page_waitForSelector("[id=ng-header__account-phone_desktop]")
+            self.sync_page_waitForSelector("[id=ng-header__account-phone_desktop]")
             self.responses = {}  # Сбрасываем все загруженные данные - там данные по материнскому телефону                
             url_redirect = f'https://login.mts.ru/amserver/UI/Login?service=idp2idp&IDButton=switch&IDToken1=id={self.acc_num},ou=user,o=users,ou=services,dc=amroot&org=/users&ForceAuth=true&goto=https://lk.mts.ru'
-            await self.page_goto(url_redirect)
+            self.sync_page_goto(url_redirect)
             # !!! Раньше я на каждой странице при таком заходе проверял что номер тот, сейчас проверяю только на старте
-            await self.page_waitForNavigation()
-            numb = await self.page_evaluate("document.getElementById('ng-header__account-phone_desktop').innerText")
+            self.sync_page_waitForNavigation()
+            numb = self.sync_page_evaluate("document.getElementById('ng-header__account-phone_desktop').innerText")
             if numb is None:
                 return  # номера на странице нет - уходим
             logging.info(f'PHONE {numb}')
@@ -53,14 +53,14 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
                 return  # Если номер не наш - уходим            
 
         # Для начала только баланс быстрым способом (может запаздывать)
-        await self.wait_params(params=[
+        self.sync_wait_params(params=[
             {'name': 'Balance', 'url_tag': ['api/login/userInfo'], 'jsformula': "parseFloat(data.userProfile.balance).toFixed(2)"},
             # Закрываем банеры (для эстетики)
             {'name': '#banner1', 'url_tag': ['api/login/userInfo'], 'jsformula': "document.querySelectorAll('mts-dialog div[class=popup__close]').forEach(s=>s.click())", 'wait':False},
             ])
 
         # Потом все остальное
-        res1 = await self.wait_params(params=[
+        res1 = self.sync_wait_params(params=[
             {'name': 'TarifPlan', 'url_tag': ['api/login/userInfo'], 'jsformula': "data.userProfile.tariff"},
             {'name': 'UserName', 'url_tag': ['api/login/userInfo'], 'jsformula': "data.userProfile.displayName"},
             {'name': 'Balance', 'url_tag': ['for=api/accountInfo/mscpBalance'], 'jsformula': "parseFloat(data.data.amount).toFixed(2)"},
@@ -100,8 +100,8 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
                 if (mts_usedbyme == '1' or self.login in mts_usedbyme.split(',')) and usedbyme != []:
                     self.result['Internet'] = round(usedbyme[0]*unitMult/unitDiv, 2)
                             
-        await self.page_goto('https://lk.mts.ru/uslugi/podklyuchennye')
-        res2 = await self.wait_params(params=[
+        self.sync_page_goto('https://lk.mts.ru/uslugi/podklyuchennye')
+        res2 = self.sync_wait_params(params=[
             {'name': '#services', 'url_tag': ['for=api/services/list/active$'], 'jsformula': "data.data.services.map(s=>[s.name,!!s.subscriptionFee.value?s.subscriptionFee.value:0])"}])
         try:
             services = sorted(res2['#services'], key=lambda i:(-i[1],i[0]))
@@ -116,18 +116,18 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
         # Идем и пытаемся взять инфу со страницы https://lk.mts.ru/obshchiy_paket
         # Но только если телефон в списке в поле mts_usedbyme или для всех телефонов если там 1
         if mts_usedbyme == '1' or self.login in mts_usedbyme.split(',') or self.acc_num.lower().startswith('common'):
-            await self.page_goto('https://lk.mts.ru/obshchiy_paket')
-            res3 = await self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/Widgets/GetUserClaims', '/longtask/'], 'jsformula': "data.result"}])
+            self.sync_page_goto('https://lk.mts.ru/obshchiy_paket')
+            res3 = self.sync_wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/Widgets/GetUserClaims', '/longtask/'], 'jsformula': "data.result"}])
             try:
                 if 'RoleDonor' in str(res3):  # Просто ищем подстроку во всем json вдруг что-то изменится
                     logging.info(f'mts_usedbyme: RoleDonor')
-                    res4 = await self.wait_params(params=[{'name': '#donor', 'url_tag': ['for=api/Widgets/AvailableCountersDonor$', '/longtask/'], 'jsformula': "data.result"}])
+                    res4 = self.sync_wait_params(params=[{'name': '#donor', 'url_tag': ['for=api/Widgets/AvailableCountersDonor$', '/longtask/'], 'jsformula': "data.result"}])
                     # acceptorsTotalConsumption - иногда возвращается 0 приходится считать самим
                     # data = {i['counterViewUnit']:i['groupConsumption']-i['acceptorsTotalConsumption'] for i in res4['#donor']}
                     data = {i['counterViewUnit']:i['groupConsumption']-sum([j.get('consumption',0) for j in i.get('acceptorsConsumption',[])]) for i in res4['#donor']}
                 if 'RoleAcceptor' in str(res3):
                     logging.info(f'mts_usedbyme: RoleAcceptor')
-                    res4 = await self.wait_params(params=[{'name': '#acceptor', 'url_tag': ['for=api/Widgets/AvailableCountersAcceptor', '/longtask/'], 'jsformula': "data.result.counters"}])
+                    res4 = self.sync_wait_params(params=[{'name': '#acceptor', 'url_tag': ['for=api/Widgets/AvailableCountersAcceptor', '/longtask/'], 'jsformula': "data.result.counters"}])
                     data = {i['counterViewUnit']:i['consumption'] for i in res4['#acceptor']}
                 if 'RoleDonor' in str(res3) or 'RoleAcceptor' in str(res3):
                     logging.info(f'mts_usedbyme collect: data={data}')
@@ -163,7 +163,7 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    return mts_over_puppeteer(login, password, storename).main()
+    return mts_over_puppeteer(login, password, storename).main(run_type='sync')
 
 if __name__ == '__main__':
     print('This is module mts on puppeteer (mts)')
