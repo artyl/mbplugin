@@ -18,10 +18,10 @@ user_selectors = {
 }
 
 class mosenergosbyt_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
+    def data_collector(self):
+        self.sync_do_logon(url=login_url, user_selectors=user_selectors)
         # Сначала из файла gate_lkcomu?action=sql&query=LSList& получаем id_service по номеру лицевого счета
-        res1 = await self.wait_params(params=[{
+        res1 = self.sync_wait_params(params=[{
             'name': '#id_services',
             'url_tag': ['gate_lkcomu?action=sql&query=LSList&'],
             'jsformula': f'data.data.map(s=>[s.nn_ls,s.id_service])',
@@ -47,7 +47,7 @@ class mosenergosbyt_over_puppeteer(pa.balance_over_puppeteer):
             except:
                 logging.error(f'Неправильные настройки для nm_indication в mbplugin.ini: {"".join(traceback.format_exception(*sys.exc_info()))}')
                 nm_indication_take = ''
-            res1 = await self.wait_params(params=[{
+            res1 = self.sync_wait_params(params=[{
                 'name': 'Balance',  # Баланс в зависимости от вида ЛК может придти либо так
                 'url_tag': ['gate_lkcomu?action=sql&query=smorodinaTransProxy&', 'AbonentCurrentBalance', urllib.parse.quote(vl_provider)],
                 'jsformula': f'data.data.map(s => s.sm_balance).reduce((a,b)=>a+b)',
