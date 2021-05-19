@@ -13,9 +13,9 @@ user_selectors={'chk_lk_page_js': "document.querySelector('form input[type=passw
                 }
 
 class yota_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
-        await self.wait_params(params=[{'name': 'Balance', 'url_tag': ['finance/getBalance'], 'jsformula': "parseFloat(data.amount).toFixed(2)"},])
+    def data_collector(self):
+        self.sync_do_logon(url=login_url, user_selectors=user_selectors)
+        self.sync_wait_params(params=[{'name': 'Balance', 'url_tag': ['finance/getBalance'], 'jsformula': "parseFloat(data.amount).toFixed(2)"},])
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
