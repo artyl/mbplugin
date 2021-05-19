@@ -7,8 +7,8 @@ icon = '789CA5D4B171DB401484E1A719050E5D024257A078C7B97BB852B614041ED7B1B16A7080
 login_url='https://lk.rt.ru'
 user_selectors={
     'before_login_js':"document.querySelector('div[data-tab=login]').click()", # Сначала кликаем по Логин
-    'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",
-    'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",
+    'chk_lk_page_js': "document.querySelector('form input[type=password]') === null", # true если мы в личном кабинете
+    'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",  # true если мы в окне логина
     'login_clear_js': "document.querySelector('form input[id=username]').value=''",  # Уточняем поле для логина чтобы не промахнуться
     'login_selector': 'form input[id=username]', 
     'remember_checker': "document.querySelector('form input[name=rememberMe]').checked==false",  # Галка rememberMe почему-то нажимается только через js
@@ -17,13 +17,13 @@ user_selectors={
 
 
 class rostelecom_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
+    def data_collector(self):
+        self.sync_do_logon(url=login_url, user_selectors=user_selectors)
         accountId = 0
         # Если в логине указан лицевой счет, то нам нужно узнать accountId чтобы запросить баланс по конкретному ЛС
         if self.acc_num != '':                
             # Сначала из файла client-api/getAccounts получаем accountId по номеру лицевого счета
-            res1 = await self.wait_params(params=[{
+            res1 = self.sync_wait_params(params=[{
                 'name': '#accountId',  # Помечаем решеткой, потому что не берем в результат
                 'url_tag': ['client-api/getAccounts'],
                 'jsformula': f'data.accounts.filter(el => el.number=="{self.acc_num}")[0].accountId',
@@ -31,7 +31,7 @@ class rostelecom_over_puppeteer(pa.balance_over_puppeteer):
             }])  # Это промежуточные данные их не берем в результат
             accountId = res1['#accountId']  # Нам нужен accountId чтобы искать остальные данные
         # Теперь со страницы client-api/getAccountBalanceV2 возьмем Balance (по accountId)
-        await self.wait_params(params=[{
+        self.sync_wait_params(params=[{
             'name': 'Balance',
             'url_tag': ['client-api/getAccountBalanceV2'] + ([str(accountId)] if self.acc_num != '' else []),
             'jsformula': r"data.balance/100",

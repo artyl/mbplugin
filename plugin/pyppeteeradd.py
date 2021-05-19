@@ -158,9 +158,9 @@ class balance_over_puppeteer():
 
     def async_safe_run_with_log_decorator(func):  # pylint: disable=no-self-argument
         async def wrapper(self, *args, **kwargs):
-            '''await decorator для безопасного запуска функции не падает в случае ошибки, а пишет в лог и возвращяет Null
-        параметры предназначенные декоратору, и не передаются в вызываемую функцию:
-        default: возвращаемое в случае ошибки значение'''
+            '''await decorator для безопасного запуска функции не падает в случае ошибки, а пишет в лог и возвращяет default=None
+            параметры предназначенные декоратору, и не передаются в вызываемую функцию:
+            default: возвращаемое в случае ошибки значение'''
             default = kwargs.pop('default', None)
             if len(args) > 0 and args[0] == '':
                 return default            
@@ -181,17 +181,15 @@ class balance_over_puppeteer():
         wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
         return wrapper
 
-    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_attempt=1, login_url=None, user_selectors=None):
+    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_url=None, user_selectors=None):
         'Передаем стандартно login, password, storename'
         'Дополнительно'
         'wait_loop=30 - Сколько секунд ждать появления информации на странице'
         'wait_and_reload=10 - Сколько секунд ждать, после чего перезагрузить страницу'
-        'login_attempt=1 - Количество попыток логона' 
         'login_url, user_selectors - можно передать параметры для логона при создании класса'
         self.browser, self.page = None, None  # откроем браузер - заполним
         self.browser_open = True  # флаг что браузер работает
         self.wait_loop = wait_loop  # TODO подобрать параметр
-        self.login_attempt = login_attempt
         self.wait_and_reload = wait_and_reload
         self.password = password
         self.login_ori, self.acc_num = login, ''
@@ -367,7 +365,7 @@ class balance_over_puppeteer():
 
     @async_check_browser_opened_decorator
     async def check_logon_selectors(self):
-        ''' Этот метод для тестирования, поэтому здесь assert
+        ''' Этот метод для тестирования, поэтому здесь можно assert
         Проверяем что селекторы на долгоне выполняются - это максимум того что мы можем проверить без ввода логина и пароля
         '''
         selectors = default_logon_selectors.copy()
@@ -414,23 +412,13 @@ class balance_over_puppeteer():
         if set(user_selectors)-set(selectors) != set():
             logging.error(f'Не все ключи из user_selectors есть в selectors. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}')
         selectors.update(user_selectors)
-        if url is not None:  # Иногда мы должны сложным путем попасть на страницу - тогда указываем пустой url
+        if url is not None:  # Иногда мы должны сложным путем попасть на страницу - тогда указываем url=None
             await self.page_goto(url)
-        await asyncio.sleep(1)
-        if not await self.page_evaluate(selectors['chk_lk_page_js']) and not await self.page_evaluate(selectors['chk_login_page_js']):
-            # Если сразу никуда не попали пробуем по разному
-            await self.page_waitForNavigation()
-            await asyncio.sleep(1)
-            if not await self.page_evaluate(selectors['chk_lk_page_js']) and not await self.page_evaluate(selectors['chk_login_page_js']):
-                # Мы не в личном кабинете и не на странице логона - попробуем обновить страницу
-                await self.page_reload('Not open login page')
-                await asyncio.sleep(10)
-        # Logon form
-        if await self.page_evaluate(selectors['chk_lk_page_js']):
-            logging.info(f'Already login')
-        else:
-            # Почему-то иногда с первого раза логон не проскакивает, тогда можно задать несколько login_attempt
-            for cnt in range(self.login_attempt):
+        for countdown in range(self.wait_loop): 
+            if await self.page_evaluate(selectors['chk_lk_page_js']):
+                logging.info(f'Already login')
+                break # ВЫХОДИМ ИЗ ЦИКЛА - уже залогинины
+            if await self.page_evaluate(selectors['chk_login_page_js']):
                 if await self.page_evaluate(selectors['chk_login_page_js']):
                     logging.info(f'Login')
                     await self.page_evaluate(selectors['before_login_js'])  # Если задано какое-то действие перед логином - выполняем
@@ -454,11 +442,8 @@ class balance_over_puppeteer():
                     await asyncio.sleep(1)
                 if await self.page_evaluate(selectors['chk_lk_page_js']):
                     logging.info(f'Logged on')
-                    break 
+                    break  # ВЫХОДИМ ИЗ ЦИКЛА - залогинились
                 await asyncio.sleep(1)
-                if cnt==10:  # На 10 попытку перезагружаем страницу
-                    await self.page_reload('unclear: logged in or not')
-            else:
                 # Проверяем - это не капча ?
                 if await self.page_evaluate(selectors['captcha_checker'], False):
                     # Если стоит флаг показывать капчу то включаем видимость хрома и ждем заданное время
@@ -469,7 +454,7 @@ class balance_over_puppeteer():
                         for cnt2 in range(int(store.options('max_wait_captcha'))):
                             _ = cnt2
                             if not await self.page_evaluate(selectors['captcha_checker'], False):
-                                break
+                                break  # ВЫХОДИМ ИЗ ЦИКЛА - капчи на странице больше нет
                             await asyncio.sleep(1)
                         else:  # Капчу так никто и не ввел
                             logging.error(f'Show captcha timeout. A captcha appeared, but no one entered it')        
@@ -481,6 +466,11 @@ class balance_over_puppeteer():
                     # Никуда не попали и это не капча
                     logging.error(f'Unknown state')
                     raise RuntimeError(f'Unknown state')
+                break  # ВЫХОДИМ ИЗ ЦИКЛА
+            if countdown == self.wait_and_reload:
+                # так и не дождались - пробуем перезагрузить и еще подождать
+                await self.page_reload('Unknown page try reload') 
+            await asyncio.sleep(1)
 
     def sync_wait_params(self, params, url='', save_to_result=True):
         return self.loop.run_until_complete(self.wait_params(params, url, save_to_result))
@@ -515,7 +505,7 @@ class balance_over_puppeteer():
         if url != '':  # Если указан url то сначала переходим на него
             await self.page_goto(url)
             await self.page_waitForNavigation()
-        for countdown in range(self.wait_loop): 
+        for countdown in range(self.wait_loop):
             await asyncio.sleep(1)
             for param in params:
                 if param.get('url_tag', []) != []:  # Ищем в загруженных страницах
