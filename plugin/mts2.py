@@ -31,7 +31,7 @@ user_selectors = {
     }
 
 class mts_over_puppeteer(pa.balance_over_puppeteer):
-    def sync_main(self):
+    def data_collector(self):
         mts_usedbyme = store.options('mts_usedbyme')
         self.sync_do_logon(url=login_url, user_selectors=user_selectors)
 
@@ -163,7 +163,7 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    return mts_over_puppeteer(login, password, storename).main(run_type='sync')
+    return mts_over_puppeteer(login, password, storename).main()
 
 if __name__ == '__main__':
     print('This is module mts on puppeteer (mts)')

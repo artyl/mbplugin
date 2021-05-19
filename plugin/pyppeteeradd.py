@@ -557,29 +557,27 @@ class balance_over_puppeteer():
             self.result.update({k:v for k,v in result.items() if not k.startswith('#')})  # Не переносим те что с решеткой в начале
         return result
 
-    async def _async_main(self, run):
-        await self.launch_browser()
-        if run == 'normal':
-            await self.async_main()  # !!! CALL async_main
-        elif run == 'check_logon':
-            await self.async_check_logon_selectors_prepare()
-            await self.check_logon_selectors()
-        logging.debug(f'Data ready {self.result.keys()}')
-        if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
-            import pprint
-            text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
-                                for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
-            with open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
-                f.write(text)
-        await self.browser.close()
-        kill_chrome()  # Добиваем  все наши незакрытые хромы, чтобы не появлялось кучи зависших
-        clear_cache(self.storename)
-        return self.result
+    async def async_check_logon_selectors_prepare(self):
+        'Метод для подготовки к тестированию'
+        pass
 
-    def _sync_main(self, run):
+    async def async_main(self):
+        'Переопределите если хотите асинхронное использование, deprecated будет удален'
+        pass
+
+    def data_collector(self):
+        'Переопределите можно как синхронно так и асинхронно'
+        pass
+
+    def main(self, run='normal'):
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
         self.loop.run_until_complete(self.launch_browser())
         if run == 'normal':
-            self.sync_main()  # !!! CALL sync_main
+            coro = self.data_collector()  # CALL data_collector, если он синхронный, то он отработает здесь
+            if asyncio.iscoroutine(coro):  # Если он асинхронный то он вернет корутину, тогда вызовем его уже асинхронно
+                self.loop.run_until_complete(self.data_collector())
+            self.loop.run_until_complete(self.async_main()) # !!! CALL async_main (for old plugin compatibility) TODO deprecated
         elif run == 'check_logon':
             self.loop.run_until_complete(self.async_check_logon_selectors_prepare())
             self.loop.run_until_complete(self.check_logon_selectors())
@@ -592,25 +590,5 @@ class balance_over_puppeteer():
                 f.write(text)
         self.loop.run_until_complete(self.browser.close())
         kill_chrome()  # Добиваем  все наши незакрытые хромы, чтобы не появлялось кучи зависших
-        clear_cache(self.storename)
-        return self.result
-
-
-    async def async_check_logon_selectors_prepare(self):
-        pass
-
-    async def async_main(self):
-        pass
-
-    def sync_main(self):
-        pass
-
-    def main(self, run='normal', run_type='async'):
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-        if run_type == 'async':
-            asyncio.get_event_loop().run_until_complete(self._async_main(run))
-        else: # sync
-            self._sync_main(run)
-
+        clear_cache(self.storename)            
         return self.result   
