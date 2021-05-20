@@ -206,6 +206,18 @@ class balance_over_puppeteer():
         clear_cache(self.storename)
         self.result = {}
         self.responses = {}
+        self.loop = asyncio.get_event_loop()
+
+    def emit_run(self, func, args=[], kwargs={}):
+        '''Все функции которые могут быть как синхронные так и асинхронные вызываем через emit_run
+        Если сюда прислали не функцию - бросаем исключение, так быть не должно''' 
+        if not callable(func):
+            raise RuntimeError(f'{func.__name__} is not callable')
+        res = func(*args, **kwargs)
+        if asyncio.iscoroutine(res):
+            coro = res
+            res = self.loop.run_until_complete(asyncio.wait([coro]))
+        return res
 
     async def response_worker(self, response):
         'Response Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)'
@@ -561,16 +573,13 @@ class balance_over_puppeteer():
         pass
 
     def main(self, run='normal'):
-        self.loop = asyncio.get_event_loop()
-        self.loop.run_until_complete(self.launch_browser())
+        self.emit_run(self.launch_browser)
         if run == 'normal':
-            coro = self.data_collector()  # CALL data_collector, если он синхронный, то он отработает здесь
-            if asyncio.iscoroutine(coro):  # Если он асинхронный то он вернет корутину, тогда вызовем его уже асинхронно
-                self.loop.run_until_complete(self.data_collector())
-            self.loop.run_until_complete(self.async_main()) # !!! CALL async_main (for old plugin compatibility) TODO deprecated
+            self.emit_run(self.data_collector)
+            self.emit_run(self.async_main) # !!! CALL async_main (for old plugin compatibility) TODO deprecated
         elif run == 'check_logon':
-            self.loop.run_until_complete(self.async_check_logon_selectors_prepare())
-            self.loop.run_until_complete(self.check_logon_selectors())
+            self.emit_run(self.async_check_logon_selectors_prepare)
+            self.emit_run(self.check_logon_selectors)
         logging.debug(f'Data ready {self.result.keys()}')
         if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
             import pprint
@@ -578,7 +587,7 @@ class balance_over_puppeteer():
                                 for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
             with open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
                 f.write(text)
-        self.loop.run_until_complete(self.browser.close())
+        self.emit_run(self.browser.close)
         kill_chrome()  # Добиваем  все наши незакрытые хромы, чтобы не появлялось кучи зависших
         clear_cache(self.storename)            
         return self.result   
