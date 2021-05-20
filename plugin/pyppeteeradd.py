@@ -68,7 +68,8 @@ def safe_run(func, *args, **kwargs):
 
 @safe_run_decorator
 def hide_chrome(hide=True, foreground=False):
-    'Прячем или показываем окно хрома'
+    'Прячем или показываем окно хрома, только в винде в линуксе и маке не умеем'
+    # TODO 
     def enumWindowFunc(hwnd, windowList):
         """ win32gui.EnumWindows() callback """
         text = win32gui.GetWindowText(hwnd).lower()
@@ -560,8 +561,7 @@ class balance_over_puppeteer():
         pass
 
     def main(self, run='normal'):
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
+        self.loop = asyncio.get_event_loop()
         self.loop.run_until_complete(self.launch_browser())
         if run == 'normal':
             coro = self.data_collector()  # CALL data_collector, если он синхронный, то он отработает здесь
