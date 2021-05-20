@@ -206,7 +206,11 @@ class balance_over_puppeteer():
         clear_cache(self.storename)
         self.result = {}
         self.responses = {}
-        self.loop = asyncio.get_event_loop()
+        try:
+            self.loop = asyncio.get_event_loop()
+        except Exception:  # Странно в трэдах почему то может не создавать сам
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
 
     def emit_run(self, func, args=[], kwargs={}):
         '''Все функции которые могут быть как синхронные так и асинхронные вызываем через emit_run
