@@ -431,32 +431,33 @@ class balance_over_puppeteer():
         selectors.update(user_selectors)
         if url is not None:  # Иногда мы должны сложным путем попасть на страницу - тогда указываем url=None
             await self.page_goto(url)
+        await self.page_waitForNavigation()
+        await asyncio.sleep(1)            
         for countdown in range(self.wait_loop): 
             if await self.page_evaluate(selectors['chk_lk_page_js']):
                 logging.info(f'Already login')
                 break # ВЫХОДИМ ИЗ ЦИКЛА - уже залогинины
             if await self.page_evaluate(selectors['chk_login_page_js']):
-                if await self.page_evaluate(selectors['chk_login_page_js']):
-                    logging.info(f'Login')
-                    await self.page_evaluate(selectors['before_login_js'])  # Если задано какое-то действие перед логином - выполняем
-                    await self.page_waitForSelector(selectors['login_selector'])  # Ожидаем наличия поля логина
-                    await self.page_evaluate(selectors['login_clear_js'])  # очищаем поле логина
-                    await self.page_type(selectors['login_selector'], self.login, {'delay': 10})  # вводим логин
-                    if (await self.page_evaluate(selectors['chk_submit_after_login_js'], default=False)):  # Если нужно после логина нажать submit
-                        await self.page_click(selectors['submit_after_login_selector']) # либо click
-                        await self.page_evaluate(selectors['submit_after_login_js'])  # либо через js
-                        await self.page_waitForSelector(selectors['password_selector'])  # и ждем появления поля с паролем
-                        await asyncio.sleep(1)
-                    await self.page_evaluate(selectors['password_clear_js'])  # очищаем поле пароля           
-                    await self.page_type(selectors['password_selector'], self.password, {'delay': 10})  # вводим пароль
-                    if await self.page_evaluate(selectors['remember_checker'], default=False):  # Если есть невыставленный check remember me
-                        await self.page_evaluate(selectors['remember_js'])  # выставляем его
-                        await self.page_click(selectors['remember_selector'], {'delay': 10})
-                    await asyncio.sleep(int(selectors['pause_press_submit']))
-                    await self.page_click(selectors['submit_selector']) #  нажимаем на submit form
-                    await self.page_evaluate(selectors['submit_js'])  # либо через js (на некоторых сайтах один из вариантов не срабатывает)
-                    await self.page_waitForNavigation()  # ждем отработки нажатия
+                logging.info(f'Login')
+                await self.page_evaluate(selectors['before_login_js'])  # Если задано какое-то действие перед логином - выполняем
+                await self.page_waitForSelector(selectors['login_selector'])  # Ожидаем наличия поля логина
+                await self.page_evaluate(selectors['login_clear_js'])  # очищаем поле логина
+                await self.page_type(selectors['login_selector'], self.login, {'delay': 10})  # вводим логин
+                if (await self.page_evaluate(selectors['chk_submit_after_login_js'], default=False)):  # Если нужно после логина нажать submit
+                    await self.page_click(selectors['submit_after_login_selector']) # либо click
+                    await self.page_evaluate(selectors['submit_after_login_js'])  # либо через js
+                    await self.page_waitForSelector(selectors['password_selector'])  # и ждем появления поля с паролем
                     await asyncio.sleep(1)
+                await self.page_evaluate(selectors['password_clear_js'])  # очищаем поле пароля           
+                await self.page_type(selectors['password_selector'], self.password, {'delay': 10})  # вводим пароль
+                if await self.page_evaluate(selectors['remember_checker'], default=False):  # Если есть невыставленный check remember me
+                    await self.page_evaluate(selectors['remember_js'])  # выставляем его
+                    await self.page_click(selectors['remember_selector'], {'delay': 10})
+                await asyncio.sleep(int(selectors['pause_press_submit']))
+                await self.page_click(selectors['submit_selector']) #  нажимаем на submit form
+                await self.page_evaluate(selectors['submit_js'])  # либо через js (на некоторых сайтах один из вариантов не срабатывает)
+                await self.page_waitForNavigation()  # ждем отработки нажатия
+                await asyncio.sleep(1)
                 if await self.page_evaluate(selectors['chk_lk_page_js']):
                     logging.info(f'Logged on')
                     break  # ВЫХОДИМ ИЗ ЦИКЛА - залогинились
