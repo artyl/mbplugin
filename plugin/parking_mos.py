@@ -17,13 +17,13 @@ user_selectors={'chk_lk_page_js': "document.querySelector('span[id=balance]') !=
     }
 
 class parking_mos_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
+    def data_collector(self):
         # Мы должны зайти на страницу личного кабинета, а потом уже перейти на форму логона
-        await self.page_goto('https://lk.parking.mos.ru/auth/login')
-        await self.page_evaluate("window.location = '/auth/social/sudir?returnTo=/../cabinet'")
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
+        self.page_goto('https://lk.parking.mos.ru/auth/login')
+        self.page_evaluate("window.location = '/auth/social/sudir?returnTo=/../cabinet'")
+        self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берем данные с загружаемой страницы 
-        await self.wait_params(params=[{
+        self.wait_params(params=[{
             'name': 'Balance',
             'jsformula': r"parseFloat(document.querySelector('span[id=balance]').innerText.replace(',', '.'))",
         }])

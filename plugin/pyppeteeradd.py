@@ -240,7 +240,7 @@ class balance_over_puppeteer():
         logging.info(f'Browser was closed')
         self.browser_open = False  # выставляем флаг
 
-    def launch_browser(self):
+    def browser_launch(self):
         hide_chrome_flag = str(store.options('show_chrome')) == '0' and store.options('logginglevel') != 'DEBUG'
         storefolder = store.options('storefolder')
         user_data_dir = os.path.join(storefolder,'puppeteer')
@@ -288,11 +288,6 @@ class balance_over_puppeteer():
         self.page = pages[0]  # await browser.newPage()
         if self.async_response_worker is not None:
             self.page.on("response", self.async_response_worker) # вешаем обработчик на страницы
-        if str(store.options('intercept_request')) == '1' and self.request_intercept is not None:
-            # TODO похоже есть проблема с редиректом:
-            # https://github.com/puppeteer/puppeteer/issues/3421
-            self.loop.run_until_complete(self.page.setRequestInterception(True))
-            self.page.on('request', self.request_intercept)            
         if self.async_disconnected_worker is not None:
             self.browser.on("disconnected", self.async_disconnected_worker) # вешаем обработчик закрытие браузера
 
@@ -346,6 +341,9 @@ class balance_over_puppeteer():
     def sleep(self, delay):
         return self.loop.run_until_complete(asyncio.sleep(delay))
 
+    def browser_close(self):
+        self.loop.run_until_complete(self.browser.close())
+
     # !!! TODO есть page.waitForSelector - покопать в эту сторону
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
@@ -382,9 +380,6 @@ class balance_over_puppeteer():
             if selectors[sel] !='':
                 print(f'Check {selectors[sel]}')
                 assert self.page_evaluate(f"document.querySelector('{selectors['login_selector']}') !== null")==True, f'Not found on page:{sel}:{selectors[sel]}'
-
-    def sync_do_logon(self, url=None, user_selectors=None):
-        return self.loop.run_until_complete(self.do_logon(url, user_selectors))
 
     @check_browser_opened_decorator
     def do_logon(self, url=None, user_selectors=None):
@@ -540,15 +535,15 @@ class balance_over_puppeteer():
         pass
 
     def data_collector(self):
-        'Переопределите можно как синхронно так и асинхронно'
+        'Переопределите для своего плагина'
         pass
 
     def main(self, run='normal'):
-        self.launch_browser()
+        self.browser_launch()
         if run == 'normal':
             self.data_collector()
         elif run == 'check_logon':
-            self.async_check_logon_selectors_prepare()
+            self.check_logon_selectors_prepare()
             self.check_logon_selectors()
         logging.debug(f'Data ready {self.result.keys()}')
         if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
@@ -557,7 +552,7 @@ class balance_over_puppeteer():
                                 for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
             with open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
                 f.write(text)
-        self.loop.run_until_complete(self.browser.close())
+        self.browser_close()
         kill_chrome()  # Добиваем  все наши незакрытые хромы, чтобы не появлялось кучи зависших
         clear_cache(self.storename)            
         return self.result   

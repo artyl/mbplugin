@@ -17,9 +17,9 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('.content-wrapper .a
                 }
 
 class beeline_uz_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
-        await self.wait_params(params=[
+    def data_collector(self):
+        self.do_logon(url=login_url, user_selectors=user_selectors)
+        self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['/dashboard$'], 'jsformula': "parseFloat(data.subUsers[0].balance).toFixed(2)"},
             {'name': 'TarifPlan', 'url_tag': ['/dashboard$'], 'jsformula': "data.subUsers[0].pricePlan.ru"},
             {'name': 'UserName', 'url_tag': ['/dashboard$'], 'jsformula': "data.subUsers[0].fio"},

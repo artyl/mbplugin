@@ -12,12 +12,12 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
                   }
 
 class vscale_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
+    def data_collector(self):
+        self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берем данные с загружаемой страницы api.vscale.io/v1/billing/balance (то что мы видем в отладчике на странице Network)
         # {"balance":123, "unpaid":0,"user_id":12345} 
         # данные страницы json представленные в переменной data соответственно формула получения data.balance
-        await self.wait_params(params=[{
+        self.wait_params(params=[{
             'name': 'Balance',
             'url_tag': ['api.vscale.io/v1/billing/balance'], 
             'jsformula': 'data.balance',

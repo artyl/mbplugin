@@ -10,10 +10,10 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
 
 # введите логин demo@saures.ru и пароль demo вручную
 class test3_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
+    def data_collector(self):
+        self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берет данные непосредственно с отрендеренной страницы, поэтому url_tag не указан
-        await self.wait_params(params=[{
+        self.wait_params(params=[{
             'name': 'Balance',
             'jsformula': r"parseFloat(document.querySelector('div.card-body div.counter__row').innerText.replace(/[^\d,.-]/g, '').replace(',','.'))",
         }, {

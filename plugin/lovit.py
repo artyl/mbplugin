@@ -12,9 +12,9 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
                   }
 
 class lovit_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
-        await self.wait_params(params=[
+    def data_collector(self):
+        self.do_logon(url=login_url, user_selectors=user_selectors)
+        self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['api/user/info'], 'jsformula': "parseFloat(data.data.balance).toFixed(2)"},
             {'name': 'UserName', 'url_tag': ['api/user/info'], 'jsformula': "data.data.company"},
             {'name': 'TurnOff', 'url_tag': ['api/user/info'], 'jsformula': "data.data.days_to_off"},

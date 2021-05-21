@@ -18,12 +18,12 @@ user_selectors={
 
 class rostelecom_over_puppeteer(pa.balance_over_puppeteer):
     def data_collector(self):
-        self.sync_do_logon(url=login_url, user_selectors=user_selectors)
+        self.do_logon(url=login_url, user_selectors=user_selectors)
         accountId = 0
         # Если в логине указан лицевой счет, то нам нужно узнать accountId чтобы запросить баланс по конкретному ЛС
         if self.acc_num != '':                
             # Сначала из файла client-api/getAccounts получаем accountId по номеру лицевого счета
-            res1 = self.sync_wait_params(params=[{
+            res1 = self.wait_params(params=[{
                 'name': '#accountId',  # Помечаем решеткой, потому что не берем в результат
                 'url_tag': ['client-api/getAccounts'],
                 'jsformula': f'data.accounts.filter(el => el.number=="{self.acc_num}")[0].accountId',
@@ -31,7 +31,7 @@ class rostelecom_over_puppeteer(pa.balance_over_puppeteer):
             }])  # Это промежуточные данные их не берем в результат
             accountId = res1['#accountId']  # Нам нужен accountId чтобы искать остальные данные
         # Теперь со страницы client-api/getAccountBalanceV2 возьмем Balance (по accountId)
-        self.sync_wait_params(params=[{
+        self.wait_params(params=[{
             'name': 'Balance',
             'url_tag': ['client-api/getAccountBalanceV2'] + ([str(accountId)] if self.acc_num != '' else []),
             'jsformula': r"data.balance/100",

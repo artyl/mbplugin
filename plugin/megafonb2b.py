@@ -14,9 +14,9 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
                   }
 
 class megafonb2b_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
-        await self.wait_params(params=[
+    def data_collector(self):
+        self.do_logon(url=login_url, user_selectors=user_selectors)
+        self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['accounts/balance'], 'jsformula': "parseFloat(data.data.conditionalBalance).toFixed(2)"},
             {'name': 'TarifPlan', 'url_tag': ['widget/subscribers'], 'jsformula': "data.data.tariffs[0].name"},
             ])

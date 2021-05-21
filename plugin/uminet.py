@@ -11,10 +11,10 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[id=boots
 
 # введите логин demo@saures.ru и пароль demo вручную
 class uminet_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
+    def data_collector(self):
+        self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берет данные непосредственно с отрендеренной страницы, поэтому url_tag не указан
-        await self.wait_params(params=[{
+        self.wait_params(params=[{
             'name': 'Balance',
             'jsformula': r"""regexp=/Баланс.*?badge.*?>(.*?)<.span/i;
                              html=document.documentElement.outerHTML.replace(/\r|\n/g, "").replace(/>\s+/g, ">");

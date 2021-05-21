@@ -14,13 +14,13 @@ user_selectors = {'chk_lk_page_js': "document.getElementById('ext-gen2') != null
                 }
 
 class a1by_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
+    def data_collector(self):
         self.login = self.login[-9:]
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
+        self.do_logon(url=login_url, user_selectors=user_selectors)
         # Кликаем на '_root/PERSONAL_INFO' или на '_root/USER_INFO' т.е. '_root/...._INFO'
-        await self.page_evaluate( '''document.querySelector('span[id^="_root/"][id$=INFO]').click()''')
-        await self.page_waitForNavigation()
-        await self.wait_params(params=[{
+        self.page_evaluate( '''document.querySelector('span[id^="_root/"][id$=INFO]').click()''')
+        self.page_waitForNavigation()
+        self.wait_params(params=[{
             'name': 'Balance',
             'jsformula': r'''()=>
             {

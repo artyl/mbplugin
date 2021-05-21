@@ -15,10 +15,10 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('div.lk-login input[
                   }
 
 class onlime_over_puppeteer(pa.balance_over_puppeteer):
-    async def async_main(self):
-        await self.do_logon(url=login_url, user_selectors=user_selectors)
+    def data_collector(self):
+        self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берем данные с загружаемой страницы 
-        await self.wait_params(params=[
+        self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.accountInfo.balance"},
             {'name': 'Balance2', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.bonusAccount.points"},
             {'name': 'LicSchet', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.accountInfo.AccountID"},
