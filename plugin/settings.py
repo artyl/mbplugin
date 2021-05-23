@@ -81,9 +81,17 @@ ini = {
         # максимальное время ожидания ввода капчи в секундах
         'max_wait_captcha_': {'descr':'Максимальное время ожидания ввода капчи в секундах', 'type':'text', 'validate':lambda i:i.isdigit()},
         'max_wait_captcha': '180',
-        # Прятать окна Chrome (при logginglevel=DEBUG всегда показывает)
+        # Показывать окна Chrome (при logginglevel=DEBUG всегда показывает), отключить можно только в windows, на линукс и mac всегда показывается
+        # Этот режим был сделан из-за нестабильности работа headles chrome на pyppeteer
         'show_chrome_': {'descr':'Показывать окно crome', 'type':'checkbox'},
         'show_chrome': '0',
+        # Режим Headless Прятать окна Chrome (при logginglevel=DEBUG всегда показывает)
+        # Честный headless chrome режим, из этого режима вернуть окно в видимое нельзя
+        'headless_chrome_': {'descr':'Headless режим работы chrome', 'type':'checkbox'},
+        'headless_chrome': '0',
+        # движок для работы с браузером
+        'browserengine_': {'descr':'Движок для работы с браузером', 'type':'select', 'variants':'PYPPETEER PLAYWRIGHT'},
+        'browserengine': 'PYPPETEER',
         # Путь к хрому - можно прописать явно в ini, иначе поищет из вариантов chrome_executable_path_alternate
         'chrome_executable_path_': {'descr':'Путь к хрому', 'type':'text', 'size':100, 'validate':lambda i:os.path.exists(i)},
         'chrome_executable_path': 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',

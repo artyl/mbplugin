@@ -2,7 +2,6 @@
 # -*- coding: utf8 -*-
 ''' пример плагина почти на чистом puppeteer без упрощенной логики '''
 import time, re, json, logging, os
-import pyppeteer  # PYthon puPPETEER
 import pyppeteeradd
 
 def main(login, password, storename=None):

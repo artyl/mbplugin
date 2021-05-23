@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import pyppeteeradd as pa
+import browsercontroller
 
 login_url = 'https://lk.saures.ru/dashboard'
 user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",
@@ -9,7 +9,7 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
                   'login_selector': 'form input[type=text]', }
 
 # введите логин demo@saures.ru и пароль demo вручную
-class test3_over_puppeteer(pa.balance_over_puppeteer):
+class browserengine(browsercontroller.get_browser_engine_class()):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берет данные непосредственно с отрендеренной страницы, поэтому url_tag не указан
@@ -24,8 +24,8 @@ class test3_over_puppeteer(pa.balance_over_puppeteer):
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    return test3_over_puppeteer(login, password, storename).main()
+    return browserengine(login, password, storename).main()
 
 
 if __name__ == '__main__':
-    print('This is module test3 for test chrome on puppeteer with class balance_over_puppeteer')
+    print('This is module test3 for test chrome on browser')
