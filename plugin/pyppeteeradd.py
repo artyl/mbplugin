@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import asyncio, time, re, json, subprocess, logging, shutil, os, sys, traceback
+import asyncio, time, re, json, subprocess, logging, shutil, os, sys, traceback, importlib
 try:
     import win32gui, win32process
 except:
@@ -555,3 +555,9 @@ class balance_over_puppeteer():
         kill_chrome()  # Добиваем  все наши незакрытые хромы, чтобы не появлялось кучи зависших
         clear_cache(self.storename)            
         return self.result   
+
+
+def check_pyppiteer_lib_bug():
+    'Проверяем библиотеку pyppeteer на отсутсвие бага'
+    if importlib.metadata.version('pyee').startswith('8') and pyppeteer.page.Page.__base__.__name__ != 'AsyncIOEventEmitter':
+        raise RuntimeError(f'Incompatible version pyee lib for pyppeteer, see https://github.com/pyppeteer/pyppeteer/pull/258')

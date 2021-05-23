@@ -547,6 +547,7 @@ class BalanceOverPlaywright(_BrowserController):
 def get_browser_engine_class():
     'Возвращает класс движка для работы с браузером'
     if store.options('browserengine').upper()[:2] in ('PY', 'PU'):  # 'PYPPETEER'
+        pyppeteeradd.check_pyppiteer_lib_bug()
         return pyppeteeradd.balance_over_puppeteer
     elif store.options('browserengine').upper()[:2] == 'PL':  # 'PLAYWRIGHT':
         return BalanceOverPlaywright
