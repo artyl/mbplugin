@@ -164,7 +164,11 @@ class browserengine(browsercontroller.get_browser_engine_class()):
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    return browserengine(login, password, storename).main()
+    be = browserengine(login, password, storename)
+    if str(store.options('show_captcha')) == '1':
+        # если включен показ браузера в случае капчи то отключаем headless chrome - в нем видимость браузера не вернуть
+        be.launch_config['headless'] = False
+    return be.main()
 
 if __name__ == '__main__':
     print('This is module mts on browser (mts)')
