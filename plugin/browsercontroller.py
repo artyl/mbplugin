@@ -277,7 +277,13 @@ class _BrowserController():
     @safe_run_with_log_decorator
     def page_wait_for_function(self, expression, *args, **kwargs):
         ''' переносим вызов waitForSelector в класс для того чтобы каждый раз не указывать page'''
-        return self.page.wait_for_function(expression)
+        # TODO почему то с self.page.wait_for_function возникли проблемы - переделал на eval
+        for cnt in range(10):
+            res = self.page.evaluate(expression, *args, **kwargs)
+            if res:
+                break
+            self.sleep(1)
+        return res
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
@@ -372,7 +378,9 @@ class _BrowserController():
                 break # ВЫХОДИМ ИЗ ЦИКЛА - уже залогинины
             if self.page_evaluate(selectors['chk_login_page_js']):
                 logging.info(f'Login')
-                self.page_evaluate(selectors['before_login_js'])  # Если задано какое-то действие перед логином - выполняем
+                if selectors['before_login_js'] != '':
+                    self.page_evaluate(selectors['before_login_js'])  # Если задано какое-то действие перед логином - выполняем
+                    self.sleep(1)
                 self.page_waitForSelector(selectors['login_selector'])  # Ожидаем наличия поля логина
                 self.page_evaluate(selectors['login_clear_js'])  # очищаем поле логина
                 self.page_fill(selectors['login_selector'], self.login)  # вводим логин
@@ -546,6 +554,7 @@ class BalanceOverPlaywright(_BrowserController):
 
 def get_browser_engine_class():
     'Возвращает класс движка для работы с браузером'
+    logging.info(f"browserengine={store.options('browserengine')}")
     if store.options('browserengine').upper()[:2] in ('PY', 'PU'):  # 'PYPPETEER'
         pyppeteeradd.check_pyppiteer_lib_bug()
         return pyppeteeradd.balance_over_puppeteer

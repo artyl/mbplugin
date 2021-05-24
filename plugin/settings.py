@@ -88,10 +88,10 @@ ini = {
         # Режим Headless Прятать окна Chrome (при logginglevel=DEBUG всегда показывает)
         # Честный headless chrome режим, из этого режима вернуть окно в видимое нельзя
         'headless_chrome_': {'descr':'Headless режим работы chrome', 'type':'checkbox'},
-        'headless_chrome': '0',
+        'headless_chrome': '1',
         # движок для работы с браузером
         'browserengine_': {'descr':'Движок для работы с браузером', 'type':'select', 'variants':'PYPPETEER PLAYWRIGHT'},
-        'browserengine': 'PYPPETEER',
+        'browserengine': 'PLAYWRIGHT',
         # Путь к хрому - можно прописать явно в ini, иначе поищет из вариантов chrome_executable_path_alternate
         'chrome_executable_path_': {'descr':'Путь к хрому', 'type':'text', 'size':100, 'validate':lambda i:os.path.exists(i)},
         'chrome_executable_path': 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
@@ -100,7 +100,7 @@ ini = {
         'log_responses': '0',
         # Для плагинов через хром не загружать стили шрифты и картинки, в puppeteer с этим есть проблемы, включать с осторожностью
         'intercept_request_': {'descr':'Не загружать стили, шрифты и картинки', 'type':'checkbox'},
-        'intercept_request': '0',
+        'intercept_request': '1',
         # Для плагинов через хром не обрезать вычисляемое выражение в логе
         'log_full_eval_string_': {'descr':'Для плагинов через хром не обрезать вычисляемое выражение в логе', 'type':'checkbox'},
         'log_full_eval_string': '0',
