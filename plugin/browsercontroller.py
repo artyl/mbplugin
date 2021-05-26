@@ -7,7 +7,6 @@ try:
 except:
     print('No win32 installed, no fake-headless mode')
 import psutil
-import playwright
 import pyppeteeradd
 #import pprint; pp = pprint.PrettyPrinter(indent=4).pprint
 import store, settings
@@ -113,9 +112,8 @@ def kill_chrome():
             pass
 
 @safe_run_decorator
-def fix_crash_banner(storename):
+def fix_crash_banner(storefolder, storename):
     'Исправляем Preferences чтобы убрать баннер Работа Chrome была завершена некорректно'
-    storefolder = store.options('storefolder')
     fn_pref = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename, 'Preferences'))
     if not os.path.exists(fn_pref):
         return  # Нет Preferences - выходим
@@ -127,20 +125,18 @@ def fix_crash_banner(storename):
         open(fn_pref, mode='w').write(data1)        
 
 @safe_run_decorator
-def clear_cache(storename):
+def clear_cache(storefolder, storename):
     'Очищаем папку с кэшем профиля чтобы не разрастался'
     #return  # С такой очисткой оказывается связаны наши проблемы с загрузкой
-    storefolder = store.options('storefolder')
     profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))  
     shutil.rmtree(os.path.join(profilepath, 'Cache'), ignore_errors=True)
     shutil.rmtree(os.path.join(profilepath, 'Code Cache'), ignore_errors=True)
     shutil.rmtree(os.path.join(profilepath, 'Service Worker', 'CacheStorage'), ignore_errors=True)
 
 @safe_run_decorator
-def delete_profile(storename):
+def delete_profile(storefolder, storename):
     'Удаляем профиль'
     kill_chrome()  # Перед удалением киляем хром
-    storefolder = store.options('storefolder')
     profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))    
     shutil.rmtree(profilepath)
 
@@ -198,6 +194,7 @@ class _BrowserController():
         self.password = password
         self.login_ori, self.acc_num = login, ''
         self.login = login
+        self.storefolder = store.options('storefolder')
         self.storename = storename
         self.login_url = login_url
         self.user_selectors = user_selectors
@@ -206,13 +203,21 @@ class _BrowserController():
             # !!! в storename уже преобразован поэтому чтобы выкинуть из него ненужную часть нужно по ним тоже регуляркой пройтись
             self.storename = self.storename.replace(re.sub(r'\W', '_', self.login_ori), re.sub(r'\W', '_', self.login))  # исправляем storename
         kill_chrome()  # Превинтивно убиваем все наши хромы, чтобы не появлялось кучи зависших
-        clear_cache(self.storename)
+        clear_cache(self.storefolder, self.storename)
         self.result = {}
         self.responses = {}
         self.hide_chrome_flag = str(store.options('show_chrome')) == '0' and store.options('logginglevel') != 'DEBUG'
-        self.storefolder = store.options('storefolder')
-        self.user_data_dir = os.path.abspath(os.path.join(self.storefolder, 'puppeteer'))
         self.profile_directory = self.storename
+        self.launch_config_args = [
+            '--log-level=3', # no logging
+            "--window-position=-2000,-2000" if self.hide_chrome_flag else "--window-position=80,80",
+            "--window-size=800,900"]
+        if str(store.options('headless_chrome')) == '1':
+            # В Headless chrome не работают профили, всегда попадает в Default
+            self.user_data_dir = os.path.abspath(os.path.join(self.storefolder, 'headless', self.profile_directory))
+        else:
+            self.user_data_dir = os.path.abspath(os.path.join(self.storefolder, 'puppeteer'))
+            self.launch_config_args.append(f"--profile-directory={self.profile_directory}")
         self.chrome_executable_path = store.options('chrome_executable_path')
         if not os.path.exists(self.chrome_executable_path):
             chrome_paths = [p for p in settings.chrome_executable_path_alternate if os.path.exists(p)]
@@ -222,15 +227,52 @@ class _BrowserController():
             self.chrome_executable_path = chrome_paths[0]
         self.launch_config = {
             'headless': str(store.options('headless_chrome')) == '1',
-            # TODO хранить параметр в ini
-            'args': [f"--profile-directory={self.profile_directory}",
-                    "--window-position=-2000,-2000" if self.hide_chrome_flag else "--window-position=80,80",
-                    "--window-size=800,900"],
         }
-        # TODO если pyppeteer добавить в args f"--user-data-dir={os.path.abspath(self.user_data_dir)}"
-        if store.options('proxy_server').strip() != '':
-            self.launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}')
-        fix_crash_banner(self.storename)            
+        fix_crash_banner(self.storefolder, self.storename)            
+
+    def response_worker(self, response):
+        'Response Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)'
+        'Проходящие запросы, которые json сохраняем в responses'
+        if response.status == 200:
+            try:
+                data = response.json()  # Берем только json
+            except Exception:
+                # TODO добавить взятие и текста страниц для парсинга
+                return
+            try:
+                post = ''
+                if response.request.method == 'POST' and response.request.post_data is not None:
+                    post = response.request.post_data
+                self.responses[f'{response.request.method}:{post} URL:{response.request.url}$'] = data
+                # TODO Сделать какой-нибудь механизм для поиска по загруженным страницам
+                # txt = response.text()
+                # if '2336' in txt:
+                #    logging.info(f'2336 in {response.request.url}')
+            except:
+                exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
+                logging.debug(exception_text)
+
+    def on_route_worker(self, route):
+        'Обработчик обращений браузера, здесь можно их прервать, чтобы лишние данные не грузить'
+        # TODO вынести константы наверх
+        stop_url = ['google-analytics', '.yandex.ru/', 'dynamicyield.com/', 'googletagmanager.com/', 'yastatic.net/', 'cloudflare.com/', 'facebook.net/', 'vk.com/']
+        if route.request.resource_type in ('image','stylesheet','font','manifest') or len([u for u in stop_url if u in route.request.url])>0:
+            #print(f'Abort {route.request.method}:{route.request.url}')
+            try:
+                route.abort()
+            except Exception:
+                print('NO ABORT')
+        else:
+            #print(route.request.resource_type)
+            try:
+                route.continue_()
+            except Exception:
+                print('NO CONTINUE')  
+
+    def disconnected_worker(self):
+        'disconnected_worker вызывается когда закрыли браузер'
+        logging.info(f'Browser was closed')
+        self.browser_open = False  # выставляем флаг
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
@@ -306,49 +348,28 @@ class _BrowserController():
         if selector != '':
             return self.page.click(selector, *args, **kwargs)            
 
-    def response_worker(self, response):
-        'Response Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)'
-        'Проходящие запросы, которые json сохраняем в responses'
-        if response.status == 200:
-            try:
-                data = response.json()  # Берем только json
-            except Exception:
-                # TODO добавить взятие и текста страниц для парсинга
-                return
-            try:
-                post = ''
-                if response.request.method == 'POST' and response.request.post_data is not None:
-                    post = response.request.post_data
-                self.responses[f'{response.request.method}:{post} URL:{response.request.url}$'] = data
-                # TODO Сделать какой-нибудь механизм для поиска по загруженным страницам
-                # txt = response.text()
-                # if '2336' in txt:
-                #    logging.info(f'2336 in {response.request.url}')
-            except:
-                exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
-                logging.debug(exception_text)
+    def launch_browser(self, launch_func):
+        logging.info(f'Launch chrome from {self.chrome_executable_path}')
+        self.launch_config.update({
+            'user_data_dir': self.user_data_dir,
+            'ignore_https_errors': True,
+            'executable_path': self.chrome_executable_path,
+            'args': self.launch_config_args,
+            })
+        if store.options('proxy_server').strip() != '':
+            self.launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}') 
+        self.browser = launch_func(**self.launch_config) # sync_pw.chromium.launch_persistent_context
+        if self.hide_chrome_flag:
+            hide_chrome()
+        self.page = self.browser.pages[0]
+        [p.close() for p in self.browser.pages[1:]]
+        self.page.on("response", self.response_worker)
+        if str(store.options('intercept_request')) == '1':            
+            self.page.route("*", self.on_route_worker)        
+        self.browser.on("disconnected", self.disconnected_worker) # вешаем обработчик закрытие браузера
 
-    def on_route(self, route):
-        'Обработчик обращений браузера, здесь можно их прервать, чтобы лишние данные не грузить'
-        # TODO вынести константы наверх
-        stop_url = ['google-analytics', '.yandex.ru/', 'dynamicyield.com/', 'googletagmanager.com/', 'yastatic.net/', 'cloudflare.com/', 'facebook.net/', 'vk.com/']
-        if route.request.resource_type in ('image','stylesheet','font','manifest') or len([u for u in stop_url if u in route.request.url])>0:
-            #print(f'Abort {route.request.method}:{route.request.url}')
-            try:
-                route.abort()
-            except Exception:
-                print('NO ABORT')
-        else:
-            #print(route.request.resource_type)
-            try:
-                route.continue_()
-            except Exception:
-                print('NO CONTINUE')  
-
-    def disconnected_worker(self):
-        'disconnected_worker вызывается когда закрыли браузер'
-        logging.info(f'Browser was closed')
-        self.browser_open = False  # выставляем флаг
+    def browser_close(self):
+        self.browser.close()
 
     @check_browser_opened_decorator
     def do_logon(self, url=None, user_selectors=None):
@@ -501,28 +522,8 @@ class _BrowserController():
             self.result.update({k:v for k,v in result.items() if not k.startswith('#')})  # Не переносим те что с решеткой в начале
         return result
 
-    #def launch_browser():
-    #    'Переопределите метод для запуска браузера'
-    #    pass
-    def launch_browser(self, launch_func):
-        logging.info(f'Launch chrome from {self.chrome_executable_path}')
-        # TODO видимо надо with sync_playwright() as p вынести куда-то выше - подумать
-        self.launch_config.update({
-            'user_data_dir': self.user_data_dir,
-            'executable_path': self.chrome_executable_path,
-            'ignore_https_errors': True })
-        self.browser = launch_func(**self.launch_config) # sync_pw.chromium.launch_persistent_context
-        if self.hide_chrome_flag:
-            hide_chrome()
-        self.page = self.browser.pages[0]
-        [p.close() for p in self.browser.pages[1:]]
-        self.page.on("response", self.response_worker)
-        if str(store.options('intercept_request')) == '1':            
-            self.page.route("*", self.on_route)        
-        self.browser.on("disconnected", self.disconnected_worker) # вешаем обработчик закрытие браузера
-
     def data_collector(self):
-        'Переопределите можно как синхронно так и асинхронно'
+        'Переопределите для своего плагина'
         pass
 
     def main(self, run='normal'):
@@ -542,9 +543,9 @@ class _BrowserController():
                                     for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
                 with open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
                     f.write(text)
-            self.browser.close()
+            self.browser_close()
         kill_chrome()  # Добиваем все наши незакрытые хромы, чтобы не появлялось кучи зависших
-        clear_cache(self.storename)            
+        clear_cache(self.storefolder, self.storename)
         return self.result   
 
 class BalanceOverPlaywright(_BrowserController):

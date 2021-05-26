@@ -55,7 +55,7 @@ def safe_run_decorator(func):
             logging.info(f'{log_string} fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
             return default
     wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
-    return wrapper    
+    return wrapper
 
 def safe_run(func, *args, **kwargs):
     'Безопасный запуск функции'
@@ -111,9 +111,8 @@ def kill_chrome():
             pass
 
 @safe_run_decorator
-def fix_crash_banner(storename):
+def fix_crash_banner(storefolder, storename):
     'Исправляем Preferences чтобы убрать баннер Работа Chrome была завершена некорректно'
-    storefolder = store.options('storefolder')
     fn_pref = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename, 'Preferences'))
     if not os.path.exists(fn_pref):
         return  # Нет Preferences - выходим
@@ -125,20 +124,18 @@ def fix_crash_banner(storename):
         open(fn_pref, mode='w').write(data1)        
 
 @safe_run_decorator
-def clear_cache(storename):
+def clear_cache(storefolder, storename):
     'Очищаем папку с кэшем профиля чтобы не разрастался'
     #return  # С такой очисткой оказывается связаны наши проблемы с загрузкой
-    storefolder = store.options('storefolder')
     profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))  
     shutil.rmtree(os.path.join(profilepath, 'Cache'), ignore_errors=True)
     shutil.rmtree(os.path.join(profilepath, 'Code Cache'), ignore_errors=True)
     shutil.rmtree(os.path.join(profilepath, 'Service Worker', 'CacheStorage'), ignore_errors=True)
 
 @safe_run_decorator
-def delete_profile(storename):
+def delete_profile(storefolder, storename):
     'Удаляем профиль'
     kill_chrome()  # Перед удалением киляем хром
-    storefolder = store.options('storefolder')
     profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))    
     shutil.rmtree(profilepath)
 
@@ -195,6 +192,7 @@ class balance_over_puppeteer():
         self.password = password
         self.login_ori, self.acc_num = login, ''
         self.login = login
+        self.storefolder = store.options('storefolder')
         self.storename = storename
         self.login_url = login_url
         self.user_selectors = user_selectors
@@ -203,9 +201,32 @@ class balance_over_puppeteer():
             # !!! в storename уже преобразован поэтому чтобы выкинуть из него ненужную часть нужно по ним тоже регуляркой пройтись
             self.storename = self.storename.replace(re.sub(r'\W', '_', self.login_ori), re.sub(r'\W', '_', self.login))  # исправляем storename
         kill_chrome()  # Превинтивно убиваем все наши хромы, чтобы не появлялось кучи зависших
-        clear_cache(self.storename)
+        clear_cache(self.storefolder, self.storename)
         self.result = {}
         self.responses = {}
+        self.hide_chrome_flag = str(store.options('show_chrome')) == '0' and store.options('logginglevel') != 'DEBUG'
+        self.profile_directory = self.storename
+        self.launch_config_args = [
+            '--log-level=3', # no logging
+            "--window-position=-2000,-2000" if self.hide_chrome_flag else "--window-position=80,80",
+            "--window-size=800,900"]
+        if str(store.options('headless_chrome')) == '1':
+            # В Headless chrome не работают профили, всегда попадает в Default
+            self.user_data_dir = os.path.abspath(os.path.join(self.storefolder, 'headless', self.profile_directory))
+        else:
+            self.user_data_dir = os.path.abspath(os.path.join(self.storefolder, 'puppeteer'))
+            self.launch_config_args.append(f"--profile-directory={self.profile_directory}")
+        self.chrome_executable_path = store.options('chrome_executable_path')
+        if not os.path.exists(self.chrome_executable_path):
+            chrome_paths = [p for p in settings.chrome_executable_path_alternate if os.path.exists(p)]
+            if len(chrome_paths) == 0:
+                logging.error('Chrome.exe not found')
+                raise RuntimeError(f'Chrome.exe not found')
+            self.chrome_executable_path = chrome_paths[0]
+        self.launch_config = {
+            'headless': False,
+        }
+        fix_crash_banner(self.storefolder, self.storename)            
         try:
             self.loop = asyncio.get_event_loop()
         except Exception:  # Странно в трэдах почему то может не создавать сам
@@ -239,56 +260,8 @@ class balance_over_puppeteer():
         logging.info(f'Browser was closed')
         self.browser_open = False  # выставляем флаг
 
-    def browser_launch(self):
-        hide_chrome_flag = str(store.options('show_chrome')) == '0' and store.options('logginglevel') != 'DEBUG'
-        storefolder = store.options('storefolder')
-        user_data_dir = os.path.join(storefolder,'puppeteer')
-        profile_directory = self.storename
-        chrome_executable_path = store.options('chrome_executable_path')
-        if not os.path.exists(chrome_executable_path):
-            chrome_paths = [p for p in settings.chrome_executable_path_alternate if os.path.exists(p)]
-            if len(chrome_paths) == 0:
-                logging.error('Chrome.exe not found')
-                raise RuntimeError(f'Chrome.exe not found')
-            chrome_executable_path = chrome_paths[0]
-        logging.info(f'Launch chrome from {chrome_executable_path}')
-        launch_config = {
-            'headless': False,
-            'ignoreHTTPSErrors': True,
-            'defaultViewport': None,
-            'handleSIGINT':False,  # need for threading (https://stackoverflow.com/questions/53679905)
-            'handleSIGTERM':False,  
-            'handleSIGHUP':False,
-            # TODO хранить параметр в ini
-            'executablePath': chrome_executable_path,
-            'args': [f"--user-data-dir={os.path.abspath(user_data_dir)}", f"--profile-directory={profile_directory}",
-                    '--wm-window-animations-disabled',
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--no-first-run',
-                    '--no-zygote',
-                    '--log-level=3', # no logging                 
-                    #'--single-process', # <- this one doesn't works in Windows
-                    '--disable-gpu', 
-                    "--window-position=-2000,-2000" if hide_chrome_flag else "--window-position=80,80",
-                    "--window-size=800,900"],
-        }
-        if store.options('proxy_server').strip() != '':
-            launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}')
-        fix_crash_banner(self.storename)
-        self.browser = self.loop.run_until_complete(pyppeteer.launch(launch_config))
-        if hide_chrome_flag:
-            hide_chrome()
-        pages = self.loop.run_until_complete(self.browser.pages())
-        for pg in pages[1:]:
-            self.loop.run_until_complete(pg.close()) # Закрываем остальные страницы, если вдруг открыты
-        self.page = pages[0]  # await browser.newPage()
-        if self.async_response_worker is not None:
-            self.page.on("response", self.async_response_worker) # вешаем обработчик на страницы
-        if self.disconnected_worker is not None:
-            self.browser.on("disconnected", self.disconnected_worker) # вешаем обработчик закрытие браузера
+    def sleep(self, delay):
+        return self.loop.run_until_complete(asyncio.sleep(delay))
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
@@ -317,31 +290,12 @@ class balance_over_puppeteer():
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
-    def page_type(self, selector, text, *args, **kwargs):
-        ''' переносим вызов type в класс для того чтобы каждый раз не указывать page'''
-        if selector != '' and text != '': 
-            return self.loop.run_until_complete(self.page.type(selector, text, *args, **kwargs))
-
-    @check_browser_opened_decorator
-    @safe_run_with_log_decorator    
-    def page_click(self, selector, *args, **kwargs):
-        ''' переносим вызов click в класс для того чтобы каждый раз не указывать page'''
-        return self.loop.run_until_complete(self.page.click(selector, *args, **kwargs))
-
-    @check_browser_opened_decorator
-    @safe_run_with_log_decorator
     def page_waitForNavigation(self):
         ''' переносим вызов waitForNavigation в класс для того чтобы каждый раз не указывать page'''
         try:
             return self.loop.run_until_complete(self.page.waitForNavigation({'timeout': 10000}))
         except pyppeteer.errors.TimeoutError:
             logging.info(f'waitForNavigation timeout')
-
-    def sleep(self, delay):
-        return self.loop.run_until_complete(asyncio.sleep(delay))
-
-    def browser_close(self):
-        self.loop.run_until_complete(self.browser.close())
 
     # !!! TODO есть page.waitForSelector - покопать в эту сторону
     @check_browser_opened_decorator
@@ -351,9 +305,61 @@ class balance_over_puppeteer():
         return self.loop.run_until_complete(self.page.waitForSelector(selector, {'timeout': 10000}))
 
     @check_browser_opened_decorator
+    @safe_run_with_log_decorator
+    def page_type(self, selector, text, *args, **kwargs):
+        ''' переносим вызов type в класс для того чтобы каждый раз не указывать page'''
+        if selector != '' and text != '': 
+            return self.loop.run_until_complete(self.page.type(selector, text, *args, **kwargs))
+
+    @check_browser_opened_decorator
+    @safe_run_with_log_decorator    
+    def page_click(self, selector, *args, **kwargs):
+        ''' переносим вызов click в класс для того чтобы каждый раз не указывать page'''
+        if selector != '':
+            return self.loop.run_until_complete(self.page.click(selector, *args, **kwargs))
+
+    def launch_browser(self, launch_func):
+        logging.info(f'Launch chrome from {self.chrome_executable_path}')
+        self.launch_config_args.extend([
+                     f"--user-data-dir={os.path.abspath(self.user_data_dir)}",
+                    '--wm-window-animations-disabled',
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--disable-gpu', ])
+        self.launch_config.update({
+            'executablePath': self.chrome_executable_path,
+            'ignoreHTTPSErrors': True,
+            'defaultViewport': None,
+            'handleSIGINT':False,  # need for threading (https://stackoverflow.com/questions/53679905)
+            'handleSIGTERM':False,  
+            'handleSIGHUP':False,
+            'args': self.launch_config_args,
+            })
+        if store.options('proxy_server').strip() != '':
+            self.launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}') 
+        self.browser = self.loop.run_until_complete(launch_func(self.launch_config))        
+        if self.hide_chrome_flag:
+            hide_chrome()
+        pages = self.loop.run_until_complete(self.browser.pages())
+        for pg in pages[1:]:
+            self.loop.run_until_complete(pg.close()) # Закрываем остальные страницы, если вдруг открыты
+        self.page = pages[0]  # await browser.newPage()
+        if self.async_response_worker is not None:
+            self.page.on("response", self.async_response_worker) # вешаем обработчик на страницы
+        if self.disconnected_worker is not None:
+            self.browser.on("disconnected", self.disconnected_worker) # вешаем обработчик закрытие браузера
+
+    def browser_close(self):
+        self.loop.run_until_complete(self.browser.close())
+
+    @check_browser_opened_decorator
     def check_logon_selectors(self):
         ''' Этот метод для тестирования, поэтому здесь можно assert
-        Проверяем что селекторы на долгоне выполняются - это максимум того что мы можем проверить без ввода логина и пароля
+        Проверяем что селекторы на долго не выполняются - это максимум того что мы можем проверить без ввода логина и пароля
         '''
         selectors = default_logon_selectors.copy()
         login_url = self.login_url
@@ -387,6 +393,7 @@ class balance_over_puppeteer():
         Если какой-то из шагов по умолчанию хотим пропустить, передаем пустую строку
         Смотрите актуальное описание напротив параметров в коментариях
         Чтобы избежать ошибок - копируйте названия параметров'''
+        breakpoint() if os.path.exists('breakpoint') else None
         selectors = default_logon_selectors.copy()
         if url is None:
             url = self.login_url
@@ -538,22 +545,24 @@ class balance_over_puppeteer():
         pass
 
     def main(self, run='normal'):
-        self.browser_launch()
-        if run == 'normal':
-            self.data_collector()
-        elif run == 'check_logon':
-            self.check_logon_selectors_prepare()
-            self.check_logon_selectors()
-        logging.debug(f'Data ready {self.result.keys()}')
-        if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
-            import pprint
-            text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
-                                for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
-            with open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
-                f.write(text)
-        self.browser_close()
-        kill_chrome()  # Добиваем  все наши незакрытые хромы, чтобы не появлялось кучи зависших
-        clear_cache(self.storename)            
+        import pyppeteer
+        if True:  # для pyppeteer нельзя сделать через with
+            self.launch_browser(pyppeteer.launch)
+            if run == 'normal':
+                self.data_collector()
+            elif run == 'check_logon':
+                self.check_logon_selectors_prepare()
+                self.check_logon_selectors()
+            logging.debug(f'Data ready {self.result.keys()}')
+            if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
+                import pprint
+                text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
+                                    for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
+                with open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
+                    f.write(text)
+            self.browser_close()
+        kill_chrome()  # Добиваем все наши незакрытые хромы, чтобы не появлялось кучи зависших
+        clear_cache(self.storefolder, self.storename)
         return self.result   
 
 
