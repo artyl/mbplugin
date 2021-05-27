@@ -11,7 +11,8 @@ login_url = 'https://login.mts.ru/amserver/UI/Login?service=newlk'  # - друг
 user_selectors = {
     # Возможно 2 разных формы логина, кроме того при заходе через мобильный МТС форма будет отличаться поэтому в выражении предусмотрены все варианты
     'chk_lk_page_js': "document.querySelector('form input[id^=phone]')==null && document.querySelector('form input[id=password]')==null && document.querySelector('form button[value=Ignore]')==null && document.getElementById('enter-with-phone-form')==null",
-    # У нас форма из двух последовательных окон (хотя иногода бывает и одно, у МТС две разных формы логона)
+    'lk_page_url': 'login/userInfo', # не считаем что зашли в ЛК пока не прогрузим этот url
+    # У нас форма из двух последовательных окон (хотя иногда бывает и одно, у МТС две разных формы логона)
     'chk_login_page_js': "document.querySelector('form input[id=phoneInput]')!=null || document.querySelector('form input[id=password]')!=null || document.querySelector('form button[value=Ignore]')!=null || document.getElementById('enter-with-phone-form')!=null",
     # Если мы зашли с интернета МТС то предлагается вариант зайти под номером владельца (есть два варианта этой формы), надо нажать кнопку проигнорить этот вариант
     'before_login_js': """b1=document.querySelector('button[value=Ignore]');

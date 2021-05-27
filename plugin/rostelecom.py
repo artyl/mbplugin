@@ -7,7 +7,8 @@ icon = '789CA5D4B171DB401484E1A719050E5D024257A078C7B97BB852B614041ED7B1B16A7080
 login_url='https://lk.rt.ru'
 user_selectors={
     'before_login_js':"document.querySelector('div[data-tab=login]').click()", # Сначала кликаем по Логин
-    'chk_lk_page_js': "document.querySelector('form input[type=password]') === null", # true если мы в личном кабинете
+    'chk_lk_page_js': '',#"document.querySelector('form input[type=password]') === null", # true если мы в личном кабинете
+    'lk_page_url': 'client-api/getAccounts', # не считаем что зашли в ЛК пока не проглузим этот url
     'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",  # true если мы в окне логина
     'login_clear_js': "document.querySelector('form input[id=username]').value=''",  # Уточняем поле для логина чтобы не промахнуться
     'login_selector': 'form input[id=username]', 

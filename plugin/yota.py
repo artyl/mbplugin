@@ -6,7 +6,9 @@ icon = '789C9593CB2B44511CC7BF1E49918429C98285A2C9D6C64E91CD142B0B0BB3B555FC0962
 
 # Для тестов выносим параметры наружу, чтобы их можно было взять тестами
 login_url = 'https://my.yota.ru/selfcare/devices'
-user_selectors={'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",
+user_selectors={
+                #'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",
+                'chk_lk_page_js': "window.location.href=='https://my.yota.ru/devices'",
                 'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",
                 'login_clear_js': "document.querySelector('form input[formcontrolname=username]').value=''",
                 'login_selector': 'form input[formcontrolname=username]', 

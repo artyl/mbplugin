@@ -15,8 +15,14 @@ import store, settings
 [logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict]  # pylint: disable=no-member
 
 # Селекторы и скрипты по умолчанию для формы логона
+# Проверять попадание в ЛК по отсутствию поля пароля - универсальный, простой, но ненадежный путь - 
+# в процессе загрузки страницы логона поля не будет, но это не означает что мы на нужной странице
+# Ходовые варианты проверки 
+# по url: window.location.href=="https://...."
+# по селектору: document.querySelector('span[id=balance]') !== null
 default_logon_selectors = {
             'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",  # true если мы в личном кабинете
+            'lk_page_url': '', # Если задан то появление в списке self.responces этого url или его части будет означать что мы залогинились
             'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",  # true если мы в окне логина
             'before_login_js': '',  # Команда которую надо выполнить перед вводом логина
             'login_clear_js': "document.querySelector('form input[type=text]').value=''",  # команда для очистки поля логина
@@ -160,7 +166,7 @@ class balance_over_puppeteer():
             параметры предназначенные декоратору, и не передаются в вызываемую функцию:
             default: возвращаемое в случае ошибки значение'''
             default = kwargs.pop('default', None)
-            if len(args) > 0 and args[0] == '':
+            if len(args) > 0 and (args[0] == '' or args[0] == None):
                 return default            
             # Готовим строку для лога
             log_string = f'call: {getattr(func,"__name__","")}({", ".join(map(repr,args))}, {", ".join([f"{k}={repr(v)}" for k,v in kwargs.items()])})'
@@ -179,16 +185,21 @@ class balance_over_puppeteer():
         wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
         return wrapper
 
-    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_url=None, user_selectors=None, headless=None):
-        'Передаем стандартно login, password, storename'
-        'Дополнительно'
-        'wait_loop=30 - Сколько секунд ждать появления информации на странице'
-        'wait_and_reload=10 - Сколько секунд ждать, после чего перезагрузить страницу'
-        'login_url, user_selectors - можно передать параметры для логона при создании класса'
-        'headless можно указать явно, иначе будет взято из настроек, но работать будет только в playwright'
+    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_url=None, user_selectors=None, headless=None, force=1):
+        '''Передаем стандартно login, password, storename'
+        Дополнительно
+        wait_loop=30 - Сколько секунд ждать появления информации на странице
+        wait_and_reload=10 - Сколько секунд ждать, после чего перезагрузить страницу
+        max_timeout=15 - сколько секунд ждать прогрузки страниц, появления форм и т.п.
+        login_url, user_selectors - можно передать параметры для логона при создании класса
+        headless можно указать явно, иначе будет взято из настроек, но работать будет только в playwright
+        force - коэфициент, на который будет умножено страховочное ожидание 0 - ускориться, 2 - замедлиться
+        если все проверки заданы качественно - можно указать force=0'''
         self.browser, self.page = None, None  # откроем браузер - заполним
         self.browser_open = True  # флаг что браузер работает
         self.wait_loop = wait_loop  # TODO подобрать параметр
+        self.max_timeout = max_timeout
+        self.force = force
         self.wait_and_reload = wait_and_reload
         self.password = password
         self.login_ori, self.acc_num = login, ''
@@ -267,13 +278,25 @@ class balance_over_puppeteer():
 
     def sleep(self, delay):
         'Специальный sleep, т.к. вокруг все асинхронное должны спать через asyncio.sleep в секундах'
-        return self.page.wait_for_timeout(delay*1000)
+        #logging.info(f'sleep {delay}')
+        return self.loop.run_until_complete(asyncio.sleep(delay))
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
     def page_evaluate(self, eval_string, default=None):
-        ''' переносим вызов evaluate в класс для того чтобы каждый раз не указывать page и обернуть декораторами'''
-        return self.loop.run_until_complete(self.page.evaluate(eval_string))
+        ''' переносим вызов evaluate в класс для того чтобы каждый раз не указывать page и обернуть декораторами
+        Проверка на пустой eval_string и default значение - сделано в декораторе'''
+        self.loop.run_until_complete(self.page.evaluate(eval_string))
+
+    def page_check_response_url(self, response_url):
+        ''' проверяем наличие response_url в загруженных url, если не задан или пустой то возвращяем True '''
+        if response_url == None or response_url == '':
+            return True
+        if len([i for i in self.responses.keys() if response_url in i]) > 0:
+            logging.info(f'Found an "{response_url}" in responses')
+            return True
+        else:
+            return False
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
@@ -283,7 +306,7 @@ class balance_over_puppeteer():
             if url != None and url != '':
                 return self.loop.run_until_complete(self.page.goto(url, {'timeout': 10000}))
         except pyppeteer.errors.TimeoutError:
-            logging.info(f'goto timeout')        
+            logging.info(f'goto timeout')
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
@@ -297,20 +320,43 @@ class balance_over_puppeteer():
         ''' переносим вызов content в класс для того чтобы каждый раз не указывать page'''
         return self.loop.run_until_complete(self.page.content())
 
-    @check_browser_opened_decorator
-    @safe_run_with_log_decorator
-    def page_waitForSelector(self, selector, *args, **kwargs):
-        ''' переносим вызов waitForSelector в класс для того чтобы каждый раз не указывать page'''
-        return self.loop.run_until_complete(self.page.waitForSelector(selector, {'timeout': 10000}))
+    def page_screenshot(self, path):
+        return self.loop.run_until_complete(self.page.screenshot({'path': path}))
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
-    def page_waitForNavigation(self):
-        ''' переносим вызов waitForNavigation в класс для того чтобы каждый раз не указывать page'''
-        try:
-            return self.loop.run_until_complete(self.page.waitForNavigation({'timeout': 10000}))
-        except pyppeteer.errors.TimeoutError:
-            logging.info(f'waitForNavigation timeout')
+    def page_wait_for(self, expression=None, selector=None, loadstate=None, response_url=None, **kwargs):
+        ''' Ожидаем одно или несколько событий:
+        наступления eval(expression)==True
+        появления selector 
+        loadstate=True - окончания загрузки страницы (в playwright нужно осторожно, его поведение не всегда предсказуемо)
+        response_url - появления в self.responses указанного url
+        '''
+        if loadstate != None and loadstate == True:
+            try:
+                self.loop.run_until_complete(self.page.waitForNavigation({'timeout': self.max_timeout*1000}))
+            except pyppeteer.errors.TimeoutError:
+                logging.info(f'waitForNavigation timeout')
+        if  selector != None and selector != '':
+            self.loop.run_until_complete(self.page.waitForSelector(selector, {'timeout': self.max_timeout*1000}))
+        if  expression != None and expression != '':
+            res = None
+            for cnt in range(self.max_timeout):
+                try:
+                    # в процессе выполнения можем грохнуться т.к. страница может перезагрузиться, такие даже не логируем
+                    res = self.loop.run_until_complete(self.page.evaluate(expression, **kwargs))
+                except:
+                    exception_text = f'Ошибка в page_wait_for:{"".join(traceback.format_exception(*sys.exc_info()))}'
+                    if 'Execution context was destroyed' not in exception_text:
+                        logging.info(exception_text)   
+                if res:
+                    break
+                self.sleep(1)
+        if response_url != None and response_url != '':
+            for cnt in range(self.max_timeout):
+                if self.page_check_response_url(response_url):
+                    break
+                self.sleep(1)
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
@@ -387,7 +433,7 @@ class balance_over_puppeteer():
         print(f'login_url={login_url}')
         if login_url != '':
             self.page_goto(login_url)
-        self.page_waitForNavigation()
+        self.page_wait_for(loadstate=True)
         self.sleep(1)
         for sel in ['chk_login_page_js', 'login_clear_js', 'password_clear_js', 'chk_submit_js']:
             if selectors[sel] !='':
@@ -409,7 +455,7 @@ class balance_over_puppeteer():
         Если какой-то из шагов по умолчанию хотим пропустить, передаем пустую строку
         Смотрите актуальное описание напротив параметров в коментариях
         Чтобы избежать ошибок - копируйте названия параметров'''
-        breakpoint() if os.path.exists('breakpoint') else None
+        breakpoint() if os.path.exists('breakpoint_logon') else None
         selectors = default_logon_selectors.copy()
         if url is None:
             url = self.login_url
@@ -419,39 +465,46 @@ class balance_over_puppeteer():
         if set(user_selectors)-set(selectors) != set():
             logging.error(f'Не все ключи из user_selectors есть в selectors. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}')
         selectors.update(user_selectors)
+        # Если проверка на нахождение в личном кабинете на отсутсвие элемента - дополнительно ожидаем чтобы страница гарантированно загрузилась
+        is_bad_chk_lk_page_js = ' == null' in selectors['chk_lk_page_js'] or '=== null' in selectors['chk_lk_page_js']
         if url is not None:  # Иногда мы должны сложным путем попасть на страницу - тогда указываем url=None
             self.page_goto(url)
-        self.page_waitForNavigation()
-        self.sleep(1)            
+            # Появилось слишком много сайтов на которых медленно открывается страница логона и мы успеваем подумать что пароля на странице нет
+            self.sleep(1*self.force if not is_bad_chk_lk_page_js else 5)
+            self.page_wait_for(loadstate=True)
         for countdown in range(self.wait_loop): 
-            if self.page_evaluate(selectors['chk_lk_page_js']):
+            if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_url(selectors['lk_page_url']):
                 logging.info(f'Already login')
                 break # ВЫХОДИМ ИЗ ЦИКЛА - уже залогинины
             if self.page_evaluate(selectors['chk_login_page_js']):
                 logging.info(f'Login')
-                self.page_evaluate(selectors['before_login_js'])  # Если задано какое-то действие перед логином - выполняем
-                self.page_waitForSelector(selectors['login_selector'])  # Ожидаем наличия поля логина
+                if selectors['before_login_js'] != '':
+                    self.page_evaluate(selectors['before_login_js'])  # Если задано какое-то действие перед логином - выполняем
+                    self.sleep(1*self.force)
+                self.page_wait_for(selector=selectors['login_selector'])  # Ожидаем наличия поля логина
                 self.page_evaluate(selectors['login_clear_js'])  # очищаем поле логина
-                self.page_type(selectors['login_selector'], self.login, {'delay': 10})  # вводим логин
+                self.page_fill(selectors['login_selector'], self.login)  # вводим логин
                 if (self.page_evaluate(selectors['chk_submit_after_login_js'], default=False)):  # Если нужно после логина нажать submit
                     self.page_click(selectors['submit_after_login_selector']) # либо click
                     self.page_evaluate(selectors['submit_after_login_js'])  # либо через js
-                    self.page_waitForSelector(selectors['password_selector'])  # и ждем появления поля с паролем
-                    self.sleep(1)
-                self.page_evaluate(selectors['password_clear_js'])  # очищаем поле пароля           
-                self.page_type(selectors['password_selector'], self.password, {'delay': 10})  # вводим пароль
+                    self.page_wait_for(selector=selectors['password_selector'])  # и ждем появления поля с паролем
+                    self.sleep(1*self.force)
+                self.page_evaluate(selectors['password_clear_js'])  # очищаем поле пароля
+                self.page_fill(selectors['password_selector'], self.password)  # вводим пароль
                 if self.page_evaluate(selectors['remember_checker'], default=False):  # Если есть невыставленный check remember me
                     self.page_evaluate(selectors['remember_js'])  # выставляем его
-                    self.page_click(selectors['remember_selector'], {'delay': 10})
-                self.sleep(int(selectors['pause_press_submit']))
+                    self.page_click(selectors['remember_selector'])
+                self.sleep(1*self.force + int(selectors['pause_press_submit']))
                 self.page_click(selectors['submit_selector']) #  нажимаем на submit form
                 self.page_evaluate(selectors['submit_js'])  # либо через js (на некоторых сайтах один из вариантов не срабатывает)
-                self.page_waitForNavigation()  # ждем отработки нажатия
-                self.sleep(1)
-                if self.page_evaluate(selectors['chk_lk_page_js']):
+                self.page_wait_for(loadstate=True)  # ждем отработки нажатия
+                # ждем появления личного кабинета, или проваливаемся по таймауту
+                self.page_wait_for(expression=selectors['chk_lk_page_js'], response_url=selectors['lk_page_url'])
+                self.sleep(1*self.force if not is_bad_chk_lk_page_js else self.max_timeout)
+                if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_url(selectors['lk_page_url']):
                     logging.info(f'Logged on')
                     break  # ВЫХОДИМ ИЗ ЦИКЛА - залогинились
-                self.sleep(1)
+                self.sleep(1*self.force)
                 # Проверяем - это не капча ?
                 if self.page_evaluate(selectors['captcha_checker'], False):
                     # Если стоит флаг показывать капчу то включаем видимость хрома и ждем заданное время
@@ -509,7 +562,7 @@ class balance_over_puppeteer():
             raise RuntimeError(error_msg)
         if url != '':  # Если указан url то сначала переходим на него
             self.page_goto(url)
-            self.page_waitForNavigation()
+            self.page_wait_for(loadstate=True)
         for countdown in range(self.wait_loop):
             self.sleep(1)
             for param in params:
