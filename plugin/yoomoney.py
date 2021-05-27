@@ -14,10 +14,10 @@ class browserengine(browsercontroller.get_browser_engine_class()):
         #self.do_logon(url=login_url, user_selectors=user_selectors)
         # По простому если не видим баланса - показываем капчу
         self.page_goto(login_url)
-        self.page_waitForNavigation()
+        self.page_wait_for(loadstate=True)
         if str(store.options('show_captcha')) == '1':
             if not self.page_evaluate(js_check_balance_str, default=False):
-                pa.hide_chrome(hide=False, foreground=True)
+                browsercontroller.hide_chrome(hide=False, foreground=True)
                 for cnt2 in range(int(store.options('max_wait_captcha'))):
                     _ = cnt2
                     if self.page_evaluate(js_check_balance_str, default=False):

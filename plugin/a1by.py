@@ -19,7 +19,8 @@ class browserengine(browsercontroller.get_browser_engine_class()):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         # Кликаем на '_root/PERSONAL_INFO' или на '_root/USER_INFO' т.е. '_root/...._INFO'
         self.page_evaluate( '''document.querySelector('span[id^="_root/"][id$=INFO]').click()''')
-        self.page_waitForNavigation()
+        self.page_wait_for(loadstate=True)
+        self.sleep(1)
         self.wait_params(params=[{
             'name': 'Balance',
             'jsformula': r'''()=>
