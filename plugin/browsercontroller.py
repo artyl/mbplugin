@@ -496,7 +496,7 @@ class _BrowserController():
                     # Никуда не попали и это не капча
                     if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
                         fn = os.path.join(store.options('loggingfolder'), self.storename + '_unknown.png')
-                        self.page_screenshot(path=fn)                    
+                        self.page_screenshot(path=fn)
                     logging.error(f'Unknown state')
                     raise RuntimeError(f'Unknown state')
                 break  # ВЫХОДИМ ИЗ ЦИКЛА
@@ -534,6 +534,7 @@ class _BrowserController():
             raise RuntimeError(error_msg)
         if url != '':  # Если указан url то сначала переходим на него
             self.page_goto(url)
+            self.page_wait_for(loadstate=True)
         for countdown in range(self.wait_loop):
             self.sleep(1)
             breakpoint() if os.path.exists('breakpoint_wait') else None
@@ -559,7 +560,7 @@ class _BrowserController():
                                 result[param['name']] = res
                 else:  # Ищем на самой странице - запускаем js
                     logging.info(f'jsformula on url {self.page.url}:{param["jsformula"]}')
-                    content = self.page.content()
+                    content = self.page_content()
                     self.responses[f'CONTENT URL:{self.page.url}$'] = content
                     res = self.page_evaluate(param['jsformula'])
                     if res is not None:

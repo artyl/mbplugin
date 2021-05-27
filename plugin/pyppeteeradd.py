@@ -185,7 +185,7 @@ class balance_over_puppeteer():
         wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
         return wrapper
 
-    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_url=None, user_selectors=None, headless=None, force=1):
+    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, max_timeout=15, login_url=None, user_selectors=None, headless=None, force=1):
         '''Передаем стандартно login, password, storename'
         Дополнительно
         wait_loop=30 - Сколько секунд ждать появления информации на странице
@@ -525,6 +525,9 @@ class balance_over_puppeteer():
                         raise RuntimeError(f'Captcha appeared')
                 else:
                     # Никуда не попали и это не капча
+                    if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
+                        fn = os.path.join(store.options('loggingfolder'), self.storename + '_unknown.png')
+                        self.page_screenshot(path=fn)
                     logging.error(f'Unknown state')
                     raise RuntimeError(f'Unknown state')
                 break  # ВЫХОДИМ ИЗ ЦИКЛА
@@ -565,6 +568,7 @@ class balance_over_puppeteer():
             self.page_wait_for(loadstate=True)
         for countdown in range(self.wait_loop):
             self.sleep(1)
+            breakpoint() if os.path.exists('breakpoint_wait') else None
             for param in params:
                 if param.get('url_tag', []) != []:  # Ищем в загруженных страницах
                     response_result_ = [v for k,v in self.responses.items() if [i for i in param['url_tag'] if i not in k]==[]]
