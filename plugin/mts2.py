@@ -40,7 +40,7 @@ class browserengine(browsercontroller.get_browser_engine_class()):
         if self.login_ori != self.login and self.acc_num.isdigit():  # это финт для захода через другой номер 
             # если заход через другой номер то переключаемся на нужный номер
             # TODO возможно с прошлого раза может сохраниться переключенный но вроде работает и так
-            self.page_waitForSelector("[id=ng-header__account-phone_desktop]")
+            self.page_wait_for(selector="[id=ng-header__account-phone_desktop]")
             self.responses = {}  # Сбрасываем все загруженные данные - там данные по материнскому телефону                
             url_redirect = f'https://login.mts.ru/amserver/UI/Login?service=idp2idp&IDButton=switch&IDToken1=id={self.acc_num},ou=user,o=users,ou=services,dc=amroot&org=/users&ForceAuth=true&goto=https://lk.mts.ru'
             self.page_goto(url_redirect)
