@@ -300,7 +300,14 @@ class _BrowserController():
     def page_evaluate(self, eval_string, default=None):
         ''' переносим вызов evaluate в класс для того чтобы каждый раз не указывать page и обернуть декораторами
         Проверка на пустой eval_string и default значение - сделано в декораторе'''
-        return self.page.evaluate(eval_string)
+        try:
+            return self.page.evaluate(eval_string)
+        except Exception:
+            exception_text = f'Ошибка в page_wait_for:{"".join(traceback.format_exception(*sys.exc_info()))}'
+            if 'Execution context was destroyed' not in exception_text:
+                logging.info(exception_text)
+            raise
+
 
     def page_check_response_url(self, response_url):
         ''' проверяем наличие response_url в загруженных url, если не задан или пустой то возвращяем True '''
@@ -360,7 +367,7 @@ class _BrowserController():
                 try:
                     # в процессе выполнения можем грохнуться т.к. страница может перезагрузиться, такие даже не логируем
                     res = self.page.evaluate(expression, **kwargs)
-                except:
+                except Exception:
                     exception_text = f'Ошибка в page_wait_for:{"".join(traceback.format_exception(*sys.exc_info()))}'
                     if 'Execution context was destroyed' not in exception_text:
                         logging.info(exception_text)   
