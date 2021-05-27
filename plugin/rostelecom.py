@@ -52,9 +52,7 @@ class browserengine(browsercontroller.get_browser_engine_class()):
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    be = browserengine(login, password, storename)
-    be.launch_config['headless'] = False  # ростелеком в headless не работает
-    return be.main()
+    return browserengine(login, password, storename, headless=False).main()  # ростелеком в headless не работает
 
 
 if __name__ == '__main__':

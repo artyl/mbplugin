@@ -179,12 +179,13 @@ class balance_over_puppeteer():
         wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
         return wrapper
 
-    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_url=None, user_selectors=None):
+    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, login_url=None, user_selectors=None, headless=None):
         'Передаем стандартно login, password, storename'
         'Дополнительно'
         'wait_loop=30 - Сколько секунд ждать появления информации на странице'
         'wait_and_reload=10 - Сколько секунд ждать, после чего перезагрузить страницу'
         'login_url, user_selectors - можно передать параметры для логона при создании класса'
+        'headless можно указать явно, иначе будет взято из настроек, но работать будет только в playwright'
         self.browser, self.page = None, None  # откроем браузер - заполним
         self.browser_open = True  # флаг что браузер работает
         self.wait_loop = wait_loop  # TODO подобрать параметр
@@ -196,6 +197,10 @@ class balance_over_puppeteer():
         self.storename = storename
         self.login_url = login_url
         self.user_selectors = user_selectors
+        if headless is None and store.options('browserengine').upper()[:2] == 'PL':  # headless только в PLAYWRIGHT
+            self.headless = str(store.options('headless_chrome')) == '1'
+        else:
+            self.headless = headless
         if '/' in login:
             self.login, self.acc_num = self.login_ori.split('/')
             # !!! в storename уже преобразован поэтому чтобы выкинуть из него ненужную часть нужно по ним тоже регуляркой пройтись
@@ -210,7 +215,7 @@ class balance_over_puppeteer():
             '--log-level=3', # no logging
             "--window-position=-2000,-2000" if self.hide_chrome_flag else "--window-position=80,80",
             "--window-size=800,900"]
-        if str(store.options('headless_chrome')) == '1':
+        if self.headless:
             # В Headless chrome не работают профили, всегда попадает в Default
             self.user_data_dir = os.path.abspath(os.path.join(self.storefolder, 'headless', self.profile_directory))
         else:
@@ -224,7 +229,7 @@ class balance_over_puppeteer():
                 raise RuntimeError(f'Chrome.exe not found')
             self.chrome_executable_path = chrome_paths[0]
         self.launch_config = {
-            'headless': False,
+            'headless': self.headless,
         }
         fix_crash_banner(self.storefolder, self.storename)            
         try:
@@ -261,7 +266,8 @@ class balance_over_puppeteer():
         self.browser_open = False  # выставляем флаг
 
     def sleep(self, delay):
-        return self.loop.run_until_complete(asyncio.sleep(delay))
+        'Специальный sleep, т.к. вокруг все асинхронное должны спать через asyncio.sleep в секундах'
+        return self.page.wait_for_timeout(delay*1000)
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
@@ -274,7 +280,8 @@ class balance_over_puppeteer():
     def page_goto(self, url):
         ''' переносим вызов goto в класс для того чтобы каждый раз не указывать page и обернуть декораторами'''
         try:
-            return self.loop.run_until_complete(self.page.goto(url, {'timeout': 10000}))
+            if url != None and url != '':
+                return self.loop.run_until_complete(self.page.goto(url, {'timeout': 10000}))
         except pyppeteer.errors.TimeoutError:
             logging.info(f'goto timeout')        
 
@@ -282,11 +289,19 @@ class balance_over_puppeteer():
     @safe_run_with_log_decorator
     def page_reload(self, reason=''):
         ''' переносим вызов reload в класс для того чтобы каждый раз не указывать page'''
+        if reason != '':
+            logging.info(f'page.reload {reason}')
         return self.loop.run_until_complete(self.page.reload())
 
     def page_content(self):
-        ''' переносим вызов type в класс для того чтобы каждый раз не указывать page'''
+        ''' переносим вызов content в класс для того чтобы каждый раз не указывать page'''
         return self.loop.run_until_complete(self.page.content())
+
+    @check_browser_opened_decorator
+    @safe_run_with_log_decorator
+    def page_waitForSelector(self, selector, *args, **kwargs):
+        ''' переносим вызов waitForSelector в класс для того чтобы каждый раз не указывать page'''
+        return self.loop.run_until_complete(self.page.waitForSelector(selector, {'timeout': 10000}))
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
@@ -297,18 +312,19 @@ class balance_over_puppeteer():
         except pyppeteer.errors.TimeoutError:
             logging.info(f'waitForNavigation timeout')
 
-    # !!! TODO есть page.waitForSelector - покопать в эту сторону
-    @check_browser_opened_decorator
-    @safe_run_with_log_decorator
-    def page_waitForSelector(self, selector, *args, **kwargs):
-        ''' переносим вызов waitForSelector в класс для того чтобы каждый раз не указывать page'''
-        return self.loop.run_until_complete(self.page.waitForSelector(selector, {'timeout': 10000}))
-
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
     def page_type(self, selector, text, *args, **kwargs):
         ''' переносим вызов type в класс для того чтобы каждый раз не указывать page'''
         if selector != '' and text != '': 
+            return self.loop.run_until_complete(self.page.type(selector, text, *args, **kwargs))
+
+    @check_browser_opened_decorator
+    @safe_run_with_log_decorator
+    def page_fill(self, selector, text, *args, **kwargs):
+        ''' переносим вызов type в класс для того чтобы каждый раз не указывать page'''
+        if selector != '' and text != '': 
+            # В pyppeteer page.fill нет так что ходим также через page.type
             return self.loop.run_until_complete(self.page.type(selector, text, *args, **kwargs))
 
     @check_browser_opened_decorator
