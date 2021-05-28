@@ -1,4 +1,4 @@
-@echo OFF
+@REM @echo OFF
 %~d0 
 cd "%~dp0"
 
@@ -6,6 +6,13 @@ cd "%~dp0"
 @REM добавляем в sys.path поиск в папке откуда запущен скрипт по умолчанию, в embedded он почему-то выключен
 cd python 
 ..\python\python -c "txt='''import os,sys\nsys.path.insert(0,os.path.split(sys.argv[0])[0])''';open('sitecustomize.py','w').write(txt)"
+
+@REM очищаем кэши браузера
+cd "%~dp0"
+del "..\mbplugin\store\p_*" /Q
+rd "..\mbplugin\store\puppeteer" /S /Q
+rd "..\mbplugin\store\headless" /S /Q
+
 
 cd "%~dp0"
 echo Пересобираем DLL 
