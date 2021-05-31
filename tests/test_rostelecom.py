@@ -1,6 +1,5 @@
 import pytest
 import conftest
-import pyppeteeradd as pa  # pylint: disable=import-error
 import rostelecom  # pylint: disable=import-error
 
 
@@ -11,5 +10,5 @@ import rostelecom  # pylint: disable=import-error
 @pytest.mark.slow
 def test_rostelecom_logon_selectors():
     print(f'login_url={rostelecom.login_url}')
-    self = pa.balance_over_puppeteer('test', 'test', 'test', login_url=rostelecom.login_url, user_selectors=rostelecom.user_selectors)
+    self = rostelecom.browserengine('test', 'test', 'test', login_url=rostelecom.login_url, user_selectors=rostelecom.user_selectors)
     self.main('check_logon')

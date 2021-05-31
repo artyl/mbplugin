@@ -1,10 +1,8 @@
 import pytest
-import sys, os, asyncio
+import sys, os
 sys.path.insert(0, os.path.abspath('plugin'))
 
 import settings  # pylint: disable=import-error
-import pyppeteeradd as pa  # pylint: disable=import-error
-
 
 settings.mbplugin_root_path = 'tests\\data'
 

@@ -1,6 +1,5 @@
 import pytest
 import conftest
-import pyppeteeradd as pa  # pylint: disable=import-error
 import onlime  # pylint: disable=import-error
 
 # Игнорирование RuntimeWarning пришлось включить из-за того что pytest думает что нужен await в 
@@ -10,5 +9,5 @@ import onlime  # pylint: disable=import-error
 @pytest.mark.slow
 def test_onlime_logon_selectors():
     print(f'login_url={onlime.login_url}')
-    self = pa.balance_over_puppeteer('test', 'test', 'test', login_url=onlime.login_url, user_selectors=onlime.user_selectors)
+    self = onlime.browserengine('test', 'test', 'test', login_url=onlime.login_url, user_selectors=onlime.user_selectors)
     self.main('check_logon')

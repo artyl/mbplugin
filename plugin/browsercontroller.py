@@ -346,11 +346,12 @@ class _BrowserController():
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
-    def page_wait_for(self, expression=None, selector=None, loadstate=None, response_url=None, **kwargs):
+    def page_wait_for(self, expression=None, selector=None, loadstate=None, response_url=None, location_href_url=None, **kwargs):
         ''' Ожидаем одно или несколько событий:
         наступления eval(expression)==True
         появления selector 
         loadstate=True - окончания загрузки страницы (в playwright нужно осторожно, его поведение не всегда предсказуемо)
+        location_href_url - ожидание url в адресной строке (glob, regex or predicate)
         response_url - появления в self.responses указанного url
         '''
         if loadstate != None and loadstate == True:
@@ -358,6 +359,9 @@ class _BrowserController():
                 self.page.wait_for_load_state("networkidle", timeout=self.max_timeout*1000)
             except Exception:
                 logging.info(f'wait_for_load_state timeout')
+        # Пока аналогичного метода нет в классе для pyppeteer        
+        if location_href_url != None and location_href_url != '':
+            self.page.wait_for_url(location_href_url, **kwargs)
         if  selector != None and selector != '':
             self.page.wait_for_selector(selector)
         if  expression != None and expression != '':
@@ -423,6 +427,36 @@ class _BrowserController():
 
     def browser_close(self):
         self.browser.close()
+
+    @check_browser_opened_decorator
+    def check_logon_selectors(self):
+        ''' Этот метод для тестирования, поэтому здесь можно assert
+        Проверяем что селекторы на долго не выполняются - это максимум того что мы можем проверить без ввода логина и пароля
+        '''
+        selectors = default_logon_selectors.copy()
+        login_url = self.login_url
+        user_selectors = self.user_selectors
+        assert set(user_selectors)-set(selectors) == set(), f'Не все ключи из user_selectors есть в selectors. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}'
+        selectors.update(user_selectors)
+        # TODO fix for submit_js -> chk_submit_js
+        selectors['chk_submit_js'] = selectors['submit_js'].replace('.click()','!== null')
+        print(f'login_url={login_url}')
+        if login_url != '':
+            self.page_goto(login_url)
+        self.page_wait_for(loadstate=True)
+        self.sleep(1)
+        for sel in ['chk_login_page_js', 'login_clear_js', 'password_clear_js', 'chk_submit_js']:
+            if selectors[sel] !='':
+                print(f'Check {selectors[sel]}')
+                eval_res = self.page_evaluate(selectors[sel])
+                if sel.startswith('chk_'):
+                    assert eval_res == True , f'Bad result for js:{sel}:{selectors[sel]}'
+                else:
+                    assert eval_res == '' , f'Bad result for js:{sel}:{selectors[sel]}'
+        for sel in ['login_selector', 'password_selector', 'submit_selector']:
+            if selectors[sel] !='':
+                print(f'Check {selectors[sel]}')
+                assert self.page_evaluate(f"document.querySelector('{selectors['login_selector']}') !== null")==True, f'Not found on page:{sel}:{selectors[sel]}'
 
     @check_browser_opened_decorator
     def do_logon(self, url=None, user_selectors=None):
@@ -585,6 +619,10 @@ class _BrowserController():
             self.result.update({k:v for k,v in result.items() if not k.startswith('#')})  # Не переносим те что с решеткой в начале
         return result
 
+    def check_logon_selectors_prepare(self):
+        'Метод для подготовки к тестированию'
+        pass
+
     def data_collector(self):
         'Переопределите для своего плагина'
         pass
@@ -596,9 +634,8 @@ class _BrowserController():
             if run == 'normal':
                 self.data_collector()
             elif run == 'check_logon':
-                pass # TODO проработать тестирование
-                # self.loop.run_until_complete(self.async_check_logon_selectors_prepare())
-                # self.loop.run_until_complete(self.check_logon_selectors())
+                self.check_logon_selectors_prepare()
+                self.check_logon_selectors()
             logging.debug(f'Data ready {self.result.keys()}')
             if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
                 import pprint
@@ -621,7 +658,7 @@ def get_browser_engine_class():
     logging.info(f"browserengine={store.options('browserengine')}")
     if store.options('browserengine').upper()[:2] in ('PY', 'PU'):  # 'PYPPETEER'
         pyppeteeradd.check_pyppiteer_lib_bug()
-        return pyppeteeradd.balance_over_puppeteer
+        return pyppeteeradd.BalanceOverPyppeteer
     elif store.options('browserengine').upper()[:2] == 'PL':  # 'PLAYWRIGHT':
         return BalanceOverPlaywright
     else:

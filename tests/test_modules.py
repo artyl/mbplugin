@@ -11,6 +11,7 @@ import get_icon  # pylint: disable=import-error
 import httpserver_mobile  # pylint: disable=import-error
 import make_stock_stat  # pylint: disable=import-error
 import pyppeteeradd  # pylint: disable=import-error
+import browsercontroller  # pylint: disable=import-error
 import settings  # pylint: disable=import-error
 import store  # pylint: disable=import-error
 

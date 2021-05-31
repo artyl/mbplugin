@@ -145,7 +145,7 @@ def delete_profile(storefolder, storename):
     profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))    
     shutil.rmtree(profilepath)
 
-class balance_over_puppeteer():
+class BalanceOverPyppeteer():
     '''Основная часть общих действий вынесена сюда см mosenergosbyt для примера использования '''
 
     def check_browser_opened_decorator(func):  # pylint: disable=no-self-argument

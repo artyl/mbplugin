@@ -1,13 +1,12 @@
 import pytest
 import importlib.metadata
 import conftest
-import pyppeteeradd as pa  # pylint: disable=import-error
 import mts2  # pylint: disable=import-error
 
 # Открываем основную страницу чтобы в response попали страницы для проверки что response отрабатывает
-class balance_over_mts2(pa.balance_over_puppeteer):
-    async def async_check_logon_selectors_prepare(self):
-        await self.page_goto('https://mts.ru')
+class balance_over_mts2(mts2.browserengine):
+    def check_logon_selectors_prepare(self):
+        self.page_goto('https://mts.ru')
 
 # Игнорирование RuntimeWarning пришлось включить из-за того что pytest думает что нужен await в 
 # self.browser.on("disconnected", self.disconnected_worker)

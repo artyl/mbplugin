@@ -8,7 +8,7 @@ def main(login, password, storename=None):
     result = {} 
     pyppeteeradd.clear_cache(storename)
 
-    pa = pyppeteeradd.balance_over_puppeteer(login, password, storename)
+    pa = pyppeteeradd.BalanceOverPyppeteer(login, password, storename)
     pa.browser_launch()
     # Нажмите кнопку "Демо-доступ" или введите логин demo@saures.ru и пароль demo вручную. 
     pa.page_goto('https://lk.saures.ru/dashboard')
