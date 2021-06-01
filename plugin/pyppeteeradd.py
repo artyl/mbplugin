@@ -286,7 +286,7 @@ class BalanceOverPyppeteer():
     def page_evaluate(self, eval_string, default=None):
         ''' переносим вызов evaluate в класс для того чтобы каждый раз не указывать page и обернуть декораторами
         Проверка на пустой eval_string и default значение - сделано в декораторе'''
-        self.loop.run_until_complete(self.page.evaluate(eval_string))
+        return self.loop.run_until_complete(self.page.evaluate(eval_string))
 
     def page_check_response_url(self, response_url):
         ''' проверяем наличие response_url в загруженных url, если не задан или пустой то возвращяем True '''
@@ -618,6 +618,7 @@ class BalanceOverPyppeteer():
         pass
 
     def main(self, run='normal'):
+        logging.info(f"browserengine=Pyppeteer")
         import pyppeteer
         if True:  # для pyppeteer нельзя сделать через with
             self.launch_browser(pyppeteer.launch)

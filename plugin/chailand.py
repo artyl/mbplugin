@@ -7,7 +7,7 @@ icon = '789c8d90dd4b53611cc75db36ded2d9b83d80b7412f71211dec4bca828b2a288a0022b29
 
 login_url = 'https://chailand.ru/balance'
 
-class browserengine(browsercontroller.get_browser_engine_class()):
+class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.page_goto(login_url)
         self.sleep(1)

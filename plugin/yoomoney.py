@@ -9,7 +9,7 @@ login_url = 'https://yoomoney.ru/actions'
 js_check_balance_str = "document.querySelector('div[class=balance-widget__amount]')!=null"
 user_selectors = {}
 
-class browserengine(browsercontroller.get_browser_engine_class()):
+class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         #self.do_logon(url=login_url, user_selectors=user_selectors)
         # По простому если не видим баланса - показываем капчу

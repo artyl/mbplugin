@@ -31,7 +31,7 @@ user_selectors = {
     'captcha_focus': "document.getElementById('password').focus()", 
     }
 
-class browserengine(browsercontroller.get_browser_engine_class()):
+class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         mts_usedbyme = store.options('mts_usedbyme')
         self.do_logon(url=login_url, user_selectors=user_selectors)

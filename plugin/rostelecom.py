@@ -17,7 +17,7 @@ user_selectors={
     }
 
 
-class browserengine(browsercontroller.get_browser_engine_class()):
+class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         accountId = 0

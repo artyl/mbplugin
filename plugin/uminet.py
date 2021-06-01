@@ -10,7 +10,7 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[id=boots
                   'submit_js': "document.querySelector('form [type=submit]').click()"}
 
 # введите логин demo@saures.ru и пароль demo вручную
-class browserengine(browsercontroller.get_browser_engine_class()):
+class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берет данные непосредственно с отрендеренной страницы, поэтому url_tag не указан

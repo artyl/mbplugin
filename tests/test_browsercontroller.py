@@ -42,6 +42,3 @@ def test_browsercontroller_engine_pyppeteer():
     while len(psutil.Process().children())>2:
         #open('c:\\new\\aaaa','a').write(repr(psutil.Process().children())+'\n\n')
         time.sleep(0.1)
-
-# TODO есть два класса BalanceOverPlaywright и BalanceOverPyppeteer оба наследники класса _BrowserController
-# как протестировать оба не переписывая метод data_collector

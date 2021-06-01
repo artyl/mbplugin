@@ -17,7 +17,7 @@ user_selectors = {
     'captcha_focus': "document.getElementById('sms-code').focus()", 
     }
 
-class browserengine(browsercontroller.get_browser_engine_class()):
+class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         # Мы должны зайти на страницу личного кабинета, а потом уже перейти на форму логона
         self.page_goto('https://lk.parking.mos.ru/auth/login')

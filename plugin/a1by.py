@@ -13,7 +13,7 @@ user_selectors = {'chk_lk_page_js': "document.getElementById('ext-gen2') != null
                 'remember_checker': '',
                 }
 
-class browserengine(browsercontroller.get_browser_engine_class()):
+class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.login = self.login[-9:]
         self.do_logon(url=login_url, user_selectors=user_selectors)

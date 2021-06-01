@@ -89,7 +89,7 @@ ini = {
         # Честный headless chrome режим, из этого режима вернуть окно в видимое нельзя
         # TODO Похоже с headless как то не гладко все - пока по дефолту поставил нормальное окно
         'headless_chrome_': {'descr':'Headless режим работы chrome', 'type':'checkbox'},
-        'headless_chrome': '0',
+        'headless_chrome': '1',
         # движок для работы с браузером
         'browserengine_': {'descr':'Движок для работы с браузером', 'type':'select', 'variants':'PYPPETEER PLAYWRIGHT'},
         'browserengine': 'PLAYWRIGHT',

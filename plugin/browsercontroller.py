@@ -147,7 +147,7 @@ def delete_profile(storefolder, storename):
     shutil.rmtree(profilepath)
 
 
-class _BrowserController():
+class BalanceOverPlaywright():
     '''Общая часть класса управления браузером '''
 
     def check_browser_opened_decorator(func):  # pylint: disable=no-self-argument
@@ -210,7 +210,8 @@ class _BrowserController():
         self.storename = storename
         self.login_url = login_url
         self.user_selectors = user_selectors
-        if headless is None and store.options('browserengine').upper()[:2] == 'PL':  # headless только в PLAYWRIGHT
+        # headless только в PLAYWRIGHT и только если отключен показ капчи, иначе мы видимость браузера из headless уже не вернем и капчу показать не сможем
+        if headless is None and store.options('browserengine').upper()[:2] == 'PL' and str(store.options('show_captcha')) == '0':  
             self.headless = str(store.options('headless_chrome')) == '1'
         else:
             self.headless = headless
@@ -421,7 +422,8 @@ class _BrowserController():
         self.page = self.browser.pages[0]
         [p.close() for p in self.browser.pages[1:]]
         self.page.on("response", self.response_worker)
-        if str(store.options('intercept_request')) == '1':            
+        if str(store.options('intercept_request')) == '1' and str(store.options('show_captcha')) == '0':            
+            # Если включено показывать капчу - то придется грузить все чтобы загрузить картинки
             self.page.route("*", self.on_route_worker)        
         self.browser.on("disconnected", self.disconnected_worker) # вешаем обработчик закрытие браузера
 
@@ -445,6 +447,7 @@ class _BrowserController():
             self.page_goto(login_url)
         self.page_wait_for(loadstate=True)
         self.sleep(1)
+        self.page_wait_for(expression=selectors['chk_login_page_js'])
         for sel in ['chk_login_page_js', 'login_clear_js', 'password_clear_js', 'chk_submit_js']:
             if selectors[sel] !='':
                 print(f'Check {selectors[sel]}')
@@ -628,6 +631,7 @@ class _BrowserController():
         pass
 
     def main(self, run='normal'):
+        logging.info(f"browserengine=Playwright")
         from playwright.sync_api import sync_playwright
         with sync_playwright() as sync_pw:
             self.launch_browser(sync_pw.chromium.launch_persistent_context)
@@ -648,19 +652,13 @@ class _BrowserController():
         clear_cache(self.storefolder, self.storename)
         return self.result   
 
-class BalanceOverPlaywright(_BrowserController):
-    # TODO временно перенесли все в browsercontroller
+class BrowserController(BalanceOverPlaywright):
     pass
 
+class BrowserControllerPP(pyppeteeradd.BalanceOverPyppeteer):
+    pass
 
-def get_browser_engine_class():
-    'Возвращает класс движка для работы с браузером'
-    logging.info(f"browserengine={store.options('browserengine')}")
-    if store.options('browserengine').upper()[:2] in ('PY', 'PU'):  # 'PYPPETEER'
-        pyppeteeradd.check_pyppiteer_lib_bug()
-        return pyppeteeradd.BalanceOverPyppeteer
-    elif store.options('browserengine').upper()[:2] == 'PL':  # 'PLAYWRIGHT':
-        return BalanceOverPlaywright
-    else:
-        logging.error(f'Unknown browser engine')
-        raise RuntimeError(f'Unknown browser engine')
+# TODO в будущем этот код для переключения на движок pyppeteer будет удален
+if store.options('browserengine').upper()[:2] in ('PY', 'PU'):  # 'PYPPETEER'
+    pyppeteeradd.check_pyppiteer_lib_bug()
+    BrowserController = BrowserControllerPP

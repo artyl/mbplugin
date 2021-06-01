@@ -11,7 +11,7 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
                   'login_selector': 'form input[name=email_or_login]',
                   }
 
-class browserengine(browsercontroller.get_browser_engine_class()):
+class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берем данные с загружаемой страницы api.vscale.io/v1/billing/balance (то что мы видем в отладчике на странице Network)

@@ -14,7 +14,7 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('div.lk-login input[
                   'submit_js': 'document.querySelector("div.lk-login input[type=submit]").click()',
                   }
 
-class browserengine(browsercontroller.get_browser_engine_class()):
+class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берем данные с загружаемой страницы 
