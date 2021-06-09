@@ -49,12 +49,13 @@ def get_balance(login, password, storename=None):
     jsonServices = api(session, token, login, 'info/serviceList')
     paid_sum = 0
     ppi = jsonTariff['pricePlanInfo']
-    if ppi['rcRate'] is not None and ppi['rcRatePeriod'] is not None:
+    kperiod = 1
+    if ppi.get('rcRate', None) != None and ppi.get('rcRatePeriod', None) != None:
         kperiod = 30 if jsonTariff['pricePlanInfo']['rcRatePeriod'].split('.')[-1]=='dayly' else 1
         paid_sum = ppi['rcRate'] * kperiod
     services = []
     for el in jsonServices['services']:
-        if el['rcRate'] is not None and el['rcRatePeriod'] is not None:
+        if el.get('rcRate', None) != None and el.get('rcRatePeriod', None) != None:
             kperiod = 30 if el['rcRatePeriod'].split('.')[-1]=='dayly' else 1
             fee = el['rcRate'] * kperiod
         else:
