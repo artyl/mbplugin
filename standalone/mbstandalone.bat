@@ -2,12 +2,12 @@
 %~d0 
 cd "%~dp0"
 
-REM я┐╜сли я┐╜я┐╜я┐╜я┐╜я┐╜ mobilebalance - я┐╜я┐╜ рабя┐╜таея┐╜, я┐╜ я┐╜ только я┐╜я┐╜я┐╜я┐╜таея┐╜ я┐╜я┐╜я┐╜
+REM Если лежит mobilebalance - не работаем, а то только запутаем всех
 if EXIST MobileBalance.exe goto :ERROR1
-REM я┐╜сли я┐╜я┐╜я┐╜ Phones.ini - я┐╜ тожя┐╜ я┐╜я┐╜ходя┐╜я┐╜
+REM Если нет Phones.ini - то тоже выходит
 if not EXIST phones.ini goto :ERROR1
 
-REM я┐╜сли я┐╜я┐╜я┐╜ mbplugin.ini - созя┐╜я┐╜я┐╜я┐╜ я┐╜ я┐╜я┐╜я┐╜я┐╜ская┐╜я┐╜ я┐╜я┐╜я┐╜циая┐╜я┐╜я┐╜я┐╜я┐╜я┐╜
+REM Если нет mbplugin.ini - создаем и запускаем инициализацию
 if not EXIST mbplugin.ini goto :INIT
 
 if "%1"=="init" goto :INIT
@@ -23,7 +23,7 @@ if "%1"=="updatehtml" goto :UPDATEHTML
 GOTO :EOF
 
 
-@REM я┐╜я┐╜я┐╜циая┐╜я┐╜я┐╜я┐╜я┐╜я┐╜
+@REM Инициализация можно втором параметром указать noweb тогда вебсервер не будет запускаться и помещаться в автозапуск
 :INIT
 cd mbplugin\plugin
 cd ..\plugin
@@ -34,9 +34,9 @@ echo %CD%
 call ..\setup_and_check.bat %2 %3
 GOTO :EOF
 
-@REM я┐╜ровя┐╜рка INI я┐╜я┐╜ я┐╜я┐╜я┐╜ректноя┐╜я┐╜я┐╜
+@REM Проверка INI на корректность
 :CHECK
-ECHO я┐╜ровя┐╜я┐╜я┐╜ сдея┐╜я┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜, я┐╜я┐╜я┐╜я┐╜ я┐╜я┐╜ я┐╜я┐╜я┐╜
+ECHO Проверку сделаю позже, пока ее нет
 cd mbplugin\plugin
 cd ..\plugin
 ..\python\python -c "import store;ini=store.ini()"
@@ -44,21 +44,21 @@ cd ..\plugin
 timeout 15
 GOTO :EOF
 
-@REM я┐╜я┐╜я┐╜я┐╜ченя┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜сов
+@REM Получение балансов
 :GETBALANCE
 cd mbplugin\plugin
 cd ..\plugin
 ..\python\python.exe -c "import httpserver_mobile,sys;httpserver_mobile.detbalance_standalone(filter=sys.argv[2:])" %*
 GOTO :EOF
 
-@REM я┐╜я┐╜я┐╜я┐╜ченя┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜сов (я┐╜я┐╜я┐╜я┐╜я┐╜ я┐╜я┐╜ я┐╜я┐╜удая┐╜я┐╜)
+@REM Запросить балансы, по которым были ошибки
 :GETBALANCEFAILED
 cd mbplugin\plugin
 cd ..\plugin
 ..\python\python.exe -c "import httpserver_mobile,sys;httpserver_mobile.detbalance_standalone(filter=sys.argv[2:],only_failed=True)" %*
 GOTO :EOF
 
-@REM я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜ balance.html
+@REM Обновить balance.html
 :UPDATEHTML
 cd mbplugin\plugin
 cd ..\plugin
@@ -66,7 +66,7 @@ cd ..\plugin
 GOTO :EOF
 
 :ERROR1
-ECHO я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜ я┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜ файя┐╜я┐╜ Mobilebalance.exe
-ECHO я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜ файя┐╜ Phones.ini
+ECHO В папке не должно быть файла Mobilebalance.exe
+ECHO И должен быть файл Phones.ini
 timeout 15
 GOTO :EOF
