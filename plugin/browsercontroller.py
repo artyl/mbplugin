@@ -210,11 +210,16 @@ class BalanceOverPlaywright():
         self.storename = storename
         self.login_url = login_url
         self.user_selectors = user_selectors
-        # headless только в PLAYWRIGHT и только если отключен показ капчи, иначе мы видимость браузера из headless уже не вернем и капчу показать не сможем
-        if headless is None and store.options('browserengine').upper()[:2] == 'PL' and str(store.options('show_captcha')) == '0':  
-            self.headless = str(store.options('headless_chrome')) == '1'
-        else:
-            self.headless = headless
+        # headless ТОЛЬКО в PLAYWRIGHT и ТОЛЬКО если отключен показ капчи, и ТОЛЬКО если не стоит show_chrome=0
+        # иначе мы видимость браузера из headless уже не вернем и капчу показать не сможем
+        self.headless = headless
+        if headless is None:
+            if(store.options('browserengine').upper()[:2] == 'PL' 
+                    and str(store.options('show_captcha')) == '0'
+                    and str(store.options('show_chrome')) == '0'):
+                self.headless = str(store.options('headless_chrome')) == '1'
+            else:
+                self.headless = False
         if '/' in login:
             self.login, self.acc_num = self.login_ori.split('/')
             # !!! в storename уже преобразован поэтому чтобы выкинуть из него ненужную часть нужно по ним тоже регуляркой пройтись
@@ -273,9 +278,10 @@ class BalanceOverPlaywright():
         'Обработчик обращений браузера, здесь можно их прервать, чтобы лишние данные не грузить'
         # TODO вынести константы наверх
         stop_url = ['google-analytics', '.yandex.ru/', 'dynamicyield.com/', 'googletagmanager.com/', 'yastatic.net/', 'cloudflare.com/', 'facebook.net/', 'vk.com/']
-        if route.request.resource_type in ('image','stylesheet','font','manifest') or len([u for u in stop_url if u in route.request.url])>0:
+        if route.request.resource_type in ('image', 'font', 'manifest') or len([u for u in stop_url if u in route.request.url])>0:
             #print(f'Abort {route.request.method}:{route.request.url}')
             try:
+                logging.debug(f'Abort: {route.request.resource_type}:{route.request.url}')
                 route.abort()
             except Exception:
                 print('NO ABORT')
