@@ -30,7 +30,6 @@ pystray==0.17.3
 pytest==6.2.4
 python-telegram-bot==13.5
 pytz==2021.1
-pywin32==300
 requests==2.25.1
 six==1.15.0
 soupsieve==2.0.1

@@ -29,7 +29,7 @@ cd mbplugin\plugin
 cd ..\plugin
 ..\python\python -c "import store;ini=store.ini();ini.read();ini.ini['Options']['sqlitestore']='1';ini.write()"
 ..\python\python -c "import store;ini=store.ini();ini.read();ini.ini['Options']['createhtmlreport']='1';ini.write()"
-..\python\python -c "import store,os;ini=store.ini();ini.read();ini.ini['Options']['balance_html']=os.path.abspath(os.path.join('..','..',balance.html'));ini.write()"
+..\python\python -c "import store,os;ini=store.ini();ini.read();ini.ini['Options']['balance_html']=os.path.abspath(os.path.join('..','..','balance.html'));ini.write()"
 echo %CD%
 call ..\setup_and_check.bat %2 %3
 GOTO :EOF

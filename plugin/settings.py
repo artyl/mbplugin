@@ -93,6 +93,9 @@ ini = {
         # движок для работы с браузером
         'browserengine_': {'descr':'Движок для работы с браузером', 'type':'select', 'variants':'PYPPETEER PLAYWRIGHT'},
         'browserengine': 'PLAYWRIGHT',
+        # Использовать браузер встроенный в движок playwright, если отключен, то движки не скачиваются
+        'use_builtin_browser_': {'descr':'Использовать браузер встроенный в движок playwright', 'type':'checkbox'},
+        'use_builtin_browser': '1',
         # Путь к хрому - можно прописать явно в ini, иначе поищет из вариантов chrome_executable_path_alternate
         'chrome_executable_path_': {'descr':'Путь к хрому', 'type':'text', 'size':100, 'validate':lambda i:os.path.exists(i)},
         'chrome_executable_path': 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',

@@ -330,8 +330,35 @@ def logging_restart():
     logging.info(f'Old log was renamed to {filename_new}')
 
 
+def ini_by_expression(expression):
+    '''берем из ini по path вида ini\Options\sqlitestore - нужно для cmd обращений к ini
+    если указано ini\Options\sqlitestore - возвращает set sqlitestore=ЗНАЧЕНИЕ
+    если указано ini\Options\sqlitestore=1 - устанавливает в ini'''
+    mbplugin_ini=ini()
+    mbplugin_ini.read()
+    path = expression
+    if '=' in expression:
+        path, value = expression.split('=')
+        _, section, key = path.split('\\')
+        mbplugin_ini.ini[section][key] = value
+        if value == 'default':
+            del mbplugin_ini.ini[section][key]
+        mbplugin_ini.write()
+    else:
+        _, section, key = path.split('\\')
+    return f'set {key}={options(key, section=section)}'
+
+
 if __name__ == '__main__':
-    print('Module store')
+    if len(sys.argv) == 1:
+        print('Module store')
+    else:
+        # = в коммандной строке делит аргументы - чиним
+        expression = sys.argv[1]
+        if len(sys.argv) == 3:
+            expression = sys.argv[1] + '=' + sys.argv[2]
+        print(ini_by_expression(expression))
+
     # print(list(ini('phones.ini').read().keys()))
     # print(list(ini('options.ini').read().keys()))
     # print(list(ini('mbplugin.ini').read().keys()))

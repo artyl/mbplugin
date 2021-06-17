@@ -110,6 +110,10 @@ def kill_chrome():
     '''Киляем дебажный хром если вдруг какой-то висит, т.к. народ умудряется запускать не только хром, то имя exe возьмем из пути '''
     chrome_executable_path = store.options('chrome_executable_path')
     pname = os.path.split(chrome_executable_path)[-1].lower()
+    # TODO в сложном случае когда мы запускаем встроенный у нас может получиться что имя exe которое мы берем из chrome_executable_path
+    # не совпадет с тем что мы реально запускаем, тогда мы можем не достать запущенные хромы
+    # с другой стороны playwright вроде все корректно прибивает
+    # но по правильномы имя браузера мы должны взять из self.sync_pw.chromium.executable_path
     for p in psutil.process_iter():
         try:
             if p.name().lower()==pname and 'remote-debugging-port' in ''.join(p.cmdline()):
@@ -417,9 +421,10 @@ class BalanceOverPlaywright():
         self.launch_config.update({
             'user_data_dir': self.user_data_dir,
             'ignore_https_errors': True,
-            'executable_path': self.chrome_executable_path,
             'args': self.launch_config_args,
             })
+        if store.options('use_builtin_browser').strip() == '0':
+            self.launch_config.update({'executable_path': self.chrome_executable_path,})            
         if store.options('proxy_server').strip() != '':
             self.launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}') 
         self.browser = launch_func(**self.launch_config) # sync_pw.chromium.launch_persistent_context
@@ -639,8 +644,8 @@ class BalanceOverPlaywright():
     def main(self, run='normal'):
         logging.info(f"browserengine=Playwright")
         from playwright.sync_api import sync_playwright
-        with sync_playwright() as sync_pw:
-            self.launch_browser(sync_pw.chromium.launch_persistent_context)
+        with sync_playwright() as self.sync_pw:
+            self.launch_browser(self.sync_pw.chromium.launch_persistent_context)
             if run == 'normal':
                 self.data_collector()
             elif run == 'check_logon':
