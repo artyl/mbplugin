@@ -4,10 +4,6 @@ import os, sys,io, re, time, json, traceback, threading, logging, importlib, con
 import wsgiref.simple_server, socketserver, socket, requests, urllib.parse, urllib.request, bs4, uuid
 import settings, store, dbengine, compile_all_jsmblh  # pylint: disable=import-error
 try:
-    import win32api, win32gui, win32con, winerror
-except ModuleNotFoundError:
-    print('No win32 installed, no tray icon')
-try:
     import pystray, PIL.Image
 except ModuleNotFoundError:
     print('No pystray installed, no tray icon')
@@ -49,7 +45,7 @@ def detbalance_standalone(filter=[], only_failed=False, feedback=None) :
     Если не пустой - то логин/алиас/оператор или его часть
     для автономной версии в поле Password2 находится незашифрованный пароль
     ВНИМАНИЕ! при редактировании файла phones.ini через MobileBalance строки с паролями будут удалены
-    для совместного использования с MobileBalance храните пароли password2 и другие специфидняе опции
+    для совместного использования с MobileBalance храните пароли password2 и другие специфичные опции
     для Standalone версии в файле phones_add.ini
     only_failed=True - делать запросы только по тем номерам, по которым прошлый запрос был неудачный
     feedback - если не None - то это функция, которая умеет выдавать статус на экран
@@ -436,14 +432,10 @@ def tray_icon(cmdqueue):
     'На самом деле уже нет, теперь мы просто вышибаем процесс через psutil.Process().kill()'
     tray_icon.stop = None
     if str(store.options('show_tray_icon')) == '1':
-        # сначала пытаемся сделать через pystray !!! TODO потом вообще выкинем вариант через win32api
         if 'pystray' in sys.modules:
             print('pystray traymeny')
             tic = TrayIcon_pystray(cmdqueue)
             tray_icon.stop = tic.stop
-        elif 'win32api' in sys.modules:
-            print('win32api traymeny')
-            tic = TrayIcon_win32(cmdqueue)
         tic.run_forever()
 
 class TrayIcon_pystray:
@@ -462,97 +454,6 @@ class TrayIcon_pystray:
     def stop(self):
         print('STOP')
         self.icon.stop()
-
-
-class TrayIcon_win32:
-    def __init__(self, cmdqueue):
-        self.cmdqueue = cmdqueue
-        msg_TaskbarRestart = win32gui.RegisterWindowMessage("TaskbarCreated")
-        message_map = {
-            msg_TaskbarRestart: self.OnRestart,
-            win32con.WM_DESTROY: self.OnDestroy,
-            win32con.WM_COMMAND: self.OnCommand,
-            win32con.WM_USER + 20: self.OnTaskbarNotify,
-        }
-        wc = win32gui.WNDCLASS()
-        hinst = wc.hInstance = win32api.GetModuleHandle(None)
-        wc.lpszClassName = "PythonTaskbarDemo"
-        wc.style = win32con.CS_VREDRAW | win32con.CS_HREDRAW
-        wc.hCursor = win32api.LoadCursor(0, win32con.IDC_ARROW)
-        wc.hbrBackground = win32con.COLOR_WINDOW
-        wc.lpfnWndProc = message_map  # could also specify a wndproc.
-        try:
-            classAtom = win32gui.RegisterClass(wc)
-            _ = classAtom  # dummy pylint
-        except win32gui.error as err_info:
-            if err_info.winerror != winerror.ERROR_CLASS_ALREADY_EXISTS:
-                raise
-        style = win32con.WS_OVERLAPPED | win32con.WS_SYSMENU
-        self.hwnd = win32gui.CreateWindow(wc.lpszClassName, "Taskbar Demo",
-                                          style, 0, 0, win32con.CW_USEDEFAULT,
-                                          win32con.CW_USEDEFAULT, 0, 0, hinst,
-                                          None)
-        win32gui.UpdateWindow(self.hwnd)
-        self._DoCreateIcons()
-
-    def run_forever(self):
-        win32gui.PumpMessages()
-
-    def stop(self):
-        win32gui.DestroyWindow(self.hwnd)
-        self.cmdqueue.put('STOP')
-
-    def _DoCreateIcons(self, iconame='httpserver.ico'):
-        # Try and find a custom icon
-        hinst = win32api.GetModuleHandle(None)
-        iconPathName = os.path.join(os.path.split(os.path.abspath(sys.argv[0]))[0], iconame)
-        if os.path.isfile(iconPathName):
-            icon_flags = win32con.LR_LOADFROMFILE | win32con.LR_DEFAULTSIZE
-            hicon = win32gui.LoadImage(hinst, iconPathName, win32con.IMAGE_ICON, 0, 0, icon_flags)
-        else:
-            hicon = win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
-
-        flags = win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP
-        nid = (self.hwnd, 0, flags, win32con.WM_USER + 20, hicon, f"MBplugin http server on port {store.options('port', section='HttpServer')}")
-        try:
-            win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, nid)
-        except win32gui.error:
-            print(f"Failed to add the taskbar icon - is explorer running? {''.join(traceback.format_exception(*sys.exc_info()))}")
-
-    def OnRestart(self, hwnd, msg, wparam, lparam):
-        self._DoCreateIcons()
-
-    def OnDestroy(self, hwnd, msg, wparam, lparam):
-        nid = (self.hwnd, 0)
-        win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, nid)
-        win32gui.PostQuitMessage(0)  # Terminate the app.
-
-    def OnTaskbarNotify(self, hwnd, msg, wparam, lparam):
-        if lparam == win32con.WM_LBUTTONDBLCLK:
-            # print("You double-clicked me - goodbye")
-            # win32gui.DestroyWindow(self.hwnd)
-            pass
-        elif lparam == win32con.WM_RBUTTONUP:
-            print("You right clicked me.")
-            menu = win32gui.CreatePopupMenu()
-            for num,item in enumerate(TRAY_MENU):
-                if item['show']:
-                    win32gui.AppendMenu(menu, win32con.MF_STRING, 1024 + num, item['text'])
-            pos = win32gui.GetCursorPos()
-            # See http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/menus_0hdi.asp
-            win32gui.SetForegroundWindow(self.hwnd)
-            win32gui.TrackPopupMenu(menu, win32con.TPM_LEFTALIGN, pos[0], pos[1], 0, self.hwnd, None)
-            win32gui.PostMessage(self.hwnd, win32con.WM_NULL, 0, 0)
-        return 1
-
-    def OnCommand(self, hwnd, msg, wparam, lparam):
-        id = win32api.LOWORD(wparam)-1024
-        print("command -", id)
-        if 0 <= id < len(TRAY_MENU):
-            print("command -", TRAY_MENU[id]['text'])
-            TRAY_MENU[id]['cmd']()
-        else:
-            print("Unknown command -", id)
 
 
 class TelegramBot():
@@ -814,7 +715,7 @@ class WebServer():
         with wsgiref.simple_server.make_server(self.host, self.port, self.web_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
             logging.info(f'Listening {self.host}:{self.port}....')
             threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
-            if 'win32api' in sys.modules or 'pystray' in sys.modules:  # Иконка в трее
+            if 'pystray' in sys.modules:  # Иконка в трее
                 threading.Thread(target=lambda i=self.cmdqueue: tray_icon(i), daemon=True).start()
             if 'telegram' in sys.modules:  # telegram bot (он сам все запустит в threading)
                 self.telegram_bot = TelegramBot()
