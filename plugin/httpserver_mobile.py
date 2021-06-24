@@ -4,6 +4,10 @@ import os, sys,io, re, time, json, traceback, threading, logging, importlib, con
 import wsgiref.simple_server, socketserver, socket, requests, urllib.parse, urllib.request, bs4, uuid
 import settings, store, dbengine, compile_all_jsmblh  # pylint: disable=import-error
 try:
+    import schedule
+except ModuleNotFoundError:
+    print('No schedule installed')
+try:
     import pystray, PIL.Image
 except ModuleNotFoundError:
     print('No pystray installed, no tray icon')
@@ -421,25 +425,26 @@ def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={
 def restart_program(reason='', exit_only=False):
     cmd = subprocess.list2cmdline(psutil.Process().cmdline())
     logging.info(f'Restart by {reason} with cmd:{cmd}')
-    if tray_icon.stop is not None:
-        tray_icon.stop()
+    TrayIcon().stop()
     if not exit_only:
         os.system('call start "" ' + cmd)
     psutil.Process().kill()
 
-def tray_icon(cmdqueue):
-    'Выставляем для trayicon daemon, чтобы ушел вслед за нами функция нужна для запуска в отдельном thread '\
-    'На самом деле уже нет, теперь мы просто вышибаем процесс через psutil.Process().kill()'
-    tray_icon.stop = None
-    if str(store.options('show_tray_icon')) == '1':
-        if 'pystray' in sys.modules:
-            print('pystray traymeny')
-            tic = TrayIcon_pystray(cmdqueue)
-            tray_icon.stop = tic.stop
-        tic.run_forever()
+class TrayIcon:
+    'Создаем переменную класса, и при повторных вызовах не создаем новый а обращаемся к уже созданному'
+    icon = None
 
-class TrayIcon_pystray:
-    def __init__(self, cmdqueue):
+    def __init__(self):
+        if str(store.options('show_tray_icon')) != '1' or 'pystray' not in sys.modules:
+            return
+        if TrayIcon.icon is None:
+            print('pystray traymeny')
+            threading.Thread(target=self._create, name='TrayIcon',  daemon=True).start()
+            logging.info('Tray icon started')
+        else:
+            self.icon = TrayIcon.icon
+
+    def _create(self):
         self.image = PIL.Image.open('httpserver.ico')
         items = []
         for item in TRAY_MENU:
@@ -447,13 +452,30 @@ class TrayIcon_pystray:
                 items.append(pystray.MenuItem(item['text'], item['cmd'], default=item.get('default', False)))
         self.menu = pystray.Menu(*items)
         self.icon = pystray.Icon("mbplugin", self.image, "mbplugin", self.menu)
-
-    def run_forever(self):
+        TrayIcon.icon = self.icon
         self.icon.run()
 
     def stop(self):
         print('STOP')
-        self.icon.stop()
+        if self.icon is not None:
+            self.icon.visible = False
+            self.icon.stop()
+
+
+class Scheduler():
+    'Класс для работы с расписанием'
+    def __init__(self) -> None:
+        threading.Thread(target=self._forever, name='Scheduler',  daemon=True).start()
+        logging.info('Scheduler started')
+
+    def _forever(self):
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+
+    def validate(self, sched_str):
+        'Проверяет расписание на валидность'
+        pass
 
 
 class TelegramBot():
@@ -636,6 +658,8 @@ class TelegramBot():
             self.updater.stop()
 
     def __init__(self):
+        if 'telegram' not in sys.modules:
+            return  # Нет модуля TG - просто выходим
         api_token = store.options('api_token', section='Telegram').strip()
         request_kwargs = {}
         tg_proxy = store.options('tg_proxy', section='Telegram').strip()
@@ -663,6 +687,7 @@ class TelegramBot():
                 dp.add_handler(CommandHandler("checkone", self.getone))
                 dp.add_handler(CallbackQueryHandler(self.button))
                 self.updater.start_polling()  # Start the Bot
+                logging.info('Telegram bot started')
                 if str(store.options('send_empty', section='Telegram'))=='1':
                     self.send_message(text='Hey there!')
             except Exception:
@@ -714,11 +739,13 @@ class WebServer():
             return
         with wsgiref.simple_server.make_server(self.host, self.port, self.web_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
             logging.info(f'Listening {self.host}:{self.port}....')
-            threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+            threading.Thread(target=self.httpd.serve_forever, name='httpd', daemon=True).start()
             if 'pystray' in sys.modules:  # Иконка в трее
-                threading.Thread(target=lambda i=self.cmdqueue: tray_icon(i), daemon=True).start()
+                self.tray_icon = TrayIcon()  # tray icon (он сам все запустит в threading)
             if 'telegram' in sys.modules:  # telegram bot (он сам все запустит в threading)
                 self.telegram_bot = TelegramBot()
+            if 'schedule' in sys.modules:  # Scheduler (он сам все запустит в threading)
+                self.scheduler = Scheduler()
             # Запустили все остальное демонами и ждем, когда они пришлют сигнал
             self.cmdqueue.get()
             self.telegram_bot.stop()
