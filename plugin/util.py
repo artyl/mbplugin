@@ -265,19 +265,24 @@ def check_playwright(ctx):
 @click.pass_context
 def standalone_init(ctx):
     'Инициализация можно втором параметром указать noweb тогда вебсервер не будет запускаться и помещаться в автозапуск'
-    # Если лежит mobilebalance - не работаем, а то только запутаем всех
-    if os.path.exists(os.path.join(STANDALONE_PATH, 'MobileBalance.exe')):
-        click.echo(f'The folder {STANDALONE_PATH} must not contain a file mobilebalance.exe')
-        return
-    if not os.path.exists(os.path.join(STANDALONE_PATH, 'phones.ini')):
-        click.echo(f'The folder {STANDALONE_PATH} must contain a file phones.ini')
-        return
-    ini=store.ini()
-    ini.read()
-    ini.ini['Options']['sqlitestore'] = '1'
-    ini.ini['Options']['createhtmlreport'] = '1'
-    ini.ini['Options']['balance_html'] = os.path.abspath(os.path.join('..','..','balance.html'))
-    ini.write()
+    name = 'standalone_init'
+    try:
+        # Если лежит mobilebalance - не работаем, а то только запутаем всех
+        if os.path.exists(os.path.join(STANDALONE_PATH, 'MobileBalance.exe')):
+            click.echo(f'The folder {STANDALONE_PATH} must not contain a file mobilebalance.exe')
+            return
+        if not os.path.exists(os.path.join(STANDALONE_PATH, 'phones.ini')):
+            click.echo(f'The folder {STANDALONE_PATH} must contain a file phones.ini')
+            return
+        ini=store.ini()
+        ini.read()
+        ini.ini['Options']['sqlitestore'] = '1'
+        ini.ini['Options']['createhtmlreport'] = '1'
+        ini.ini['Options']['balance_html'] = os.path.abspath(os.path.join('..','..','balance.html'))
+        ini.write()
+        click.echo(f'OK {name}')
+    except Exception:
+        click.echo(f'Fail {name}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')    
 
 @cli.command()
 @click.option('--only_failed', is_flag=True, help='Запросить балансы, по которым были ошибки')
