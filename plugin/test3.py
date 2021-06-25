@@ -16,7 +16,7 @@ class browserengine(browsercontroller.BrowserController):
         self.wait_params(params=[{
             'name': 'Balance',
             'url_tag': ['object/meters'], 
-            'jsformula': "data.data.sensors[0].meters[0]['meter_id']",
+            'jsformula': "data.data.sensors[0].meters.length",
             #'jsformula': r"parseFloat(document.querySelector('div.card-body div.counter__row').innerText.replace(/[^\d,.-]/g, '').replace(',','.'))",
         }])
 

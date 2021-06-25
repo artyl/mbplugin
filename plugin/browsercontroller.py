@@ -308,11 +308,11 @@ class BalanceOverPlaywright():
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
-    def page_evaluate(self, eval_string, default=None):
+    def page_evaluate(self, eval_string, default=None, args=[]):
         ''' переносим вызов evaluate в класс для того чтобы каждый раз не указывать page и обернуть декораторами
         Проверка на пустой eval_string и default значение - сделано в декораторе'''
         try:
-            return self.page.evaluate(eval_string)
+            return self.page.evaluate(eval_string, args)
         except Exception:
             exception_text = f'Ошибка в page_wait_for:{"".join(traceback.format_exception(*sys.exc_info()))}'
             if 'Execution context was destroyed' not in exception_text:
@@ -560,6 +560,38 @@ class BalanceOverPlaywright():
                 self.page_reload('Unknown page try reload') 
             self.sleep(1)
 
+    def calculate_param(self, url_tag=[], jsformula='', pformula=''):
+        'Вычисляет js выражение jsformula над json co страницы с url_tag, !!! url_tag - список тэгов'
+        # TODO self.page.evaluate(f"(data) => {jsformula}", json_data)
+        #return self.page_evaluate(f"()=>{{data={json.dumps(json_data,ensure_ascii=False)};return {jsformula};}}")
+        if url_tag != []:  # Ищем в загруженных страницах
+            response_result_ = [v for k,v in self.responses.items() if [i for i in url_tag if i not in k]==[]]
+            if len(response_result_)>0:
+                response_result = response_result_[0]
+                if pformula != '':
+                    logging.info(f'pformula on {url_tag}:{pformula}')
+                    # Для скрипта на python делаем 
+                    try:
+                        res = eval(pformula, {'data':response_result})
+                        return res
+                    except Exception:
+                        exception_text = f'Ошибка в pformula:{pformula} :{"".join(traceback.format_exception(*sys.exc_info()))}'
+                        logging.info(exception_text)    
+                if jsformula != '':
+                    logging.info(f'jsformula on {url_tag}:{jsformula}')
+                    # !!! TODO Было: 
+                    res = self.page_evaluate(f"()=>{{data={json.dumps(response_result,ensure_ascii=False)};return {jsformula};}}")
+                    # Стало: в playwright автоматом подставится переменная response_result из кода, теперь можно так:
+                    # TODO как-то не стало :-) надо разобраться
+                    # res = self.page_evaluate(f"(data) => {jsformula}", args=[response_result])
+                    return res
+        else:  # Ищем на самой странице - запускаем js
+            logging.info(f'jsformula on url {self.page.url}:{jsformula}')
+            content = self.page_content()
+            self.responses[f'CONTENT URL:{self.page.url}$'] = content
+            res = self.page_evaluate(jsformula)
+            return res
+
     @check_browser_opened_decorator
     def wait_params(self, params, url='', save_to_result=True):
         ''' Переходим по url и ждем параметры
@@ -594,32 +626,9 @@ class BalanceOverPlaywright():
             self.sleep(1)
             breakpoint() if os.path.exists('breakpoint_wait') else None
             for param in params:
-                if param.get('url_tag', []) != []:  # Ищем в загруженных страницах
-                    response_result_ = [v for k,v in self.responses.items() if [i for i in param['url_tag'] if i not in k]==[]]
-                    if len(response_result_)>0:
-                        response_result = response_result_[0]
-                        if param.get('pformula','') != '':
-                            logging.info(f'pformula on {param["url_tag"]}:{param["pformula"]}')
-                            # Для скрипта на python делаем 
-                            try:
-                                res = eval(param['pformula'], {'data':response_result})
-                                if res is not None:
-                                    result[param['name']] = res
-                            except Exception:
-                                exception_text = f'Ошибка в pformula:{param["pformula"]} :{"".join(traceback.format_exception(*sys.exc_info()))}'
-                                logging.info(exception_text)    
-                        if param.get('jsformula', '') != '':
-                            logging.info(f'jsformula on {param["url_tag"]}:{param["jsformula"]}')
-                            res = self.page_evaluate(f"()=>{{data={json.dumps(response_result,ensure_ascii=False)};return {param['jsformula']};}}")
-                            if res is not None:
-                                result[param['name']] = res
-                else:  # Ищем на самой странице - запускаем js
-                    logging.info(f'jsformula on url {self.page.url}:{param["jsformula"]}')
-                    content = self.page_content()
-                    self.responses[f'CONTENT URL:{self.page.url}$'] = content
-                    res = self.page_evaluate(param['jsformula'])
-                    if res is not None:
-                        result[param['name']] = res
+                res = self.calculate_param(param.get('url_tag',''), param.get('jsformula',''), param.get('pformula',''))
+                if res is not None:
+                    result[param['name']] = res
             # Если все обязательные уже получили
             if {i['name'] for i in params if i.get('wait',True)} - set(result) == set():
                 break  # выходим если все получили
