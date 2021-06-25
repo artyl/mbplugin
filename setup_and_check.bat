@@ -1,59 +1,39 @@
-@REM @echo OFF
+@echo OFF
 %~d0 
 cd "%~dp0"
 
+REM добавляем в sys.path поиск в папке откуда запущен скрипт по умолчанию, в embedded он почему-то выключен
+python\python plugin\util.py fix-embedded-python-path
 
-@echo добавляем в sys.path поиск в папке откуда запущен скрипт по умолчанию, в embedded он почему-то выключен
-cd "%~dp0\python"
-..\python\python -c "txt='''import os,sys\nsys.path.insert(0,os.path.split(sys.argv[0])[0])''';open('sitecustomize.py','w').write(txt)"
+REM Выставляем переменные по значениям в mbplugin.ini
+if "%1"=="noweb" python\python plugin\util.py set ini/HttpServer/start_http=0
 
-@echo Выставляем переменные по значениям в mbplugin.ini
-cd "%~dp0\plugin"
-if "%1"=="noweb" ..\python\python store.py ini\HttpServer\start_http=0
-FOR /F "tokens=1 delims=#" %%F IN ('..\python\python store.py ini\HttpServer\start_http') DO %%F
-FOR /F "tokens=1 delims=#" %%F IN ('..\python\python store.py ini\Options\use_builtin_browser') DO %%F
-echo start_http=%start_http%
-echo use_builtin_browser=%use_builtin_browser%
+REM если используем встроенный браузер запускаем playwright install chromium
+python\python plugin\util.py install-chromium
 
-@echo если используем встроенный браузер запускаем playwright install  chromium
-cd "%~dp0"
-if "%use_builtin_browser%"=="1" python\python -m playwright install chromium
+REM  очищаем кэши браузера
+python\python plugin\util.py clear-browser-cache
 
-@echo очищаем кэши браузера
-cd "%~dp0"
-del "..\mbplugin\store\p_*" /Q
-rd "..\mbplugin\store\puppeteer" /S /Q
-rd "..\mbplugin\store\headless" /S /Q
+REM Пересобираем DLL 
+python\python plugin\util.py recompile-dll
 
-cd "%~dp0"
-@echo Пересобираем DLL 
-call dllsource\compile_all_p.bat
+REM Пересобираем JSMB LH plugin
+python\python plugin\util.py recompile-jsmblh
 
-cd "%~dp0"
-@echo Пересобираем JSMB LH plugin
-python\python.exe plugin\compile_all_jsmblh.py
+REM Проверяем что все модули импортируются
+python\python plugin\util.py check-import
 
-cd "%~dp0"
-@echo Проверяем что все модули импортируются
-python\python -c "import requests, telegram, win32api, win32gui, win32con, winerror, PIL, bs4, pyodbc, pyreadline, pyppeteer, psutil"
+REM Автозапуск браузера
+python\python plugin\util.py autostart-web-server
 
-@echo Автозапуск браузера
-cd "%~dp0"
-if "%start_http%"=="1" echo Создаем lnk на run_webserver.bat и помещаем его в автозапуск и запускаем
-if "%start_http%"=="1" python\python -c "import os, sys, win32com.client;shell = win32com.client.Dispatch('WScript.Shell');shortcut = shell.CreateShortCut('run_webserver.lnk');shortcut.Targetpath = os.path.abspath('run_webserver.bat');shortcut.save()"
-if "%start_http%"=="1" copy run_webserver.lnk "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
-if "%start_http%"=="1" start "" /MIN "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\run_webserver.lnk"
-if "%start_http%"=="1" echo подождем пока запустится
-if "%start_http%"=="1" ping 127.0.0.1 -n 11 >nul
+REM Проверяем playwright
+python\python plugin\util.py check-playwright
 
-cd "%~dp0"
-if "%start_http%"=="1" echo Проверяем что все работает JSMB LH PLUGIN простой плагин
-if "%start_http%"=="1" python\python -c "import re,requests;url=re.findall(r'(?usi)(http://127.0.0.1:.*?/)',open('jsmblhplugin\\p_test1_localweb.jsmb').read())[0];print(requests.session().get(url+'getbalance/p_test1/123/456/789').content.decode('cp1251'))"
+REM Проверяем что все работает JSMB LH PLUGIN простой плагин
+python\python plugin\util.py check-jsmblh simple
 
-cd "%~dp0"
-if "%start_http%"=="1" echo Проверяем что все работает JSMB LH PLUGIN через Chrome
-if "%start_http%"=="1" python\python -c "import re,requests;url=re.findall(r'(?usi)(http://127.0.0.1:.*?/)',open('jsmblhplugin\\p_test3_localweb.jsmb').read())[0];print(requests.session().get(url+'getbalance/p_test3/demo@saures.ru/demo/789').content.decode('cp1251'))"
+REM Проверяем что все работает JSMB LH PLUGIN через Chrome
+python\python plugin\util.py check-jsmblh chrome
 
-cd "%~dp0"
-echo Проверяем что все работает DLL PLUGIN
-call plugin\test_mbplugin_dll_call.bat p_test1 123 456 
+REM Проверяем что все работает DLL PLUGIN
+python\python plugin\util.py check-dll
