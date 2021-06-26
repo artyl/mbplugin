@@ -99,9 +99,9 @@ ini = {
         # Путь к хрому - можно прописать явно в ini, иначе поищет из вариантов chrome_executable_path_alternate
         'chrome_executable_path_': {'descr':'Путь к хрому', 'type':'text', 'size':100, 'validate':lambda i:os.path.exists(i)},
         'chrome_executable_path': 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-        # Для плагинов через хром сохранять в папке логов полученные responses 
+        # Для плагинов через хром сохранять в папке логов полученные responses и скриншоты
         'log_responses_': {'descr':'Сохранять в папке логов полученные данные за последний запрос', 'type':'checkbox'},
-        'log_responses': '0',
+        'log_responses': '1',
         # Для плагинов через хром не загружать стили шрифты и картинки, в puppeteer с этим есть проблемы, включать с осторожностью
         'intercept_request_': {'descr':'Не загружать стили, шрифты и картинки', 'type':'checkbox'},
         'intercept_request': '1',

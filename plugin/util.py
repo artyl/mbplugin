@@ -197,7 +197,20 @@ def autostart_web_server(ctx, turn):
         click.echo('On windows platform only')
 
 @cli.command()
-@click.argument('plugin', type=click.Choice(['simple', 'chrome'], case_sensitive='simple'), default='on')
+@click.pass_context
+def run_web_server(ctx):
+    'Запуск web сервера'
+    name = 'run_web_server'
+    try:
+        import httpserver_mobile
+        httpserver_mobile.WebServer()
+        time.sleep(4)
+        click.echo(f'OK {name}')
+    except Exception:
+        click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')                
+
+@cli.command()
+@click.argument('plugin', type=click.Choice(['simple', 'chrome'], case_sensitive=False), default='simple')
 @click.pass_context
 def check_jsmblh(ctx, plugin):
     'Проверяем что все работает JSMB LH PLUGIN простой плагин'

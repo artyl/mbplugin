@@ -1,7 +1,7 @@
 ''' Чтобы не делать кашу из синхронных и асинхронных решено оставить здесь только синхронный вариант
 pyppiteradd останется для совместимости со старыми плагинами через async
 '''
-import asyncio, time, re, json, subprocess, logging, shutil, os, sys, traceback
+import asyncio, glob, json, logging, os, re, shutil, subprocess, sys, time, traceback
 try:
     import win32gui, win32process
 except:
@@ -214,6 +214,10 @@ class BalanceOverPlaywright():
         self.storename = storename
         self.login_url = login_url
         self.user_selectors = user_selectors
+        self.ss_counter = 0  # Счетчик скриншотов
+        # Удаляем скриншоты с прошлых разов
+        for fn in glob.glob(os.path.join(store.options('loggingfolder'), self.storename + '*.png')):
+            os.remove(fn)
         # headless ТОЛЬКО в PLAYWRIGHT и ТОЛЬКО если отключен показ капчи, и ТОЛЬКО если не стоит show_chrome=0
         # иначе мы видимость браузера из headless уже не вернем и капчу показать не сможем
         self.headless = headless
@@ -352,7 +356,14 @@ class BalanceOverPlaywright():
         ''' переносим вызов content в класс для того чтобы каждый раз не указывать page'''
         return self.page.content()
 
-    def page_screenshot(self, path):
+    def page_screenshot(self, path='', number=-1, suffix=''):
+        if str(store.options('log_responses')) != '1' and store.options('logginglevel') != 'DEBUG':
+            return
+        if number == -1 and suffix == '':
+            suffix = self.ss_counter
+            self.ss_counter += 1
+        if path == '':
+            path = os.path.join(store.options('loggingfolder'), f'{self.storename}_{suffix}.png')
         self.page.screenshot(path=path)
 
     @check_browser_opened_decorator
@@ -496,6 +507,7 @@ class BalanceOverPlaywright():
             # Появилось слишком много сайтов на которых медленно открывается страница логона и мы успеваем подумать что пароля на странице нет
             self.sleep(1*self.force if not is_bad_chk_lk_page_js else 5)
             self.page_wait_for(loadstate=True)
+        self.page_screenshot()
         for countdown in range(self.wait_loop): 
             if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_url(selectors['lk_page_url']):
                 logging.info(f'Already login')
@@ -542,16 +554,16 @@ class BalanceOverPlaywright():
                                 break  # ВЫХОДИМ ИЗ ЦИКЛА - капчи на странице больше нет
                             self.sleep(1)
                         else:  # Капчу так никто и не ввел
+                            self.page_screenshot(suffix='captha')
                             logging.error(f'Show captcha timeout. A captcha appeared, but no one entered it')        
                             raise RuntimeError(f'A captcha appeared, but no one entered it')
                     else:  # Показ капчи не зададан выдаем ошибку и завершаем
-                        logging.error(f'Captcha appeared')        
+                        logging.error(f'Captcha appeared')
+                        self.page_screenshot(suffix='captha')       
                         raise RuntimeError(f'Captcha appeared')
                 else:
                     # Никуда не попали и это не капча
-                    if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
-                        fn = os.path.join(store.options('loggingfolder'), self.storename + '_unknown.png')
-                        self.page_screenshot(path=fn)
+                    self.page_screenshot(suffix='unknown')
                     logging.error(f'Unknown state')
                     raise RuntimeError(f'Unknown state')
                 break  # ВЫХОДИМ ИЗ ЦИКЛА
@@ -559,6 +571,7 @@ class BalanceOverPlaywright():
                 # так и не дождались - пробуем перезагрузить и еще подождать
                 self.page_reload('Unknown page try reload') 
             self.sleep(1)
+        self.page_screenshot()
 
     def calculate_param(self, url_tag=[], jsformula='', pformula=''):
         'Вычисляет js выражение jsformula над json co страницы с url_tag, !!! url_tag - список тэгов'
@@ -640,6 +653,7 @@ class BalanceOverPlaywright():
             logging.error(f'Not found all param on {url}: {",".join(no_receved_keys)}')
         if save_to_result:
             self.result.update({k:v for k,v in result.items() if not k.startswith('#')})  # Не переносим те что с решеткой в начале
+        self.page_screenshot()
         return result
 
     def check_logon_selectors_prepare(self):

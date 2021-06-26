@@ -12,7 +12,7 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
-        # Здесь мы берет данные непосредственно с отрендеренной страницы, поэтому url_tag не указан
+        # Здесь мы берем данные непосредственно с отрендеренной страницы, поэтому url_tag не указан
         self.wait_params(params=[{
             'name': 'Balance',
             'url_tag': ['object/meters'], 
