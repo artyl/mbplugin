@@ -9,7 +9,7 @@ https://stackoverflow.com/questions/45362440/32bit-pyodbc-for-32bit-python-3-6-w
 set up some constants
 
 '''
-import time, os, sys, re, logging, traceback, pyodbc, sqlite3, datetime, json
+import time, os, sys, re, logging, traceback, sqlite3, datetime, json
 import settings, store
 
 DB_SCHEMA = ['''
@@ -257,6 +257,7 @@ class dbengine():
 
 class mdbengine():
     def __init__(self, dbname):
+        import pyodbc
         self.dbname = dbname
         DRV = '{Microsoft Access Driver (*.mdb)}'
         self.conn = pyodbc.connect(f'DRIVER={DRV};DBQ={dbname}')

@@ -245,7 +245,7 @@ class BalanceOverPlaywright():
             self.user_data_dir = os.path.abspath(os.path.join(self.storefolder, 'puppeteer'))
             self.launch_config_args.append(f"--profile-directory={self.profile_directory}")
         self.chrome_executable_path = store.options('chrome_executable_path')
-        if not os.path.exists(self.chrome_executable_path):
+        if store.options('use_builtin_browser').strip() == '0' and not os.path.exists(self.chrome_executable_path):
             chrome_paths = [p for p in settings.chrome_executable_path_alternate if os.path.exists(p)]
             if len(chrome_paths) == 0:
                 logging.error('Chrome.exe not found')

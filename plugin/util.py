@@ -154,9 +154,9 @@ def check_import(ctx):
     'Проверяем что все модули импортируются'
     name = 'check_import'
     try:
-        import telegram, requests, PIL, bs4, pyodbc, pyreadline, psutil, pystray, playwright, schedule
+        import telegram, requests, PIL, bs4, pyreadline, psutil, pystray, playwright, schedule
         if sys.platform == 'win32':
-            import win32api, win32gui, win32con    
+            import win32api, win32gui, win32con, pyodbc    
     except ModuleNotFoundError:
         click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
         return
@@ -256,7 +256,7 @@ def check_playwright(ctx):
             page = browser.new_page()
             page.goto("https://wikipedia.org/")
             if len(page.content()):
-                click.echo(f'OK {name}')
+                click.echo(f'OK {name} {len(page.content())}')
             browser.close()
     except Exception:
         click.echo(f'Fail {name}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
@@ -291,7 +291,7 @@ def standalone_init(ctx):
 def standalone_get_balance(ctx, only_failed, filter):
     'Получение балансов, можно указать only_failed, тогда будут запрошены только те где последняя попытка была неудачной'
     import httpserver_mobile
-    breakpoint()
+    #breakpoint()
     httpserver_mobile.detbalance_standalone(filter=filter,only_failed=only_failed)
 
 @cli.command()

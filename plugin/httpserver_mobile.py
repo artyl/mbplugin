@@ -9,8 +9,8 @@ except ModuleNotFoundError:
     print('No schedule installed')
 try:
     import pystray, PIL.Image
-except ModuleNotFoundError:
-    print('No pystray installed, no tray icon')
+except Exception:
+    print('No pystray installed or other error, no tray icon')
 try:
     import telegram
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -62,7 +62,7 @@ def detbalance_standalone(filter=[], only_failed=False, feedback=None) :
         keypair = f"{val['Region']}_{val['Number']}"
         # Проверяем все у кого задан плагин, логин и пароль пароль
         if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
-            if filter == [] or [1 for i in filter if i.lower() in f"__{keypair}__{val['Alias']}".lower()] != []:
+            if len(filter) == 0 or [1 for i in filter if i.lower() in f"__{keypair}__{val['Alias']}".lower()] != []:
                 if not only_failed or only_failed and str(dbengine.flags('get',keypair)).startswith('error'):
                     # Формируем очередь на получение балансов и размечаем балансы из очереди в таблице flags чтобы красить их по другому
                     queue_balance.append(val)
