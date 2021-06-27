@@ -8,7 +8,10 @@ try:
 except ModuleNotFoundError:
     print('No schedule installed')
 try:
-    import pystray, PIL.Image
+    # TODO не смотря на декларированную кроссплатформенность pystray нормально заработал только на windows
+    # на ubuntu он работает странно а на маке вызывает падение уже дальше по коду
+    if sys.platform == 'win32':
+        import pystray, PIL.Image
 except Exception:
     print('No pystray installed or other error, no tray icon')
 try:
