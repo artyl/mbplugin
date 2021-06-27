@@ -463,7 +463,15 @@ class TrayIcon:
 
 
 class Scheduler():
-    'Класс для работы с расписанием'
+    '''Класс для работы с расписанием'''
+    # TODO Пока просто заглушка, размышляю как лучше сделать параметр
+    # В теориии должно быть как-то так 
+    # schedule.every(4).hour.do(httpserver_mobile.detbalance_standalone, filter=filter)
+    # или так
+    # schedule.every().day.at("10:30").do(...
+    # В каком виде это записывать в ini пока не придумал
+    # В теории строк с заданиями может быть несколько и их можно пихать в ini как
+    # sheduler= ... sheduler1=... и т.д как сделано с table_format
     def __init__(self) -> None:
         threading.Thread(target=self._forever, name='Scheduler',  daemon=True).start()
         logging.info('Scheduler started')
