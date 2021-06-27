@@ -2,5 +2,11 @@
 
 from mcr.microsoft.com/playwright
 
-RUN python -m pip install playwright
+WORKDIR /mbstandalone   
+
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+
+#RUN python -m pip install playwright
+#CMD [ "python", "mbplugin/plugin/util.py", "standalone-get-balance"]
 

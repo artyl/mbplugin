@@ -26,27 +26,48 @@
 ## Инструкция по установке на Linux и Mac (пока в стадии написания и осмысления)
 Инструкцию даю из расчета что мы все размещаем в домашней папке, если хотите разместить в другом месте то скорректируйте пути
 1. создаем в home папку mbstandalone и переходим в нее
-2. Качаем репозиторий или делаем git clone https://github.com/artyl/mbplugin
-3. даем команду cp mbplugin/standalone .
+```
+mkdir mbstandalone  
+cd mbstandalone  
+```
+2. Качаем репозиторий или делаем 
+```
+git clone https://github.com/artyl/mbplugin  
+git -C mbplugin checkout -t remotes/origin/dev_playwright
+```
+3. копируем содержимое mbplugin/standalone в корень 
+```
+cp mbplugin/standalone .
+```
 Далее в зависимости от варианта 
 ### Вариант через Docker
 Данный вариант прост и хорошо управляем, хорошо повторяем и является рекомендуемым мной, но требует установки Docker и сам контейнер с Playwright занимает порядка 2 GB на диске. Если с местом проблемы, то попробуйте вариант без докера
 В варианте с докером иконка в трее работать не будет точно, правда она пока и без докера не очень работает. :-) 
-Все что можно сделать через иконку доступно по ссылке http://localhost:19777/main при запущенном web сервере
-Итак:
-Устанавливаем докер https://docs.docker.com/engine/install
-docker pull mcr.microsoft.com/playwright
-docker run --rm -it --name pl1 -v ~/mbstandalone:/mbstandalone -p 19777:19777 mcr.microsoft.com/playwright
-В контейнере
-cd /mbstandalone/mbplugin
-pip install -r /mbstandalone/mbplugin/requirements.txt
-python mbplugin/plugin/util.py standalone-init
-python mbplugin/plugin/util.py standalone-get-balance 
+Все что можно сделать через иконку доступно по ссылке http://localhost:19777/main при запущенном web сервере  
+Итак:  
+[Устанавливаем докер](https://docs.docker.com/engine/install)
+```
+# docker pull mcr.microsoft.com/playwright
+# docker run --rm -it --name pl1 -v ~/mbstandalone:/mbstandalone -p 19777:19777 mcr.microsoft.com/playwright
+docker build --tag mbplugin mbplugin/docker
+# init
+docker run --rm -it --name mbplugin1 -v ~/mbstandalone:/mbstandalone mbplugin python mbplugin/plugin/util.py standalone-init 
+docker run --rm -it --name mbplugin1 -v ~/mbstandalone:/mbstandalone mbplugin python mbplugin/plugin/util.py set ini/HttpServer/host=0.0.0.0
+### Вариант с web сервером
+docker run --rm -d --name mbplugin1 -v ~/mbstandalone:/mbstandalone -p 127.0.0.1:19777:19777 mbplugin python mbplugin/plugin/util.py run-web-server  
+docker exec -it mbplugin1 python mbplugin/plugin/util.py standalone-get-balance 
+### Вариант без web сервера
+docker run --rm -d --name mbplugin1 -v ~/mbstandalone:/mbstandalone mbplugin python mbplugin/plugin/util.py standalone-get-balance 
+
+```
 ### Установка без контейнеров
 Т.к. я до конца не разобрался как правильно устанавливать python >=3.8 то возможно предлагаемый мной вариант не самый правильный
 1. устанавливаем 
+```
 sudo apt-get install python3.8 python3.8-venv
-2. Устанавливаем пакеты в систему или venv
+```
+2. Устанавливаем пакеты в систему или venv 
+python -m pip install -r mbplugin/docker/requirements.txt
 
 ## Для инфо
 

@@ -52,7 +52,7 @@ def set(ctx, expression):
     '''
     mbplugin_ini = store.ini()
     mbplugin_ini.read()
-    if not re.match(r'^\w+/\w+/\w+=\w+$', expression):
+    if not re.match(r'^\w+/\w+/\w+=\S+$', expression):
         click.echo(f'Non valid expression {expression}')
         return
     path, value = expression.split('=')
