@@ -31,6 +31,7 @@
 mkdir mbstandalone  
 cd mbstandalone  
 ```
+Все дальнейшие действия выполняются из созданной папки mbstandalone
 2. Качаем репозиторий (здесь потом будет ссылка) или делаем (ветка dev потом тоже поменяется)
 ```
 git clone https://github.com/artyl/mbplugin  
@@ -42,10 +43,9 @@ cp mbplugin/standalone/* .
 ```
 Далее в зависимости от варианта 
 ### Вариант через Docker
-Данный вариант прост и хорошо управляем, хорошо повторяем, независим от версий приложений установленных в системе, работает в серверном варианте без установленного GUI и является рекомендуемым мной, но требует установки Docker и сам контейнер с Playwright занимает порядка 2 GB на диске. Если с местом проблемы, или не хотите устанавливать докер то используйте вариант без докера.
+[Устанавливаем докер](https://docs.docker.com/engine/install) - выберете инструкцию под свою систему  
+Данный вариант прост и хорошо управляем, повторяем, независим от версий приложений установленных в системе, работает в серверном варианте без установленного GUI и является рекомендуемым мной, но требует установки Docker и сам контейнер с Playwright занимает порядка 2 GB на диске. Если с местом проблемы, или не хотите устанавливать докер то попробуйте вариант без докера.
 Итак:  
-[Устанавливаем докер](https://docs.docker.com/engine/install)  
-Все дальнейшие действия выполняются из папки mbstandalone
 ```
 # build docker image
 docker build --tag mbplugin mbplugin/docker
@@ -55,7 +55,7 @@ docker run --rm -it --name mbplugin1 -v $PWD:/mbstandalone mbplugin python mbplu
 ### Вариант с web сервером
 docker run --rm -d --name mbplugin1 -v $PWD:/mbstandalone -p 127.0.0.1:19777:19777 mbplugin python mbplugin/plugin/util.py run-web-server  
 docker exec -it mbplugin1 python mbplugin/plugin/util.py standalone-get-balance 
-### Вариант без web сервера (проста запрос баланса с генерацией balance.html)
+### Вариант без web сервера (просто запрос баланса с генерацией balance.html)
 docker run --rm -it --name mbplugin1 -v $PWD:/mbstandalone mbplugin python mbplugin/plugin/util.py standalone-get-balance 
 
 ```
@@ -63,7 +63,7 @@ docker run --rm -it --name mbplugin1 -v $PWD:/mbstandalone mbplugin python mbplu
 Т.к. я до конца не разобрался как правильно устанавливать python >=3.8 то возможно предлагаемый мной вариант не самый правильный
 1. устанавливаем 
 ```
-# устанавливаем python 3.8 в ubuntu так, в других системах по другому
+# устанавливаем python 3.8 в ubuntu так, в других системах по другому (смотрите инструкцию под свою систему)
 sudo apt-get install python3.8 python3.8-venv
 python3.8 -m venv env
 source env/bin/activate

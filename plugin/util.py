@@ -210,6 +210,16 @@ def run_web_server(ctx):
         click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')                
 
 @cli.command()
+@click.pass_context
+def reload_schedule(ctx):
+    'Перечитывает расписание запросов баланса'
+    name = 'reload_schedule'
+    import httpserver_mobile
+    port = store.options('port',section='HttpServer')
+    res = requests.get(f'http://127.0.0.1:{port}/reload_schedule').content.decode('cp1251')
+    click.echo(res)
+
+@cli.command()
 @click.argument('plugin', type=click.Choice(['simple', 'chrome'], case_sensitive=False), default='simple')
 @click.pass_context
 def check_jsmblh(ctx, plugin):
@@ -330,14 +340,12 @@ def copy_all_from_mdb(ctx):
 def send_tgbalance(ctx):
     'Отправка баланса TG через API веб сервера'
     import httpserver_mobile
-    host = store.options('host', section='HttpServer')
     port = store.options('port',section='HttpServer')
-    url = f'http://127.0.0.1:{port}/sendtgbalance'
     # Sendtgbalance
-    res = requests.get(f'http://{host}:{port}/sendtgbalance').content.decode('cp1251')
+    res = requests.get(f'http://127.0.0.1:{port}/sendtgbalance').content.decode('cp1251')
     click.echo(res)
     # Subscription
-    res = requests.get(f'http://{host}:{port}/sendtgsubscriptions').content.decode('cp1251')
+    res = requests.get(f'http://127.0.0.1:{port}/sendtgsubscriptions').content.decode('cp1251')
     click.echo(res)
 
 @cli.command()

@@ -219,6 +219,16 @@ ini = {
         # зайти на такие альтернативные report можно по ссылке http://localhost:19777/report/NNN
         'table_format_': {'descr':'Формат вывода по умолчанию, для страницы http://localhost:19777/report', 'size':200},
         'table_format': 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime',  # ? UserName
+        # расписание опросов, строк может быть несколько sheduler= ... sheduler1=... и т.д как сделано с table_format
+        # расписание имеет вид:
+        # every(4).hour либо every().day.at("10:30")
+        # при желании после расписания можно указать фильтры (можно несколько) например так
+        # shedule = every(4).hour,mts,beeline
+        # если фильтры не указаны, то опрос проводится по всем телефонам, для которых указан passowrd2 в phones.ini либо в phones_add.ini
+        # после изменения расписания необходим перезапуск сервера или команда util.py reload-schedule
+        'schedule_': {'descr':'Расписание опросов', 'size':200},
+        'schedule': '',
+
     },
 }
 
@@ -228,6 +238,7 @@ main_html=r'''
 <head></head>
 <body>
 <a href=report>View report</a><br>
+<a href=schedule>View schedule</a><br>
 <a href=editcfg>Edit config</a><br>
 <a href=log>View log</a><br>
 <button onclick="fetch('flushlog').then(function(response) {return response})">Flush log</button><br>

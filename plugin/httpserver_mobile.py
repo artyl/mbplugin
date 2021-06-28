@@ -467,26 +467,53 @@ class TrayIcon:
 
 class Scheduler():
     '''Класс для работы с расписанием'''
-    # TODO Пока просто заглушка, размышляю как лучше сделать параметр
-    # В теориии должно быть как-то так 
-    # schedule.every(4).hour.do(httpserver_mobile.detbalance_standalone, filter=filter)
-    # или так
-    # schedule.every().day.at("10:30").do(...
-    # В каком виде это записывать в ini пока не придумал
-    # В теории строк с заданиями может быть несколько и их можно пихать в ini как
+    thread = None
+    # Форматы расписаний см https://schedule.readthedocs.io
+    # schedule2 = every().day.at("10:30"),megafon
+    # строк с заданиями может быть несколько и их можно пихать в ini как
     # sheduler= ... sheduler1=... и т.д как сделано с table_format
     def __init__(self) -> None:
-        threading.Thread(target=self._forever, name='Scheduler',  daemon=True).start()
-        logging.info('Scheduler started')
+        if Scheduler.thread is None:
+            self.thread = threading.Thread(target=self._forever, name='Scheduler',  daemon=True)
+            self.thread.start()
+            Scheduler.thread = self.thread
+            logging.info('Scheduler started')
+            self.reload()
 
     def _forever(self):
         while True:
             schedule.run_pending()
             time.sleep(1)
 
-    def validate(self, sched_str):
-        'Проверяет расписание на валидность'
-        pass
+    def validate(self, sched) -> schedule.Job:
+        'Проверяет одно расписание на валидность и возвращает в виде job'
+        # every(4).day.at("10:30")
+        m = re.match(r'^every\((?P<every>\d*)\)\.(?P<interval>\w*)(\.at\("(?P<at>.*)"\))?$', sched.strip())
+        try:
+            param = m.groupdict()
+            param['every'] = int(param['every']) if param['every'].isdigit() else 1
+            job = getattr(schedule.every(int(param['every'])), param.get('interval'))
+            if param['at'] is not None:
+                job = job.at(param['at'])
+            return job
+        except Exception:
+            logging.error(f'Error parse {sched}')                
+
+    def reload(self):
+        'Читает расписание из ini'
+        schedule.clear()
+        schedules = store.options('schedule', section='HttpServer', listparam=True)
+        for schedule_str in schedules:
+            sched = schedule_str.split(',')[0]
+            filter = schedule_str.split(',')[1:]
+            job = self.validate(sched)
+            if job is not None:
+                job.do(detbalance_standalone, filter=filter)
+        return 'OK'
+    
+    def view_html(self):
+        res = ['\n'.join(map(repr, schedule.jobs))]
+        return 'text/html; charset=cp1251', ['<html><head></head><body><pre>']+res+['</pre></body></html>']
 
 
 class TelegramBot():
@@ -881,6 +908,11 @@ class WebServer():
             elif cmd.lower() == 'log': # просмотр лога
                 param = urllib.parse.parse_qs(environ['QUERY_STRING'])
                 ct, text = view_log(param)
+            elif cmd.lower() == 'schedule': # просмотр расписания
+                ct, text = Scheduler().view_html()
+            elif cmd.lower() == 'reload_schedule': # обновление расписания
+                Scheduler().reload()
+                ct, text = Scheduler().view_html()
             elif cmd == 'logging_restart':  # logging_restart
                 store.logging_restart()
                 ct, text = 'text/html', 'OK'
