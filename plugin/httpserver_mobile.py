@@ -29,6 +29,7 @@ createhtmlreport = 1<br>
 После включения, запустите mbplugin\\setup_and_check.bat
 '''
 
+# TODO в командах для traymeny используется os.system(f'start ... это будет работать только в windows, но пока пофигу, т.к. сам pystrayработает только в windows
 TRAY_MENU = (
     {'text':"Main page", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/main'), 'show':True, 'default':True},
     {'text':"View report", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/report'), 'show':True},
@@ -426,11 +427,11 @@ def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={
     return [repr(i) for i in r]
 
 def restart_program(reason='', exit_only=False):
-    cmd = subprocess.list2cmdline(psutil.Process().cmdline())
-    logging.info(f'Restart by {reason} with cmd:{cmd}')
+    cmd = psutil.Process().cmdline()
+    logging.info(f'Restart by {reason} with cmd:{subprocess.list2cmdline(cmd)}')
     TrayIcon().stop()
     if not exit_only:
-        os.system('call start "" ' + cmd)
+        subprocess.Popen(cmd)  # Crossplatform run process
     psutil.Process().kill()
 
 class TrayIcon:

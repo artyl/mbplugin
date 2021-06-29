@@ -183,7 +183,7 @@ def autostart_web_server(ctx, turn):
                 if str(store.options('start_http', section='HttpServer')) == '1':
                     # %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
                     shutil.copy(lnk_path, lnk_startup_path)
-                    os.system(f'start "" /MIN "{lnk_startup_full_name}"')            
+                    os.system(f'"{lnk_startup_full_name}"')
                 else:
                     click.echo(f'Start http server disabled in mbplugin.ini (start_http=0)')
             if turn == 'off':
