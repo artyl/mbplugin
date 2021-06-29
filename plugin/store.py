@@ -349,6 +349,24 @@ def ini_by_expression(expression):
     return f'set {key}={options(key, section=section)}'
 
 
+def turn_logging(httplog=False, logginglevel=None):
+    'Включение логирования'
+    if httplog:
+        file_log = logging.FileHandler(options('logginghttpfilename'))
+    else:
+        file_log = options('loggingfilename')
+    if logginglevel is None:
+        logginglevel = options('logginglevel')
+    handlers = (file_log,)
+    if str(options('logconsole')) == '1':
+        console_out = logging.StreamHandler()
+        handlers = (file_log, console_out)
+    logging.basicConfig(
+        handlers=handlers,
+        level = logginglevel,
+        format = options('loggingformat'))
+
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         print('Module store')

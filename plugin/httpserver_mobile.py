@@ -33,19 +33,13 @@ createhtmlreport = 1<br>
 TRAY_MENU = (
     {'text':"Main page", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/main'), 'show':True, 'default':True},
     {'text':"View report", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/report'), 'show':True},
-    {'text':"Edit config", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/editcfg'), 'show':store.options('HttpConfigEdit') == '1'},
+    {'text':"Edit config", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/editcfg'), 'show':str(store.options('HttpConfigEdit')) == '1'},
     {'text':"View log", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log?lines=40'), 'show':True},
     {'text':"Flush log", 'cmd':lambda:store.logging_restart(), 'show':True},
     {'text':"Recompile jsmblh plugin",'cmd':lambda:compile_all_jsmblh.recompile(), 'show':True},
     {'text':"Restart server", 'cmd':lambda:restart_program(reason='tray icon command'), 'show':True},
     {'text':"Exit program", 'cmd':lambda:restart_program(reason='Tray icon exit', exit_only=True), 'show':True}
 )
-
-def turn_logging():
-    logging.basicConfig(filename=store.options('logginghttpfilename'),
-                        level=store.options('logginglevel'),
-                        format=store.options('loggingformat'))    
-
 
 def detbalance_standalone(filter=[], only_failed=False, feedback=None) :
     ''' Получаем балансы самостоятельно без mobilebalance 
@@ -58,7 +52,7 @@ def detbalance_standalone(filter=[], only_failed=False, feedback=None) :
     only_failed=True - делать запросы только по тем номерам, по которым прошлый запрос был неудачный
     feedback - если не None - то это функция, которая умеет выдавать статус на экран
     '''
-    turn_logging()  # Т.к. сюда можем придти извне, то включаем логирование здесь
+    store.turn_logging(httplog=True)  # Т.к. сюда можем придти извне, то включаем логирование здесь
     logging.info(f'detbalance_standalone: filter={filter}')
     phones = store.ini('phones.ini').phones()
     queue_balance = []  # Очередь телефонов на получение баланса
@@ -289,7 +283,7 @@ def getreport(param=[]):
 def write_report():
     'сохраняем отчет balance_html если в ini createhtmlreport=1'
     try:
-        if store.options('createhtmlreport') == '1':
+        if str(store.options('createhtmlreport')) == '1':
             _, res = getreport()
             balance_html = store.options('balance_html')
             logging.info(f'Создаем {balance_html}')
@@ -412,7 +406,7 @@ def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={
     text - сообщение, если не указано, то это баланс для телефонов у которых он изменился
     auth_id - список id через запятую на которые слать, если не указано, то берется список из mbplugin.ini 
     """
-    turn_logging()  # Т.к. сюда можем придти извне, то включаем логирование здесь
+    store.turn_logging(httplog=True)  # Т.к. сюда можем придти извне, то включаем логирование здесь
     if text is None:
         text = prepare_balance(filter, params)
     api_token = store.options('api_token', section='Telegram', mainparams=params).strip()
@@ -761,7 +755,7 @@ class ThreadingWSGIServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSG
 class WebServer():
     def __init__(self):
         self.cmdqueue = queue.Queue()
-        turn_logging()
+        store.turn_logging(httplog=True)
         self.port = int(store.options('port', section='HttpServer'))
         self.host = store.options('host', section='HttpServer')
         with socket.socket() as sock:
@@ -918,14 +912,14 @@ class WebServer():
                 store.logging_restart()
                 ct, text = 'text/html', 'OK'
             elif cmd == '' or cmd == 'report':  # report
-                if store.options('sqlitestore') == '1':
+                if str(store.options('sqlitestore')) == '1':
                     ct, text = getreport(param)
                 else:
                     ct, text = 'text/html', HTML_NO_REPORT
             elif cmd.lower() == 'main':  # главная страница
                 ct, text = 'text/html; charset=cp1251', [settings.main_html]
             elif cmd.lower() == 'editcfg':  # вариант через get запрос
-                if store.options('HttpConfigEdit') == '1':
+                if str(store.options('HttpConfigEdit')) == '1':
                     ct, text, status, add_headers = self.editor(environ)
             elif cmd == 'flushlog':  # Start new log
                 store.logging_restart()

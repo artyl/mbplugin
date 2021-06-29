@@ -329,9 +329,7 @@ def refresh_balance_html(ctx):
 def copy_all_from_mdb(ctx):
     'копировать все данные из mdb'
     import dbengine
-    logging.basicConfig(filename=store.options('loggingfilename'),
-                        level=logging.DEBUG,
-                        format=store.options('loggingformat'))
+    store.turn_logging(logginglevel=logging.DEBUG)
     dbengine.update_sqlite_from_mdb(deep=10000)
 
 

@@ -48,6 +48,9 @@ ini = {
         # Уровень логгирования
         'logginglevel_': {'descr':'Уровень логгирования', 'type':'select', 'variants':'DEBUG INFO WARNING ERROR CRITICAL'},
         'logginglevel': 'INFO',
+        # Кидать логи в консоль, удобно для докера (чтобы работал docker log), при использовании с MobileBalance должно быть выключено 
+        'logconsole_': {'descr':'Вести дополнительное логирование в консоль', 'type':'checkbox'},
+        'logconsole': '0',
         # Папка для хранения сессий
         'storefolder_': {'descr':'Папка для хранения сессий', 'type':'text'},
         'storefolder': os.path.join('..','store'), # ..\store

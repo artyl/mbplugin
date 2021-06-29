@@ -450,7 +450,5 @@ def responses():
 if __name__ == '__main__':
     print('This is module dbengine')
     if 'update_sqlite_from_mdb_all' in sys.argv:
-        logging.basicConfig(filename=store.options('loggingfilename'),
-                            level=logging.DEBUG,
-                            format=store.options('loggingformat'))
+        store.turn_logging(logginglevel=logging.DEBUG)
         update_sqlite_from_mdb(deep=10000)

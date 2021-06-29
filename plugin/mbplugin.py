@@ -7,9 +7,7 @@ import dbengine, store, settings, httpserver_mobile
 lang = 'p'  # Для плагинов на python преффикс lang всегда 'p'
 
 def main():
-    logging.basicConfig(filename=store.options('loggingfilename'),
-                        level=store.options('logginglevel'),
-                        format=store.options('loggingformat'))
+    store.turn_logging()
     # В коммандной строке указан плагин ?
     if len(sys.argv) < 2:
         exception_text = f'При вызове mbplugin.bat не указан модуль'
