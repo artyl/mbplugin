@@ -351,10 +351,7 @@ def ini_by_expression(expression):
 
 def turn_logging(httplog=False, logginglevel=None):
     'Включение логирования'
-    if httplog:
-        file_log = logging.FileHandler(options('logginghttpfilename'))
-    else:
-        file_log = options('loggingfilename')
+    file_log = logging.FileHandler(options('logginghttpfilename' if httplog else 'loggingfilename'))
     if logginglevel is None:
         logginglevel = options('logginglevel')
     handlers = (file_log,)
