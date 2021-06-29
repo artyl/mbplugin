@@ -42,7 +42,7 @@ def hello(ctx):
     click.echo(f'Hello World! {ctx.obj}')
 
 @cli.command()
-@click.argument('expression', type=str)
+@click.argument('expression', type=str, nargs=-1)
 @click.pass_context
 def set(ctx, expression):
     '''Установка/сброс опции, для флагов используйте 1/0
@@ -50,14 +50,15 @@ def set(ctx, expression):
     для установки set ini/HttpServer/start_http=1  
     или для сброса set ini/HttpServer/start_http=default       
     '''
+    expression_prep = '='.join(expression)
     mbplugin_ini = store.ini()
     mbplugin_ini.read()
-    if not re.match(r'^\w+/\w+/\w+=\S+$', expression):
-        click.echo(f'Non valid expression {expression}')
+    if not re.match(r'^\w+/\w+/\w+=\S+$', expression_prep):
+        click.echo(f'Non valid expression {expression_prep}')
         return
-    path, value = expression.split('=')
+    path, value = expression_prep.split('=')
     _, section, key = path.split('/')
-    if value == 'default':
+    if value.lower() == 'default' and key in mbplugin_ini.ini[section]:
         del mbplugin_ini.ini[section][key]
     else:
         mbplugin_ini.ini[section][key] = value
