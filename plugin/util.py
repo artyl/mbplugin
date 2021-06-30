@@ -36,10 +36,11 @@ def cli(ctx, debug, verbose, start_http):
     ctx.obj['VERBOSE'] = verbose
 
 @cli.command()
+@click.argument('name', type=str)
 @click.pass_context
-def hello(ctx):
+def hello(ctx, name):
     'Пока для экспериментов оставил,потом уберу'
-    click.echo(f'Hello World! {ctx.obj}')
+    click.echo(f'Hello World! {ctx.obj} {name}')
 
 @cli.command()
 @click.argument('expression', type=str, nargs=-1)
@@ -312,7 +313,7 @@ def standalone_init(ctx):
 @click.option('--only_failed', is_flag=True, help='Запросить балансы, по которым были ошибки')
 @click.argument('filter', nargs=-1)
 @click.pass_context
-def standalone_get_balance(ctx, only_failed, filter):
+def get_balance(ctx, only_failed, filter):
     'Получение балансов, можно указать only_failed, тогда будут запрошены только те где последняя попытка была неудачной'
     import httpserver_mobile
     #breakpoint()
@@ -369,14 +370,17 @@ def show_chrome(ctx, action):
 
 @cli.command()
 @click.pass_context
-def check_mbplugin_ini(ctx):
+def check_ini(ctx):
     'Проверка INI на корректность'
-    name = 'check_mbplugin_ini'
+    name = 'check_ini'
     # Проверку сделаю позже, пока ее нет
     try:
         ini=store.ini()
+        ini.read()
+        click.echo(f'OK {name} mbplugin.ini')
         ini=store.ini('phones.ini')
-        click.echo(f'OK {name}')
+        ini.read()
+        click.echo(f'OK {name} phones.ini')
     except Exception:
         click.echo(f'Fail {name}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
 
