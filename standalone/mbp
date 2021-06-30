@@ -13,7 +13,8 @@ fi
 
 # port mapping for docker only for run-web-server
 if [ "$DOCKER" != "" ] && [ "$1" = "run-web-server" ]; then
-    DOCKER=${DOCKER/ mbplugin/ -p 19777:19777 mbplugin}
+    DOCKER=${DOCKER/ mbplugin/ -p 127.0.0.1:19777:19777 mbplugin}
+    echo $DOCKER
 fi
 
 pythonver=$(python -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
