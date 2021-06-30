@@ -3,11 +3,17 @@
 
 util_path=$(dirname $0)/../plugin/util.py
 if [ -f $util_path ] && [ "$1" = "docker" ]; then 
-    echo 'DOCKER="docker run --rm -it -v $PWD:/mbstandalone"' > dockervar
+    echo 'DOCKER="docker run --rm -it -v $PWD:/mbstandalone mbplugin "' > dockervar
+    # -p 127.0.0.1:19777:19777
 fi
 
 if [ -f dockervar ]; then 
-    . ./dockervar ; 
+    . ./dockervar 
+fi
+
+# port mapping for docker only for run-web-server
+if [ "$DOCKER" != "" ] && [ "$1" = "run-web-server" ]; then
+    DOCKER=${DOCKER/ mbplugin/ -p 19777:19777 mbplugin}
 fi
 
 pythonver=$(python -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
@@ -16,11 +22,10 @@ if [ "$pythonver" -lt "38" ] && [ -f env/bin/activate ] && [ ! -f dockervar ]; t
 fi
 
 pythonver=$(python -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
-if [ "$pythonver" -lt "38" ]; then
+if [ "$pythonver" -lt "38" ] && [ ! -f dockervar ]; then
     echo "This script requires python 3.8 or greater, you have $pythonver"
     exit 1
 fi
-
 
 # ../plugin/util.py exists go into installation mode
 if [ -f $util_path ]; then 
@@ -30,19 +35,19 @@ if [ -f $util_path ]; then
     cp $(basename $0) ../..
     # cd return to proj root (mbstandalone)
     cd ../.. 
-    chmod +r $(basename $0)
+    chmod +x $(basename $0)
     if [ ! -f phones.ini ]; then cp mbplugin/standalone/phones.ini . ; fi
-    if [ ! -f mbplugin.ini ]; then python mbplugin/plugin/util.py standalone-init ; fi
+    if [ ! -f mbplugin.ini ]; then $DOCKER python mbplugin/plugin/util.py standalone-init ; fi
     $DOCKER python mbplugin/plugin/util.py install-chromium
-    ##$DOCKER python mbplugin/plugin/util.py check-import
+    $DOCKER python mbplugin/plugin/util.py check-import
     $DOCKER python mbplugin/plugin/util.py check-ini
     $DOCKER python mbplugin/plugin/util.py clear-browser-cache
-    ##$DOCKER python mbplugin/plugin/util.py check-playwright
+    $DOCKER python mbplugin/plugin/util.py check-playwright
     exit 0
 fi
 
 cd $(dirname $0)
-python mbplugin/plugin/util.py $*
+$DOCKER python mbplugin/plugin/util.py $*
 
 if [[ "$VIRTUAL_ENV" != "" ]]
 then

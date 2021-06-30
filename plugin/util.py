@@ -156,9 +156,9 @@ def check_import(ctx):
     'Проверяем что все модули импортируются'
     name = 'check_import'
     try:
-        import telegram, requests, PIL, bs4, pyreadline, psutil, pystray, playwright, schedule
+        import telegram, requests, PIL, bs4, readline, psutil, playwright, schedule
         if sys.platform == 'win32':
-            import win32api, win32gui, win32con, pyodbc    
+            import win32api, win32gui, win32con, pyodbc, pystray
     except ModuleNotFoundError:
         click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
         return
