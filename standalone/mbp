@@ -1,8 +1,17 @@
 #!/bin/bash
 #ls env/bin/activate
 
+util_path=$(dirname $0)/../plugin/util.py
+if [ -f $util_path ] && [ "$1" = "docker" ]; then 
+    echo 'DOCKER="docker run --rm -it -v $PWD:/mbstandalone"' > dockervar
+fi
+
+if [ -f dockervar ]; then 
+    . ./dockervar ; 
+fi
+
 pythonver=$(python -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
-if [ "$pythonver" -lt "38" ] && [ -f env/bin/activate ]; then 
+if [ "$pythonver" -lt "38" ] && [ -f env/bin/activate ] && [ ! -f dockervar ]; then 
     . env/bin/activate
 fi
 
@@ -12,7 +21,7 @@ if [ "$pythonver" -lt "38" ]; then
     exit 1
 fi
 
-util_path=$(dirname $0)/../plugin/util.py
+
 # ../plugin/util.py exists go into installation mode
 if [ -f $util_path ]; then 
     echo "The file $(realpath $util_path) exist";
@@ -24,11 +33,11 @@ if [ -f $util_path ]; then
     chmod +r $(basename $0)
     if [ ! -f phones.ini ]; then cp mbplugin/standalone/phones.ini . ; fi
     if [ ! -f mbplugin.ini ]; then python mbplugin/plugin/util.py standalone-init ; fi
-    python mbplugin/plugin/util.py install-chromium
-    #python mbplugin/plugin/util.py check-import
-    python mbplugin/plugin/util.py check-ini
-    python mbplugin/plugin/util.py clear-browser-cache
-    ##python mbplugin/plugin/util.py check-playwright
+    $DOCKER python mbplugin/plugin/util.py install-chromium
+    ##$DOCKER python mbplugin/plugin/util.py check-import
+    $DOCKER python mbplugin/plugin/util.py check-ini
+    $DOCKER python mbplugin/plugin/util.py clear-browser-cache
+    ##$DOCKER python mbplugin/plugin/util.py check-playwright
     exit 0
 fi
 
