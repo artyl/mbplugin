@@ -19,9 +19,7 @@ if [ -f $util_path ] && [ "$1" = "docker" ]; then
     # -p 127.0.0.1:19777:19777
 fi
 
-if [ -f dockervar ]; then 
-    . ./dockervar 
-fi
+[ -f dockervar ] && . ./dockervar 
 
 # port mapping for docker only for run-web-server
 if [ "$DOCKER" != "" ] && [ "$1" = "run-web-server" ]; then
@@ -49,8 +47,8 @@ if [ -f $util_path ]; then
     # cd return to proj root (mbstandalone)
     cd ../.. 
     chmod +x $(basename $0)
-    if [ ! -f phones.ini ]; then cp mbplugin/standalone/phones.ini . ; fi
-    $DOCKER python mbplugin/plugin/util.py standalone-init ; fi
+    [ ! -f phones.ini ] && cp mbplugin/standalone/phones.ini . 
+    $DOCKER python mbplugin/plugin/util.py standalone-init
     $DOCKER python mbplugin/plugin/util.py install-chromium
     $DOCKER python mbplugin/plugin/util.py check-import
     $DOCKER python mbplugin/plugin/util.py check-ini
