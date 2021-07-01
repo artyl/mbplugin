@@ -289,7 +289,9 @@ def check_playwright(ctx):
 @cli.command()
 @click.pass_context
 def standalone_init(ctx):
-    'Инициализация можно втором параметром указать noweb тогда вебсервер не будет запускаться и помещаться в автозапуск'
+    '''Инициализация можно втором параметром указать noweb тогда вебсервер не будет запускаться и помещаться в автозапуск
+    Если в mbplugin.ini пути не правильные то прописывает абсолютные пути к тем файлам, которые лежат в текущей папке 
+    '''
     name = 'standalone_init'
     try:
         # Если лежит mobilebalance - не работаем, а то только запутаем всех
@@ -303,6 +305,8 @@ def standalone_init(ctx):
         ini.read()
         ini.ini['Options']['sqlitestore'] = '1'
         ini.ini['Options']['createhtmlreport'] = '1'
+        ini.ini['MobileBalance']['path'] = os.path.abspath(os.path.join('..','..'))
+        ini.ini['Options']['dbfilename'] = os.path.abspath(os.path.join('..','..','BalanceHistory.sqlite'))
         ini.ini['Options']['balance_html'] = os.path.abspath(os.path.join('..','..','balance.html'))
         ini.write()
         click.echo(f'OK {name}')
