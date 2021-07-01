@@ -422,6 +422,8 @@ def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={
 
 def restart_program(reason='', exit_only=False):
     cmd = psutil.Process().cmdline()
+    # Fix нужен т.к. util.py переходит в другую папку и относительные пути ломаются
+    cmd = [(os.path.abspath('util.py') if i.endswith('util.py') else i) for i in cmd]
     logging.info(f'Restart by {reason} with cmd:{subprocess.list2cmdline(cmd)}')
     TrayIcon().stop()
     if not exit_only:
