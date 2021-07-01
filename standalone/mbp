@@ -2,8 +2,20 @@
 #ls env/bin/activate
 
 util_path=$(dirname $0)/../plugin/util.py
+
+# if not use docker - remove dockervar
+if [ -f $util_path ] && [ "$1" = "" ]; then
+    [ -f dockervar ] && rm dockervar
+fi
+
 if [ -f $util_path ] && [ "$1" = "docker" ]; then 
+    if [ ! -x "$(command -v docker)" ]; then
+        echo "Install docker. See https://docs.docker.com/engine/install"
+        exit 1
+    fi
     echo 'DOCKER="docker run --rm -it -v $PWD:/mbstandalone mbplugin "' > dockervar
+    # Build image for playwright
+    docker build --tag mbplugin mbplugin/docker
     # -p 127.0.0.1:19777:19777
 fi
 
