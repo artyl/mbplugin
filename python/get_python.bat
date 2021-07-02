@@ -19,7 +19,7 @@ if not exist Scripts\pip.exe python get-pip.py
 ..\python\python -c "d=open('python38._pth').read();open('python38._pth','w').write(d.replace('#import site','import site'))"
 
 @REM добавляем в sys.path поиск в папке откуда запущен скрипт по умолчанию, в embedded он почему-то выключен
-..\python\python -c "txt='''import os,sys\nsys.path.insert(0,os.path.split(sys.argv[0])[0])''';open('sitecustomize.py','w').write(txt)"
+..\python\python -c "txt='''import os,sys\nsys.path.insert(0,os.path.abspath(os.path.split(sys.argv[0])[0]))''';open('sitecustomize.py','w').write(txt)"
 
 @REM Находясь mbplugin\python выполнить 
 ..\python\python -m pip install --upgrade python-telegram-bot requests pillow beautifulsoup4 pyodbc pyreadline pywin32 pyppeteer psutil pystray playwright schedule click
