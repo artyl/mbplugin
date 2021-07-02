@@ -12,6 +12,7 @@ if EXIST ..\plugin\util.py (
     mbplugin\python\python mbplugin\plugin\util.py check-ini
     mbplugin\python\python mbplugin\plugin\util.py clear-browser-cache
     mbplugin\python\python mbplugin\plugin\util.py check-playwright
+    mbplugin\python\python mbplugin\plugin\util.py autostart-web-server
     timeout 30
     GOTO :EOF
 )

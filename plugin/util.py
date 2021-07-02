@@ -29,6 +29,15 @@ except ModuleNotFoundError:
     sys.path.insert(0, PLUGIN_PATH)
     import store
 
+def http_command(cmd):
+    'Посылаем сигнал локальному веб серверу'
+    import httpserver_mobile
+    port = store.options('port',section='HttpServer')
+    try:
+        return requests.get(f'http://127.0.0.1:{port}/{cmd}').content.decode('cp1251')
+    except Exception:
+        pass 
+
 @click.group()
 @click.option('-d', '--debug', is_flag=True, help='Debug mode')
 @click.option('-v', '--verbose', is_flag=True, help='Verbose mode')
@@ -172,8 +181,11 @@ def check_import(ctx):
 @click.argument('turn', type=click.Choice(['on', 'off'], case_sensitive=False), default='on')
 @click.pass_context
 def autostart_web_server(ctx, turn):
-    'Автозапуск web сервера (только windows)'
-    'Создаем lnk на run_webserver.bat и помещаем его в автозапуск и запускаем'
+    '''Автозапуск web сервера (только windows) и только если разрешен в ini
+    on - Создаем lnk на run_webserver.bat и помещаем его в автозапуск и запускаем
+    off - убираем из автозапуска
+    для отключения в ini дайте команду mbp set ini\HttpServer\start_http=0
+    '''
     name = 'autostart_web_server'
     if sys.platform == 'win32':
         try:
@@ -208,22 +220,40 @@ def run_web_server(ctx):
     'Запуск web сервера'
     name = 'run_web_server'
     try:
-        import httpserver_mobile
-        httpserver_mobile.WebServer()
-        time.sleep(4)
-        click.echo(f'OK {name}')
+        if sys.platform == 'win32':
+            lnk_path = os.path.join(ROOT_PATH, 'mbplugin', 'run_webserver.bat')
+            os.system(f'"{lnk_path}"')
+        else:
+            import httpserver_mobile
+            httpserver_mobile.WebServer()
+            time.sleep(4)
+            click.echo(f'OK {name}')
     except Exception:
         click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')                
+
+@cli.command()
+@click.pass_context
+def restart_web_server(ctx):
+    'Останавливает web сервер'
+    name = 'stop_web_server'
+    http_command(cmd='restart')
+    click.echo(f'OK {name}')
+
+@cli.command()
+@click.pass_context
+def stop_web_server(ctx):
+    'Останавливает web сервер'
+    name = 'stop_web_server'
+    http_command(cmd='exit')
+    click.echo(f'OK {name}')
 
 @cli.command()
 @click.pass_context
 def reload_schedule(ctx):
     'Перечитывает расписание запросов баланса'
     name = 'reload_schedule'
-    import httpserver_mobile
-    port = store.options('port',section='HttpServer')
-    res = requests.get(f'http://127.0.0.1:{port}/reload_schedule').content.decode('cp1251')
-    click.echo(res)
+    http_command(cmd='reload_schedule')
+    click.echo(f'OK {name}\n{res}')
 
 @cli.command()
 @click.argument('plugin', type=click.Choice(['simple', 'chrome'], case_sensitive=False), default='simple')
@@ -348,13 +378,11 @@ def copy_all_from_mdb(ctx):
 @click.pass_context
 def send_tgbalance(ctx):
     'Отправка баланса TG через API веб сервера'
-    import httpserver_mobile
-    port = store.options('port',section='HttpServer')
     # Sendtgbalance
-    res = requests.get(f'http://127.0.0.1:{port}/sendtgbalance').content.decode('cp1251')
+    http_command(cmd='sendtgbalance')
     click.echo(res)
     # Subscription
-    res = requests.get(f'http://127.0.0.1:{port}/sendtgsubscriptions').content.decode('cp1251')
+    http_command(cmd='sendtgsubscriptions')
     click.echo(res)
 
 @cli.command()

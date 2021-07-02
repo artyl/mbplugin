@@ -40,10 +40,10 @@ ini = {
         'loggingfolder': os.path.join('mbplugin','log'), # mbplugin\log
         # лог для ручного запуска и dll плагинов
         'loggingfilename_': {'descr':'лог для ручного запуска и dll плагинов', 'type':'text'},
-        'loggingfilename': os.path.join('mbplugin', 'log', 'mbplugin.log'), # ..\log\mbplugin.log
+        'loggingfilename': os.path.join('mbplugin', 'log', 'mbplugin.log'), # mbplugin\log\mbplugin.log
         # лог http сервера и плагинов из него
         'logginghttpfilename_': {'descr':'лог http сервера и плагинов из него', 'type':'text'},
-        'logginghttpfilename': os.path.join('mbplugin', 'log', 'http.log'), # ..\log\http.log
+        'logginghttpfilename': os.path.join('mbplugin', 'log', 'http.log'), # mbplugin\log\http.log
         # Уровень логгирования
         'logginglevel_': {'descr':'Уровень логгирования', 'type':'select', 'variants':'DEBUG INFO WARNING ERROR CRITICAL'},
         'logginglevel': 'INFO',
