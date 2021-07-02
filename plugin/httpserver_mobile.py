@@ -78,7 +78,12 @@ def detbalance_standalone(filter=[], only_failed=False, feedback=None) :
             logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {''.join(traceback.format_exception(*sys.exc_info()))}")
 
 def getbalance_plugin(method, param_source):
-    'fplugin, login, password, date'
+    ''' fplugin, login, password, date
+    date нужен чтобы не кэшировались запросы, туда можно класть что угодно
+    В зависимости от method параметры принимаем либо
+    url: список [fplugin, login, password, date]
+    get: словарь как в get запросе {'fplugin':[...], 'login':[...], 'password':[...], 'date'[...]}
+    '''
     param = {}
     if method == 'url':
         if len(param_source) != 4:
@@ -423,7 +428,7 @@ def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={
 def restart_program(reason='', exit_only=False):
     cmd = psutil.Process().cmdline()
     # Fix нужен т.к. util.py переходит в другую папку и относительные пути ломаются
-    cmd = [(os.path.abspath('util.py') if i.endswith('util.py') else i) for i in cmd]
+    # cmd = [(os.path.abspath('util.py') if i.endswith('util.py') else i) for i in cmd]
     logging.info(f'Restart by {reason} with cmd:{subprocess.list2cmdline(cmd)}')
     TrayIcon().stop()
     if not exit_only:
@@ -445,7 +450,8 @@ class TrayIcon:
             self.icon = TrayIcon.icon
 
     def _create(self):
-        self.image = PIL.Image.open('httpserver.ico')
+        icon_fn = os.path.join(os.path.split(__file__)[0], 'httpserver.ico')
+        self.image = PIL.Image.open(icon_fn)
         items = []
         for item in TRAY_MENU:
             if item['show']:

@@ -9,15 +9,19 @@ import rlcompleter, readline
 
 readline.parse_and_bind("tab: complete")
 # Т.к. мы меняем текущую папку, то sys.argv[0] будет смотреть не туда, пользоваться можно только
-PLUGIN_PATH = os.path.split(os.path.abspath(sys.argv[0]))[0]
-ROOT_PATH = os.path.abspath(os.path.join(PLUGIN_PATH, '..'))
-STANDALONE_PATH = os.path.abspath(os.path.join(ROOT_PATH, '..'))
+# папка где плагины
+PLUGIN_PATH = os.path.abspath(os.path.split(__file__)[0])
+# Папка корня standalone версии на 2 уровня вверх (оно же settings.mbplugin_root_path)
+ROOT_PATH = os.path.abspath(os.path.join(PLUGIN_PATH, '..', '..'))
+STANDALONE_PATH = ROOT_PATH
+# папка где embedded python (только в windows)
 EMB_PYTHON_PATH = os.path.abspath(os.path.join(PLUGIN_PATH, os.path.join('..', 'python')))
 SYS_PATH_ORIGIN = sys.path[:]  # Оригинальное значение sys.path
+# TODO пробуем не фиксировать путь и не переходить по папкам
 # Fix sys.argv[0]
-sys.argv[0] = os.path.abspath(sys.argv[0])
+# sys.argv[0] = os.path.abspath(sys.argv[0])
 # Т.к. все остальные ожидают что мы находимся в папке plugin переходим в нее
-os.chdir(PLUGIN_PATH)
+# os.chdir(PLUGIN_PATH)
 try:
     import store
 except ModuleNotFoundError:
@@ -107,9 +111,9 @@ def clear_browser_cache(ctx):
     '''Очищаем кэш браузера'''
     name = 'clear_browser_cache'
     try:
-        [os.remove(fn) for fn in glob.glob(os.path.join(ROOT_PATH, 'store', 'p_*'))]
-        shutil.rmtree(os.path.join(ROOT_PATH, 'store', 'puppeteer'), ignore_errors=True)
-        shutil.rmtree(os.path.join(ROOT_PATH, 'store', 'headless'), ignore_errors=True)
+        [os.remove(fn) for fn in glob.glob(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'p_*'))]
+        shutil.rmtree(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'puppeteer'), ignore_errors=True)
+        shutil.rmtree(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'headless'), ignore_errors=True)
         click.echo(f'OK {name}')
     except Exception:
         click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')         
@@ -121,12 +125,12 @@ def recompile_dll(ctx):
     name = 'recompile_dll'
     if sys.platform == 'win32':
         try:
-            #os.system(f"{os.path.join(ROOT_PATH, 'dllsource', 'compile_all_p.bat')}")
+            #os.system(f"{os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile_all_p.bat')}")
             for fn in glob.glob('..\\plugin\\*.py'):
                 pluginname = f'p_{os.path.splitext(os.path.split(fn)[1])[0]}'
-                src = os.path.join(ROOT_PATH,'dllsource',pluginname+'.dll')
-                dst = os.path.join(ROOT_PATH,'dllplugin',pluginname+'.dll')
-                compile_bat = os.path.join(ROOT_PATH,'dllsource','compile.bat')
+                src = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', pluginname + '.dll')
+                dst = os.path.join(ROOT_PATH, 'mbplugin', 'dllplugin', pluginname + '.dll')
+                compile_bat = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile.bat')
                 if 'def get_balance(' in open(fn,encoding='utf8').read():
                     os.system(f'{compile_bat} {pluginname}')
                     shutil.move(src, dst)
@@ -175,11 +179,11 @@ def autostart_web_server(ctx, turn):
         try:
             import win32com.client
             shell = win32com.client.Dispatch('WScript.Shell')
-            lnk_path = os.path.join(ROOT_PATH, 'run_webserver.lnk')
+            lnk_path = os.path.join(ROOT_PATH, 'mbplugin', 'run_webserver.lnk')
             lnk_startup_path = f"{os.environ['APPDATA']}\\Microsoft\\Windows\\Start Menu\\Programs\\Startup"
             lnk_startup_full_name = f"{os.environ['APPDATA']}\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\run_webserver.lnk"
             shortcut = shell.CreateShortCut(lnk_path)
-            shortcut.Targetpath = os.path.abspath(os.path.join(ROOT_PATH, 'run_webserver.bat'))
+            shortcut.Targetpath = os.path.abspath(os.path.join(ROOT_PATH, 'mbplugin', 'run_webserver.bat'))
             shortcut.save()
             if turn == 'on':
                 if str(store.options('start_http', section='HttpServer')) == '1':
@@ -233,7 +237,7 @@ def check_jsmblh(ctx, plugin):
     import re,requests
     # Здесь не важно какой плагин мы берем, нам нужен только адрес с портом, а он у всех одинаковый
     # Можно было бы взять из ini, но мы заодно проверяем что в плагинах правильный url
-    path = os.path.join(ROOT_PATH, 'jsmblhplugin', 'p_test1_localweb.jsmb')
+    path = os.path.join(ROOT_PATH, 'mbplugin', 'jsmblhplugin', 'p_test1_localweb.jsmb')
     url = re.findall(r'(?usi)(http://127.0.0.1:.*?/)',open(path).read())[0]
     try:
         if plugin == 'simple':
@@ -303,11 +307,13 @@ def standalone_init(ctx):
             return
         ini=store.ini()
         ini.read()
+        # Убираем устаревшую секцию MobileBalance - она больше не используется
+        ini.ini.remove_section('MobileBalance')
         ini.ini['Options']['sqlitestore'] = '1'
         ini.ini['Options']['createhtmlreport'] = '1'
-        ini.ini['MobileBalance']['path'] = os.path.abspath(os.path.join('..','..'))
-        ini.ini['Options']['dbfilename'] = os.path.abspath(os.path.join('..','..','BalanceHistory.sqlite'))
-        ini.ini['Options']['balance_html'] = os.path.abspath(os.path.join('..','..','balance.html'))
+        if not os.path.exists(ini.ini['Options']['dbfilename']) or os.path.abspath(ini.ini['Options']['dbfilename']) == os.path.abspath('BalanceHistory.sqlite'):
+            ini.ini['Options']['dbfilename'] = 'BalanceHistory.sqlite'
+        ini.ini['Options']['balance_html'] = 'balance.html'
         ini.write()
         click.echo(f'OK {name}')
     except Exception:
@@ -338,7 +344,6 @@ def copy_all_from_mdb(ctx):
     store.turn_logging(logginglevel=logging.DEBUG)
     dbengine.update_sqlite_from_mdb(deep=10000)
 
-
 @cli.command()
 @click.pass_context
 def send_tgbalance(ctx):
@@ -359,7 +364,6 @@ def send_tgbalance_over_requests(ctx):
     # Balanse over requests
     import httpserver_mobile
     httpserver_mobile.send_telegram_over_requests()
-
 
 @cli.command()
 @click.argument('action', type=click.Choice(['hide', 'show'], case_sensitive=False), default='hide')
@@ -388,6 +392,17 @@ def check_ini(ctx):
     except Exception:
         click.echo(f'Fail {name}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
 
+@cli.command()
+@click.argument('plugin', type=str)
+@click.argument('login', type=str)
+@click.argument('password', type=str)
+@click.pass_context
+def check_plugin(ctx, plugin, login, password):
+    store.turn_logging() 
+    click.echo(f'{plugin} {login} {password}')
+    import httpserver_mobile
+    res = httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])
+    click.echo(f'res:\n{res}')
 
 
 if __name__ == '__main__':

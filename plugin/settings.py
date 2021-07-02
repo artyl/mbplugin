@@ -14,7 +14,9 @@ UNIT = {'TB': 1073741824, 'ТБ': 1073741824, 'TByte': 1073741824, 'TBYTE': 1073
 # имя ini файла
 mbplugin_ini = 'mbplugin.ini'
 # полный путь к корню где лежат ini файлы и база (пока используется в только в тестах)
-mbplugin_root_path = ''
+# Для standalone версии - это папка в которой по умолчанию находится mbplugin.ini, phones.ini,  база и папка mbplugin
+# По умолчанию вычисляем эту папку как папку на 2 уровня выше папки с этим скриптом
+mbplugin_root_path = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', '..'))
 
 # сюда пропишем сразу возможные варианты для путя хрома
 chrome_executable_path_alternate = [
@@ -28,9 +30,6 @@ chrome_executable_path_alternate = [
         ]
 ########################################################################################
 ini = {
-    'MobileBalance': {
-        'path_': {'descr':'Путь к папке с MobileBalance', 'type':'text', 'size':100, 'validate':lambda i:os.path.isdir(i)},
-    },
     'Options': {  # Раздел mbplugin.ini [Options]
         # logging
         # Формат лога
@@ -38,13 +37,13 @@ ini = {
         'loggingformat': u'[%(asctime)s] %(levelname)s %(funcName)s %(message)s',
         # папка для логов
         'loggingfolder_': {'descr': 'папка для логов', 'type':'text', 'validate':lambda i:os.path.isdir(i)},
-        'loggingfolder': os.path.join('..','log'), # ..\log
+        'loggingfolder': os.path.join('mbplugin','log'), # mbplugin\log
         # лог для ручного запуска и dll плагинов
         'loggingfilename_': {'descr':'лог для ручного запуска и dll плагинов', 'type':'text'},
-        'loggingfilename': os.path.join('..', 'log', 'mbplugin.log'), # ..\log\mbplugin.log
+        'loggingfilename': os.path.join('mbplugin', 'log', 'mbplugin.log'), # ..\log\mbplugin.log
         # лог http сервера и плагинов из него
         'logginghttpfilename_': {'descr':'лог http сервера и плагинов из него', 'type':'text'},
-        'logginghttpfilename': os.path.join('..', 'log', 'http.log'), # ..\log\http.log
+        'logginghttpfilename': os.path.join('mbplugin', 'log', 'http.log'), # ..\log\http.log
         # Уровень логгирования
         'logginglevel_': {'descr':'Уровень логгирования', 'type':'select', 'variants':'DEBUG INFO WARNING ERROR CRITICAL'},
         'logginglevel': 'INFO',
@@ -53,7 +52,7 @@ ini = {
         'logconsole': '0',
         # Папка для хранения сессий
         'storefolder_': {'descr':'Папка для хранения сессий', 'type':'text'},
-        'storefolder': os.path.join('..','store'), # ..\store
+        'storefolder': os.path.join('mbplugin','store'), # ..\store
         # Записывать результаты в sqlite БД
         'sqlitestore_': {'descr':'Записывать результаты в sqlite БД', 'type':'checkbox'},
         'sqlitestore': '0',
@@ -62,10 +61,10 @@ ini = {
         'createhtmlreport': '0',
         # путь к БД sqlite
         'dbfilename_': {'descr':'путь к БД sqlite', 'type':'text', 'size':100},
-        'dbfilename': os.path.join('..', 'BalanceHistory.sqlite'), # ..\BalanceHistory.sqlite
+        'dbfilename': os.path.join('BalanceHistory.sqlite'), # BalanceHistory.sqlite
         # путь к html файлу, который создается после получения баланса
         'balance_html_': {'descr':'путь к html файлу, который создается после получения баланса', 'type':'text', 'size':100},
-        'balance_html': os.path.join('..', 'DB', 'balance.html'), # ..\DB\balance.html
+        'balance_html': os.path.join('balance.html'), # balance.html
         # Обновлять SQLite базу данными из MDB
         'updatefrommdb_': {'descr':'Обновлять SQLite базу данными из MDB', 'type':'checkbox'},
         'updatefrommdb': 0,

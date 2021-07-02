@@ -3,8 +3,8 @@
 cd "%~dp0"
 
 if EXIST ..\plugin\util.py (
-    copy %~nx0 ..\..
-    cd ..\.. 
+    cd ..\..
+    copy mbplugin\standalone\%~nx0 .
     if not EXIST phones.ini copy mbplugin\standalone\phones.ini .
     mbplugin\python\python mbplugin\plugin\util.py standalone-init
     mbplugin\python\python mbplugin\plugin\util.py install-chromium

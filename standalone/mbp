@@ -2,6 +2,9 @@
 #ls env/bin/activate
 
 util_path=$(dirname $0)/../plugin/util.py
+root_path=$(realpath $(dirname $0))
+[ -f $util_path ] && root_path=$(realpath $(dirname $0)/../..)
+echo "root_path is $root_path"
 
 # if not use docker - remove dockervar
 if [ -f $util_path ] && [ "$1" = "" ]; then
@@ -41,12 +44,9 @@ fi
 # ../plugin/util.py exists go into installation mode
 if [ -f $util_path ]; then 
     echo "The file $(realpath $util_path) exist";
-    # cd -> mbplugin/standalone
-    cd $(dirname $0)
-    cp $(basename $0) ../..
-    # cd return to proj root (mbstandalone)
-    cd ../.. 
-    chmod +x $(basename $0)
+    cd $root_path
+    cp mbplugin/standalone/mbp .
+    chmod +x mbp
     [ ! -f phones.ini ] && cp mbplugin/standalone/phones.ini . 
     $DOCKER python mbplugin/plugin/util.py standalone-init
     $DOCKER python mbplugin/plugin/util.py install-chromium
@@ -57,11 +57,5 @@ if [ -f $util_path ]; then
     exit 0
 fi
 
-cd $(dirname $0)
+cd $root_path
 $DOCKER python mbplugin/plugin/util.py $*
-
-if [[ "$VIRTUAL_ENV" != "" ]]
-then
-  deactivate
-fi
-
