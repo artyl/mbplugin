@@ -126,7 +126,7 @@ git -C mbplugin reset
 ```
 Для обновления версии до текущего master выполните команды (если вы производили какие-то изменения, в скриптах в папке mbplugin то они могут быть потеряны)
 ```
-git -C mbplugin pull
+git -C mbplugin fetch
 git -C mbplugin checkout -f
 ```
 
