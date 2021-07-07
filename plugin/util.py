@@ -252,7 +252,7 @@ def stop_web_server(ctx):
 def reload_schedule(ctx):
     'Перечитывает расписание запросов баланса'
     name = 'reload_schedule'
-    http_command(cmd='reload_schedule')
+    res = http_command(cmd='reload_schedule')
     click.echo(f'OK {name}\n{res}')
 
 @cli.command()
@@ -379,10 +379,10 @@ def copy_all_from_mdb(ctx):
 def send_tgbalance(ctx):
     'Отправка баланса TG через API веб сервера'
     # Sendtgbalance
-    http_command(cmd='sendtgbalance')
+    res = http_command(cmd='sendtgbalance')
     click.echo(res)
     # Subscription
-    http_command(cmd='sendtgsubscriptions')
+    res = http_command(cmd='sendtgsubscriptions')
     click.echo(res)
 
 @cli.command()
@@ -431,6 +431,30 @@ def check_plugin(ctx, plugin, login, password):
     import httpserver_mobile
     res = httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])
     click.echo(f'res:\n{res}')
+
+@cli.command()
+@click.option('--force', is_flag=True, help='С заменой измененых файлов')
+@click.pass_context
+def git_update(ctx, force):
+    'Обновление mbplugin из https://github.com/artyl/mbplugin если репозиторий не установлен устанавливаем'
+    import httpserver_mobile
+    #breakpoint()
+    if os.path.isdir('mbplugin') and not os.path.isdir(os.path.join('mbplugin', '.git')):
+        os.system('git clone --bare https://github.com/artyl/mbplugin.git mbplugin/.git')
+        os.system('git -C mbplugin config --local --bool core.bare false')
+        os.system('git -C mbplugin add .')
+        os.system('git -C mbplugin reset')
+    os.system('git -C mbplugin pull')
+    os.system(f'git -C mbplugin checkout {"-f" if force else ""}')
+    '''
+    
+    git -C mbplugin config --local --bool core.bare false 
+    git -C mbplugin add .
+    git -C mbplugin reset
+    Для обновления версии до текущего master выполните команды (если вы производили какие-то изменения, в скриптах в папке mbplugin то они могут быть потеряны)
+    git -C mbplugin pull
+    git -C mbplugin checkout -f
+'''   
 
 
 if __name__ == '__main__':
