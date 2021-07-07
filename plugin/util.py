@@ -434,19 +434,28 @@ def check_plugin(ctx, plugin, login, password):
 
 @cli.command()
 @click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
+@click.argument('branch', nargs=1, help='Ветка на которую переключаемся')
 @click.pass_context
-def git_update(ctx, force):
+def git_update(ctx, force, branch):
     'Обновление mbplugin из https://github.com/artyl/mbplugin если репозиторий не установлен устанавливаем'
-    import httpserver_mobile
-    #breakpoint()
     # TODO проверить наличие git в системе
+    if os.system('git --version') > 0:
+        click.echo('git not found')
+        return
+    if len(branch) > 2:
+        click.echo('Use not more 1 phrases for branch')
+        return
+    branch_name = 'dev_playwright'
+    if len(branch) ==1:
+        branch_name = branch[0]
+
     if os.path.isdir('mbplugin') and not os.path.isdir(os.path.join('mbplugin', '.git')):
         os.system(f'git clone --bare https://github.com/artyl/mbplugin.git mbplugin/.git')
         os.system(f'git -C mbplugin config --local --bool core.bare false')
         os.system(f'git -C mbplugin add .')
         os.system(f'git -C mbplugin reset')
     os.system(f'git -C mbplugin fetch')
-    os.system(f'git -C mbplugin checkout {"-f" if force else ""} dev_playwright')
+    os.system(f'git -C mbplugin checkout {"-f" if force else ""} {branch_name}')
 
 if __name__ == '__main__':
     cli(obj={})
