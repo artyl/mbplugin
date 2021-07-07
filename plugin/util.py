@@ -459,6 +459,7 @@ def git_update(ctx, force, branch):
         os.system(f'git -C mbplugin config --local --bool core.bare false')
     os.system(f'git -C mbplugin fetch --all --prune')
     os.system(f'git -C mbplugin checkout {"-f" if force else ""} -t remotes/origin/{branch_name}')
+    os.system(f'git -C mbplugin checkout {"-f" if force else ""} {branch_name}')
 
 if __name__ == '__main__':
     cli(obj={})

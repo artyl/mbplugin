@@ -111,7 +111,7 @@ Password2 = 123password
 Установка из git
 ```
 git clone https://github.com/artyl/mbplugin  
-# пока у нас ветка так что переключаемся в нее
+# пока у нас dev ветка так что переключаемся в нее
 git -C mbplugin checkout -t remotes/origin/dev_playwright
 git -C mbplugin checkout dev_playwright
 ```
@@ -128,8 +128,9 @@ git -C mbplugin reset
 ```
 Для обновления версии до текущего master выполните команды (если вы производили какие-то изменения, в скриптах в папке mbplugin то они могут быть потеряны)
 ```
-git -C mbplugin fetch
-git -C mbplugin checkout -f
+git -C mbplugin fetch --all 
+git -C mbplugin checkout -t remotes/origin/dev_playwright
+git -C mbplugin checkout -f dev_playwright
 ```
 
 ## Для инфо
