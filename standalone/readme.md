@@ -120,7 +120,9 @@ git -C mbplugin checkout dev_playwright
 Если вы устанавливали из архива, то необходимо добавить репозиторий к папке mbplugin:
 ```
 git clone --bare https://github.com/artyl/mbplugin.git mbplugin/.git
+git -C mbplugin config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*
 git -C mbplugin config --local --bool core.bare false 
+git -C mbplugin fetch --all
 git -C mbplugin add .
 git -C mbplugin reset
 ```
