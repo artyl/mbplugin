@@ -446,10 +446,7 @@ def git_update(ctx, force):
         os.system('git -C mbplugin add .')
         os.system('git -C mbplugin reset')
     os.system('git -C mbplugin pull')
-    os.system(f'git -C mbplugin checkout {"-f" if force else ""}')
-    os.system('git -C mbplugin checkout dev_playwright')
-    os.system(f'git -C mbplugin checkout {"-f" if force else ""}')
-
+    os.system('git -C mbplugin checkout {"-f" if force else ""} dev_playwright')
 
 if __name__ == '__main__':
     cli(obj={})
