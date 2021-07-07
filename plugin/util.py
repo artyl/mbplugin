@@ -433,12 +433,13 @@ def check_plugin(ctx, plugin, login, password):
     click.echo(f'res:\n{res}')
 
 @cli.command()
-@click.option('--force', is_flag=True, help='С заменой измененых файлов')
+@click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
 @click.pass_context
 def git_update(ctx, force):
     'Обновление mbplugin из https://github.com/artyl/mbplugin если репозиторий не установлен устанавливаем'
     import httpserver_mobile
     #breakpoint()
+    # TODO проверить наличие git в системе
     if os.path.isdir('mbplugin') and not os.path.isdir(os.path.join('mbplugin', '.git')):
         os.system('git clone --bare https://github.com/artyl/mbplugin.git mbplugin/.git')
         os.system('git -C mbplugin config --local --bool core.bare false')
@@ -446,15 +447,8 @@ def git_update(ctx, force):
         os.system('git -C mbplugin reset')
     os.system('git -C mbplugin pull')
     os.system(f'git -C mbplugin checkout {"-f" if force else ""}')
-    '''
-    
-    git -C mbplugin config --local --bool core.bare false 
-    git -C mbplugin add .
-    git -C mbplugin reset
-    Для обновления версии до текущего master выполните команды (если вы производили какие-то изменения, в скриптах в папке mbplugin то они могут быть потеряны)
-    git -C mbplugin pull
-    git -C mbplugin checkout -f
-'''   
+    os.system('git -C mbplugin checkout dev_playwright')
+    os.system(f'git -C mbplugin checkout {"-f" if force else ""}')
 
 
 if __name__ == '__main__':
