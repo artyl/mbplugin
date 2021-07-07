@@ -434,10 +434,11 @@ def check_plugin(ctx, plugin, login, password):
 
 @cli.command()
 @click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
-@click.argument('branch', nargs=1, help='Ветка на которую переключаемся')
+@click.argument('branch', nargs=-1)
 @click.pass_context
 def git_update(ctx, force, branch):
-    'Обновление mbplugin из https://github.com/artyl/mbplugin если репозиторий не установлен устанавливаем'
+    '''Обновление mbplugin из https://github.com/artyl/mbplugin если репозиторий не установлен устанавливаем
+    При желании можно явно указать комит/тэг/ветку на которую переключаемся'''
     # TODO проверить наличие git в системе
     if os.system('git --version') > 0:
         click.echo('git not found')
