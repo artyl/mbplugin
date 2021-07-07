@@ -441,12 +441,12 @@ def git_update(ctx, force):
     #breakpoint()
     # TODO проверить наличие git в системе
     if os.path.isdir('mbplugin') and not os.path.isdir(os.path.join('mbplugin', '.git')):
-        os.system('git clone --bare https://github.com/artyl/mbplugin.git mbplugin/.git')
-        os.system('git -C mbplugin config --local --bool core.bare false')
-        os.system('git -C mbplugin add .')
-        os.system('git -C mbplugin reset')
-    os.system('git -C mbplugin fetch')
-    os.system('git -C mbplugin checkout {"-f" if force else ""} dev_playwright')
+        os.system(f'git clone --bare https://github.com/artyl/mbplugin.git mbplugin/.git')
+        os.system(f'git -C mbplugin config --local --bool core.bare false')
+        os.system(f'git -C mbplugin add .')
+        os.system(f'git -C mbplugin reset')
+    os.system(f'git -C mbplugin fetch')
+    os.system(f'git -C mbplugin checkout {"-f" if force else ""} dev_playwright')
 
 if __name__ == '__main__':
     cli(obj={})
