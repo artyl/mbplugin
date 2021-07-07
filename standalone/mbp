@@ -31,12 +31,12 @@ if [ "$DOCKER" != "" ] && [ "$1" = "run-web-server" ]; then
 fi
 
 pythonver=$(python -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
-if [ "$pythonver" -lt "38" ] && [ -f env/bin/activate ] && [ ! -f dockervar ]; then 
+if [ ! -f dockervar ] && [ "$pythonver" -lt "38" ] && [ -f env/bin/activate ] ; then 
     . env/bin/activate
 fi
 
 pythonver=$(python -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
-if [ "$pythonver" -lt "38" ] && [ ! -f dockervar ]; then
+if [ ! -f dockervar ] && [ "$pythonver" -lt "38" ] ; then
     echo "This script requires python 3.8 or greater, you have $pythonver"
     exit 1
 fi
