@@ -446,7 +446,7 @@ def git_update(ctx, force, branch):
     if len(branch) > 2:
         click.echo('Use not more 1 phrases for branch')
         return
-    branch_name = 'latest'
+    branch_name = 'dev_playwright'  # TODO после переключения в master поменять на master и закомитить последнюю версию с master в ветку dev_playwright
     if len(branch) ==1:
         branch_name = branch[0]
     if re.match('\A0\.99.(\d+)\.?\d?\Z', branch) and int(re.search('\A0\.99.(\d+)\.?\d*\Z', branch).groups()[0])>32:
@@ -466,6 +466,15 @@ def git_update(ctx, force, branch):
     os.system(f'git -C mbplugin fetch --all --prune')
     os.system(f'git -C mbplugin stash')
     os.system(f'git -C mbplugin checkout {"-f" if force else ""} {branch_name}')
+
+@cli.command()
+@click.argument('args', nargs=-1)
+@click.pass_context
+def bash(ctx, args):
+    if sys.platform == 'win32':
+        os.system(f'cmd {" ".join(args)}')
+    else:
+        os.system(f'bash {" ".join(args)}')
 
 if __name__ == '__main__':
     cli(obj={})

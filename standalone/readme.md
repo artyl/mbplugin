@@ -90,8 +90,8 @@ sh mbplugin/standalone/mbp
 ```
 git clone https://github.com/artyl/mbplugin  
 # пока у нас dev ветка так что переключаемся в нее
-git -C mbplugin checkout -t remotes/origin/latest
-git -C mbplugin checkout latest
+git -C mbplugin checkout -t remotes/origin/master
+git -C mbplugin checkout master
 ```
 На windows необходимо также либо выполнить установку python `mbplugin\python\get_python.bat` либо распаковать из архива папку mbplugin\python поверх существующей  
 Если вы устанавливали из архива, то необходимо добавить репозиторий к папке mbplugin:
