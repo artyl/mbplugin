@@ -243,6 +243,22 @@ def run_web_server(ctx):
 
 @cli.command()
 @click.pass_context
+def web_control(ctx):
+    'Открываем страницу управления mbplugin (если запущен веб сервер)'
+    name = 'web_control'
+    if sys.platform == 'win32':
+        start_cmd = 'start'
+    elif sys.platform == 'linux':
+        start_cmd = 'xdg-open'
+    elif sys.platform == 'darwin':
+        start_cmd = 'open'        
+    else:
+        click.echo(f'Unknown platform {sys.platform}')
+    os.system(f'{start_cmd} http://localhost:{store.options("port", section="HttpServer")}/main')
+    
+
+@cli.command()
+@click.pass_context
 def restart_web_server(ctx):
     'Останавливает web сервер'
     name = 'stop_web_server'
