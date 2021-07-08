@@ -475,6 +475,7 @@ def git_update(ctx, force, branch):
         return
     os.system(f'git -C mbplugin fetch --all --prune')
     os.system(f'git -C mbplugin stash')
+    os.system(f'git -C mbplugin pull')
     os.system(f'git -C mbplugin checkout {"-f" if force else ""} {branch_name}')
 
 @cli.command()
