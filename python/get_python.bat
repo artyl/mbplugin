@@ -22,9 +22,12 @@ if not exist Scripts\pip.exe python get-pip.py
 ..\python\python -c "txt='''import os,sys\nsys.path.insert(0,os.path.abspath(os.path.split(sys.argv[0])[0]))''';open('sitecustomize.py','w').write(txt)"
 
 @REM Ќаход€сь mbplugin\python выполнить 
-..\python\python -m pip install --upgrade python-telegram-bot requests pillow beautifulsoup4 pyodbc pyreadline pywin32 pyppeteer psutil pystray playwright schedule click
+@REM ..\python\python -m pip install --upgrade python-telegram-bot requests pillow beautifulsoup4 pyodbc pyreadline pywin32 pyppeteer psutil pystray playwright schedule click
+@REM ..\python\python -m pip freeze >..\docker\requirements_win.txt
+..\python\python -m pip install -r ..\docker\requirements_win.txt
 
 @REM   сожалению не нашел вмен€емой инструкции по установке tkinter только переложить из установленного python
+@REM ¬добавок тема с tkinter нигде пока не полетела, так что на насто€щий момент не особенно от в принципе и нужен
 @rem https://stackoverflow.com/questions/37710205/python-embeddable-zip-install-tkinter
 
 

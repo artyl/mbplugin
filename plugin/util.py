@@ -446,10 +446,13 @@ def git_update(ctx, force, branch):
     if len(branch) > 2:
         click.echo('Use not more 1 phrases for branch')
         return
-    branch_name = 'dev_playwright'
+    branch_name = 'latest'
     if len(branch) ==1:
         branch_name = branch[0]
-
+    if re.match('\A0\.99.(\d+)\.?\d?\Z', branch) and int(re.search('\A0\.99.(\d+)\.?\d*\Z', branch).groups()[0])>32:
+        # В старые версии где еще нет mbp переключаться нельзя обратно уже тем же путем будет не вернуться
+        click.echo('Switch to this version broke mbp')
+        return
     if os.path.isdir('mbplugin') and not os.path.isdir(os.path.join('mbplugin', '.git')):
         os.system(f'git clone --bare https://github.com/artyl/mbplugin.git mbplugin/.git')
         os.system(f'git -C mbplugin config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*')
@@ -457,8 +460,11 @@ def git_update(ctx, force, branch):
         os.system(f'git -C mbplugin branch -D master')
         os.system(f'git -C mbplugin branch -D dev')
         os.system(f'git -C mbplugin config --local --bool core.bare false')
+    if not os.path.isdir(os.path.join('mbplugin', '.git')):
+        click.echo(f"{os.path.join('mbplugin', '.git')} is not folder")
+        return
     os.system(f'git -C mbplugin fetch --all --prune')
-    os.system(f'git -C mbplugin checkout {"-f" if force else ""} -t remotes/origin/{branch_name}')
+    os.system(f'git -C mbplugin stash')
     os.system(f'git -C mbplugin checkout {"-f" if force else ""} {branch_name}')
 
 if __name__ == '__main__':
