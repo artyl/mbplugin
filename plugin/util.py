@@ -112,7 +112,17 @@ def install_chromium(ctx):
         subprocess.check_call([sys.executable, '-m', 'playwright', 'install', 'chromium'])
         click.echo(f'OK {name}')
     except Exception:
-        click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')          
+        click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
+
+@cli.command()
+@click.pass_context
+def pip_update(ctx):
+    '''Обновляем пакеты по requirements.txt или requirements_win.txt '''
+    if sys.platform == 'win32':
+        os.system(f'"{sys.executable}" -m pip install -r {os.path.join("mbplugin","docker","requirements_win.txt")}')
+    else:
+        os.system(f'"{sys.executable}" -m pip install -r {os.path.join("mbplugin","docker","requirements.txt")}')
+         
 
 @cli.command()
 @click.pass_context
