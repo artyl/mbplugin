@@ -367,7 +367,7 @@ def get_balance(ctx, only_failed, filter):
     'Получение балансов, можно указать only_failed, тогда будут запрошены только те где последняя попытка была неудачной'
     import httpserver_mobile
     #breakpoint()
-    httpserver_mobile.detbalance_standalone(filter=filter,only_failed=only_failed)
+    httpserver_mobile.getbalance_standalone(filter=filter,only_failed=only_failed)
 
 @cli.command()
 @click.pass_context

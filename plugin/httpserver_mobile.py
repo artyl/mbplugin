@@ -35,13 +35,14 @@ TRAY_MENU = (
     {'text':"View report", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/report'), 'show':True},
     {'text':"Edit config", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/editcfg'), 'show':str(store.options('HttpConfigEdit')) == '1'},
     {'text':"View log", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log?lines=40'), 'show':True},
+    {'text':"Get balance request", 'cmd':lambda:threading.Thread(target=getbalance_standalone, name='Getbalance', daemon=True).start(), 'show':True},
     {'text':"Flush log", 'cmd':lambda:store.logging_restart(), 'show':True},
     {'text':"Recompile jsmblh plugin",'cmd':lambda:compile_all_jsmblh.recompile(), 'show':True},
     {'text':"Restart server", 'cmd':lambda:restart_program(reason='tray icon command'), 'show':True},
     {'text':"Exit program", 'cmd':lambda:restart_program(reason='Tray icon exit', exit_only=True), 'show':True}
 )
 
-def detbalance_standalone(filter=[], only_failed=False, feedback=None) :
+def getbalance_standalone(filter=[], only_failed=False, feedback=None) :
     ''' Получаем балансы самостоятельно без mobilebalance 
     Если filter пустой то по всем номерам из phones.ini
     Если не пустой - то логин/алиас/оператор или его часть
@@ -53,7 +54,7 @@ def detbalance_standalone(filter=[], only_failed=False, feedback=None) :
     feedback - если не None - то это функция, которая умеет выдавать статус на экран
     '''
     store.turn_logging(httplog=True)  # Т.к. сюда можем придти извне, то включаем логирование здесь
-    logging.info(f'detbalance_standalone: filter={filter}')
+    logging.info(f'getbalance_standalone: filter={filter}')
     phones = store.ini('phones.ini').phones()
     queue_balance = []  # Очередь телефонов на получение баланса
     for val in phones.values():
@@ -64,7 +65,7 @@ def detbalance_standalone(filter=[], only_failed=False, feedback=None) :
                 if not only_failed or only_failed and str(dbengine.flags('get',keypair)).startswith('error'):
                     # Формируем очередь на получение балансов и размечаем балансы из очереди в таблице flags чтобы красить их по другому
                     queue_balance.append(val)
-                    logging.info(f'detbalance_standalone queued: {keypair}')
+                    logging.info(f'getbalance_standalone queued: {keypair}')
                     dbengine.flags('set',f'{keypair}','queue')  # выставляем флаг о постановке в очередь
     if feedback is not None:
         feedback(f'Queued {len(queue_balance)} numbers')
@@ -511,7 +512,7 @@ class Scheduler():
             filter = schedule_str.split(',')[1:]
             job = self.validate(sched)
             if job is not None:
-                job.do(detbalance_standalone, filter=filter)
+                job.do(getbalance_standalone, filter=filter)
         return 'OK'
     
     def view_html(self):
@@ -575,7 +576,7 @@ class TelegramBot():
         logging.info(f'TG:{update.message.chat_id} /receivebalance {context.args}')
         #baltxt = prepare_balance('FULL')
         update.message.reply_text('Request received. Wait...', parse_mode=telegram.ParseMode.HTML)
-        detbalance_standalone(filter=context.args)
+        getbalance_standalone(filter=context.args)
         params = {'include': None if context.args == [] else ','.join(context.args)}
         baltxt = prepare_balance('FULL', params=params)
         update.message.reply_text(baltxt, parse_mode=telegram.ParseMode.HTML)
@@ -594,7 +595,7 @@ class TelegramBot():
                 logging.info(f'Unsuccess tg send:{txt} {"".join(traceback.format_exception(*sys.exc_info()))}')
         filtertext = '' if len(context.args)==0 else f", with filter by {' '.join(context.args)}"
         msg = update.message.reply_text(f'Request all number{filtertext}. Wait...', parse_mode=telegram.ParseMode.HTML)
-        detbalance_standalone(filter=context.args, only_failed=(update.message.text=="/receivebalancefailed"), feedback=feedback)
+        getbalance_standalone(filter=context.args, only_failed=(update.message.text=="/receivebalancefailed"), feedback=feedback)
         params = {'include': None if context.args == [] else ','.join(context.args)}
         baltxt = prepare_balance('FULL', params=params)
         msg.edit_text(baltxt, parse_mode=telegram.ParseMode.HTML)
@@ -628,8 +629,9 @@ class TelegramBot():
             return
         logging.info(f'TG:reply /getone to {update.effective_chat.id} CHOISE:{context}')
         query.edit_message_text('Request received. Wait...', parse_mode=telegram.ParseMode.HTML)
+        # ключом для calback у нас <3 буквы
         if cmd.lower() == 'che':  # /checkone - получаем баланс /getone - показываем
-            detbalance_standalone(filter=[f'__{keypair}__'])  # приходится добавлять попчеркивания чтобы исключить попадание по части строки
+            getbalance_standalone(filter=[f'__{keypair}__'])  # приходится добавлять попчеркивания чтобы исключить попадание по части строки
         params = {'include': f'__{keypair}__'}
         baltxt = prepare_balance('FULL', params=params)
         query.edit_message_text(baltxt, parse_mode=telegram.ParseMode.HTML)
@@ -929,6 +931,10 @@ class WebServer():
             elif cmd.lower() == 'editcfg':  # вариант через get запрос
                 if str(store.options('HttpConfigEdit')) == '1':
                     ct, text, status, add_headers = self.editor(environ)
+            elif cmd == 'getbalance_standalone':  # start balance request
+                # TODO подумать над передачей параметров в fetch - filter=filter,only_failed=only_failed
+                res = getbalance_standalone()
+                ct, text = 'text/html; charset=cp1251', ['OK']                    
             elif cmd == 'flushlog':  # Start new log
                 store.logging_restart()
                 ct, text = 'text/html; charset=cp1251', ['OK']
