@@ -447,9 +447,9 @@ def git_update(ctx, force, branch):
         click.echo('Use not more 1 phrases for branch')
         return
     branch_name = 'dev_playwright'  # TODO после переключения в master поменять на master и закомитить последнюю версию с master в ветку dev_playwright
-    if len(branch) ==1:
+    if len(branch) == 1:
         branch_name = branch[0]
-    if re.match('\A0\.99.(\d+)\.?\d?\Z', branch) and int(re.search('\A0\.99.(\d+)\.?\d*\Z', branch).groups()[0])>32:
+    if re.match('\A0\.99.(\d+)\.?\d?\Z', branch_name) and int(re.search('\A0\.99.(\d+)\.?\d*\Z', branch_name).groups()[0])>32:
         # В старые версии где еще нет mbp переключаться нельзя обратно уже тем же путем будет не вернуться
         click.echo('Switch to this version broke mbp')
         return
