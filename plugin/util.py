@@ -3,7 +3,7 @@
 для того чтобы не писать утилиты два раза для windows и linux все переносим сюда, а 
 непосредственно в bat и sh скриптах оставляем вызов этого скрипта
 '''
-import os, sys, re, time, subprocess, shutil, glob, traceback, logging
+import os, sys, re, time, subprocess, shutil, glob, traceback, logging, importlib
 import click, requests
 import rlcompleter, readline
 
@@ -177,7 +177,7 @@ def recompile_jsmblh(ctx):
 @click.pass_context
 def check_import(ctx):
     'Проверяем что все модули импортируются'
-    name = 'check_import'
+    name = 'check-import'
     try:
         import telegram, requests, PIL, bs4, readline, psutil, playwright, schedule
         if sys.platform == 'win32':
@@ -185,6 +185,22 @@ def check_import(ctx):
     except ModuleNotFoundError:
         click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
         return
+    click.echo(f'OK {name}')
+
+@cli.command()
+@click.pass_context
+def web_control(ctx):
+    'Открываем страницу управления mbplugin (если запущен веб сервер)'
+    name = 'web-control'
+    if sys.platform == 'win32':
+        start_cmd = 'start'
+    elif sys.platform == 'linux':
+        start_cmd = 'xdg-open'
+    elif sys.platform == 'darwin':
+        start_cmd = 'open'        
+    else:
+        click.echo(f'Unknown platform {sys.platform}')
+    os.system(f'{start_cmd} http://localhost:{store.options("port", section="HttpServer")}/main')
     click.echo(f'OK {name}')
 
 @cli.command()
@@ -196,7 +212,7 @@ def autostart_web_server(ctx, turn):
     off - убираем из автозапуска
     для отключения в ini дайте команду mbp set ini\HttpServer\start_http=0
     '''
-    name = 'autostart_web_server'
+    name = 'autostart-web-server'
     if sys.platform == 'win32':
         try:
             import win32com.client
@@ -223,16 +239,17 @@ def autostart_web_server(ctx, turn):
             click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')                
     else:
         click.echo('On windows platform only')
-
+    
 @cli.command()
 @click.pass_context
 def run_web_server(ctx):
     'Запуск web сервера'
-    name = 'run_web_server'
+    name = 'run-web-server'
     try:
         if sys.platform == 'win32':
             lnk_path = os.path.join(ROOT_PATH, 'mbplugin', 'run_webserver.bat')
             os.system(f'"{lnk_path}"')
+            click.echo(f'OK {name}')
         else:
             import httpserver_mobile
             httpserver_mobile.WebServer()
@@ -243,25 +260,9 @@ def run_web_server(ctx):
 
 @cli.command()
 @click.pass_context
-def web_control(ctx):
-    'Открываем страницу управления mbplugin (если запущен веб сервер)'
-    name = 'web_control'
-    if sys.platform == 'win32':
-        start_cmd = 'start'
-    elif sys.platform == 'linux':
-        start_cmd = 'xdg-open'
-    elif sys.platform == 'darwin':
-        start_cmd = 'open'        
-    else:
-        click.echo(f'Unknown platform {sys.platform}')
-    os.system(f'{start_cmd} http://localhost:{store.options("port", section="HttpServer")}/main')
-    
-
-@cli.command()
-@click.pass_context
 def restart_web_server(ctx):
     'Останавливает web сервер'
-    name = 'stop_web_server'
+    name = 'restart-web-server'
     http_command(cmd='restart')
     click.echo(f'OK {name}')
 
@@ -269,7 +270,7 @@ def restart_web_server(ctx):
 @click.pass_context
 def stop_web_server(ctx):
     'Останавливает web сервер'
-    name = 'stop_web_server'
+    name = 'stop-web-server'
     http_command(cmd='exit')
     click.echo(f'OK {name}')
 
@@ -277,7 +278,7 @@ def stop_web_server(ctx):
 @click.pass_context
 def reload_schedule(ctx):
     'Перечитывает расписание запросов баланса'
-    name = 'reload_schedule'
+    name = 'reload-schedule'
     res = http_command(cmd='reload_schedule')
     click.echo(f'OK {name}\n{res}')
 
@@ -310,7 +311,7 @@ def check_jsmblh(ctx, plugin):
 @click.pass_context
 def check_dll(ctx):
     'Проверяем что все работает DLL PLUGIN'
-    name = 'check_dll'
+    name = 'check-dll'
     #call plugin\test_mbplugin_dll_call.bat p_test1 123 456 
     if sys.platform == 'win32':
         try:
@@ -333,7 +334,7 @@ def check_dll(ctx):
 @click.pass_context
 def check_playwright(ctx):
     'Проверяем что playwright работает'
-    name = 'check_playwright'
+    name = 'check-playwright'
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
@@ -352,7 +353,7 @@ def standalone_init(ctx):
     '''Инициализация можно втором параметром указать noweb тогда вебсервер не будет запускаться и помещаться в автозапуск
     Если в mbplugin.ini пути не правильные то прописывает абсолютные пути к тем файлам, которые лежат в текущей папке 
     '''
-    name = 'standalone_init'
+    name = 'standalone-init'
     try:
         # Если лежит mobilebalance - не работаем, а то только запутаем всех
         if os.path.exists(os.path.join(STANDALONE_PATH, 'MobileBalance.exe')):
@@ -381,60 +382,71 @@ def standalone_init(ctx):
 @click.pass_context
 def get_balance(ctx, only_failed, filter):
     'Получение балансов, можно указать only_failed, тогда будут запрошены только те где последняя попытка была неудачной'
+    name = 'get-balance'
     import httpserver_mobile
     #breakpoint()
-    httpserver_mobile.getbalance_standalone(filter=filter,only_failed=only_failed)
+    res = httpserver_mobile.getbalance_standalone(filter=filter,only_failed=only_failed)
+    click.echo(f'OK {name}\n{res}')
 
 @cli.command()
 @click.pass_context
 def refresh_balance_html(ctx):
     'Обновить balance.html'
+    name = 'refresh-balance-html'
     import httpserver_mobile
-    httpserver_mobile.write_report()
+    res = httpserver_mobile.write_report()
+    click.echo(f'OK {name}\n{res}')
 
 @cli.command()
 @click.pass_context
 def copy_all_from_mdb(ctx):
     'копировать все данные из mdb'
+    name = 'copy-all-from-mdb'
     import dbengine
     store.turn_logging(logginglevel=logging.DEBUG)
-    dbengine.update_sqlite_from_mdb(deep=10000)
+    res = dbengine.update_sqlite_from_mdb(deep=10000)
+    click.echo(f'OK {name}\n{res}')
 
 @cli.command()
 @click.pass_context
 def send_tgbalance(ctx):
     'Отправка баланса TG через API веб сервера'
+    name = 'send-tgbalance'
     # Sendtgbalance
-    res = http_command(cmd='sendtgbalance')
+    res1 = http_command(cmd='sendtgbalance')
     click.echo(res)
     # Subscription
-    res = http_command(cmd='sendtgsubscriptions')
-    click.echo(res)
+    res2 = http_command(cmd='sendtgsubscriptions')
+    click.echo(f'OK {name}\nSendtgbalance: {res1}\nSubscription: {res2}')
 
 @cli.command()
 @click.pass_context
 def send_tgbalance_over_requests(ctx):
+    name = 'send_tgbalance_over_requests'
     'Отправка баланса TG чистым requests без использования web сервера'
     # Balanse over requests
     import httpserver_mobile
     httpserver_mobile.send_telegram_over_requests()
+    click.echo(f'OK {name}')
 
 @cli.command()
 @click.argument('action', type=click.Choice(['hide', 'show'], case_sensitive=False), default='hide')
 @click.pass_context
 def show_chrome(ctx, action):
     'Показывает спрятанный crome. Работает только на windows, и только при headless_chrome = 0, если chrome запущен в режиме headless то его показать нельзя'
+    name = 'show-chrome'
     import browsercontroller
     if sys.platform == 'win32':
         browsercontroller.hide_chrome(hide=(action == 'hide'))
+        click.echo(f'OK {name}')
     else:
-        click.echo('On windows platform only')    
+        click.echo(f'{name}:On windows platform only')    
 
 @cli.command()
 @click.pass_context
 def check_ini(ctx):
     'Проверка INI на корректность'
-    name = 'check_ini'
+    name = 'check-ini'
     # Проверку сделаю позже, пока ее нет
     try:
         ini=store.ini()
@@ -447,16 +459,34 @@ def check_ini(ctx):
         click.echo(f'Fail {name}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
 
 @cli.command()
+@click.option('-b', '--bpoint', type=int)
 @click.argument('plugin', type=str)
 @click.argument('login', type=str)
 @click.argument('password', type=str)
 @click.pass_context
-def check_plugin(ctx, plugin, login, password):
+def check_plugin(ctx, bpoint, plugin, login, password):
+    'Проверка работы плагина по заданному логину и паролю'
+    name = 'check-plugin'
     store.turn_logging() 
     click.echo(f'{plugin} {login} {password}')
     import httpserver_mobile
-    res = httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])
-    click.echo(f'res:\n{res}')
+    if bpoint:
+        import pdb
+        pdbpdb = pdb.Pdb()
+        lang = 'p'
+        plugin = plugin.split('_', 1)[1]  # plugin это все что после p_
+        module = __import__(plugin, globals(), locals(), [], 0)
+        importlib.reload(module)  # обновляем модуль, на случай если он менялся
+        storename = re.sub(r'\W', '_', f"{lang}_{plugin}_{login}")
+        pdbpdb.set_break(module.__file__, bpoint)
+        #module.get_balance(login,  password, storename)
+        _ = login,  password, storename  # dummy linter - use in pdbpdb.run
+        res = pdbpdb.run("module.get_balance(login,  password, storename)", globals(), locals())
+        #res = exec("httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])", globals(), locals())
+        #breakpoint()
+    else:
+        res = httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])
+    click.echo(f'{name}:\n{res}')
 
 @cli.command()
 @click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
@@ -465,6 +495,7 @@ def check_plugin(ctx, plugin, login, password):
 def git_update(ctx, force, branch):
     '''Обновление mbplugin из https://github.com/artyl/mbplugin если репозиторий не установлен устанавливаем
     При желании можно явно указать комит/тэг/ветку на которую переключаемся'''
+    name = 'git-update'
     # TODO проверить наличие git в системе
     if os.system('git --version') > 0:
         click.echo('git not found')
@@ -493,15 +524,19 @@ def git_update(ctx, force, branch):
     os.system(f'git -C mbplugin stash')
     os.system(f'git -C mbplugin pull')
     os.system(f'git -C mbplugin checkout {"-f" if force else ""} {branch_name}')
+    click.echo(f'OK {name}')
 
 @cli.command()
 @click.argument('args', nargs=-1)
 @click.pass_context
 def bash(ctx, args):
+    'Запуск консоли с окружением для mbplugin - удобно в docker и venv'
+    name = 'bash'
     if sys.platform == 'win32':
         os.system(f'cmd {" ".join(args)}')
     else:
         os.system(f'bash {" ".join(args)}')
+    click.echo(f'OK {name}')
 
 if __name__ == '__main__':
     cli(obj={})
