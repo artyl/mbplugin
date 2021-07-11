@@ -423,8 +423,9 @@ class BalanceOverPlaywright():
     @check_browser_opened_decorator
     @safe_run_with_log_decorator    
     def page_click(self, selector, *args, **kwargs):
-        ''' переносим вызов click в класс для того чтобы каждый раз не указывать page'''
-        if selector != '':
+        ''' переносим вызов click в класс для того чтобы каждый раз не указывать page
+        Кликаем только если элемент есть'''
+        if selector != '' and self.page.query_selector(selector):
             return self.page.click(selector, *args, **kwargs)            
 
     def launch_browser(self, launch_func):

@@ -20,6 +20,9 @@ user_selectors = {
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
+        # Выключаем банеры если есть
+        self.page_click("button:has-text('Отключить на странице')") # Skip
+        self.page_click("div[role='document'] path") # Нажимаем на крестик
         # Сначала из файла gate_lkcomu?action=sql&query=LSList& получаем id_service по номеру лицевого счета
         res1 = self.wait_params(params=[{
             'name': '#id_services',
