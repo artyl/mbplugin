@@ -79,9 +79,9 @@ class browserengine(browsercontroller.BrowserController):
                 logging.error(f'Не найден баланс')
                 #raise RuntimeError(f'Не найден баланс')
 
-        import pprint
-        text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k,v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
-        open('..\\log\\mosenergosbyt.log','w').write(text)
+        #import pprint
+        #text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k,v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
+        #open('..\\log\\mosenergosbyt.log','w').write(text)
         
             
 
