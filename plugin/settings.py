@@ -245,6 +245,7 @@ main_html=r'''
 <a href=log>View log</a><br>
 <button onclick="fetch('getbalance_standalone').then(function(response) {return response})">Get balance request</button><br>
 <button onclick="fetch('flushlog').then(function(response) {return response})">Flush log</button><br>
+<button onclick="fetch('reload_schedule').then(function(response) {return response})">Reload schedule</button><br>
 <button onclick="fetch('recompile').then(function(response) {return response})">Recompile jsmblh plugin</button><br>
 <button onclick="fetch('restart').then(function(response) {return response})">Restart web server</button><br>
 <button onclick="fetch('exit').then(function(response) {return response})">Exit web server</button><br>

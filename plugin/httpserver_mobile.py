@@ -37,6 +37,7 @@ TRAY_MENU = (
     {'text':"View log", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log?lines=40'), 'show':True},
     {'text':"Get balance request", 'cmd':lambda:threading.Thread(target=getbalance_standalone, name='Getbalance', daemon=True).start(), 'show':True},
     {'text':"Flush log", 'cmd':lambda:store.logging_restart(), 'show':True},
+    {'text':"Reload schedule", 'cmd':lambda:Scheduler().reload(), 'show':True},
     {'text':"Recompile jsmblh plugin",'cmd':lambda:compile_all_jsmblh.recompile(), 'show':True},
     {'text':"Restart server", 'cmd':lambda:restart_program(reason='tray icon command'), 'show':True},
     {'text':"Exit program", 'cmd':lambda:restart_program(reason='Tray icon exit', exit_only=True), 'show':True}
@@ -513,6 +514,7 @@ class Scheduler():
             job = self.validate(sched)
             if job is not None:
                 job.do(getbalance_standalone, filter=filter)
+        logging.info('Schedule was reloaded')
         return 'OK'
     
     def view_html(self):
