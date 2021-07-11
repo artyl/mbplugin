@@ -527,6 +527,45 @@ def git_update(ctx, force, branch):
     click.echo(f'OK {name}')
 
 @cli.command()
+@click.pass_context
+def db_tables(ctx):
+    'Запуск запроса к БД SQLite'
+    name = 'db-tables'
+    if store.options('sqlitestore') == '1':
+        import dbengine
+        db = dbengine.dbengine(store.options('dbfilename'))
+        query1 = "SELECT name FROM sqlite_master WHERE type='table'"
+        dbdata = db.cur.execute(query1).fetchall()
+        for line in dbdata:
+            tbl = line[0]
+            cnt = db.cur.execute(f"select count(*) from {tbl}").fetchall()[0][0]
+            print(f'{tbl} {cnt}') 
+
+@cli.command()
+@click.argument('query', nargs=1)
+@click.pass_context
+def db_query(ctx, query):
+    'Запуск запроса к БД SQLite'
+    name = 'db-query'
+    if store.options('sqlitestore') == '1':
+        import dbengine
+
+        dbfilename = store.options('dbfilename')
+        db = dbengine.dbengine(dbfilename)
+        cur = db.cur.execute(query)
+        if cur.description is not None:
+            description = cur.description
+            dbheaders = list(zip(*cur.description))[0]
+            dbdata = cur.fetchall()
+            res = [list(dbheaders)] + [i for i in dbdata]
+            for line in res:
+                print('\t'.join(map(str,line)))
+        if cur.rowcount >= 0:
+            print(f'{cur.rowcount} line affected')
+        db.conn.commit()
+    click.echo(f'OK {name}')
+
+@cli.command()
 @click.argument('args', nargs=-1)
 @click.pass_context
 def bash(ctx, args):
