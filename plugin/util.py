@@ -145,7 +145,7 @@ def recompile_dll(ctx):
     if sys.platform == 'win32':
         try:
             #os.system(f"{os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile_all_p.bat')}")
-            for fn in glob.glob('..\\plugin\\*.py'):
+            for fn in glob.glob('mbplugin\\plugin\\*.py'):
                 pluginname = f'p_{os.path.splitext(os.path.split(fn)[1])[0]}'
                 src = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', pluginname + '.dll')
                 dst = os.path.join(ROOT_PATH, 'mbplugin', 'dllplugin', pluginname + '.dll')
@@ -349,28 +349,30 @@ def check_playwright(ctx):
 
 @cli.command()
 @click.pass_context
-def standalone_init(ctx):
+def init(ctx):
     '''Инициализация можно втором параметром указать noweb тогда вебсервер не будет запускаться и помещаться в автозапуск
     Если в mbplugin.ini пути не правильные то прописывает абсолютные пути к тем файлам, которые лежат в текущей папке 
     '''
-    name = 'standalone-init'
+    name = 'init'
     try:
-        # Если лежит mobilebalance - не работаем, а то только запутаем всех
-        if os.path.exists(os.path.join(STANDALONE_PATH, 'MobileBalance.exe')):
-            click.echo(f'The folder {STANDALONE_PATH} must not contain a file mobilebalance.exe')
-            return
         if not os.path.exists(os.path.join(STANDALONE_PATH, 'phones.ini')):
             click.echo(f'The folder {STANDALONE_PATH} must contain a file phones.ini')
             return
         ini=store.ini()
         ini.read()
-        # Убираем устаревшую секцию MobileBalance - она больше не используется
-        ini.ini.remove_section('MobileBalance')
-        ini.ini['Options']['sqlitestore'] = '1'
-        ini.ini['Options']['createhtmlreport'] = '1'
-        if not os.path.exists(ini.ini['Options']['dbfilename']) or os.path.abspath(ini.ini['Options']['dbfilename']) == os.path.abspath('BalanceHistory.sqlite'):
+        # TODO пока для совместимости НЕ Убираем устаревшую секцию MobileBalance - она больше не используется
+        # ini.ini.remove_section('MobileBalance')
+        # Если лежит mobilebalance - отрабатываем обычный, а не автономный конфиг
+        if os.path.exists(os.path.join(STANDALONE_PATH, 'MobileBalance.exe')):
+            #click.echo(f'The folder {STANDALONE_PATH} must not contain a file mobilebalance.exe')
+            # Запись SQLITE и создание report точно включаем если рядом нет mobilebalance.exe, иначе это остается на выбор пользователя
+            ini.ini['Options']['sqlitestore'] = '1'
+            ini.ini['Options']['createhtmlreport'] = '1'
+        # TODO пока для совместимости ini со старой версией оставляем путь как есть если если он абсолютный и файл по нему есть
+        if not(os.path.abspath(ini.ini['Options']['dbfilename']) == os.path.abspath('BalanceHistory.sqlite') and os.path.exists(ini.ini['Options']['dbfilename'])):
             ini.ini['Options']['dbfilename'] = 'BalanceHistory.sqlite'
-        ini.ini['Options']['balance_html'] = 'balance.html'
+        if not (os.path.abspath(ini.ini['Options']['balance_html']) == os.path.abspath('balance.html') and os.path.exists(ini.ini['Options']['balance_html'])):
+            ini.ini['Options']['balance_html'] = 'balance.html'
         ini.write()
         click.echo(f'OK {name}')
     except Exception:

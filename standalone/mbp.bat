@@ -6,7 +6,7 @@ if EXIST ..\plugin\util.py (
     cd ..\..
     copy mbplugin\standalone\%~nx0 .
     if not EXIST phones.ini copy mbplugin\standalone\phones.ini .
-    mbplugin\python\python mbplugin\plugin\util.py standalone-init
+    mbplugin\python\python mbplugin\plugin\util.py init
     mbplugin\python\python mbplugin\plugin\util.py pip-update
     mbplugin\python\python mbplugin\plugin\util.py install-chromium
     mbplugin\python\python mbplugin\plugin\util.py check-import

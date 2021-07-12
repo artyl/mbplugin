@@ -17,6 +17,11 @@ if [ -f $util_path ] && [ "$1" = "docker" ]; then
         exit 1
     fi
     echo 'DOCKER="docker run --rm -it -v $PWD:/mbstandalone mbplugin "' > dockervar
+    echo 'DOCKER_WEB="docker run --name mbplugin -it -v $PWD:/mbstandalone -p 127.0.0.1:19777:19777 mbplugin "' >> dockervar
+    echo 'DOCKER_EXEC="docker exec -it mbplugin "' >> dockervar
+    # if ! docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null; then ... ; fi
+    # docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && echo "RUN"
+
     # Build image for playwright
     docker build --tag mbplugin mbplugin/docker
     # -p 127.0.0.1:19777:19777
@@ -26,7 +31,8 @@ fi
 
 # port mapping for docker only for run-web-server
 if [ "$DOCKER" != "" ] && [ "$1" = "run-web-server" ]; then
-    DOCKER=${DOCKER/ mbplugin/ -p 127.0.0.1:19777:19777 mbplugin}
+    #DOCKER=${DOCKER/ mbplugin/ -p 127.0.0.1:19777:19777 mbplugin}
+    DOCKER=$DOCKER_WEB
     echo $DOCKER
 fi
 
@@ -48,7 +54,7 @@ if [ -f $util_path ]; then
     cp mbplugin/standalone/mbp .
     chmod +x mbp
     [ ! -f phones.ini ] && cp mbplugin/standalone/phones.ini . 
-    $DOCKER python mbplugin/plugin/util.py standalone-init
+    $DOCKER python mbplugin/plugin/util.py init
     $DOCKER python mbplugin/plugin/util.py pip-update
     $DOCKER python mbplugin/plugin/util.py install-chromium
     $DOCKER python mbplugin/plugin/util.py check-import
