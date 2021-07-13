@@ -109,15 +109,15 @@ def hide_chrome(hide=True, foreground=False):
 @safe_run_decorator
 def kill_chrome():
     '''Киляем дебажный хром если вдруг какой-то висит, т.к. народ умудряется запускать не только хром, то имя exe возьмем из пути '''
-    chrome_executable_path = store.options('chrome_executable_path')
-    pname = os.path.split(chrome_executable_path)[-1].lower()
+    # TODO получилось как-то сложно пока убиваем то что начинается на chrome и имеет remote-debugging-port в cmdline
+    pname = 'chrome'  # chrome or chrome.exe # os.path.split(chrome_executable_path)[-1].lower()
     # TODO в сложном случае когда мы запускаем встроенный у нас может получиться что имя exe которое мы берем из chrome_executable_path
     # не совпадет с тем что мы реально запускаем, тогда мы можем не достать запущенные хромы
     # с другой стороны playwright вроде все корректно прибивает
     # но по правильному имя браузера мы должны взять из self.sync_pw.chromium.executable_path
     for p in psutil.process_iter():
         try:
-            if p.name().lower()==pname and 'remote-debugging-port' in ''.join(p.cmdline()):
+            if p.name().lower().startswith(pname) and 'remote-debugging-port' in ''.join(p.cmdline()):
                 p.kill()    
         except Exception:
             pass
@@ -249,13 +249,6 @@ class BalanceOverPlaywright():
         else:
             self.user_data_dir = os.path.abspath(os.path.join(self.storefolder, 'puppeteer'))
             self.launch_config_args.append(f"--profile-directory={self.profile_directory}")
-        self.chrome_executable_path = store.options('chrome_executable_path')
-        if store.options('use_builtin_browser').strip() == '0' and not os.path.exists(self.chrome_executable_path):
-            chrome_paths = [p for p in settings.chrome_executable_path_alternate if os.path.exists(p)]
-            if len(chrome_paths) == 0:
-                logging.error('Chrome.exe not found')
-                raise RuntimeError(f'Chrome.exe not found')
-            self.chrome_executable_path = chrome_paths[0]
         self.launch_config = {
             'headless': self.headless,
         }
@@ -319,10 +312,10 @@ class BalanceOverPlaywright():
         try:
             return self.page.evaluate(eval_string, args)
         except Exception:
-            exception_text = f'Ошибка в page_wait_for:{"".join(traceback.format_exception(*sys.exc_info()))}'
+            exception_text = f'Ошибка в page_evaluate:{"".join(traceback.format_exception(*sys.exc_info()))}'
             if 'Execution context was destroyed' not in exception_text:
                 logging.info(exception_text)
-            raise
+                raise
 
 
     def page_check_response_url(self, response_url):
@@ -436,10 +429,17 @@ class BalanceOverPlaywright():
             'args': self.launch_config_args,
             })
         if store.options('use_builtin_browser').strip() == '0':
-            self.launch_config.update({'executable_path': self.chrome_executable_path,})            
-            logging.info(f'Launch chrome from {self.chrome_executable_path}')
+            self.chrome_executable_path = store.options('chrome_executable_path')
+            if not os.path.exists(self.chrome_executable_path):
+                chrome_paths = [p for p in settings.chrome_executable_path_alternate if os.path.exists(p)]
+                if len(chrome_paths) == 0:
+                    logging.error('Chrome.exe not found')
+                    raise RuntimeError(f'Chrome.exe not found')
+                self.chrome_executable_path = chrome_paths[0]
+            self.launch_config.update({'executable_path': self.chrome_executable_path,})
         else:
-            logging.info(f'Launch chrome from {self.sync_pw.chromium.executable_path}')
+            self.chrome_executable_path = self.sync_pw.chromium.executable_path
+        logging.info(f'Launch chrome from {self.chrome_executable_path}')
         if store.options('proxy_server').strip() != '':
             self.launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}') 
         # playwright: launch_func = self.sync_pw.chromium.launch_persistent_context
@@ -672,6 +672,10 @@ class BalanceOverPlaywright():
     def main(self, run='normal'):
         logging.info(f"browserengine=Playwright")
         from playwright.sync_api import sync_playwright
+        if sys.platform != 'win32' and not self.launch_config.get('headless', True):
+            os.system('pgrep Xvfb || Xvfb :99 -screen 0 1920x1080x24 &')            
+            os.system('export DISPLAY=:99')  # On linux and headless:False use Xvfb
+            os.environ['DISPLAY']=':99'
         with sync_playwright() as self.sync_pw:
             self.launch_browser(self.sync_pw.chromium.launch_persistent_context)
             if run == 'normal':
