@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
 import asyncio, time, re, json, subprocess, logging, shutil, os, sys, traceback, importlib
-try:
-    import win32gui, win32process
-except:
-    print('No win32 installed, no fake-headless mode')
+if sys.platform == 'win32':
+    try:
+        import win32gui, win32process
+    except:
+        print('No win32 installed, no fake-headless mode')
 import psutil
 import pyppeteer  # PYthon puPPETEER
 #import pprint; pp = pprint.PrettyPrinter(indent=4).pprint

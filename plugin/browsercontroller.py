@@ -2,12 +2,13 @@
 pyppiteradd останется для совместимости со старыми плагинами через async
 '''
 import asyncio, glob, json, logging, os, re, shutil, subprocess, sys, time, traceback
-try:
-    import win32gui, win32process
-except:
-    print('No win32 installed, no fake-headless mode')
+if sys.platform == 'win32':
+    try:
+        import win32gui, win32process
+    except:
+        print('No win32 installed, no fake-headless mode')
 import psutil
-import pyppeteeradd
+#import pyppeteeradd
 #import pprint; pp = pprint.PrettyPrinter(indent=4).pprint
 import store, settings
 
@@ -113,7 +114,7 @@ def kill_chrome():
     # TODO в сложном случае когда мы запускаем встроенный у нас может получиться что имя exe которое мы берем из chrome_executable_path
     # не совпадет с тем что мы реально запускаем, тогда мы можем не достать запущенные хромы
     # с другой стороны playwright вроде все корректно прибивает
-    # но по правильномы имя браузера мы должны взять из self.sync_pw.chromium.executable_path
+    # но по правильному имя браузера мы должны взять из self.sync_pw.chromium.executable_path
     for p in psutil.process_iter():
         try:
             if p.name().lower()==pname and 'remote-debugging-port' in ''.join(p.cmdline()):
@@ -429,7 +430,6 @@ class BalanceOverPlaywright():
             return self.page.click(selector, *args, **kwargs)            
 
     def launch_browser(self, launch_func):
-        logging.info(f'Launch chrome from {self.chrome_executable_path}')
         self.launch_config.update({
             'user_data_dir': self.user_data_dir,
             'ignore_https_errors': True,
@@ -437,8 +437,12 @@ class BalanceOverPlaywright():
             })
         if store.options('use_builtin_browser').strip() == '0':
             self.launch_config.update({'executable_path': self.chrome_executable_path,})            
+            logging.info(f'Launch chrome from {self.chrome_executable_path}')
+        else:
+            logging.info(f'Launch chrome from {self.sync_pw.chromium.executable_path}')
         if store.options('proxy_server').strip() != '':
             self.launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}') 
+        # playwright: launch_func = self.sync_pw.chromium.launch_persistent_context
         self.browser = launch_func(**self.launch_config) # sync_pw.chromium.launch_persistent_context
         if self.hide_chrome_flag:
             hide_chrome()
@@ -690,10 +694,10 @@ class BalanceOverPlaywright():
 class BrowserController(BalanceOverPlaywright):
     pass
 
-class BrowserControllerPP(pyppeteeradd.BalanceOverPyppeteer):
-    pass
-
+#class BrowserControllerPP(pyppeteeradd.BalanceOverPyppeteer):
+#    pass
+#
 # TODO в будущем этот код для переключения на движок pyppeteer будет удален
-if store.options('browserengine').upper()[:2] in ('PY', 'PU'):  # 'PYPPETEER'
-    pyppeteeradd.check_pyppiteer_lib_bug()
-    BrowserController = BrowserControllerPP
+#if store.options('browserengine').upper()[:2] in ('PY', 'PU'):  # 'PYPPETEER'
+#    pyppeteeradd.check_pyppiteer_lib_bug()
+#    BrowserController = BrowserControllerPP

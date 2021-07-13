@@ -17,7 +17,8 @@ if [ -f $util_path ] && [ "$1" = "docker" ]; then
         exit 1
     fi
     echo 'DOCKER="docker run --rm -it -v $PWD:/mbstandalone mbplugin "' > dockervar
-    echo 'DOCKER_WEB="docker run --name mbplugin -it -v $PWD:/mbstandalone -p 127.0.0.1:19777:19777 mbplugin "' >> dockervar
+    echo 'DOCKER_STD="docker run --rm -it -v $PWD:/mbstandalone mbplugin "' >> dockervar
+    echo 'DOCKER_WEB="docker run --name mbplugin -d -v $PWD:/mbstandalone -p 127.0.0.1:19777:19777 mbplugin "' >> dockervar
     echo 'DOCKER_EXEC="docker exec -it mbplugin "' >> dockervar
     # if ! docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null; then ... ; fi
     # docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && echo "RUN"
@@ -27,13 +28,19 @@ if [ -f $util_path ] && [ "$1" = "docker" ]; then
     # -p 127.0.0.1:19777:19777
 fi
 
+# if exist dockervar - set DOCKER variables
 [ -f dockervar ] && . ./dockervar 
+# if mbplugin container is running use docker exec instead docker run 
+docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && DOCKER=$DOCKER_EXEC
 
 # port mapping for docker only for run-web-server
 if [ "$DOCKER" != "" ] && [ "$1" = "run-web-server" ]; then
     #DOCKER=${DOCKER/ mbplugin/ -p 127.0.0.1:19777:19777 mbplugin}
+    echo "$DOCKER_STD python mbplugin/plugin/util.py set ini/HttpServer/host=0.0.0.0"
+    $DOCKER_STD python mbplugin/plugin/util.py set ini/HttpServer/host=0.0.0.0
+    docker ps    --format '{{.Names}}' | grep -w mbplugin &> /dev/null && docker stop mbplugin
+    docker ps -a --format '{{.Names}}' | grep -w mbplugin &> /dev/null && docker rm   mbplugin
     DOCKER=$DOCKER_WEB
-    echo $DOCKER
 fi
 
 pythonver=$(python -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
@@ -54,15 +61,17 @@ if [ -f $util_path ]; then
     cp mbplugin/standalone/mbp .
     chmod +x mbp
     [ ! -f phones.ini ] && cp mbplugin/standalone/phones.ini . 
-    $DOCKER python mbplugin/plugin/util.py init
-    $DOCKER python mbplugin/plugin/util.py pip-update
-    $DOCKER python mbplugin/plugin/util.py install-chromium
-    $DOCKER python mbplugin/plugin/util.py check-import
-    $DOCKER python mbplugin/plugin/util.py check-ini
-    $DOCKER python mbplugin/plugin/util.py clear-browser-cache
-    $DOCKER python mbplugin/plugin/util.py check-playwright
+    [ -f dockervar ] && echo $DOCKER 
+    $DOCKER_STD python mbplugin/plugin/util.py init
+    $DOCKER_STD python mbplugin/plugin/util.py pip-update
+    $DOCKER_STD python mbplugin/plugin/util.py install-chromium
+    $DOCKER_STD python mbplugin/plugin/util.py check-import
+    $DOCKER_STD python mbplugin/plugin/util.py check-ini
+    $DOCKER_STD python mbplugin/plugin/util.py clear-browser-cache
+    $DOCKER_STD python mbplugin/plugin/util.py check-playwright
     exit 0
 fi
 
 cd $root_path
+[ -f dockervar ] && echo $DOCKER python mbplugin/plugin/util.py $*
 $DOCKER python mbplugin/plugin/util.py $*

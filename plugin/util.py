@@ -363,7 +363,7 @@ def init(ctx):
         # TODO пока для совместимости НЕ Убираем устаревшую секцию MobileBalance - она больше не используется
         # ini.ini.remove_section('MobileBalance')
         # Если лежит mobilebalance - отрабатываем обычный, а не автономный конфиг
-        if os.path.exists(os.path.join(STANDALONE_PATH, 'MobileBalance.exe')):
+        if not os.path.exists(os.path.join(STANDALONE_PATH, 'MobileBalance.exe')):
             #click.echo(f'The folder {STANDALONE_PATH} must not contain a file mobilebalance.exe')
             # Запись SQLITE и создание report точно включаем если рядом нет mobilebalance.exe, иначе это остается на выбор пользователя
             ini.ini['Options']['sqlitestore'] = '1'
@@ -416,7 +416,6 @@ def send_tgbalance(ctx):
     name = 'send-tgbalance'
     # Sendtgbalance
     res1 = http_command(cmd='sendtgbalance')
-    click.echo(res)
     # Subscription
     res2 = http_command(cmd='sendtgsubscriptions')
     click.echo(f'OK {name}\nSendtgbalance: {res1}\nSubscription: {res2}')
