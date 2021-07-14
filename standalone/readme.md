@@ -130,10 +130,10 @@ schedule2 = every().day.at("10:30"),123456
 `mbp list-phone`
 ### Добавить номер
 Чтобы добавить номер нужно не указывая порядковый номер указать обязательно оператора, логин и пароль  
-`mbp.bat change-phone -pl p_test2 -l 9161234567 -p SuPeR_PaSsW0Rd`
+`mbp change-phone -pl p_test1 -l 9161234567 -p SuPeR_PaSsW0Rd`
 ### Изменить информацию по номеру
 Поменять alias у второго номера
-`mbp.bat change-phone -n 2 -a "Петрович Гадя"`
+`mbp change-phone -n 2 -a "Петрович Гадя"`
 ### Удалить номер
 Например удалить номер с порядковым номером 3  
 `mbp change-phone --delete -n 3`

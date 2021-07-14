@@ -549,6 +549,9 @@ def list_phone(ctx):
 def change_phone(ctx, num, delete, plugin, monitor, alias, login, password):
     'Добавить или изменить или удалить номер в phones.ini'
     name = 'change-phone'
+    if str(store.options('phone_ini_save')) == '0':
+        click.echo('Work with phone.ini from mbp not allowed (turn phone_ini_save=1 in mbplugin.ini)')
+        return
     cmd = "DELETE" if delete else ("CHANGE" if num>0 else "CREATE")
     click.echo(f'{cmd}')
     click.echo(f'num:{num} alias:{alias}, plugin:{plugin}, monitor:{monitor}, login:{login}, password:{password}')
