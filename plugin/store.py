@@ -8,6 +8,13 @@ def session_folder(storename):
     storefolder = options('storefolder')     
     os.path.join(storefolder, storename)
 
+def abspath_join(*argv):
+    'собираем в путь все переданные куски, если получившийся не абсолютный, то приделываем к нему путь до корня'
+    path = os.path.join(*argv)
+    if not os.path.isabs(path):
+        path = os.path.abspath(os.path.join(settings.mbplugin_root_path, path))
+    return path
+
 class Session():
     'Класс для сессии с дополнительными фишками для сохранения и проверки'
     def __init__(self, storename, headers=None):
@@ -107,13 +114,13 @@ class ini():
         'Все пути считаются относительными папки где лежит сам mbplugin.ini, если не указано иное'
         self.ini = configparser.ConfigParser()
         self.fn = fn
-        self.inipath = os.path.abspath(os.path.join(settings.mbplugin_root_path, self.fn))
+        self.inipath = abspath_join(settings.mbplugin_root_path, self.fn)
             
     def find_files_up(self, fn):
         'Ищем файл вверх по дереву путей'
         'Для тестов можно явно указать папку с mbplugin.ini в settings.mbplugin_root_path '
         # TODO пока оставили чтобы не ломать тесты, потом уберем 
-        return os.path.abspath(os.path.join(settings.mbplugin_root_path, fn))
+        return abspath_join(settings.mbplugin_root_path, fn)
         
     def read(self):
         'Читаем ini из файла'
@@ -125,10 +132,11 @@ class ini():
                 with open(self.inipath) as f_ini:
                     prep1 = re.sub(r'(?usi)\[Phone\] #(\d+)', r'[\1]', f_ini.read())
                 # TODO костыль N1, мы подменяем p_pluginLH на p_plugin чтобы при переключении плагина не разъезжались данные
-                prep2 = re.sub(r'(?usi)(Region\s*=\s*p_\S+)LH', r'\1', prep1)
+                prep2 = re.sub(r'(?usi)(Region)(\s*=\s*p_\S+)(LH)', r'\1\2\n\1_orig\2\3', prep1)
                 # TODO костыль N2, у Number то что идет в конце вида <пробел>#<цифры> это не относиться к логину а 
                 # сделано для уникальности логинов - выкидываем, оно нас только сбивает - мы работаем по паре Region_Number
-                prep3 = re.sub(r'(?usi)(Number\s*=\s*\S+) #\d+', r'\1', prep2)
+                # Первоначальное значение сохраняется в Phone_orig и Region_orig
+                prep3 = re.sub(r'(?usi)(Number)(\s*=\s*\S+)( #\d+)', r'\1\2\n\1_orig\2\3', prep2)
                 self.ini.read_string(prep3)
             else:
                 self.ini.read(self.inipath)
@@ -145,7 +153,7 @@ class ini():
         'Только создаем в памяти, но не записываем'
         # Создаем mbplugin.ini - он нам нужен для настроек и чтобы знать где ini-шники от mobilebalance
         # mbpath = self.find_files_up('phones.ini')
-        mbpath = os.path.abspath(os.path.join(settings.mbplugin_root_path, 'phones.ini'))
+        mbpath = abspath_join(settings.mbplugin_root_path, 'phones.ini')
         if not os.path.exists(mbpath):
             # Если нашли mobilebalance - cоздадим mbplugin.ini и sqlite базу там же где и ini-шники mobilebalance
             print(f'Not found phones.ini in {settings.mbplugin_root_path}')
@@ -156,7 +164,7 @@ class ini():
                           'sqlitestore': settings.ini['Options']['sqlitestore'],
                           'dbfilename': dbpath,
                           'createhtmlreport': settings.ini['Options']['createhtmlreport'],
-                          'balance_html': os.path.abspath(settings.ini['Options']['balance_html']),
+                          'balance_html': abspath_join(settings.ini['Options']['balance_html']),
                           'updatefrommdb': settings.ini['Options']['updatefrommdb'],
                           'updatefrommdbdeep': settings.ini['Options']['updatefrommdbdeep'],
                           }
@@ -170,7 +178,7 @@ class ini():
         if not os.path.exists(self.inipath): # Сохраняем bak, только если файл есть
             return
         # Делаем резервную копию ini перед сохранением
-        undozipname = os.path.join(options('storefolder'), 'mbplugin.ini.bak.zip')
+        undozipname = abspath_join(options('storefolder'), 'mbplugin.ini.bak.zip')
         arc = []
         if os.path.exists(undozipname):
             # Предварительно читаем сохраненные варианты, открываем на чтение
@@ -194,15 +202,33 @@ class ini():
         os.rename(undozipname+"~tmp", undozipname) # Переименовываем временный на место первоначального
 
     def write(self):
-        'Сохраняем только mbplugin.ini для остальных - игнорим'
-        if self.fn.lower() != settings.mbplugin_ini:
+        '''Сохраняем только mbplugin.ini и phones.ini для остальных - игнорим
+        phones.ini всегда сохраняем в phones.ini, без phones_add.ini, если есть phones_add.ini не работаем 
+        '''
+        def ini_write_to_string(ini: configparser.ConfigParser) -> str:
+            sf = io.StringIO()
+            ini.write(sf)
+            return sf.getvalue()
+        if not (self.fn.lower() == settings.mbplugin_ini or self.fn.lower() == 'phones.ini' and str(options('phone_ini_save')) =='1'):
             return  # only mbplugin.ini
-        sf = io.StringIO()
-        self.ini.write(sf)
-        raw = sf.getvalue().splitlines()  # инишник без комментариев
+        data = ini_write_to_string(self.ini)
+        if self.fn.lower() == 'phones.ini': # для phones.ini отдельно приседаем
+            t_ini = configparser.ConfigParser()  # Делаем копию ini чтобы не портить загруженный оригинал
+            t_ini.read_string(data)
+            for sec in t_ini.sections():  # number_orig -> number, region_orig -> region
+                for key in t_ini[sec]: 
+                    if key+'_orig' in t_ini[sec]:
+                        t_ini[sec][key] = t_ini[sec][key+'_orig']
+                        del t_ini[sec][key+'_orig']
+            data = re.sub(r'(?m)^\[(\d+)\]$', r'[Phone] #\1', ini_write_to_string(t_ini))  # [36] -> [Phone] #36
+            for key in 'Region,Monitor,Alias,Number,Password,mdOperation,mdConstant,PauseBeforeRequest,ShowInBallon,BalanceNotChangedMoreThen,BalanceChangedLessThen,BalanceLessThen,TurnOffLessThen,Password2'.split(','):
+                data = data.replace(f'{key.lower()} =', f'{key:20} =')
+            #print(data)
+            #return
+        raw = data.splitlines()  # инишник без комментариев (прогнали через честное сохранение)
         if os.path.exists(self.inipath):  # Если файл ini на диске есть сверяем с предыдущей версией
             self.save_bak()
-            # TODO если сохраняем коменты:
+            # TODO если сохраняем коменты (коменты попадут куда надо если меняем не больше одной строчки за раз):
             with open(self.inipath, encoding='cp1251') as f_ini_r:
                 for num,line in enumerate(f_ini_r.read().splitlines()):
                     if line.startswith(';'):

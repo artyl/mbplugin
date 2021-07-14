@@ -125,7 +125,7 @@ def kill_chrome():
 @safe_run_decorator
 def fix_crash_banner(storefolder, storename):
     'Исправляем Preferences чтобы убрать баннер Работа Chrome была завершена некорректно'
-    fn_pref = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename, 'Preferences'))
+    fn_pref = store.abspath_join(storefolder, 'puppeteer', storename, 'Preferences')
     if not os.path.exists(fn_pref):
         return  # Нет Preferences - выходим
     with open(fn_pref) as f:
@@ -139,7 +139,7 @@ def fix_crash_banner(storefolder, storename):
 def clear_cache(storefolder, storename):
     'Очищаем папку с кэшем профиля чтобы не разрастался'
     #return  # С такой очисткой оказывается связаны наши проблемы с загрузкой
-    profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))  
+    profilepath = store.abspath_join(storefolder, 'puppeteer', storename) 
     shutil.rmtree(os.path.join(profilepath, 'Cache'), ignore_errors=True)
     shutil.rmtree(os.path.join(profilepath, 'Code Cache'), ignore_errors=True)
     shutil.rmtree(os.path.join(profilepath, 'Service Worker', 'CacheStorage'), ignore_errors=True)
@@ -245,9 +245,9 @@ class BalanceOverPlaywright():
             "--window-size=800,900"]
         if self.headless:
             # В Headless chrome не работают профили, всегда попадает в Default
-            self.user_data_dir = os.path.abspath(os.path.join(self.storefolder, 'headless', self.profile_directory))
+            self.user_data_dir = store.abspath_join(self.storefolder, 'headless', self.profile_directory)
         else:
-            self.user_data_dir = os.path.abspath(os.path.join(self.storefolder, 'puppeteer'))
+            self.user_data_dir = store.abspath_join(self.storefolder, 'puppeteer')
             self.launch_config_args.append(f"--profile-directory={self.profile_directory}")
         self.launch_config = {
             'headless': self.headless,

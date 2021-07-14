@@ -164,6 +164,9 @@ ini = {
         # css для hover
         'hovercss_': {'descr':'css для hover (всплывающего окна)', 'type':'text', 'size':200},
         'hovercss': 'display: block;position: fixed;top: 0; height: 100vh; overflow: auto',
+        # Разрешение сохранять phone.ini из скриптов 0 - запрещено 1 - разрешено.
+        'phone_ini_save_': {'descr':'Пропускает каждые n дней в отчете', 'type':'checkbox'},
+        'phone_ini_save': '0',
         # Разрешить изменения в конфиге через http сервер config edit (пока до конца не реализовано)
         # Внимание, при сохранении все параметры будут в нижнем регистре, коментарии будут сохранены
         'httpconfigedit_': {'descr':'Включить редактор конфига', 'type':'checkbox'},

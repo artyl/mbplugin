@@ -365,9 +365,10 @@ def init(ctx):
         # Если лежит mobilebalance - отрабатываем обычный, а не автономный конфиг
         if not os.path.exists(os.path.join(STANDALONE_PATH, 'MobileBalance.exe')):
             #click.echo(f'The folder {STANDALONE_PATH} must not contain a file mobilebalance.exe')
-            # Запись SQLITE и создание report точно включаем если рядом нет mobilebalance.exe, иначе это остается на выбор пользователя
+            # Запись SQLITE, создание report и работу с phone.ini из скриптов точно включаем если рядом нет mobilebalance.exe, иначе это остается на выбор пользователя
             ini.ini['Options']['sqlitestore'] = '1'
             ini.ini['Options']['createhtmlreport'] = '1'
+            ini.ini['Options']['phone_ini_save'] = '1'
         # TODO пока для совместимости ini со старой версией оставляем путь как есть если если он абсолютный и файл по нему есть
         if not(os.path.abspath(ini.ini['Options']['dbfilename']) == os.path.abspath('BalanceHistory.sqlite') and os.path.exists(ini.ini['Options']['dbfilename'])):
             ini.ini['Options']['dbfilename'] = 'BalanceHistory.sqlite'
@@ -526,6 +527,76 @@ def git_update(ctx, force, branch):
     os.system(f'git -C mbplugin pull')
     os.system(f'git -C mbplugin checkout {"-f" if force else ""} {branch_name}')
     click.echo(f'OK {name}')
+
+@cli.command()
+@click.pass_context
+def list_phone(ctx):
+    phones = store.ini('phones.ini')
+    phones.read()
+    for sec in phones.ini.sections():
+        if phones.ini[sec]['Monitor'] == 'TRUE':
+            print(f'{sec:3} {phones.ini[sec]["Alias"]:20} {phones.ini[sec]["Region"]:20} {phones.ini[sec]["Number"]:20}')
+
+@cli.command()
+@click.option('-n', '--num', type=int, default=-1)
+@click.option('-d', '--delete', is_flag=True)
+@click.option('-pl', '--plugin', type=str, default='')
+@click.option('-m', '--monitor', type=click.Choice(['true', 'false', ''], case_sensitive=False), default='')
+@click.option('-a', '--alias', type=str, default='')
+@click.option('-l', '--login', type=str, default='')
+@click.option('-p', '--password', type=str, default='')
+@click.pass_context
+def change_phone(ctx, num, delete, plugin, monitor, alias, login, password):
+    'Добавить или изменить или удалить номер в phones.ini'
+    name = 'change-phone'
+    cmd = "DELETE" if delete else ("CHANGE" if num>0 else "CREATE")
+    click.echo(f'{cmd}')
+    click.echo(f'num:{num} alias:{alias}, plugin:{plugin}, monitor:{monitor}, login:{login}, password:{password}')
+    phones = store.ini('phones.ini')
+    phones.read()
+    if delete:
+        if str(num) in phones.ini.sections():
+            click.echo(f'Delete {list(phones.ini[str(num)].items())}')
+            del phones.ini[str(num)]
+        else: 
+            for sec in phones.ini.sections():
+                if ((phones.ini[sec]['Region'] == plugin or plugin == '') and 
+                    (phones.ini[sec]['Number'] == login or login == '') and 
+                    (phones.ini[sec]['Alias'] == alias or alias == '')):
+                    click.echo(f'Delete {list(phones.ini[sec].items())}')
+                    del phones.ini[sec]
+    if not delete and num < 0:
+        if plugin == '' or login == '' or password =='':
+            click.echo('For new phone plugin login and password must be specified')
+            return
+        exists = [sec for sec in phones.ini.sections()
+                  if phones.ini[sec]['Region'] == plugin and phones.ini[sec]['Number'] == login]
+        if len(exists) > 0:
+            click.echo(f'Already exists {exists[0]} {phones.ini[exists[0]]}')
+            return
+        sec = str(max([int(i) for i in phones.ini.sections()])+1)
+        phones.ini[sec] = {
+            'Region': plugin,
+            'Monitor': str(monitor!='false').upper(),
+            'Alias': (login if alias == '' else alias),
+            'Number': login,
+            'Password2': password
+        }
+        click.echo(f'Create {list(phones.ini[sec].items())}')
+    if not delete and str(num) in phones.ini.sections():
+        if plugin !='':
+            phones.ini[str(num)]['Region'] = plugin
+        if monitor != '':
+            phones.ini[str(num)]['Monitor'] = monitor.upper()
+        if alias != '':
+            phones.ini[str(num)]['Alias'] = alias
+        if login != '':
+            phones.ini[str(num)]['Number'] = login
+        if password != '':
+            phones.ini[str(num)]['Password2'] = password
+        click.echo(f'Change {list(phones.ini[str(num)].items())}')
+    phones.write()
+    click.echo(f'OK {name} {cmd}')
 
 @cli.command()
 @click.pass_context
