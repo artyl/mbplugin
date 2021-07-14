@@ -534,7 +534,7 @@ def list_phone(ctx):
     phones = store.ini('phones.ini')
     phones.read()
     for sec in phones.ini.sections():
-        if phones.ini[sec]['Monitor'] == 'TRUE':
+        if phones.ini[sec].get('Monitor', 'FALSE') == 'TRUE':
             print(f'{sec:3} {phones.ini[sec]["Alias"]:20} {phones.ini[sec]["Region"]:20} {phones.ini[sec]["Number"]:20}')
 
 @cli.command()
