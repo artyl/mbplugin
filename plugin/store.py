@@ -87,8 +87,8 @@ def version_update_zip(new_zipname):
         dir_name = os.path.split(zn)[0]
         if not os.path.isdir(dir_name):
             os.makedirs(dir_name, exist_ok=True)
-        with open(zn) as f:
-            f.write(zd, 'wb')
+        with open(zn, 'wb') as f:
+            f.write(zd)
 
 class Session():
     'Класс для сессии с дополнительными фишками для сохранения и проверки'
