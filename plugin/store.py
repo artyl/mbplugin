@@ -52,7 +52,7 @@ def download_file(url, path='', rewrite=True):
                     f.write(chunk)
                     sz += len(chunk)
                     print(f'{local_filename} {sz/1048576:4.2f} MB', end='\r')
-            print('\n')
+            print()
         return local_filename
     except Exception:
         print(f'Error download:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
