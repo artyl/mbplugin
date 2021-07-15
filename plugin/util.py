@@ -638,6 +638,7 @@ def version_update(ctx, force, version, skip_download, skip_install):
             url = f'https://github.com/artyl/mbplugin/archive/refs/tags/{version}.zip'
         click.echo(url)
         store.download_file(url, os.path.join('mbplugin','pack','new.zip'))
+        click.echo('Download complete')
     # Проверка
     # Установка
     if not skip_install and (force or len(diff) == 0):
@@ -646,6 +647,7 @@ def version_update(ctx, force, version, skip_download, skip_install):
             os.remove(current_zipname+'.bak')
         os.rename(current_zipname, current_zipname+'.bak')
         os.rename(new_zipname, current_zipname)
+        click.echo('Install complete')
     click.echo(f'OK {name}')
 
 @cli.command()
