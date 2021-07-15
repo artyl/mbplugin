@@ -606,14 +606,6 @@ def version_update_git(ctx, force, branch):
 
 @cli.command()
 @click.pass_context
-def version_download_zip(ctx):
-    'Загружает новую версию'
-    name = 'version-download-zip'
-    store.download_file('https://github.com/artyl/mbplugin/archive/refs/heads/dev_playwright.zip', os.path.join('mbplugin','pack','new.zip'))
-    click.echo(f'OK {name}')
-
-@cli.command()
-@click.pass_context
 def version_check_zip(ctx):
     'Проверяет что файлы на диске и в pack совпадают'
     name = 'version-check-zip'
@@ -623,23 +615,37 @@ def version_check_zip(ctx):
 
 @cli.command()
 @click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
+@click.option('-v', '--version', type=str, default='', help='Указать конкретный номер версии (по тэгу)')
+@click.option('--skip-download', is_flag=True, help='Не загружать')
+@click.option('--skip-install', is_flag=True, help='Не устанавливать')
 @click.pass_context
-def version_update_zip(ctx, force):
-    'Обновляет файлы из pack с новой версией'
+def version_update(ctx, force, version, skip_download, skip_install):
+    'Загружает и обновляет файлы из pack с новой версией'
     name = 'version-update-zip'
     current_zipname = store.abspath_join('mbplugin','pack','current.zip')
     new_zipname = store.abspath_join('mbplugin','pack','new.zip')
-    if not force:
-        diff = store.version_check_zip(current_zipname)
-        if len(diff) > 0:
-            print(f'The current files differ frome the release (use -f )')
-            print('\n'.join(diff))
-            return
-    store.version_update_zip(new_zipname)
-    if os.path.exists(current_zipname+'.bak'):
-        os.remove(current_zipname+'.bak')
-    os.rename(current_zipname, current_zipname+'.bak')
-    os.rename(new_zipname, current_zipname)
+    # проверка файлов по current.zip
+    diff = store.version_check_zip(current_zipname)
+    if len(diff) > 0:
+        print(f'The current files differ frome the release{"" if force else" (use -f)"}')
+        print('\n'.join(diff))
+    # Загрузка
+    if not skip_download:
+        # TODO при переключении ветки на master закомитить в эту ветку новым адресом и исправить адрес на 
+        # https://github.com/artyl/mbplugin/archive/refs/heads/master.zip
+        url = 'https://github.com/artyl/mbplugin/archive/refs/heads/dev_playwright.zip'
+        if version != '':
+            url = f'https://github.com/artyl/mbplugin/archive/refs/tags/{version}.zip'
+        click.echo(url)
+        store.download_file(url, os.path.join('mbplugin','pack','new.zip'))
+    # Проверка
+    # Установка
+    if not skip_install and (force or len(diff) == 0):
+        store.version_update_zip(new_zipname)
+        if os.path.exists(current_zipname+'.bak'):
+            os.remove(current_zipname+'.bak')
+        os.rename(current_zipname, current_zipname+'.bak')
+        os.rename(new_zipname, current_zipname)
     click.echo(f'OK {name}')
 
 @cli.command()
