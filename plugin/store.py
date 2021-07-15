@@ -6,6 +6,7 @@ import settings
 
 
 def session_folder(storename):
+    'Возвращяет путь к папке хранения сессий'
     storefolder = options('storefolder')     
     os.path.join(storefolder, storename)
 
@@ -31,7 +32,6 @@ def path_split_all(path):
             path = p1
             res.insert(0, p2)
     return res
-
 
 def download_file(url, path='', rewrite=True):
     'Загружает файл по ссылке'
@@ -60,7 +60,6 @@ def download_file(url, path='', rewrite=True):
 def read_zip(zipname) -> dict:
     '''Читает zip в словарь, ключи словаря - абсолютные пути на диске, 
     каталоги игнорим, для них у нас в пустых папках флаговые файлы созданы'''
-    zipname = abspath_join(zipname)
     res = {}
     with zipfile.ZipFile(abspath_join(zipname), 'r') as zf1:
         for zi in zf1.infolist(): # Во временную переменную прочитали
@@ -70,10 +69,10 @@ def read_zip(zipname) -> dict:
                 res[fn] = zf1.read(zi)
     return res
 
-def version_check(zipname):
+def version_check_zip(zipname):
     'Проверяет соответствие файлов в архиве и на диске'
     different = []
-    for zn,zd in read_zip(zipname).items():
+    for zn,zd in read_zip(abspath_join(zipname)).items():
         if os.path.isfile(zn):
             with open(zn, 'rb') as f:
                 data = f.read()
@@ -81,9 +80,9 @@ def version_check(zipname):
                 different.append(zn)
     return different
 
-def version_update(new_zipname):
+def version_update_zip(new_zipname):
     'Обновляет файлы на диске из архива'
-    z_new = read_zip(new_zipname)
+    z_new = read_zip(abspath_join(new_zipname))
     for zn,zd in z_new.items():
         dir_name = os.path.split(zn)[0]
         if not os.path.isdir(dir_name):

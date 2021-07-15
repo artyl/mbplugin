@@ -424,8 +424,8 @@ def send_tgbalance(ctx):
 @cli.command()
 @click.pass_context
 def send_tgbalance_over_requests(ctx):
-    name = 'send_tgbalance_over_requests'
     'Отправка баланса TG чистым requests без использования web сервера'
+    name = 'send_tgbalance_over_requests'
     # Balanse over requests
     import httpserver_mobile
     httpserver_mobile.send_telegram_over_requests()
@@ -491,51 +491,16 @@ def check_plugin(ctx, bpoint, plugin, login, password):
     click.echo(f'{name}:\n{res}')
 
 @cli.command()
-@click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
-@click.argument('branch', nargs=-1)
-@click.pass_context
-def git_update(ctx, force, branch):
-    '''Обновление mbplugin из https://github.com/artyl/mbplugin если репозиторий не установлен устанавливаем
-    При желании можно явно указать комит/тэг/ветку на которую переключаемся'''
-    name = 'git-update'
-    # TODO проверить наличие git в системе
-    if os.system('git --version') > 0:
-        click.echo('git not found')
-        return
-    if len(branch) > 2:
-        click.echo('Use not more 1 phrases for branch')
-        return
-    branch_name = 'dev_playwright'  # TODO после переключения в master поменять на master и закомитить последнюю версию с master в ветку dev_playwright
-    if len(branch) == 1:
-        branch_name = branch[0]
-    if re.match('\A0\.99.(\d+)\.?\d?\Z', branch_name) and int(re.search('\A0\.99.(\d+)\.?\d*\Z', branch_name).groups()[0])>32:
-        # В старые версии где еще нет mbp переключаться нельзя обратно уже тем же путем будет не вернуться
-        click.echo('Switch to this version broke mbp')
-        return
-    if os.path.isdir('mbplugin') and not os.path.isdir(os.path.join('mbplugin', '.git')):
-        os.system(f'git clone --bare https://github.com/artyl/mbplugin.git mbplugin/.git')
-        os.system(f'git -C mbplugin config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*')
-        os.system(f'git -C mbplugin branch -D dev_playwright')
-        os.system(f'git -C mbplugin branch -D master')
-        os.system(f'git -C mbplugin branch -D dev')
-        os.system(f'git -C mbplugin config --local --bool core.bare false')
-    if not os.path.isdir(os.path.join('mbplugin', '.git')):
-        click.echo(f"{os.path.join('mbplugin', '.git')} is not folder")
-        return
-    os.system(f'git -C mbplugin fetch --all --prune')
-    os.system(f'git -C mbplugin stash')
-    os.system(f'git -C mbplugin pull')
-    os.system(f'git -C mbplugin checkout {"-f" if force else ""} {branch_name}')
-    click.echo(f'OK {name}')
-
-@cli.command()
 @click.pass_context
 def list_phone(ctx):
+    'Выдает список номеров телефонов из phones.ini'
+    name = 'list-phone'
     phones = store.ini('phones.ini')
     phones.read()
     for sec in phones.ini.sections():
         if phones.ini[sec].get('Monitor', 'FALSE') == 'TRUE':
             print(f'{sec:3} {phones.ini[sec]["Alias"]:20} {phones.ini[sec]["Region"]:20} {phones.ini[sec]["Number"]:20}')
+    click.echo(f'OK {name}')
 
 @cli.command()
 @click.option('-n', '--num', type=int, default=-1)
@@ -602,34 +567,76 @@ def change_phone(ctx, num, delete, plugin, monitor, alias, login, password):
     click.echo(f'OK {name} {cmd}')
 
 @cli.command()
+@click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
+@click.argument('branch', nargs=-1)
 @click.pass_context
-def version_download(ctx):
-    name = 'version-download'
+def version_update_git(ctx, force, branch):
+    '''Обновление mbplugin из https://github.com/artyl/mbplugin если репозиторий не установлен устанавливаем
+    При желании можно явно указать комит/тэг/ветку на которую переключаемся'''
+    name = 'version-update-git'
+    # TODO проверить наличие git в системе
+    if os.system('git --version') > 0:
+        click.echo('git not found')
+        return
+    if len(branch) > 2:
+        click.echo('Use not more 1 phrases for branch')
+        return
+    branch_name = 'dev_playwright'  # TODO после переключения в master поменять на master и закомитить последнюю версию с master в ветку dev_playwright
+    if len(branch) == 1:
+        branch_name = branch[0]
+    if re.match('\A0\.99.(\d+)\.?\d?\Z', branch_name) and int(re.search('\A0\.99.(\d+)\.?\d*\Z', branch_name).groups()[0])>32:
+        # В старые версии где еще нет mbp переключаться нельзя обратно уже тем же путем будет не вернуться
+        click.echo('Switch to this version broke mbp')
+        return
+    if os.path.isdir('mbplugin') and not os.path.isdir(os.path.join('mbplugin', '.git')):
+        os.system(f'git clone --bare https://github.com/artyl/mbplugin.git mbplugin/.git')
+        os.system(f'git -C mbplugin config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*')
+        os.system(f'git -C mbplugin branch -D dev_playwright')
+        os.system(f'git -C mbplugin branch -D master')
+        os.system(f'git -C mbplugin branch -D dev')
+        os.system(f'git -C mbplugin config --local --bool core.bare false')
+    if not os.path.isdir(os.path.join('mbplugin', '.git')):
+        click.echo(f"{os.path.join('mbplugin', '.git')} is not folder")
+        return
+    os.system(f'git -C mbplugin fetch --all --prune')
+    os.system(f'git -C mbplugin stash')
+    os.system(f'git -C mbplugin pull')
+    os.system(f'git -C mbplugin checkout {"-f" if force else ""} {branch_name}')
+    click.echo(f'OK {name}')
+
+@cli.command()
+@click.pass_context
+def version_download_zip(ctx):
+    'Загружает новую версию'
+    name = 'version-download-zip'
     store.download_file('https://github.com/artyl/mbplugin/archive/refs/heads/dev_playwright.zip', os.path.join('mbplugin','pack','new.zip'))
     click.echo(f'OK {name}')
 
 @cli.command()
 @click.pass_context
-def version_check(ctx):
-    name = 'version-check'
-    res = store.version_check(os.path.join('mbplugin','pack','new.zip'))
+def version_check_zip(ctx):
+    'Проверяет что файлы на диске и в pack совпадают'
+    name = 'version-check-zip'
+    res = store.version_check_zip(os.path.join('mbplugin','pack','new.zip'))
     click.echo(f'{"OK" if len(res)==0 else "FAIL"} {name}')
     click.echo('\n'.join(res))
 
 @cli.command()
 @click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
 @click.pass_context
-def version_update(ctx, force):
-    name = 'version-update'
-    current_zipname = os.path.join('mbplugin','pack','current.zip')
-    new_zipname = os.path.join('mbplugin','pack','new.zip')
+def version_update_zip(ctx, force):
+    'Обновляет файлы из pack с новой версией'
+    name = 'version-update-zip'
+    current_zipname = store.abspath_join('mbplugin','pack','current.zip')
+    new_zipname = store.abspath_join('mbplugin','pack','new.zip')
     if not force:
-        diff = version_check(current_zipname)
+        diff = store.version_check_zip(current_zipname)
         if len(diff) > 0:
             print(f'The current files differ frome the release (use -f )')
             print('\n'.join())
             return
     store.version_update(new_zipname)
+    os.rename(new_zipname, current_zipname)
     click.echo(f'OK {name}')
 
 @cli.command()
