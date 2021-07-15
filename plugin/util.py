@@ -633,9 +633,12 @@ def version_update_zip(ctx, force):
         diff = store.version_check_zip(current_zipname)
         if len(diff) > 0:
             print(f'The current files differ frome the release (use -f )')
-            print('\n'.join())
+            print('\n'.join(diff))
             return
-    store.version_update(new_zipname)
+    store.version_update_zip(new_zipname)
+    if os.path.exists(current_zipname+'.bak'):
+        os.remove(current_zipname+'.bak')
+    os.rename(current_zipname, current_zipname+'.bak')
     os.rename(new_zipname, current_zipname)
     click.echo(f'OK {name}')
 
