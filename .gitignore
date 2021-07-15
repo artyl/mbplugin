@@ -2,6 +2,7 @@ _TKINTER_install.zip
 _HLAM/*
 DISTR/*
 DB/*
+pack/*
 webdriver/*
 */__pycache__
 BalanceHistory.sqlite

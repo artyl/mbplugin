@@ -1,6 +1,7 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
-import os, sys, time, io, re, json, pickle, requests, configparser, pprint, zipfile, logging
+import os, sys, time, io, re, json, pickle, requests, configparser, pprint, zipfile, logging, traceback
+from os.path import abspath
 import settings
 
 
@@ -14,6 +15,81 @@ def abspath_join(*argv):
     if not os.path.isabs(path):
         path = os.path.abspath(os.path.join(settings.mbplugin_root_path, path))
     return path
+
+def path_split_all(path):
+    'разбивает путь на список'
+    res = []
+    while True:
+        p1,p2 = os.path.split(path)
+        if p1 == path: # Относительный
+            res.insert(0, p1)
+            break
+        elif p2 == path:  # Абсолютный
+            res.insert(0, p2)
+            break
+        else:
+            path = p1
+            res.insert(0, p2)
+    return res
+
+
+def download_file(url, path='', rewrite=True):
+    'Загружает файл по ссылке'
+    try:
+        local_filename = path
+        if len(path) == 0:
+            local_filename = url.split('/')[-1]
+        local_filename = abspath_join(local_filename)
+        if os.path.exists(local_filename) and not rewrite:
+            print(f'File {local_filename} exists')
+            return local_filename
+        # NOTE the stream=True parameter below
+        with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            sz = 0
+            with open(local_filename, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192): 
+                    f.write(chunk)
+                    sz += len(chunk)
+                    print(f'{local_filename} {sz/1048576:4.2f} MB', end='\r')
+            print('\nComplete')
+        return local_filename
+    except Exception:
+        print(f'Error download:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
+
+def read_zip(zipname) -> dict:
+    '''Читает zip в словарь, ключи словаря - абсолютные пути на диске, 
+    каталоги игнорим, для них у нас в пустых папках флаговые файлы созданы'''
+    zipname = abspath_join(zipname)
+    res = {}
+    with zipfile.ZipFile(abspath_join(zipname), 'r') as zf1:
+        for zi in zf1.infolist(): # Во временную переменную прочитали
+            # Первый элемент пути в зависимости от ветки может называться не так как нам нужно
+            fn = abspath_join('mbplugin', *(path_split_all(zi.filename)[1:]))
+            if not zi.is_dir():
+                res[fn] = zf1.read(zi)
+    return res
+
+def version_check(zipname):
+    'Проверяет соответствие файлов в архиве и на диске'
+    different = []
+    for zn,zd in read_zip(zipname).items():
+        if os.path.isfile(zn):
+            with open(zn, 'rb') as f:
+                data = f.read()
+            if data != zd:
+                different.append(zn)
+    return different
+
+def version_update(new_zipname):
+    'Обновляет файлы на диске из архива'
+    z_new = read_zip(new_zipname)
+    for zn,zd in z_new.items():
+        dir_name = os.path.split(zn)[0]
+        if not os.path.isdir(dir_name):
+            os.makedirs(dir_name, exist_ok=True)
+        with open(zn) as f:
+            f.write(zd, 'wb')
 
 class Session():
     'Класс для сессии с дополнительными фишками для сохранения и проверки'

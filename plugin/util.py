@@ -603,6 +603,37 @@ def change_phone(ctx, num, delete, plugin, monitor, alias, login, password):
 
 @cli.command()
 @click.pass_context
+def version_download(ctx):
+    name = 'version-download'
+    store.download_file('https://github.com/artyl/mbplugin/archive/refs/heads/dev_playwright.zip', os.path.join('mbplugin','pack','new.zip'))
+    click.echo(f'OK {name}')
+
+@cli.command()
+@click.pass_context
+def version_check(ctx):
+    name = 'version-check'
+    res = store.version_check(os.path.join('mbplugin','pack','new.zip'))
+    click.echo(f'{"OK" if len(res)==0 else "FAIL"} {name}')
+    click.echo('\n'.join(res))
+
+@cli.command()
+@click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
+@click.pass_context
+def version_update(ctx, force):
+    name = 'version-update'
+    current_zipname = os.path.join('mbplugin','pack','current.zip')
+    new_zipname = os.path.join('mbplugin','pack','new.zip')
+    if not force:
+        diff = version_check(current_zipname)
+        if len(diff) > 0:
+            print(f'The current files differ frome the release (use -f )')
+            print('\n'.join())
+            return
+    store.version_update(new_zipname)
+    click.echo(f'OK {name}')
+
+@cli.command()
+@click.pass_context
 def db_tables(ctx):
     'Запуск запроса к БД SQLite'
     name = 'db-tables'
