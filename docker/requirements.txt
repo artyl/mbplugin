@@ -16,7 +16,7 @@ idna==2.9
 iniconfig==1.1.1
 packaging==20.9
 Pillow==8.2.0
-playwright==1.12.1
+playwright==1.13.1
 pluggy==0.13.1
 psutil==5.8.0
 py==1.10.0

@@ -243,12 +243,9 @@ class BalanceOverPlaywright():
             '--log-level=3', # no logging
             "--window-position=-2000,-2000" if self.hide_chrome_flag else "--window-position=80,80",
             "--window-size=800,900"]
-        if self.headless:
-            # В Headless chrome не работают профили, всегда попадает в Default
-            self.user_data_dir = store.abspath_join(self.storefolder, 'headless', self.profile_directory)
-        else:
-            self.user_data_dir = store.abspath_join(self.storefolder, 'puppeteer')
-            self.launch_config_args.append(f"--profile-directory={self.profile_directory}")
+        # if self.headless:
+        # В Headless chrome не работают профили, в Firefox их вообще нет, так что многопрофильность не используем
+        self.user_data_dir = store.abspath_join(self.storefolder, 'headless', self.profile_directory)
         self.launch_config = {
             'headless': self.headless,
         }
@@ -438,7 +435,7 @@ class BalanceOverPlaywright():
                 self.chrome_executable_path = chrome_paths[0]
             self.launch_config.update({'executable_path': self.chrome_executable_path,})
         else:
-            self.chrome_executable_path = self.sync_pw.chromium.executable_path
+            self.chrome_executable_path = self.browsertype.executable_path
         logging.info(f'Launch chrome from {self.chrome_executable_path}')
         if store.options('proxy_server').strip() != '':
             self.launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}') 
@@ -677,7 +674,9 @@ class BalanceOverPlaywright():
             os.system('export DISPLAY=:99')  # On linux and headless:False use Xvfb
             os.environ['DISPLAY']=':99'
         with sync_playwright() as self.sync_pw:
-            self.launch_browser(self.sync_pw.chromium.launch_persistent_context)
+            browsertype_text = store.options('browsertype')
+            self.browsertype : playwright.sync_api._generated.BrowserType = getattr(self.sync_pw, browsertype_text)
+            self.launch_browser(self.browsertype.launch_persistent_context)  # self.sync_pw.chromium.launch_persistent_context
             if run == 'normal':
                 self.data_collector()
             elif run == 'check_logon':

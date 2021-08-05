@@ -109,10 +109,11 @@ def install_chromium(ctx):
         click.echo(f'Not needed {name}')
         return
     try:
-        subprocess.check_call([sys.executable, '-m', 'playwright', 'install', 'chromium'])
-        click.echo(f'OK {name}')
+        subprocess.check_call([sys.executable, '-m', 'playwright', 'install', store.options('browsertype')])
+        click.echo(f"OK {name} {store.options('browsertype')}")
     except Exception:
         click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
+
 
 @cli.command()
 @click.pass_context
@@ -565,6 +566,31 @@ def change_phone(ctx, num, delete, plugin, monitor, alias, login, password):
         click.echo(f'Change {list(phones.ini[str(num)].items())}')
     phones.write()
     click.echo(f'OK {name} {cmd}')
+
+@cli.command()
+@click.option('-v', '--verbose', is_flag=True, help='Показать версии пакетов и хрома')
+@click.pass_context
+def version(ctx, verbose):
+    'Текущая установленная версия'
+    changelist_fn= os.path.join('mbplugin', 'changelist.md')
+    if os.path.isdir('mbplugin') and os.path.exists(changelist_fn):
+        version = re.findall('## (mbplugin.*?\))',open(changelist_fn, encoding='utf8').read())[-1]
+        click.echo(version)
+    else:
+        click.echo('Mbplugin version unknown')
+    if not verbose:
+        return
+    click.echo(f'Python {sys.version}')
+    import playwright._repo_version, playwright.sync_api
+    click.echo(f'Playwright {playwright._repo_version.version}')
+    with playwright.sync_api.sync_playwright() as p:
+        click.echo(f'Chromium path {p.chromium.executable_path}')
+        # user_data_dir = store.abspath_join(store.options('storefolder'), 'headless', 'clean_profile')
+        # browser = p.chromium.launch_persistent_context(user_data_dir=user_data_dir)
+        browser = p.chromium.launch()
+        click.echo(f'Chromium {browser.version}')
+        browser.close()  
+
 
 @cli.command()
 @click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
