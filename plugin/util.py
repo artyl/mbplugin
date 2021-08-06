@@ -620,6 +620,11 @@ def version_update_git(ctx, force, branch):
 @click.pass_context
 def version_update(ctx, force, version, only_download, only_check, only_install):
     'Загружает и обновляет файлы из pack с новой версией'
+    def rename_new_to_current(new_zipname, current_zipname):
+        if os.path.exists(current_zipname+'.bak'):
+            os.remove(current_zipname+'.bak')        
+        os.rename(current_zipname, current_zipname+'.bak')
+        os.rename(new_zipname, current_zipname)        
     name = 'version-update'
     current_zipname = store.abspath_join('mbplugin','pack','current.zip')
     new_zipname = store.abspath_join('mbplugin','pack','new.zip')
@@ -648,16 +653,11 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
     diff_new = store.version_check_zip(new_zipname, ignore_missing=False)
     if len(diff_new) == 0:
         click.echo(f'Your version is up to date with {new_zipname}')
-        os.rename(current_zipname, current_zipname+'.bak')
-        os.rename(new_zipname, current_zipname)
+        rename_new_to_current(new_zipname, current_zipname)
     # Установка
     if not skip_install and (force or len(diff_current) == 0 and len(diff_new) != 0):
         store.version_update_zip(new_zipname)
-        if os.path.exists(current_zipname+'.bak'):
-            os.remove(current_zipname+'.bak')
-        os.rename(current_zipname, current_zipname+'.bak')
-        os.rename(new_zipname, current_zipname)
-        click.echo('Install complete')
+        rename_new_to_current(new_zipname, current_zipname)
     click.echo(f'OK {name}')
 
 @cli.command()
