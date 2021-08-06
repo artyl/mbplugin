@@ -665,7 +665,7 @@ def version_update(ctx, force, version, skip_download, skip_install):
     # проверка файлов по current.zip
     diff = store.version_check_zip(current_zipname)
     if len(diff) > 0:
-        print(f'The current files differ frome the release{"" if force else" (use -f)"}')
+        print(f'The current files are different from the release{"" if force else" (use -f)"}')
         print('\n'.join(diff))
     # Установка
     if not skip_install and (force or len(diff) == 0):

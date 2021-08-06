@@ -69,15 +69,19 @@ def read_zip(zipname) -> dict:
                 res[fn] = zf1.read(zi)
     return res
 
-def version_check_zip(zipname):
+def version_check_zip(zipname, ignore_crlf=True):
     'Проверяет соответствие файлов в архиве и на диске'
     different = []
     for zn,zd in read_zip(abspath_join(zipname)).items():
         if os.path.isfile(zn):
             with open(zn, 'rb') as f:
-                data = f.read()
-            if data != zd:
-                different.append(zn)
+                data : bytes = f.read()
+            if ignore_crlf:
+                if data.replace(b'\r\n', b'\r').strip() != zd.replace(b'\r\n', b'\r').strip():
+                    different.append(zn)
+            else:
+                if data != zd:
+                    different.append(zn)
     return different
 
 def version_update_zip(new_zipname):
