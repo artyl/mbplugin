@@ -650,11 +650,6 @@ def version_update(ctx, force, version, skip_download, skip_install):
     name = 'version-update-zip'
     current_zipname = store.abspath_join('mbplugin','pack','current.zip')
     new_zipname = store.abspath_join('mbplugin','pack','new.zip')
-    # проверка файлов по current.zip
-    diff = store.version_check_zip(current_zipname)
-    if len(diff) > 0:
-        print(f'The current files differ frome the release{"" if force else" (use -f)"}')
-        print('\n'.join(diff))
     # Загрузка
     if not skip_download:
         # TODO при переключении ветки на master закомитить в эту ветку новым адресом и исправить адрес на 
@@ -663,9 +658,15 @@ def version_update(ctx, force, version, skip_download, skip_install):
         if version != '':
             url = f'https://github.com/artyl/mbplugin/archive/refs/tags/{version}.zip'
         click.echo(url)
-        store.download_file(url, os.path.join('mbplugin','pack','new.zip'))
+        store.download_file(url, new_zipname)
+        if not os.path.exists(current_zipname):
+            shutil.copy(new_zipname, current_zipname)
         click.echo('Download complete')
-    # Проверка
+    # проверка файлов по current.zip
+    diff = store.version_check_zip(current_zipname)
+    if len(diff) > 0:
+        print(f'The current files differ frome the release{"" if force else" (use -f)"}')
+        print('\n'.join(diff))
     # Установка
     if not skip_install and (force or len(diff) == 0):
         store.version_update_zip(new_zipname)
