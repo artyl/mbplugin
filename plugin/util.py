@@ -132,40 +132,40 @@ def clear_browser_cache(ctx):
         click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')         
 
 @cli.command()
+@click.option('--only-dll', is_flag=True, help='Только DLL')
+@click.option('--only-jsmblh', is_flag=True, help='Только JSMB LH')
 @click.pass_context
-def recompile_dll(ctx):
-    'Пересобираем DLL плагины (только windows)'
-    name = 'recompile_dll'
+def recompile_plugin(ctx, only_dll, only_jsmblh):
+    'Пересобираем DLL и JSMB LH плагины (только windows) все равно MobileBalance только под windows работает'
+    name = 'recompile-plugin'
     if sys.platform == 'win32':
-        try:
-            #os.system(f"{os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile_all_p.bat')}")
-            for fn in glob.glob('mbplugin\\plugin\\*.py'):
-                pluginname = f'p_{os.path.splitext(os.path.split(fn)[1])[0]}'
-                src = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', pluginname + '.dll')
-                dst = os.path.join(ROOT_PATH, 'mbplugin', 'dllplugin', pluginname + '.dll')
-                compile_bat = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile.bat')
-                if 'def get_balance(' in open(fn,encoding='utf8').read():
-                    os.system(f'{compile_bat} {pluginname}')
-                    shutil.move(src, dst)
-                if ctx.obj['VERBOSE']:
-                    click.echo(f'Move {pluginname}.dll -> dllplugin\\')
-            click.echo(f'OK {name}')
-        except Exception:
-            click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')                
+        skip_dll = only_jsmblh and not only_dll
+        skip_jsmblh = only_dll and not only_jsmblh
+        if not skip_dll:  # Пересобираем DLL plugin
+            try:
+                #os.system(f"{os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile_all_p.bat')}")
+                for fn in glob.glob('mbplugin\\plugin\\*.py'):
+                    pluginname = f'p_{os.path.splitext(os.path.split(fn)[1])[0]}'
+                    src = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', pluginname + '.dll')
+                    dst = os.path.join(ROOT_PATH, 'mbplugin', 'dllplugin', pluginname + '.dll')
+                    compile_bat = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile.bat')
+                    if 'def get_balance(' in open(fn,encoding='utf8').read():
+                        os.system(f'{compile_bat} {pluginname}')
+                        shutil.move(src, dst)
+                    if ctx.obj['VERBOSE']:
+                        click.echo(f'Move {pluginname}.dll -> dllplugin\\')
+                click.echo(f'OK {name} DLL')
+            except Exception:
+                click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
+        if not skip_jsmblh:  # Пересобираем JSMB LH plugin
+            import compile_all_jsmblh
+            try:
+                compile_all_jsmblh.recompile(PLUGIN_PATH, verbose=ctx.obj['VERBOSE'])
+                click.echo(f'OK {name} jsmblh')
+            except Exception:
+                click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
     else:
         click.echo('On windows platform only')
-
-@cli.command()
-@click.pass_context
-def recompile_jsmblh(ctx):
-    'Пересобираем JSMB LH plugin'
-    name = 'recompile_jsmblh'
-    import compile_all_jsmblh
-    try:
-        compile_all_jsmblh.recompile(PLUGIN_PATH, verbose=ctx.obj['VERBOSE'])
-        click.echo(f'OK {name}')
-    except Exception:
-        click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
 
 @cli.command()
 @click.pass_context
@@ -200,13 +200,13 @@ def web_control(ctx):
 @cli.command()
 @click.argument('turn', type=click.Choice(['on', 'off'], case_sensitive=False), default='on')
 @click.pass_context
-def autostart_web_server(ctx, turn):
+def web_server_autostart(ctx, turn):
     '''Автозапуск web сервера (только windows) и только если разрешен в ini
     on - Создаем lnk на run_webserver.bat и помещаем его в автозапуск и запускаем
     off - убираем из автозапуска
     для отключения в ini дайте команду mbp set ini\HttpServer\start_http=0
     '''
-    name = 'autostart-web-server'
+    name = 'web-server-autostart'
     if sys.platform == 'win32':
         try:
             import win32com.client
@@ -228,45 +228,34 @@ def autostart_web_server(ctx, turn):
                 if os.path.exists(lnk_startup_full_name):
                     os.remove(lnk_startup_full_name)
             time.sleep(4)
-            click.echo(f'OK {name}')
+            click.echo(f'OK {name} {turn}')
         except Exception:
             click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')                
     else:
         click.echo('On windows platform only')
     
 @cli.command()
+@click.argument('cmd', type=click.Choice(['start', 'stop', 'restart'], case_sensitive=False))
 @click.pass_context
-def run_web_server(ctx):
-    'Запуск web сервера'
-    name = 'run-web-server'
+def web_server(ctx, cmd):
+    'start/stop/restart web сервер'
+    name = 'web-server'
     try:
-        if sys.platform == 'win32':
-            lnk_path = os.path.join(ROOT_PATH, 'mbplugin', 'run_webserver.bat')
-            os.system(f'"{lnk_path}"')
-            click.echo(f'OK {name}')
-        else:
-            import httpserver_mobile
-            httpserver_mobile.WebServer()
-            time.sleep(4)
-            click.echo(f'OK {name}')
+        if cmd == 'start':
+            if sys.platform == 'win32':
+                lnk_path = os.path.join(ROOT_PATH, 'mbplugin', 'run_webserver.bat')
+                os.system(f'"{lnk_path}"')
+            else:
+                import httpserver_mobile
+                httpserver_mobile.WebServer()
+                time.sleep(4)
+        elif cmd == 'restart':
+            http_command(cmd='restart')
+        elif cmd == 'stop':
+            http_command(cmd='exit')
+        click.echo(f'OK {name} {cmd}')
     except Exception:
         click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')                
-
-@cli.command()
-@click.pass_context
-def restart_web_server(ctx):
-    'Останавливает web сервер'
-    name = 'restart-web-server'
-    http_command(cmd='restart')
-    click.echo(f'OK {name}')
-
-@cli.command()
-@click.pass_context
-def stop_web_server(ctx):
-    'Останавливает web сервер'
-    name = 'stop-web-server'
-    http_command(cmd='exit')
-    click.echo(f'OK {name}')
 
 @cli.command()
 @click.pass_context
@@ -486,9 +475,9 @@ def check_plugin(ctx, bpoint, plugin, login, password):
 
 @cli.command()
 @click.pass_context
-def list_phone(ctx):
+def phone_list(ctx):
     'Выдает список номеров телефонов из phones.ini'
-    name = 'list-phone'
+    name = 'phone-list'
     phones = store.ini('phones.ini')
     phones.read()
     for sec in phones.ini.sections():
@@ -505,9 +494,9 @@ def list_phone(ctx):
 @click.option('-l', '--login', type=str, default='')
 @click.option('-p', '--password', type=str, default='')
 @click.pass_context
-def change_phone(ctx, num, delete, plugin, monitor, alias, login, password):
+def phone_change(ctx, num, delete, plugin, monitor, alias, login, password):
     'Добавить или изменить или удалить номер в phones.ini'
-    name = 'change-phone'
+    name = 'phone-change'
     if str(store.options('phone_ini_save')) == '0':
         click.echo('Work with phone.ini from mbp not allowed (turn phone_ini_save=1 in mbplugin.ini)')
         return
@@ -585,10 +574,10 @@ def version(ctx, verbose):
         browser.close()  
 
 
-@cli.command()
-@click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
-@click.argument('branch', nargs=-1)
-@click.pass_context
+#@cli.command()
+#@click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
+#@click.argument('branch', nargs=-1)
+#@click.pass_context
 def version_update_git(ctx, force, branch):
     '''Обновление mbplugin из https://github.com/artyl/mbplugin если репозиторий не установлен устанавливаем
     При желании можно явно указать комит/тэг/ветку на которую переключаемся'''
@@ -633,7 +622,7 @@ def version_update_git(ctx, force, branch):
 @click.pass_context
 def version_update(ctx, force, version, only_download, only_check, only_install):
     'Загружает и обновляет файлы из pack с новой версией'
-    name = 'version-update-zip'
+    name = 'version-update'
     current_zipname = store.abspath_join('mbplugin','pack','current.zip')
     new_zipname = store.abspath_join('mbplugin','pack','new.zip')
     skip_download = only_check or only_install and not only_download
@@ -651,12 +640,18 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
             shutil.copy(new_zipname, current_zipname)
         click.echo('Download complete')
     # проверка файлов по current.zip
-    diff = store.version_check_zip(current_zipname)
-    if len(diff) > 0:
-        print(f'The current files are different from the release{"" if force else" (use -f)"}')
-        print('\n'.join(diff))
+    # Здесь проверяем чтобы не поменять что-то что руками поменяно (отсутствующие на диске файлы не важны)
+    diff_current = store.version_check_zip(current_zipname, ignore_missing=True)
+    if len(diff_current) > 0:
+        click.echo(f'The current files are different from the release{"" if force else" (use -f)"}')
+        click.echo('\n'.join(diff_current))
+    # проверка файлов по new.zip
+    # Здесь проверяем что все файлы соответствуют новой версии (отсутствующие файлы важны)
+    diff_new = store.version_check_zip(new_zipname, ignore_missing=False)
+    if len(diff_new) == 0:
+        click.echo('Your version is up to date with {new_zipname}')
     # Установка
-    if not skip_install and (force or len(diff) == 0):
+    if not skip_install and (force or len(diff_current) == 0 and len(diff_new) != 0):
         store.version_update_zip(new_zipname)
         if os.path.exists(current_zipname+'.bak'):
             os.remove(current_zipname+'.bak')
@@ -666,33 +661,25 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
     click.echo(f'OK {name}')
 
 @cli.command()
-@click.pass_context
-def db_info(ctx):
-    'Печать информации по БД SQLite'
-    name = 'db-info'
-    if store.options('sqlitestore') == '1':
-        import dbengine
-        db = dbengine.dbengine(store.options('dbfilename'))
-        query1 = "SELECT name FROM sqlite_master WHERE type='table'"
-        dbdata = db.cur.execute(query1).fetchall()
-        click.echo('Tables:')
-        for line in dbdata:
-            tbl = line[0]
-            cnt = db.cur.execute(f"select count(*) from {tbl}").fetchall()[0][0]
-            click.echo(f'{tbl} {cnt}') 
-
-@cli.command()
-@click.argument('query', nargs=1)
+@click.argument('query', type=str, nargs=-1)
 @click.pass_context
 def db_query(ctx, query):
-    'Запуск запроса к БД SQLite'
+    'Запуск запроса к БД SQLite, без запроса - показать инфо по таблицам'
     name = 'db-query'
     if store.options('sqlitestore') == '1':
         import dbengine
-
         dbfilename = store.options('dbfilename')
         db = dbengine.dbengine(dbfilename)
-        cur = db.cur.execute(query)
+        if len(query) == 0:
+            query1 = "SELECT name FROM sqlite_master WHERE type='table'"
+            dbdata = db.cur.execute(query1).fetchall()
+            click.echo('Tables:')
+            for line in dbdata:
+                tbl = line[0]
+                cnt = db.cur.execute(f"select count(*) from {tbl}").fetchall()[0][0]
+                click.echo(f'{tbl} {cnt}')
+            return
+        cur = db.cur.execute(' '.join(query))
         if cur.description is not None:
             description = cur.description
             dbheaders = list(zip(*cur.description))[0]

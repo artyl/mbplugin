@@ -27,13 +27,13 @@ cd "%~dp0\.."
 call mbplugin\setup_and_check.bat
 
 cd "%~dp0\.."
-call mbplugin\python\python mbplugin\plugin\util.py clear-browser-cache
+call mbp clear-browser-cache
 
 cd "%~dp0\.."
 call mbplugin\python\python mbplugin\python\remove__pycache__.py
 
 cd "%~dp0\.."
-call mbp stop-web-server
+call mbp web-server stop
 timeout 5
 
 cd "%~dp0\.."

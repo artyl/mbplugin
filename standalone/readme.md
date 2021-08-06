@@ -59,7 +59,7 @@ bash mbplugin/standalone/mbp docker
 # Если хотим управлять web сервером и открывать страницу баланса с него то разрешаем доступ к серверу извне (см коментарий выше)
 ./mbp set ini/HttpServer/host=0.0.0.0
 # Запуск web сервера
-./mbp run-web-server  
+./mbp web-server start  
 # Запрос баланса с генерацией balance.html (можно запускать без web сервера)
 ./mbp get-balance 
 
@@ -78,7 +78,7 @@ sh mbplugin/standalone/mbp
 2. Получаем баланс 
 ```
 # Можно запустить веб сервер (удобный просмотр лога и прочее)
-./mbp run-web-server
+./mbp web-server start
 # Для запроса баланса дать команду (это работает как с веб севером так и без)  
 ./mbp get-balance
 ```

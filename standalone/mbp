@@ -33,8 +33,8 @@ fi
 # if mbplugin container is running use docker exec instead docker run 
 docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && DOCKER=$DOCKER_EXEC
 
-# port mapping for docker only for run-web-server
-if [ "$DOCKER" != "" ] && [ "$1" = "run-web-server" ]; then
+# port mapping for docker only for web-server start
+if [ "$DOCKER" != "" ] && [ "$1 $2" = "web-server start" ]; then
     #DOCKER=${DOCKER/ mbplugin/ -p 127.0.0.1:19777:19777 mbplugin}
     echo "$DOCKER_STD python mbplugin/plugin/util.py set ini/HttpServer/host=0.0.0.0"
     $DOCKER_STD python mbplugin/plugin/util.py set ini/HttpServer/host=0.0.0.0

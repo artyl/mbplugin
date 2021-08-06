@@ -14,17 +14,14 @@ mbplugin\python\python mbplugin\plugin\util.py install-chromium
 REM  очищаем кэши браузера
 mbplugin\python\python mbplugin\plugin\util.py clear-browser-cache
 
-REM Пересобираем DLL 
-mbplugin\python\python mbplugin\plugin\util.py recompile-dll
-
-REM Пересобираем JSMB LH plugin
-mbplugin\python\python mbplugin\plugin\util.py recompile-jsmblh
+REM Пересобираем DLL и JSMB LH plugin
+mbplugin\python\python mbplugin\plugin\util.py recompile-plugin
 
 REM Проверяем что все модули импортируются
 mbplugin\python\python mbplugin\plugin\util.py check-import
 
 REM Автозапуск браузера
-mbplugin\python\python mbplugin\plugin\util.py autostart-web-server
+mbplugin\python\python mbplugin\plugin\util.py web-server-autostart
 
 REM Проверяем playwright
 mbplugin\python\python mbplugin\plugin\util.py check-playwright
