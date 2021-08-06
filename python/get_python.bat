@@ -13,7 +13,7 @@ if exist python-3.8.3-embed-win32.zip del python-3.8.3-embed-win32.zip
 if not exist get-pip.py   curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 
 @REM Находясь в папке mbplugin\python выполнить 
-if not exist Scripts\pip.exe python get-pip.py
+if not exist Lib\site-packages\pip python get-pip.py -q --no-warn-script-location 
 
 @REM В файле mbplugin\python\python38._pth раскоментировать (убрать #) import site
 ..\python\python -c "d=open('python38._pth').read();open('python38._pth','w').write(d.replace('#import site','import site'))"
@@ -24,7 +24,7 @@ if not exist Scripts\pip.exe python get-pip.py
 @REM Находясь mbplugin\python выполнить 
 @REM ..\python\python -m pip install --upgrade python-telegram-bot requests pillow beautifulsoup4 pyodbc pyreadline pywin32 pyppeteer psutil pystray playwright schedule click
 @REM ..\python\python -m pip freeze >..\docker\requirements_win.txt
-..\python\python -m pip install -r ..\docker\requirements_win.txt
+..\python\python -m pip install -q --no-warn-script-location -r ..\docker\requirements_win.txt
 
 @REM К сожалению не нашел вменяемой инструкции по установке tkinter только переложить из установленного python
 @REM Вдобавок тема с tkinter нигде пока не полетела, так что на настоящий момент не особенно от в принципе и нужен

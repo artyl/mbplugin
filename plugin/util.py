@@ -109,14 +109,16 @@ def install_chromium(ctx):
 
 
 @cli.command()
+@click.option('-q', '--quiet', is_flag=True)
 @click.pass_context
-def pip_update(ctx):
+def pip_update(ctx, quiet):
     '''Обновляем пакеты по requirements.txt или requirements_win.txt '''
+    name = 'pip-update'
     if sys.platform == 'win32':
-        os.system(f'"{sys.executable}" -m pip install -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements_win.txt")}')
+        os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --no-warn-script-location -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements_win.txt")}')
     else:
-        os.system(f'"{sys.executable}" -m pip install -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements.txt")}')
-         
+        os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --no-warn-script-location -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements.txt")}')
+    click.echo(f'OK {name}') 
 
 @cli.command()
 @click.pass_context

@@ -7,14 +7,14 @@ if EXIST ..\plugin\util.py (
     copy mbplugin\standalone\%~nx0 .
     if not EXIST phones.ini copy mbplugin\standalone\phones.ini .
     mbplugin\python\python mbplugin\plugin\util.py init
-    mbplugin\python\python mbplugin\plugin\util.py pip-update
+    mbplugin\python\python mbplugin\plugin\util.py pip-update -q
     mbplugin\python\python mbplugin\plugin\util.py install-chromium
     mbplugin\python\python mbplugin\plugin\util.py check-import
     mbplugin\python\python mbplugin\plugin\util.py check-ini
     mbplugin\python\python mbplugin\plugin\util.py clear-browser-cache
     mbplugin\python\python mbplugin\plugin\util.py check-playwright
     mbplugin\python\python mbplugin\plugin\util.py web-server-autostart
-    timeout 30
+    IF NOT "%PACKET_MODE%"=="ON" timeout 30
     GOTO :EOF
 )
 
