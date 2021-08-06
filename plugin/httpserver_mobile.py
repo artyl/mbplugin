@@ -452,7 +452,7 @@ class TrayIcon:
             self.icon = TrayIcon.icon
 
     def _create(self):
-        icon_fn = os.path.join(os.path.split(__file__)[0], 'httpserver.ico')
+        icon_fn = store.abspath_join(os.path.split(__file__)[0], 'httpserver.ico')
         self.image = PIL.Image.open(icon_fn)
         items = []
         for item in TRAY_MENU:
@@ -806,7 +806,7 @@ class WebServer():
         # breakpoint() if os.path.exists('breakpoint') else None
         status = '200 OK'
         add_headers = []
-        cookie_store_name = os.path.join(store.options('storefolder'), 'authcookie')
+        cookie_store_name = store.abspath_join(store.options('storefolder'), 'authcookie')
         # Читаем список сохраненных кук
         if os.path.exists(cookie_store_name):
             with open(cookie_store_name) as f:

@@ -141,16 +141,16 @@ def fix_crash_banner(storefolder, storename):
 def clear_cache(storefolder, storename):
     'Очищаем папку с кэшем профиля чтобы не разрастался'
     #return  # С такой очисткой оказывается связаны наши проблемы с загрузкой
-    profilepath = store.abspath_join(storefolder, 'puppeteer', storename) 
-    shutil.rmtree(os.path.join(profilepath, 'Cache'), ignore_errors=True)
-    shutil.rmtree(os.path.join(profilepath, 'Code Cache'), ignore_errors=True)
-    shutil.rmtree(os.path.join(profilepath, 'Service Worker', 'CacheStorage'), ignore_errors=True)
+    profilepath = store.abspath_join(storefolder, 'headless', storename) 
+    shutil.rmtree(store.abspath_join(profilepath, 'Cache'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'Code Cache'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'Service Worker', 'CacheStorage'), ignore_errors=True)
 
 @safe_run_decorator
 def delete_profile(storefolder, storename):
     'Удаляем профиль'
     kill_chrome()  # Перед удалением киляем хром
-    profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))    
+    profilepath = store.abspath_join(storefolder, 'headless', storename)
     shutil.rmtree(profilepath)
 
 
@@ -219,7 +219,7 @@ class BalanceOverPlaywright():
         self.user_selectors = user_selectors
         self.ss_counter = 0  # Счетчик скриншотов
         # Удаляем скриншоты с прошлых разов
-        for fn in glob.glob(os.path.join(store.options('loggingfolder'), self.storename + '*.png')):
+        for fn in glob.glob(store.abspath_join(store.options('loggingfolder'), self.storename + '*.png')):
             os.remove(fn)
         # headless ТОЛЬКО в PLAYWRIGHT и ТОЛЬКО если отключен показ капчи, и ТОЛЬКО если не стоит show_chrome=0
         # иначе мы видимость браузера из headless уже не вернем и капчу показать не сможем
@@ -356,7 +356,7 @@ class BalanceOverPlaywright():
             suffix = self.ss_counter
             self.ss_counter += 1
         if path == '':
-            path = os.path.join(store.options('loggingfolder'), f'{self.storename}_{suffix}.png')
+            path = store.abspath_join(store.options('loggingfolder'), f'{self.storename}_{suffix}.png')
         self.page.screenshot(path=path)
 
     @check_browser_opened_decorator
@@ -688,7 +688,7 @@ class BalanceOverPlaywright():
                 import pprint
                 text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
                                     for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
-                with open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
+                with open(store.abspath_join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
                     f.write(text)
             self.browser_close()
         kill_chrome()  # Добиваем все наши незакрытые хромы, чтобы не появлялось кучи зависших

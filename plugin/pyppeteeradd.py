@@ -120,7 +120,7 @@ def kill_chrome():
 @safe_run_decorator
 def fix_crash_banner(storefolder, storename):
     'Исправляем Preferences чтобы убрать баннер Работа Chrome была завершена некорректно'
-    fn_pref = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename, 'Preferences'))
+    fn_pref = store.abspath_join(storefolder, 'puppeteer', storename, 'Preferences')
     if not os.path.exists(fn_pref):
         return  # Нет Preferences - выходим
     with open(fn_pref) as f:
@@ -134,16 +134,16 @@ def fix_crash_banner(storefolder, storename):
 def clear_cache(storefolder, storename):
     'Очищаем папку с кэшем профиля чтобы не разрастался'
     #return  # С такой очисткой оказывается связаны наши проблемы с загрузкой
-    profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))  
-    shutil.rmtree(os.path.join(profilepath, 'Cache'), ignore_errors=True)
-    shutil.rmtree(os.path.join(profilepath, 'Code Cache'), ignore_errors=True)
-    shutil.rmtree(os.path.join(profilepath, 'Service Worker', 'CacheStorage'), ignore_errors=True)
+    profilepath = store.abspath_join(storefolder, 'puppeteer', storename)
+    shutil.rmtree(store.abspath_join(profilepath, 'Cache'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'Code Cache'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'Service Worker', 'CacheStorage'), ignore_errors=True)
 
 @safe_run_decorator
 def delete_profile(storefolder, storename):
     'Удаляем профиль'
     kill_chrome()  # Перед удалением киляем хром
-    profilepath = os.path.abspath(os.path.join(storefolder, 'puppeteer', storename))    
+    profilepath = store.abspath_join(storefolder, 'puppeteer', storename)   
     shutil.rmtree(profilepath)
 
 class BalanceOverPyppeteer():
@@ -229,9 +229,9 @@ class BalanceOverPyppeteer():
             "--window-size=800,900"]
         if self.headless:
             # В Headless chrome не работают профили, всегда попадает в Default
-            self.user_data_dir = os.path.abspath(os.path.join(self.storefolder, 'headless', self.profile_directory))
+            self.user_data_dir = store.abspath_join(self.storefolder, 'headless', self.profile_directory)
         else:
-            self.user_data_dir = os.path.abspath(os.path.join(self.storefolder, 'puppeteer'))
+            self.user_data_dir = store.abspath_join(self.storefolder, 'puppeteer')
             self.launch_config_args.append(f"--profile-directory={self.profile_directory}")
         self.chrome_executable_path = store.options('chrome_executable_path')
         if not os.path.exists(self.chrome_executable_path):
@@ -527,7 +527,7 @@ class BalanceOverPyppeteer():
                 else:
                     # Никуда не попали и это не капча
                     if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
-                        fn = os.path.join(store.options('loggingfolder'), self.storename + '_unknown.png')
+                        fn = store.abspath_join(store.options('loggingfolder'), self.storename + '_unknown.png')
                         self.page_screenshot(path=fn)
                     logging.error(f'Unknown state')
                     raise RuntimeError(f'Unknown state')
@@ -633,7 +633,7 @@ class BalanceOverPyppeteer():
                 import pprint
                 text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
                                     for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
-                with open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
+                with open(store.abspath_join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
                     f.write(text)
             self.browser_close()
         kill_chrome()  # Добиваем все наши незакрытые хромы, чтобы не появлялось кучи зависших

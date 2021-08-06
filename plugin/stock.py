@@ -178,7 +178,7 @@ def get_balance(login, password, storename=None):
     session.session.params['history'].append({'timestamp':time.time(),'data':res_data})  # Полученное значение сразу добавляем в хвост истории
     if store.options('stock_fulllog'):
         fulllog = '\n'.join(f'{time.strftime("%Y.%m.%d %H:%M:%S",time.localtime())}\t{i["security"]}\t{i["price"]}\t{i["currency"]}\t{i["cnt"]}\t{round(i["value"],2)}\t{round(i["value_priv"],2)}' for i in res_data)
-        with open(os.path.join(store.options('loggingfolder'),f'stock_{login}.log'),'a') as f_log:
+        with open(store.abspath_join(store.options('loggingfolder'),f'stock_{login}.log'),'a') as f_log:
             f_log.write(fulllog+'\n')
     # Полная информация по стокам
     result['Stock'] = '\n'.join([f'{i["security"]+"("+i["currency"]+")":10} : {round(i["value_priv"],2):9.2f} {currenc}' for i in res_data])+'\n'

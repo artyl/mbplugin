@@ -299,7 +299,7 @@ def update_sqlite_from_mdb_core(deep=None):
     dbfilename = store.options('dbfilename')
     # читаем sqlite БД
     db = dbengine(dbfilename, fast=True)
-    mdbfilename = os.path.join(os.path.split(dbfilename)[0], 'BalanceHistory.mdb')
+    mdbfilename = store.abspath_join(os.path.split(dbfilename)[0], 'BalanceHistory.mdb')
     mdb = mdbengine(mdbfilename)
     # Дата согласно указанному deep от которой сверяем данные
     dd = datetime.datetime.now() - datetime.timedelta(days=deep)

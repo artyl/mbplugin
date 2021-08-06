@@ -113,9 +113,9 @@ def install_chromium(ctx):
 def pip_update(ctx):
     '''Обновляем пакеты по requirements.txt или requirements_win.txt '''
     if sys.platform == 'win32':
-        os.system(f'"{sys.executable}" -m pip install -r {os.path.join("mbplugin","docker","requirements_win.txt")}')
+        os.system(f'"{sys.executable}" -m pip install -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements_win.txt")}')
     else:
-        os.system(f'"{sys.executable}" -m pip install -r {os.path.join("mbplugin","docker","requirements.txt")}')
+        os.system(f'"{sys.executable}" -m pip install -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements.txt")}')
          
 
 @cli.command()
@@ -215,7 +215,7 @@ def web_server_autostart(ctx, turn):
             lnk_startup_path = f"{os.environ['APPDATA']}\\Microsoft\\Windows\\Start Menu\\Programs\\Startup"
             lnk_startup_full_name = f"{os.environ['APPDATA']}\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\run_webserver.lnk"
             shortcut = shell.CreateShortCut(lnk_path)
-            shortcut.Targetpath = os.path.abspath(os.path.join(ROOT_PATH, 'mbplugin', 'run_webserver.bat'))
+            shortcut.Targetpath = os.path.join(ROOT_PATH, 'mbplugin', 'run_webserver.bat')
             shortcut.save()
             if turn == 'on':
                 if str(store.options('start_http', section='HttpServer')) == '1':
@@ -554,7 +554,7 @@ def phone_change(ctx, num, delete, plugin, monitor, alias, login, password):
 @click.pass_context
 def version(ctx, verbose):
     'Текущая установленная версия'
-    changelist_fn= os.path.join('mbplugin', 'changelist.md')
+    changelist_fn= os.path.join(ROOT_PATH, 'mbplugin', 'changelist.md')
     if os.path.isdir('mbplugin') and os.path.exists(changelist_fn):
         version = re.findall('## (mbplugin.*?\))',open(changelist_fn, encoding='utf8').read())[-1]
         click.echo(version)
@@ -596,15 +596,15 @@ def version_update_git(ctx, force, branch):
         # В старые версии где еще нет mbp переключаться нельзя обратно уже тем же путем будет не вернуться
         click.echo('Switch to this version broke mbp')
         return
-    if os.path.isdir('mbplugin') and not os.path.isdir(os.path.join('mbplugin', '.git')):
+    if os.path.isdir('mbplugin') and not os.path.isdir(os.path.join(ROOT_PATH, 'mbplugin', '.git')):
         os.system(f'git clone --bare https://github.com/artyl/mbplugin.git mbplugin/.git')
         os.system(f'git -C mbplugin config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*')
         os.system(f'git -C mbplugin branch -D dev_playwright')
         os.system(f'git -C mbplugin branch -D master')
         os.system(f'git -C mbplugin branch -D dev')
         os.system(f'git -C mbplugin config --local --bool core.bare false')
-    if not os.path.isdir(os.path.join('mbplugin', '.git')):
-        click.echo(f"{os.path.join('mbplugin', '.git')} is not folder")
+    if not os.path.isdir(os.path.join(ROOT_PATH, 'mbplugin', '.git')):
+        click.echo(f"{os.path.join(ROOT_PATH, 'mbplugin', '.git')} is not folder")
         return
     os.system(f'git -C mbplugin fetch --all --prune')
     os.system(f'git -C mbplugin stash')

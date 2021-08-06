@@ -105,7 +105,7 @@ class Session():
         self.json_response = {}  # Сохраняем json ответы
         self.headers = headers
         try:
-            with open(os.path.join(self.storefolder, self.storename), 'rb') as f:
+            with open(abspath_join(self.storefolder, self.storename), 'rb') as f:
                 self.session = pickle.load(f)
                 self.headers = self.session.headers
         except Exception:
@@ -120,7 +120,7 @@ class Session():
     def drop_and_create(self, headers=None):
         'удаляем сессию и создаем новую'
         try:
-            os.remove(os.path.join(self.storefolder, self.storename))
+            os.remove(abspath_join(self.storefolder, self.storename))
         except Exception:
             pass
         self.session = requests.Session()
@@ -131,7 +131,7 @@ class Session():
 
     def save_session(self):
         'Сохраняем сессию в файл'
-        with open(os.path.join(self.storefolder, self.storename), 'wb') as f:
+        with open(abspath_join(self.storefolder, self.storename), 'wb') as f:
             pickle.dump(self.session, f)
 
     def save_response(self, url, response):
@@ -140,8 +140,7 @@ class Session():
         if not hasattr(response, 'content'):
             return
         if options('logginglevel') == 'DEBUG':
-            fld = options('loggingfolder')
-            fn = os.path.join(fld, f'{self.storename}_{self.pagecounter}.html')
+            fn = abspath_join(options('loggingfolder'), f'{self.storename}_{self.pagecounter}.html')
             open(fn, mode='wb').write(response.content)
         # Новый вариант сохранения - все json в один файл
         if options('logginglevel') == 'DEBUG' or str(options('log_responses')) == '1':
@@ -149,7 +148,7 @@ class Session():
                 js = response.json()
                 self.json_response[f'{url}_{self.pagecounter}'] = js
                 text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k, v in self.json_response.items()])
-                open(os.path.join(options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore').write(text)
+                open(abspath_join(options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore').write(text)
             except Exception:
                 pass
         self.pagecounter += 1
