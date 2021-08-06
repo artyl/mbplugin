@@ -647,7 +647,9 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
     # Здесь проверяем что все файлы соответствуют новой версии (отсутствующие файлы важны)
     diff_new = store.version_check_zip(new_zipname, ignore_missing=False)
     if len(diff_new) == 0:
-        click.echo('Your version is up to date with {new_zipname}')
+        click.echo(f'Your version is up to date with {new_zipname}')
+        os.rename(current_zipname, current_zipname+'.bak')
+        os.rename(new_zipname, current_zipname)
     # Установка
     if not skip_install and (force or len(diff_current) == 0 and len(diff_new) != 0):
         store.version_update_zip(new_zipname)
