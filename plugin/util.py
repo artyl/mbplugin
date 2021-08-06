@@ -240,19 +240,17 @@ def web_server_autostart(ctx, turn):
 def web_server(ctx, cmd):
     'start/stop/restart web сервер'
     name = 'web-server'
+    import httpserver_mobile
     try:
-        if cmd == 'start':
+        if cmd == 'stop' or cmd == 'restart':
+            httpserver_mobile.send_exit_signal()
+        if cmd == 'start' or cmd == 'restart':
             if sys.platform == 'win32':
                 lnk_path = os.path.join(ROOT_PATH, 'mbplugin', 'run_webserver.bat')
                 os.system(f'"{lnk_path}"')
             else:
-                import httpserver_mobile
                 httpserver_mobile.WebServer()
-                time.sleep(4)
-        elif cmd == 'restart':
-            http_command(cmd='restart')
-        elif cmd == 'stop':
-            http_command(cmd='exit')
+        time.sleep(3)
         click.echo(f'OK {name} {cmd}')
     except Exception:
         click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')                

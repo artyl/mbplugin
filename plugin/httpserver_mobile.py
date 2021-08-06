@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys,io, re, time, json, traceback, threading, logging, importlib, configparser, queue, argparse, subprocess, psutil
+import os, sys,io, re, time, json, traceback, threading, logging, importlib, queue, argparse, subprocess, psutil
 import wsgiref.simple_server, socketserver, socket, requests, urllib.parse, urllib.request, bs4, uuid
 import settings, store, dbengine, compile_all_jsmblh  # pylint: disable=import-error
 try:
@@ -427,15 +427,42 @@ def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={
     r=[requests.post(f'https://api.telegram.org/bot{api_token}/sendMessage',data={'chat_id':chat_id,'text':text,'parse_mode':'HTML'}) for chat_id in auth_id if text!='']
     return [repr(i) for i in r]
 
-def restart_program(reason='', exit_only=False):
+def restart_program(reason='', exit_only=False, delay=0):
+    'Restart or exit with delay'
+    time.sleep(delay)
     cmd = psutil.Process().cmdline()
+    filename_pid = store.abspath_join(store.options('storefolder'), 'web-server.pid')
     # Fix нужен т.к. util.py переходит в другую папку и относительные пути ломаются
     # cmd = [(os.path.abspath('util.py') if i.endswith('util.py') else i) for i in cmd]
-    logging.info(f'Restart by {reason} with cmd:{subprocess.list2cmdline(cmd)}')
+    logging.info(f'{"Exit" if exit_only else "Restart"} by {reason} with cmd:{subprocess.list2cmdline(cmd)}')
     TrayIcon().stop()
+    if os.path.exists(filename_pid):
+        os.remove(filename_pid)    
     if not exit_only:
         subprocess.Popen(cmd)  # Crossplatform run process
     psutil.Process().kill()
+
+def send_exit_signal(force=True):
+    logging.info('Send exit signal to web server')
+    filename_pid = store.abspath_join(store.options('storefolder'), 'web-server.pid')
+    if not os.path.exists(filename_pid):
+        return
+    port = int(store.options('port', section='HttpServer'))
+    requests.session().get(f'http://localhost:{port}/exit', timeout=1)
+    if not force:
+        return
+    for i in range(50):  # Подождем пока сервер остановится
+        if os.path.exists(filename_pid):
+            time.sleep(0.1)    
+    if os.path.exists(filename_pid):
+        with open(filename_pid) as f:
+            pid = int(open(filename_pid).read())
+        if not psutil.pid_exists(pid):
+            return
+        proc = psutil.Process(pid)
+        if len([c for c in proc.connections() if c.status=='LISTEN' and c.laddr.port==port])>0:
+            proc.kill()
+        
 
 class TrayIcon:
     'Создаем переменную класса, и при повторных вызовах не создаем новый а обращаемся к уже созданному'
@@ -520,6 +547,9 @@ class Scheduler():
     def view_html(self):
         res = ['\n'.join(map(repr, schedule.jobs))]
         return 'text/html; charset=cp1251', ['<html><head></head><body><pre>']+res+['</pre></body></html>']
+    
+    def stop(self):
+        pass
 
 
 class TelegramBot():
@@ -767,6 +797,7 @@ class ThreadingWSGIServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSG
 class WebServer():
     def __init__(self):
         self.cmdqueue = queue.Queue()
+        self.filename_pid = store.abspath_join(store.options('storefolder'), 'web-server.pid')
         store.turn_logging(httplog=True)
         self.port = int(store.options('port', section='HttpServer'))
         self.host = store.options('host', section='HttpServer')
@@ -775,15 +806,16 @@ class WebServer():
             if sock.connect_ex((self.host, self.port)) == 0:
                 logging.info(f"Port {self.host}:{self.port} already in use, try restart.")
                 try:
-                    requests.Session().get(f'http://{self.host}:{self.port}/exit', timeout=1)
-                    time.sleep(3)  # Подождем пока сервер остановится
+                    send_exit_signal()
                 except Exception:
                     pass
         if str(store.options('start_http', section='HttpServer')) != '1':
             logging.info(f'Start http server disabled in mbplugin.ini (start_http=0)')
             return
         with wsgiref.simple_server.make_server(self.host, self.port, self.web_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
-            logging.info(f'Listening {self.host}:{self.port}....')
+            with open(self.filename_pid, 'w') as f:
+                f.write(f'{os.getpid()}')            
+            logging.info(f'Listening pid={os.getpid()} {self.host}:{self.port}....')
             threading.Thread(target=self.httpd.serve_forever, name='httpd', daemon=True).start()
             if 'pystray' in sys.modules:  # Иконка в трее
                 self.tray_icon = TrayIcon()  # tray icon (он сам все запустит в threading)
@@ -793,8 +825,11 @@ class WebServer():
                 self.scheduler = Scheduler()
             # Запустили все остальное демонами и ждем, когда они пришлют сигнал
             self.cmdqueue.get()
-            self.telegram_bot.stop()
-            self.httpd.shutdown()
+    
+    def shutdown(self):
+        self.telegram_bot.stop()
+        self.scheduler.stop()
+        self.httpd.shutdown()
         logging.info(f'Shutdown server {self.host}:{self.port}....')
 
     def editor(self, environ):
@@ -944,9 +979,12 @@ class WebServer():
                 compile_all_jsmblh.recompile()
                 ct, text = 'text/html; charset=cp1251', ['OK']
             elif cmd == 'restart':  # exit cmd
-                restart_program(reason=f'WEB: /restart') # TODO нужен редирект иначе она зацикливается на рестарте
+                ct, text = 'text/html; charset=cp1251', ['OK']
+                # TODO нужен редирект иначе она зацикливается на рестарте
+                threading.Thread(target=lambda:restart_program(reason=f'WEB: /restart', delay=0.1), name='Restart', daemon=True).start()
             elif cmd == 'exit':  # exit cmd
-                restart_program(reason=f'WEB: /exit', exit_only=True)
+                ct, text = 'text/html; charset=cp1251', ['OK']
+                threading.Thread(target=lambda:restart_program(reason=f'WEB: /exit', exit_only=True, delay=0.1), name='Exit', daemon=True).start()
             if status.startswith('200'):
                 headers = [('Content-type', ct)]
             if status.startswith('303'):
@@ -972,8 +1010,7 @@ def main():
         if ARGS.cmd.lower() == 'start':
             WebServer()
         if ARGS.cmd.lower() == 'stop':
-            port = int(store.options('port', section='HttpServer'))
-            requests.session().get(f'http://localhost:{port}/exit')
+            send_exit_signal()
     except Exception:
         exception_text = f'Ошибка запуска WebServer: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)
