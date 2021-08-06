@@ -1,4 +1,17 @@
 @echo OFF
+
+where 7z >nul 2>&1
+if NOT "%errorlevel%"=="0" (
+echo Not found 7z
+goto :EOF
+)
+
+where curl >nul 2>&1
+if NOT "%errorlevel%"=="0" (
+echo Not found curl
+goto :EOF
+)
+
 %~d0 
 cd "%~dp0\.."
 call mbplugin\tcc\get_tcc.bat

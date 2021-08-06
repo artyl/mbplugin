@@ -49,13 +49,6 @@ def cli(ctx, debug, verbose, start_http):
     ctx.obj['VERBOSE'] = verbose
 
 @cli.command()
-@click.argument('name', type=str)
-@click.pass_context
-def hello(ctx, name):
-    'Пока для экспериментов оставил,потом уберу'
-    click.echo(f'Hello World! {ctx.obj} {name}')
-
-@cli.command()
 @click.argument('expression', type=str, nargs=-1)
 @click.pass_context
 def set(ctx, expression):
@@ -630,26 +623,21 @@ def version_update_git(ctx, force, branch):
     os.system(f'git -C mbplugin checkout {"-f" if force else ""} {branch_name}')
     click.echo(f'OK {name}')
 
-@cli.command()
-@click.pass_context
-def version_check_zip(ctx):
-    'Проверяет что файлы на диске и в pack совпадают'
-    name = 'version-check-zip'
-    res = store.version_check_zip(os.path.join('mbplugin','pack','new.zip'))
-    click.echo(f'{"OK" if len(res)==0 else "FAIL"} {name}')
-    click.echo('\n'.join(res))
 
 @cli.command()
 @click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
 @click.option('-v', '--version', type=str, default='', help='Указать конкретный номер версии (по тэгу)')
-@click.option('--skip-download', is_flag=True, help='Не загружать')
-@click.option('--skip-install', is_flag=True, help='Не устанавливать')
+@click.option('--only-download', is_flag=True, help='Только загрузить')
+@click.option('--only-check', is_flag=True, help='Только проверить')
+@click.option('--only-install', is_flag=True, help='Только установить')
 @click.pass_context
-def version_update(ctx, force, version, skip_download, skip_install):
+def version_update(ctx, force, version, only_download, only_check, only_install):
     'Загружает и обновляет файлы из pack с новой версией'
     name = 'version-update-zip'
     current_zipname = store.abspath_join('mbplugin','pack','current.zip')
     new_zipname = store.abspath_join('mbplugin','pack','new.zip')
+    skip_download = only_check or only_install and not only_download
+    skip_install = only_check or only_download and not only_install
     # Загрузка
     if not skip_download:
         # TODO при переключении ветки на master закомитить в эту ветку новым адресом и исправить адрес на 
@@ -679,18 +667,19 @@ def version_update(ctx, force, version, skip_download, skip_install):
 
 @cli.command()
 @click.pass_context
-def db_tables(ctx):
-    'Запуск запроса к БД SQLite'
-    name = 'db-tables'
+def db_info(ctx):
+    'Печать информации по БД SQLite'
+    name = 'db-info'
     if store.options('sqlitestore') == '1':
         import dbengine
         db = dbengine.dbengine(store.options('dbfilename'))
         query1 = "SELECT name FROM sqlite_master WHERE type='table'"
         dbdata = db.cur.execute(query1).fetchall()
+        click.echo('Tables:')
         for line in dbdata:
             tbl = line[0]
             cnt = db.cur.execute(f"select count(*) from {tbl}").fetchall()[0][0]
-            print(f'{tbl} {cnt}') 
+            click.echo(f'{tbl} {cnt}') 
 
 @cli.command()
 @click.argument('query', nargs=1)

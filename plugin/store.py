@@ -77,7 +77,7 @@ def version_check_zip(zipname, ignore_crlf=True):
             with open(zn, 'rb') as f:
                 data : bytes = f.read()
             if ignore_crlf:
-                if data.replace(b'\r\n', b'\r').strip() != zd.replace(b'\r\n', b'\r').strip():
+                if data.replace(b'\r\n', b'\n').strip() != zd.replace(b'\r\n', b'\n').strip():
                     different.append(zn)
             else:
                 if data != zd:

@@ -1,7 +1,9 @@
 ''' Чтобы не делать кашу из синхронных и асинхронных решено оставить здесь только синхронный вариант
 pyppiteradd останется для совместимости со старыми плагинами через async
 '''
-import asyncio, glob, json, logging, os, re, shutil, subprocess, sys, time, traceback
+import glob, json, logging, os, re, shutil, subprocess, sys, time, traceback
+from playwright.sync_api import sync_playwright
+import playwright
 if sys.platform == 'win32':
     try:
         import win32gui, win32process
@@ -668,7 +670,6 @@ class BalanceOverPlaywright():
 
     def main(self, run='normal'):
         logging.info(f"browserengine=Playwright")
-        from playwright.sync_api import sync_playwright
         if sys.platform != 'win32' and not self.launch_config.get('headless', True):
             os.system('pgrep Xvfb || Xvfb :99 -screen 0 1920x1080x24 &')            
             os.system('export DISPLAY=:99')  # On linux and headless:False use Xvfb
