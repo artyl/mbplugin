@@ -1,7 +1,4 @@
-import re
-import pytest
-import requests
-import conftest
+import conftest  # type: ignore # ignore import error
 import strelka  # pylint: disable=import-error
 
 def test_strelka():

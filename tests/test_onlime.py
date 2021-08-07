@@ -1,11 +1,7 @@
 import pytest
-import conftest
+import conftest  # type: ignore # ignore import error
 import onlime  # pylint: disable=import-error
 
-# Игнорирование RuntimeWarning пришлось включить из-за того что pytest думает что нужен await в 
-# self.browser.on("disconnected", self.disconnected_worker)
-# и ругается - RuntimeWarning: coroutine ..... was never awaited
-@pytest.mark.filterwarnings('ignore::RuntimeWarning')
 @pytest.mark.slow
 def test_onlime_logon_selectors():
     print(f'login_url={onlime.login_url}')

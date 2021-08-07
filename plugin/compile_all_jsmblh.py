@@ -3,7 +3,6 @@ import settings, store
 
 
 def recompile(pluginpath = store.abspath_join(os.path.split(sys.argv[0])[0]), verbose=False):
-    os.chdir(pluginpath)
     sys.path.insert(0,pluginpath)
     port = store.options('port', section='HttpServer')
     tmpl = open(store.abspath_join(pluginpath, '..', 'jsmblhplugin', '_template_localweb.jsmb'), encoding='cp1251').read()

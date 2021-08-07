@@ -90,4 +90,4 @@ cd "%~dp0"
 call git-restore-mtime
 
 cd "%~dp0\.."
-7z a -tzip mbplugin mbplugin
+7z a -tzip mbplugin mbplugin -xr!.git

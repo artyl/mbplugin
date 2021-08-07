@@ -1,7 +1,6 @@
 import re
-import pytest
 import requests
-import conftest
+import conftest  # type: ignore # ignore import error
 smile_net = __import__('smile-net')  # pylint: disable=import-error
 
 def test_smile_net():

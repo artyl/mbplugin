@@ -1,7 +1,6 @@
 import re
-import pytest
 import requests
-import conftest
+import conftest  # type: ignore # ignore import error
 import cardtel  # pylint: disable=import-error
 
 def test_cardtel():

@@ -5,9 +5,7 @@
 '''
 import os, sys, re, time, subprocess, shutil, glob, traceback, logging, importlib
 import click, requests
-import rlcompleter, readline
 
-readline.parse_and_bind("tab: complete")
 # Т.к. мы меняем текущую папку, то sys.argv[0] будет смотреть не туда, пользоваться можно только
 # папка где плагины
 PLUGIN_PATH = os.path.abspath(os.path.split(__file__)[0])
@@ -29,15 +27,6 @@ except ModuleNotFoundError:
     sys.path.insert(0, PLUGIN_PATH)
     import store
 
-def http_command(cmd):
-    'Посылаем сигнал локальному веб серверу'
-    import httpserver_mobile
-    port = store.options('port',section='HttpServer')
-    try:
-        return requests.get(f'http://127.0.0.1:{port}/{cmd}').content.decode('cp1251')
-    except Exception:
-        pass 
-
 @click.group()
 @click.option('-d', '--debug', is_flag=True, help='Debug mode')
 @click.option('-v', '--verbose', is_flag=True, help='Verbose mode')
@@ -54,8 +43,8 @@ def cli(ctx, debug, verbose, start_http):
 def set(ctx, expression):
     '''Установка/сброс опции, для флагов используйте 1/0
     если в качестве значения указан default происходит сброс к установкам по умолчанию
-    для установки set ini/HttpServer/start_http=1  
-    или для сброса set ini/HttpServer/start_http=default       
+    для установки     set ini/HttpServer/start_http=1  
+    или для сброса \b set ini/HttpServer/start_http=default       
     '''
     expression_prep = '='.join(expression)
     mbplugin_ini = store.ini()
@@ -245,7 +234,7 @@ def web_server(ctx, cmd):
     import httpserver_mobile
     try:
         if cmd == 'stop' or cmd == 'restart':
-            httpserver_mobile.send_exit_signal()
+            httpserver_mobile.send_http_signal('exit')
         if cmd == 'start' or cmd == 'restart':
             if sys.platform == 'win32':
                 lnk_path = os.path.join(ROOT_PATH, 'mbplugin', 'run_webserver.bat')
@@ -262,7 +251,8 @@ def web_server(ctx, cmd):
 def reload_schedule(ctx):
     'Перечитывает расписание запросов баланса'
     name = 'reload-schedule'
-    res = http_command(cmd='reload_schedule')
+    import httpserver_mobile
+    res = httpserver_mobile.send_http_signal(cmd='reload_schedule')
     click.echo(f'OK {name}\n{res}')
 
 @cli.command()
@@ -394,25 +384,21 @@ def copy_all_from_mdb(ctx):
     click.echo(f'OK {name}\n{res}')
 
 @cli.command()
+@click.option('-r', '--over_requests', is_flag=True, help='Отправка баланса TG чистым requests без использования web сервера')
 @click.pass_context
-def send_tgbalance(ctx):
+def send_tgbalance(ctx, over_requests):
     'Отправка баланса TG через API веб сервера'
     name = 'send-tgbalance'
-    # Sendtgbalance
-    res1 = http_command(cmd='sendtgbalance')
-    # Subscription
-    res2 = http_command(cmd='sendtgsubscriptions')
-    click.echo(f'OK {name}\nSendtgbalance: {res1}\nSubscription: {res2}')
-
-@cli.command()
-@click.pass_context
-def send_tgbalance_over_requests(ctx):
-    'Отправка баланса TG чистым requests без использования web сервера'
-    name = 'send_tgbalance_over_requests'
-    # Balanse over requests
     import httpserver_mobile
-    httpserver_mobile.send_telegram_over_requests()
-    click.echo(f'OK {name}')
+    if over_requests:
+        httpserver_mobile.send_telegram_over_requests()
+        click.echo(f'OK {name}')
+    else:
+        # Sendtgbalance
+        res1 = httpserver_mobile.send_http_signal(cmd='sendtgbalance')
+        # Subscription
+        res2 = httpserver_mobile.send_http_signal(cmd='sendtgsubscriptions')
+        click.echo(f'OK {name}\nSendtgbalance: {res1}\nSubscription: {res2}')
 
 @cli.command()
 @click.argument('action', type=click.Choice(['hide', 'show'], case_sensitive=False), default='hide')

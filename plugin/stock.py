@@ -57,10 +57,10 @@ def get_curs_moex(currenc):
 
 def get_yahoo(market, security, cnt, qu=None):
     url = time.strftime(f'https://query1.finance.yahoo.com/v8/finance/chart/{security}')
-    session = requests.Session()
-    session.headers['User-Agent'] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    response = session.get(url)
-    meta = response.json()['chart']['result'][0]['meta']
+    with requests.Session() as session:
+        session.headers['User-Agent'] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        response = session.get(url)
+        meta = response.json()['chart']['result'][0]['meta']
     price = meta['regularMarketPrice']
     res = {'security':security, 'price':price,'value':price*cnt, 'cnt': cnt, 'currency':'USD'}
     if qu:

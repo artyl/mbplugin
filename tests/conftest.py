@@ -4,8 +4,8 @@ sys.path.insert(0, os.path.abspath('plugin'))
 
 import settings  # pylint: disable=import-error
 
-settings.mbplugin_root_path = 'tests\\data'
-
+data_path = os.path.abspath(os.path.join('tests', 'data'))
+settings.mbplugin_root_path = data_path
 print(os.path.abspath('plugin'))
 
 def pytest_addoption(parser):

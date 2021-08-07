@@ -5,7 +5,6 @@ path = tests\data
 logginglevel = INFO
 sqlitestore = 1
 dbfilename = tests\data\BalanceHistory.sqlite
-loggingfolder = log
 createhtmlreport = 1
 ; ѕоказывать окно хрома во врем€ запроса
 show_chrome = 1

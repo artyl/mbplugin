@@ -442,14 +442,19 @@ def restart_program(reason='', exit_only=False, delay=0):
         subprocess.Popen(cmd)  # Crossplatform run process
     psutil.Process().kill()
 
-def send_exit_signal(force=True):
-    logging.info('Send exit signal to web server')
+def send_http_signal(cmd, force=True):
+    'Посылаем сигнал локальному веб серверу'
+    logging.info(f'Send {cmd} signal to web server')
     filename_pid = store.abspath_join(store.options('storefolder'), 'web-server.pid')
     if not os.path.exists(filename_pid):
         return
     port = int(store.options('port', section='HttpServer'))
-    requests.session().get(f'http://localhost:{port}/exit', timeout=1)
-    if not force:
+    try:
+        return requests.get(f'http://localhost:{port}/{cmd}', timeout=1).content.decode('cp1251')
+    except Exception:
+        pass
+    # То что дальше - это вышибание процесса если web сервер не остановился
+    if not(cmd == 'exit' and force):
         return
     for i in range(50):  # Подождем пока сервер остановится
         if os.path.exists(filename_pid):
@@ -461,8 +466,8 @@ def send_exit_signal(force=True):
             return
         proc = psutil.Process(pid)
         if len([c for c in proc.connections() if c.status=='LISTEN' and c.laddr.port==port])>0:
-            proc.kill()
-        
+            proc.kill()    
+
 
 class TrayIcon:
     'Создаем переменную класса, и при повторных вызовах не создаем новый а обращаемся к уже созданному'
@@ -654,8 +659,8 @@ class TelegramBot():
         'Ответ для команд /checkone - получаем баланс и /getone - показываем'
         query = update.callback_query
         query.answer()
-        cmd = query.data[:3]
-        keypair = query.data[4:]
+        cmd = query.data[:3]  # Первые 3 буквы - команда
+        keypair = query.data[4:]  # Далее Region_Number
         if keypair.startswith('Cancel'):
             query.edit_message_text('Canceled', parse_mode=telegram.ParseMode.HTML)
             return
@@ -806,7 +811,7 @@ class WebServer():
             if sock.connect_ex((self.host, self.port)) == 0:
                 logging.info(f"Port {self.host}:{self.port} already in use, try restart.")
                 try:
-                    send_exit_signal()
+                    send_http_signal(cmd='exit')
                 except Exception:
                     pass
         if str(store.options('start_http', section='HttpServer')) != '1':
@@ -1010,7 +1015,7 @@ def main():
         if ARGS.cmd.lower() == 'start':
             WebServer()
         if ARGS.cmd.lower() == 'stop':
-            send_exit_signal()
+            send_http_signal(cmd='exit')
     except Exception:
         exception_text = f'Ошибка запуска WebServer: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)

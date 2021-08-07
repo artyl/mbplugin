@@ -28,6 +28,8 @@ chrome_executable_path_alternate = [
         'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
         'C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
         ]
+# Список параметров которые являются путями, для них при обращении в store.options делаем абсолютные пути
+path_param = ['loggingfolder', 'loggingfilename', 'logginghttpfilename', 'storefolder', 'dbfilename', 'balance_html']
 ########################################################################################
 ini = {
     'Options': {  # Раздел mbplugin.ini [Options]

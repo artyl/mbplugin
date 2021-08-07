@@ -1,11 +1,11 @@
 import pytest
 import os, sys, shutil, filecmp
-import conftest
+import conftest  # type: ignore # ignore import error
 import store, settings  # pylint: disable=import-error
 
 
 def test_ini_class_mbplugin_ini_write():
-    ini_path = os.path.abspath('tests\\data\\mbplugin.ini')
+    ini_path = os.path.join(conftest.data_path,'mbplugin.ini')
     shutil.copyfile(ini_path+'.ori', ini_path)
     ini=store.ini()
     ini.fn = 'mbplugin.ini'
@@ -21,7 +21,6 @@ def test_ini_class_mbplugin_ini_write():
 
 
 def test_ini_class_phones_ini_write():
-    settings.mbplugin_root_path = 'tests\\data'
     ini = store.ini('phones.ini')
     phones = ini.phones()
     print(f'inipath={ini.inipath}')

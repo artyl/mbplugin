@@ -141,10 +141,12 @@ def fix_crash_banner(storefolder, storename):
 def clear_cache(storefolder, storename):
     'Очищаем папку с кэшем профиля чтобы не разрастался'
     #return  # С такой очисткой оказывается связаны наши проблемы с загрузкой
-    profilepath = store.abspath_join(storefolder, 'headless', storename) 
-    shutil.rmtree(store.abspath_join(profilepath, 'Cache'), ignore_errors=True)
-    shutil.rmtree(store.abspath_join(profilepath, 'Code Cache'), ignore_errors=True)
-    shutil.rmtree(store.abspath_join(profilepath, 'Service Worker', 'CacheStorage'), ignore_errors=True)
+    profilepath = store.abspath_join(storefolder, 'headless', storename)
+    shutil.rmtree(store.abspath_join(profilepath, 'BrowserMetrics'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'Crashpad'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'Default', 'Cache'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'Default', 'Code Cache'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'Default', 'Service Worker', 'CacheStorage'), ignore_errors=True)
 
 @safe_run_decorator
 def delete_profile(storefolder, storename):
@@ -693,6 +695,7 @@ class BalanceOverPlaywright():
             self.browser_close()
         kill_chrome()  # Добиваем все наши незакрытые хромы, чтобы не появлялось кучи зависших
         clear_cache(self.storefolder, self.storename)
+        time.sleep(2)  # Даем время закрыться
         return self.result   
 
 class BrowserController(BalanceOverPlaywright):

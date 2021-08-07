@@ -1,5 +1,5 @@
 import pytest
-import conftest
+import conftest  # type: ignore # ignore import error
 import parking_mos  # pylint: disable=import-error
 
 class balance_over_parking_mos(parking_mos.browserengine):
@@ -7,10 +7,6 @@ class balance_over_parking_mos(parking_mos.browserengine):
         self.page_goto('https://lk.parking.mos.ru/auth/login')
         self.page_evaluate("window.location = '/auth/social/sudir?returnTo=/../cabinet'")
 
-# Игнорирование RuntimeWarning пришлось включить из-за того что pytest думает что нужен await в 
-# self.browser.on("disconnected", self.disconnected_worker)
-# и ругается - RuntimeWarning: coroutine ..... was never awaited
-@pytest.mark.filterwarnings('ignore::RuntimeWarning')
 @pytest.mark.slow
 def test_parking_mos_logon_selectors():
     print(f'login_url={parking_mos.login_url}')

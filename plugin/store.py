@@ -4,18 +4,17 @@ import os, sys, time, io, re, json, pickle, requests, configparser, pprint, zipf
 from os.path import abspath
 import settings
 
-
-def session_folder(storename):
-    'Возвращяет путь к папке хранения сессий'
-    storefolder = options('storefolder')     
-    os.path.join(storefolder, storename)
-
 def abspath_join(*argv):
     'собираем в путь все переданные куски, если получившийся не абсолютный, то приделываем к нему путь до корня'
     path = os.path.join(*argv)
     if not os.path.isabs(path):
         path = os.path.abspath(os.path.join(settings.mbplugin_root_path, path))
     return path
+
+def session_folder(storename):
+    'Возвращает путь к папке хранения сессий'
+    storefolder = abspath_join(options('storefolder'), storename)
+    return storefolder
 
 def path_split_all(path):
     'разбивает путь на список'
@@ -170,22 +169,26 @@ class Session():
 
 
 def options(param, default=None, section='Options', listparam=False, mainparams={}):
-    'Читаем параметр из mbplugin.ini либо дефолт из settings'
-    'Если listparam=True, то читаем список из всех, что начинается на param'
-    'mainparams - перекрывает любые другие варианты, если в нем присутствует - берем его'
-    if param in mainparams and listparam == False:
-        return mainparams[param]
-    if default is None:
-        default = settings.ini[section].get(param.lower(), None)
+    '''Читаем параметр из mbplugin.ini либо дефолт из settings
+    Если listparam=True, то читаем список из всех, что начинается на param
+    mainparams - перекрывает любые другие варианты, если в нем присутствует - берем его
+    Если результат путь (settings.path_param) - то вычисляем для него абсолютный путь
+    '''
     options_all_sec = ini().read()
-    if section in options_all_sec:
-        options_sec = options_all_sec[section]
-    else:
-        options_sec = {}
     if listparam:
-        return [v for k,v in options_sec.items() if k.startswith(param)]
+        res = []
+        if section in options_all_sec:
+            res = [v for k,v in options_all_sec[section].items() if k.startswith(param)]
     else:
-        return options_sec.get(param, default)
+        if default is None:
+            default = settings.ini[section].get(param.lower(), None)        
+        if param in mainparams:
+            res = mainparams[param]
+        else:
+            res = options_all_sec.get(section, param, fallback=default)
+        if param.lower() in settings.path_param:
+            res = abspath_join(res)
+    return res
     
 class ini():
     def __init__(self, fn=settings.mbplugin_ini):
@@ -444,7 +447,7 @@ def ini_by_expression(expression):
 
 def turn_logging(httplog=False, logginglevel=None):
     'Включение логирования'
-    file_log = logging.FileHandler(options('logginghttpfilename' if httplog else 'loggingfilename'))
+    file_log = logging.FileHandler(abspath_join(options('logginghttpfilename' if httplog else 'loggingfilename')))
     if logginglevel is None:
         logginglevel = options('logginglevel')
     handlers = (file_log,)

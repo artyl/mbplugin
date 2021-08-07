@@ -1,7 +1,7 @@
 import re
 import pytest
 import requests
-import conftest
+import conftest  # type: ignore # ignore import error
 avtodor_tr = __import__('avtodor-tr')  # pylint: disable=import-error
 
 def test_avtodor_tr():
