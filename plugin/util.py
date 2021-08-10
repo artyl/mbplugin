@@ -324,27 +324,27 @@ def check_playwright(ctx):
 @click.pass_context
 def init(ctx):
     '''Инициализация можно втором параметром указать noweb тогда вебсервер не будет запускаться и помещаться в автозапуск
-    Если в mbplugin.ini пути не правильные то прописывает абсолютные пути к тем файлам, которые лежат в текущей папке 
+    Если в mbplugin.ini пути не правильные то прописывает абсолютные пути к тем файлам, которые лежат в текущей папке
+    копирует phones.ini из примера, если его еще нет
     '''
     name = 'init'
     try:
-        if not os.path.exists(os.path.join(STANDALONE_PATH, 'phones.ini')):
-            click.echo(f'The folder {STANDALONE_PATH} must contain a file phones.ini')
-            return
+        if not os.path.exists(store.abspath_join(store.settings.mbplugin_ini_path, 'phones.ini')):
+            click.echo(f'The folder {store.settings.mbplugin_ini_path} must contain a file phones.ini, copy example')
+            shutil.copy(store.abspath_join(store.settings.mbplugin_root_path, 'mbplugin', 'standalone', 'phones.ini'),
+                        store.abspath_join(store.settings.mbplugin_ini_path, 'phones.ini'))
         ini=store.ini()
         ini.read()
         # TODO пока для совместимости НЕ Убираем устаревшую секцию MobileBalance - она больше не используется
         # ini.ini.remove_section('MobileBalance')
         # Если лежит mobilebalance - отрабатываем обычный, а не автономный конфиг
-        if not os.path.exists(os.path.join(STANDALONE_PATH, 'MobileBalance.exe')):
+        if not os.path.exists(store.abspath_join(store.settings.mbplugin_ini_path, 'MobileBalance.exe')):
             #click.echo(f'The folder {STANDALONE_PATH} must not contain a file mobilebalance.exe')
             # Запись SQLITE, создание report и работу с phone.ini из скриптов точно включаем если рядом нет mobilebalance.exe, иначе это остается на выбор пользователя
             ini.ini['Options']['sqlitestore'] = '1'
             ini.ini['Options']['createhtmlreport'] = '1'
             ini.ini['Options']['phone_ini_save'] = '1'
         # TODO пока для совместимости ini со старой версией оставляем путь как есть если если он абсолютный и файл по нему есть
-        if not(os.path.abspath(ini.ini['Options']['dbfilename']) == os.path.abspath('BalanceHistory.sqlite') and os.path.exists(ini.ini['Options']['dbfilename'])):
-            ini.ini['Options']['dbfilename'] = 'BalanceHistory.sqlite'
         if not (os.path.abspath(ini.ini['Options']['balance_html']) == os.path.abspath('balance.html') and os.path.exists(ini.ini['Options']['balance_html'])):
             ini.ini['Options']['balance_html'] = 'balance.html'
         ini.write()
@@ -618,6 +618,19 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
     new_zipname = store.abspath_join('mbplugin','pack','new.zip')
     skip_download = only_check or only_install and not only_download
     skip_install = only_check or only_download and not only_install
+    # проверка файлов по current.zip
+    # Здесь проверяем чтобы не поменять что-то что руками поменяно (отсутствующие на диске файлы не важны)
+    if not os.path.exists(current_zipname) and not force:
+        # Если текущего файла нет мы не можем проверить на что обновляемся
+        click.echo(f'Not exists {current_zipname} {"" if force else" (use -f)"}')
+        return
+    if os.path.exists(current_zipname):
+        diff_current = store.version_check_zip(current_zipname, ignore_missing=True)
+        if len(diff_current) > 0:
+            click.echo(f'The current files are different from the release{"" if force else" (use -f)"}')
+            click.echo('\n'.join(diff_current))
+            if not force:
+                click.echo(f'For update use option -f')
     # Загрузка
     if not skip_download:
         # TODO при переключении ветки на master закомитить в эту ветку новым адресом и исправить адрес на 
@@ -630,18 +643,20 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
         if not os.path.exists(current_zipname):
             shutil.copy(new_zipname, current_zipname)
         click.echo('Download complete')
-    # проверка файлов по current.zip
-    # Здесь проверяем чтобы не поменять что-то что руками поменяно (отсутствующие на диске файлы не важны)
-    diff_current = store.version_check_zip(current_zipname, ignore_missing=True)
-    if len(diff_current) > 0:
-        click.echo(f'The current files are different from the release{"" if force else" (use -f)"}')
-        click.echo('\n'.join(diff_current))
     # проверка файлов по new.zip
-    # Здесь проверяем что все файлы соответствуют новой версии (отсутствующие файлы важны)
-    diff_new = store.version_check_zip(new_zipname, ignore_missing=False)
-    if len(diff_new) == 0:
-        click.echo(f'Your version is up to date with {new_zipname}')
-        rename_new_to_current(new_zipname, current_zipname)
+    # проверяем что new_zipname отличается от current_zipname
+    if os.path.exists(new_zipname) and os.path.exists(current_zipname) and not force:
+        with open(new_zipname, 'rb') as f1, open(current_zipname, 'rb') as f2:
+            compare_files = f1.read()==f2.read()
+        if compare_files:
+            click.echo(f'The file of the new version matches the current one')
+            os.remove(new_zipname)
+    # Здесь проверяем что вдруг все файлы соответствуют новой версии (отсутствующие файлы важны)
+    if os.path.exists(new_zipname):
+        diff_new = store.version_check_zip(new_zipname, ignore_missing=False)
+        if len(diff_new) == 0:
+            click.echo(f'Your version is up to date with {new_zipname}')
+            rename_new_to_current(new_zipname, current_zipname)
     # Установка
     if not skip_install and (force or len(diff_current) == 0 and len(diff_new) != 0):
         store.version_update_zip(new_zipname)
@@ -656,8 +671,7 @@ def db_query(ctx, query):
     name = 'db-query'
     if store.options('sqlitestore') == '1':
         import dbengine
-        dbfilename = store.options('dbfilename')
-        db = dbengine.dbengine(dbfilename)
+        db = dbengine.dbengine()
         if len(query) == 0:
             query1 = "SELECT name FROM sqlite_master WHERE type='table'"
             dbdata = db.cur.execute(query1).fetchall()

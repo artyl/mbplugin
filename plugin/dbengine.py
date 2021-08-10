@@ -135,8 +135,10 @@ addition_queries = [
 
 
 class dbengine():
-    def __init__(self, dbname, updatescheme=True, fast=False):
+    def __init__(self, dbname=None, updatescheme=True, fast=False):
         'fast - быстрее, но менее безопасно'
+        if dbname is None:
+            dbname = store.abspath_join(settings.mbplugin_ini_path, 'BalanceHistory.sqlite')
         self.dbname = dbname
         self.conn = sqlite3.connect(self.dbname)  # detect_types=sqlite3.PARSE_DECLTYPES
         self.cur = self.conn.cursor()
@@ -256,8 +258,10 @@ class dbengine():
 
 
 class mdbengine():
-    def __init__(self, dbname):
+    def __init__(self, dbname=None):
         import pyodbc
+        if dbname is None:
+            dbname = store.abspath_join(settings.mbplugin_ini_path, 'BalanceHistory.mdb')
         self.dbname = dbname
         DRV = '{Microsoft Access Driver (*.mdb)}'
         self.conn = pyodbc.connect(f'DRIVER={DRV};DBQ={dbname}')
@@ -296,11 +300,9 @@ def update_sqlite_from_mdb_core(deep=None):
     logging.info(f'Добавляем данные из mdb')
     if deep is None:
         deep = int(store.options('updatefrommdbdeep'))
-    dbfilename = store.options('dbfilename')
     # читаем sqlite БД
-    db = dbengine(dbfilename, fast=True)
-    mdbfilename = store.abspath_join(os.path.split(dbfilename)[0], 'BalanceHistory.mdb')
-    mdb = mdbengine(mdbfilename)
+    db = dbengine(fast=True)
+    mdb = mdbengine()  # BalanceHistory.mdb
     # Дата согласно указанному deep от которой сверяем данные
     dd = datetime.datetime.now() - datetime.timedelta(days=deep)
     logging.debug(f'Read from sqlite QueryDateTime>{dd}')
@@ -391,9 +393,8 @@ def write_result_to_db(plugin, login, result):
     'пишем в базу если в ini установлен sqlitestore=1'
     try:
         if store.options('sqlitestore') == '1':
-            dbfilename = store.options('dbfilename')
-            logging.info(f'Пишем в базу {dbfilename}')
-            db = dbengine(dbfilename)
+            db = dbengine()
+            logging.info(f'Пишем в базу {db.dbname}')
             db.write_result(plugin, login, result)
     except AttributeError:
         logging.info(f'Отсутствуют параметры {"".join(traceback.format_exception(*sys.exc_info()))} дополнительные действия не производятся')
@@ -405,9 +406,8 @@ def flags(cmd, key=None, value=None):
     'Работаем с флагами (таблица Flags) если в ini установлен sqlitestore=1, если нет просто вернем None'
     try:
         if store.options('sqlitestore') == '1':
-            dbfilename = store.options('dbfilename')
             logging.debug(f'Flag:{cmd}')
-            db = dbengine(dbfilename)
+            db = dbengine()
             if cmd.lower() == 'set':
                 db.cur.execute('REPLACE INTO flags(key,value) VALUES(?,?)', [key, value])
                 db.conn.commit()
@@ -436,9 +436,8 @@ def responses():
     'Возвращаем все responses словарем'
     try:
         if store.options('sqlitestore') == '1':
-            dbfilename = store.options('dbfilename')
             logging.debug(f'Responses from sqlite')
-            db = dbengine(dbfilename)
+            db = dbengine()
             db.cur.execute('select key,value from responses')
             qres = db.cur.fetchall()
             return {k: v for k, v in qres}

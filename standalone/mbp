@@ -60,7 +60,6 @@ if [ -f $util_path ]; then
     cd $root_path
     cp mbplugin/standalone/mbp .
     chmod +x mbp
-    [ ! -f phones.ini ] && cp mbplugin/standalone/phones.ini . 
     [ -f dockervar ] && echo $DOCKER 
     $DOCKER_STD python mbplugin/plugin/util.py init
     $DOCKER_STD python mbplugin/plugin/util.py pip-update

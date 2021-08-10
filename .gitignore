@@ -6,6 +6,7 @@ pack/*
 webdriver/*
 */__pycache__
 .vscode/*
+tests/data/mbplugin/*
 BalanceHistory.sqlite
 balance.html
 plugin/personalsetting.py

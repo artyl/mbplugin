@@ -192,18 +192,18 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     
 class ini():
     def __init__(self, fn=settings.mbplugin_ini):
-        'файл mbplugin.ini ищем в вышележащих папках либо в settings.mbplugin_root_path если он не пустой'
+        'файл mbplugin.ini ищем в вышележащих папках либо в settings.mbplugin_ini_path если он не пустой'
         'остальные ini ищем в пути прописанном в mbplugin.ini\\MobileBalance\\path'
         'Все пути считаются относительными папки где лежит сам mbplugin.ini, если не указано иное'
         self.ini = configparser.ConfigParser()
         self.fn = fn
-        self.inipath = abspath_join(settings.mbplugin_root_path, self.fn)
+        self.inipath = abspath_join(settings.mbplugin_ini_path, self.fn)
             
     def find_files_up(self, fn):
         'Ищем файл вверх по дереву путей'
-        'Для тестов можно явно указать папку с mbplugin.ini в settings.mbplugin_root_path '
+        'Для тестов можно явно указать папку с mbplugin.ini в settings.mbplugin_ini_path '
         # TODO пока оставили чтобы не ломать тесты, потом уберем 
-        return abspath_join(settings.mbplugin_root_path, fn)
+        return abspath_join(settings.mbplugin_ini_path, fn)
         
     def read(self):
         'Читаем ini из файла'
@@ -236,16 +236,14 @@ class ini():
         'Только создаем в памяти, но не записываем'
         # Создаем mbplugin.ini - он нам нужен для настроек и чтобы знать где ini-шники от mobilebalance
         # mbpath = self.find_files_up('phones.ini')
-        mbpath = abspath_join(settings.mbplugin_root_path, 'phones.ini')
+        mbpath = abspath_join(settings.mbplugin_ini_path, 'phones.ini')
         if not os.path.exists(mbpath):
             # Если нашли mobilebalance - cоздадим mbplugin.ini и sqlite базу там же где и ini-шники mobilebalance
-            print(f'Not found phones.ini in {settings.mbplugin_root_path}')
+            print(f'Not found phones.ini in {settings.mbplugin_ini_path}')
             raise RuntimeError(f'Not found phones.ini')
         # создадим mbplugin.ini над папкой mbplugin
-        dbpath = settings.ini['Options']['dbfilename']
         self.ini['Options'] = {'logginglevel': settings.ini['Options']['logginglevel'],
                           'sqlitestore': settings.ini['Options']['sqlitestore'],
-                          'dbfilename': dbpath,
                           'createhtmlreport': settings.ini['Options']['createhtmlreport'],
                           'balance_html': abspath_join(settings.ini['Options']['balance_html']),
                           'updatefrommdb': settings.ini['Options']['updatefrommdb'],

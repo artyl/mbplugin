@@ -11,12 +11,26 @@ UNIT = {'TB': 1073741824, 'ТБ': 1073741824, 'TByte': 1073741824, 'TBYTE': 1073
         'DAY': 30, 'DAYLY': 30, 'MONTH':1,
         'day': 30, 'dayly': 30, 'month':1,}
 
+def find_file_up(folder, filename):
+    'Нужен для совместимости со старым подходом, когда папка mbplugin могла находится на несколько уровней вложенности вниз'
+    folder = os.path.abspath(folder)
+    if os.path.exists(os.path.join(folder, filename)):
+            return folder    
+    levels = [os.sep.join(folder.split(os.sep)[:i]) for i in range(len(folder.split(os.sep)), 1, -1)]
+    for path in levels:
+        if os.path.exists(os.path.join(path, filename)):
+            return path
+    return folder
+
 # имя ini файла
 mbplugin_ini = 'mbplugin.ini'
-# полный путь к корню где лежат ini файлы и база (пока используется в только в тестах)
-# Для standalone версии - это папка в которой по умолчанию находится mbplugin.ini, phones.ini,  база и папка mbplugin
 # По умолчанию вычисляем эту папку как папку на 2 уровня выше папки с этим скриптом
+# Этот путь используем когда обращаемся к подпапкам папки mbplugin
 mbplugin_root_path = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', '..'))
+# Папка в которой по умолчанию находится mbplugin.ini, phones.ini, база 
+# т.к. раньше допускалось что папка mbplugin может находится на несколько уровней вложенности вниз ищем вверх phones.ini
+mbplugin_ini_path = find_file_up(mbplugin_root_path, 'phones.ini')
+# В нормальном случае mbplugin_root_path и mbplugin_ini_path - одна и та же папка
 
 # сюда пропишем сразу возможные варианты для путя хрома
 chrome_executable_path_alternate = [
@@ -29,7 +43,7 @@ chrome_executable_path_alternate = [
         'C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
         ]
 # Список параметров которые являются путями, для них при обращении в store.options делаем абсолютные пути
-path_param = ['loggingfolder', 'loggingfilename', 'logginghttpfilename', 'storefolder', 'dbfilename', 'balance_html']
+path_param = ['loggingfolder', 'loggingfilename', 'logginghttpfilename', 'storefolder', 'balance_html']
 ########################################################################################
 ini = {
     'Options': {  # Раздел mbplugin.ini [Options]
@@ -61,9 +75,9 @@ ini = {
         # Создавать файлик html отчета, после получения данных
         'createhtmlreport_': {'descr':'Создавать файлик html отчета, после получения данных', 'type':'checkbox'},
         'createhtmlreport': '0',
-        # путь к БД sqlite
-        'dbfilename_': {'descr':'путь к БД sqlite', 'type':'text', 'size':100},
-        'dbfilename': os.path.join('BalanceHistory.sqlite'), # BalanceHistory.sqlite
+        # путь к БД sqlite - TODO не используем, всегда ищем ее в папке с phones.ini
+        #'dbfilename_': {'descr':'путь к БД sqlite', 'type':'text', 'size':100},
+        #'dbfilename': os.path.join('BalanceHistory.sqlite'), # BalanceHistory.sqlite
         # путь к html файлу, который создается после получения баланса
         'balance_html_': {'descr':'путь к html файлу, который создается после получения баланса', 'type':'text', 'size':100},
         'balance_html': os.path.join('balance.html'), # balance.html

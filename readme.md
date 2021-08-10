@@ -34,7 +34,7 @@
 ## Короткая инструкция по установке для работы с MobileBalance
 
 1. Свежую версию сборки можно найти в [releases](https://github.com/artyl/mbplugin/releases) в моем репозитории на github или в форуме на [4pda](https://4pda.ru/forum/index.php?showtopic=985296&st=140#entry97043755) посвященном MobileBalance.  
-2. Распаковать свежую версию сборки в папку где установлен MobileBalance (точнее где находятся файлы Options.ini, phones.ini, BalanceHistory.mdb если в папке MobileBalance.exe есть а указанных файлов нет, то пробуйте поискать в папке например вместо C:\Program Files (x86)\Mobilebalance посмотрите в папке %localappdata%\VirtualStore\Program Files (x86)\Mobilebalance или просто поищите по диску в какой папке у вас находится phones.ini и другие файлы). В принципе можно распаковать в любую папку, в которую у скрипта при работе будет доступ на запись, базовый функционал будет работать, все остальное можно донастроить потом.  
+2. Распаковать свежую версию сборки в папку где установлен MobileBalance (точнее где находятся файлы Options.ini, phones.ini, BalanceHistory.mdb если в папке MobileBalance.exe есть а указанных файлов нет, то пробуйте поискать в папке например вместо C:\Program Files (x86)\Mobilebalance посмотрите в папке %localappdata%\VirtualStore\Program Files (x86)\Mobilebalance или просто поищите по диску в какой папке у вас находится phones.ini и другие файлы).  
 4. Запустить из папки mbplugin setup_and_check.bat (он пересоберет плагины, поставит в автозагрузку веб сервер и проверит работу тестовым плагином). Бывает, что он в процессе выдает ошибки, но при этом отрабатывает нормально. Так что если были сообщения об ошибке, то можно их проигнорировать и попробовать работу программы, или при желании можно запустить setup_and_check.bat повторно и посмотреть на результат.  
 5. Подключить нужные плагины из папки mbplugin\jsmblhplugin
 6. Можно пользоваться.  
@@ -94,7 +94,7 @@ vscale - Облачные серверы для разработчиков
 - __loggingfilename__ = путь к файлу лога, относительно папки plugin, для dllplugin
 - __logginghttpfilename__ = путь к файлу лога, относительно папки plugin, для web север
 - __mts_usedbyme__ = 0 - спецвариант по просьбе Mr. Silver в котором возвращаются не остаток интернета, а использованный, 0 - показывать оставшийся трафик (NonUsed) по всем, 1 - показывать использованный трафик (usedByMe) по всем, или список тел, через запятую - показать использованный только для этих списка телефонов
-- __sqlitestore__ = 1 - запись запросов в sqlite БД, ghbxtv пишуться все поля, напримет те же SMS, которые не принимает MobileBalance через DLL, sqlite БД по умолчанию находится в папк mobilebalance, но при желании это путь можно изменить в параметре dbfilename  
+- __sqlitestore__ = 1 - запись запросов в sqlite БД, причем пишуться все поля, например те же SMS, которые не принимает MobileBalance через DLL, sqlite БД по умолчанию находится в папк mobilebalance  
 - __createhtmlreport__ = 1 (требуется включенный sqlitestore = 1)- после каждого вызова mbplugin создавать файл с отчетом, сходный с html страничкой, которую mobilebalance умеет отдавать в виде html. Список полей в отчете можно поменять в переменной table_format, только не трогайте на первых двух местах PhoneNumber,Operator, иначе сломается. Пока не придумал как по другому.
 
 Местоположение отчета по умолчанию - в папке mbplugin\db\balance.html, если хотите в другое место - меняйте параметр balance_html
@@ -193,60 +193,7 @@ auth_id = ваши id через зяпятую (в начале просто о
 
 ## Как проверить что все работает
 
-Запустите mbplugin\setup_and_check.bat он пересобирет плагины, настроит автозапуск web сервера для jsmbLH плагинов и проверит работу плагинов запуском обоих вариантов тестового плагина. На экран будет выведено примерно следующе 
-
-```log
-Compile to p_moex.dll
-Compile to p_mts.dll
-Compile to p_parking_mos.dll
-Compile to p_sipnet.dll
-Compile to p_smile-net.dll
-Compile to p_sodexo.dll
-Compile to p_stock.dll
-Compile to p_strelka.dll
-Compile to p_tele2.dll
-Compile to p_test1.dll
-Compile to p_test2.dll
-Compile to p_usd.dll
-Compile to p_zadarma.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_avtodor-tr.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_beeline.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_cardtel.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_danycom.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_eur.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_financeyahoo.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_megafon.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_moex.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_mts.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_parking_mos.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_sipnet.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_smile-net.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_sodexo.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_stock.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_strelka.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_tele2.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_test1.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_test2.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_usd.dll
-C:\new\mobil\MobileBalance\Pluguns\mbplugin\dllsource\p_zadarma.dll
-Перемещено файлов:        20.
-Пересобираем JSMB LH plugin
-Создаем lnk на run_webserver.bat и помещаем его в автозапуск и запускаем
-Скопировано файлов:         1.
-Проверяем что все работает JSMB LH PLUGIN
-<html><meta charset="windows-1251"><p id=response>{"Balance": 124.45, "Balance2": 22, "Balance3": 33, "LicSchet": "Лицевой счет", "UserName": "ФИО", "TarifPlan": "Тарифный план", "BlockStatus": "Статус блокировки", "AnyString": "Любая строка", "SpendBalance": 12, "KreditLimit": 23, "Currenc": "Валюта", "Average": 5, "TurnOffStr": "Ожидаемая дата отключения", "Recomend": 54, "SMS": 43, "Min": 222, "SpendMin": 32, "Expired": "Дата истечения баланса/платежа", "ObPlat": 14, "Internet": 1234, "UslugiOn": "2/8"}</p></html>
-Проверяем что все работает DLL PLUGIN
-INFO:
-<IssaPlugin>
-<Operator>DLL p_test1</Operator>
-<ShortName>p_test1</ShortName>
-<Author>ArtyLa</Author>
-<Version>Jun 28 2020</Version>
-</IssaPlugin>
-EXECUTE:
-<Response><Balance>124.45</Balance><Balance2>22</Balance2><Balance3>33</Balance3><LicSchet>Лицевой счет</LicSchet><UserName>ФИО</UserName><TarifPlan>Тарифный план</TarifPlan><BlockStatus>Статус блокировки</BlockStatus><AnyString>Любая строка</AnyString><SpendBalance>12</SpendBalance><KreditLimit>23</KreditLimit><Currenc>Валюта</Currenc><Average>5</Average><TurnOffStr>Ожидаемая дата отключения</TurnOffStr><Recomend>54</Recomend><SMS>43</SMS><Min>222</Min><SpendMin>32</SpendMin><Expired>Дата истечения баланса/платежа</Expired><ObPlat>14</ObPlat><Internet>1234</Internet><UslugiOn>2/8</UslugiOn></Response>
-Для продолжения нажмите любую клавишу . . .
-```
+Запустите mbplugin\setup_and_check.bat он пересобирет плагины, настроит автозапуск web сервера для jsmbLH плагинов и проверит работу плагинов запуском обоих вариантов тестового плагина.  
 
 ## Немного технических деталей
 

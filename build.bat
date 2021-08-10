@@ -87,6 +87,8 @@ del mbplugin\store\mbplugin.ini.bak.zip
 del mbplugin\python\scripts\*.exe
 
 cd "%~dp0"
+for /F "tokens=1 delims=#" %%T IN ('git rev-parse HEAD') DO set mbpluginhead=%%T
+curl -Lk https://github.com/artyl/mbplugin/archive/%mbpluginhead%.zip -o pack\current.zip
 call git-restore-mtime
 
 cd "%~dp0\.."

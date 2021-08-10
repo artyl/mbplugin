@@ -229,7 +229,7 @@ def getreport(param=[]):
     </td></tr>
     </table>
     '''    
-    db = dbengine.dbengine(store.options('dbfilename'))
+    db = dbengine.dbengine()
     flags = dbengine.flags('getall')  # берем все флаги словарем
     responses = dbengine.responses()  # все ответы по запросам
     # номера провайдеры и логины из phones.ini
@@ -333,8 +333,8 @@ def prepare_balance_mobilebalance(filter='FULL', params={}):
     """
     phones = store.ini('phones.ini').phones()
     phones_by_num = {v['NN']:v for v in phones.values()}
-    url = store.options('mobilebalance_http', section='Telegram', mainparams=params)
-    tgmb_format = store.options('tgmb_format', section='Telegram', mainparams=params)
+    url = store.options('mobilebalance_http', section='Telegram')
+    tgmb_format = store.options('tgmb_format', section='Telegram')
     response1_text = requests.get(url).content.decode('cp1251')
     # нет таблицы
     if 'Введите пароль' in response1_text or '<table' not in response1_text:
@@ -360,8 +360,8 @@ def prepare_balance_mobilebalance(filter='FULL', params={}):
 
 def prepare_balance_sqlite(filter='FULL', params={}):
     'Готовим данные для отчета из sqlite базы'
-    db = dbengine.dbengine(store.options('dbfilename', mainparams=params))
-    table_format = store.options('tg_format', section='Telegram', mainparams=params).replace('\\t','\t').replace('\\n','\n')
+    db = dbengine.dbengine()
+    table_format = store.options('tg_format', section='Telegram').replace('\\t','\t').replace('\\n','\n')
     phones = store.ini('phones.ini').phones()
     flags = dbengine.flags('getall')
     def alert_suffix(line):
@@ -393,11 +393,11 @@ def prepare_balance(filter='FULL', params={}):
     """Prepare balance for TG."""
     try:
         baltxt = ''
-        if store.options('tg_from', section='Telegram', mainparams=params) == 'sqlite':
+        if store.options('tg_from', section='Telegram') == 'sqlite':
             baltxt = prepare_balance_sqlite(filter, params)
         else:
             baltxt = prepare_balance_mobilebalance(filter, params)
-        if baltxt == '' and str(store.options('send_empty', section='Telegram', mainparams=params))=='1':
+        if baltxt == '' and str(store.options('send_empty', section='Telegram'))=='1':
             baltxt = 'No changes'
         return baltxt
     except Exception:

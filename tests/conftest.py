@@ -6,6 +6,7 @@ import settings  # pylint: disable=import-error
 
 data_path = os.path.abspath(os.path.join('tests', 'data'))
 settings.mbplugin_root_path = data_path
+settings.mbplugin_ini_path = data_path
 print(os.path.abspath('plugin'))
 
 def pytest_addoption(parser):
@@ -15,7 +16,6 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: mark test as slow to run")
-
 
 def pytest_collection_modifyitems(config, items):
     if config.getoption("--runslow"):
