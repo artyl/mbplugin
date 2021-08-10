@@ -610,22 +610,22 @@ def version_update_git(ctx, force, branch):
 def version_update(ctx, force, version, only_download, only_check, only_install):
     'Загружает и обновляет файлы из pack с новой версией'
     def rename_new_to_current(new_zipname, current_zipname):
-        if os.path.exists(current_zipname+'.bak'):
-            os.remove(current_zipname+'.bak')
+        if os.path.exists(current_zipname + '.bak'):
+            os.remove(current_zipname + '.bak')
         if os.path.exists(current_zipname):
-            os.rename(current_zipname, current_zipname+'.bak')
+            os.rename(current_zipname, current_zipname + '.bak')
         if os.path.exists(new_zipname):
             os.rename(new_zipname, current_zipname)        
     name = 'version-update'
-    current_zipname = store.abspath_join('mbplugin','pack','current.zip')
-    new_zipname = store.abspath_join('mbplugin','pack','new.zip')
+    current_zipname = store.abspath_join('mbplugin', 'pack', 'current.zip')
+    new_zipname = store.abspath_join('mbplugin', 'pack', 'new.zip')
     skip_download = only_check or only_install and not only_download
     skip_install = only_check or only_download and not only_install
     # проверка файлов по current.zip
     # Здесь проверяем чтобы не поменять что-то что руками поменяно (отсутствующие на диске файлы не важны)
     if not os.path.exists(current_zipname) and not force:
         # Если текущего файла нет мы не можем проверить на что обновляемся
-        click.echo(f'Not exists {current_zipname} {"" if force else" (use -f)"}')
+        click.echo(f'Not exists {current_zipname} (use -f)')
         return
     if os.path.exists(current_zipname):
         diff_current = store.version_check_zip(current_zipname, ignore_missing=True)
@@ -657,6 +657,7 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
         if len(diff_new) > 0:
             # Установка
             if not skip_install and (force or len(diff_current) == 0):
+                click.echo('Update:\n'+'\n'.join(diff_current))
                 store.version_update_zip(new_zipname)
                 rename_new_to_current(new_zipname, current_zipname)
         else:
