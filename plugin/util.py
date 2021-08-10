@@ -654,13 +654,14 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
     # Здесь проверяем что вдруг все файлы соответствуют новой версии (отсутствующие файлы важны)
     if os.path.exists(new_zipname):
         diff_new = store.version_check_zip(new_zipname, ignore_missing=False)
-        if len(diff_new) == 0:
+        if len(diff_new) > 0:
+            # Установка
+            if not skip_install and (force or len(diff_current) == 0):
+                store.version_update_zip(new_zipname)
+                rename_new_to_current(new_zipname, current_zipname)
+        else:
             click.echo(f'Your version is up to date with {new_zipname}')
             rename_new_to_current(new_zipname, current_zipname)
-    # Установка
-    if not skip_install and (force or len(diff_current) == 0 and len(diff_new) != 0):
-        store.version_update_zip(new_zipname)
-        rename_new_to_current(new_zipname, current_zipname)
     click.echo(f'OK {name}')
 
 @cli.command()
