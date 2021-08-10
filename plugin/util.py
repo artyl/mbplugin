@@ -227,14 +227,15 @@ def web_server_autostart(ctx, turn):
     
 @cli.command()
 @click.argument('cmd', type=click.Choice(['start', 'stop', 'restart'], case_sensitive=False))
+@click.option('-f', '--force', is_flag=True, help='Force kill')
 @click.pass_context
-def web_server(ctx, cmd):
+def web_server(ctx, cmd, force):
     'start/stop/restart web сервер'
     name = 'web-server'
     import httpserver_mobile
     try:
         if cmd == 'stop' or cmd == 'restart':
-            httpserver_mobile.send_http_signal('exit')
+            httpserver_mobile.send_http_signal('exit', force=force)
         if cmd == 'start' or cmd == 'restart':
             if sys.platform == 'win32':
                 lnk_path = os.path.join(ROOT_PATH, 'mbplugin', 'run_webserver.bat')
@@ -645,10 +646,9 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
         click.echo('Download complete')
     # проверка файлов по new.zip
     # проверяем что new_zipname отличается от current_zipname
+    # zip нельзя просто сравнивать binary из-за разного названия корневой папки можно только по содержимому
     if os.path.exists(new_zipname) and os.path.exists(current_zipname) and not force:
-        with open(new_zipname, 'rb') as f1, open(current_zipname, 'rb') as f2:
-            compare_files = f1.read()==f2.read()
-        if compare_files:
+        if store.read_zip(new_zipname) == store.read_zip(current_zipname):
             click.echo(f'The file of the new version matches the current one')
             os.remove(new_zipname)
     # Здесь проверяем что вдруг все файлы соответствуют новой версии (отсутствующие файлы важны)
