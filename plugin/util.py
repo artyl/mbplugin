@@ -628,12 +628,14 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
         click.echo(f'Not exists {current_zipname} (use -f)')
         return
     if os.path.exists(current_zipname):
-        diff_current = store.version_check_zip(current_zipname, ignore_missing=True)
-        if len(diff_current) > 0:
+        # Проверяем что нет файлов которые отличаются от релизных чтобе не перезатереть чужие изменения
+        diff_current1 = store.version_check_zip(current_zipname, ignore_missing=True)
+        if len(diff_current1) > 0:
             click.echo(f'The current files are different from the release{"" if force else" (use -f)"}')
-            click.echo('\n'.join(diff_current))
+            click.echo('\n'.join(diff_current1))
             if not force:
                 click.echo(f'For update use option -f')
+        diff_current2 = store.version_check_zip(current_zipname, ignore_missing=False)
     # Загрузка
     if not skip_download:
         # TODO при переключении ветки на master закомитить в эту ветку новым адресом и исправить адрес на 
@@ -656,8 +658,8 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
         diff_new = store.version_check_zip(new_zipname, ignore_missing=False)
         if len(diff_new) > 0:
             # Установка
-            if not skip_install and (force or len(diff_current) == 0):
-                click.echo('Update:\n'+'\n'.join(diff_current))
+            if not skip_install and (force or len(diff_current1) == 0):
+                click.echo('Update:\n'+'\n'.join(diff_current2))
                 store.version_update_zip(new_zipname)
                 rename_new_to_current(new_zipname, current_zipname)
         else:
