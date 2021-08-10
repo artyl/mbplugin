@@ -611,9 +611,11 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
     'Загружает и обновляет файлы из pack с новой версией'
     def rename_new_to_current(new_zipname, current_zipname):
         if os.path.exists(current_zipname+'.bak'):
-            os.remove(current_zipname+'.bak')        
-        os.rename(current_zipname, current_zipname+'.bak')
-        os.rename(new_zipname, current_zipname)        
+            os.remove(current_zipname+'.bak')
+        if os.path.exists(current_zipname):
+            os.rename(current_zipname, current_zipname+'.bak')
+        if os.path.exists(new_zipname):
+            os.rename(new_zipname, current_zipname)        
     name = 'version-update'
     current_zipname = store.abspath_join('mbplugin','pack','current.zip')
     new_zipname = store.abspath_join('mbplugin','pack','new.zip')
@@ -641,8 +643,6 @@ def version_update(ctx, force, version, only_download, only_check, only_install)
             url = f'https://github.com/artyl/mbplugin/archive/refs/tags/{version}.zip'
         click.echo(url)
         store.download_file(url, new_zipname)
-        if not os.path.exists(current_zipname):
-            shutil.copy(new_zipname, current_zipname)
         click.echo('Download complete')
     # проверка файлов по new.zip
     # проверяем что new_zipname отличается от current_zipname
