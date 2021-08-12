@@ -1,8 +1,10 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
-import os, sys, time, io, re, json, pickle, requests, configparser, pprint, zipfile, logging, traceback
+import os, sys, time, io, re, json, pickle, requests, configparser, pprint, zipfile, logging, traceback, collections, typing
 from os.path import abspath
 import settings
+
+ZipRecord = collections.namedtuple('ZipRecord','content mtime')
 
 def abspath_join(*argv):
     'собираем в путь все переданные куски, если получившийся не абсолютный, то приделываем к нему путь до корня'
@@ -56,16 +58,18 @@ def download_file(url, path='', rewrite=True):
     except Exception:
         print(f'Error download:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
 
-def read_zip(zipname) -> dict:
-    '''Читает zip в словарь, ключи словаря - абсолютные пути на диске, 
-    каталоги игнорим, для них у нас в пустых папках флаговые файлы созданы'''
+def read_zip(zipname) -> typing.Dict[str, ZipRecord]:
+    '''Читает zip в словарь, ключи словаря - абсолютные пути на диске (где они у нас должны находится), 
+    каталоги игнорим, для них у нас в пустых папках флаговые файлы созданы
+    элементы - namedtuple content mtime '''
     res = {}
     with zipfile.ZipFile(abspath_join(zipname), 'r') as zf1:
         for zi in zf1.infolist(): # Во временную переменную прочитали
             # Первый элемент пути в зависимости от ветки может называться не так как нам нужно
             fn = abspath_join('mbplugin', *(path_split_all(zi.filename)[1:]))
-            if not zi.is_dir():
-                res[fn] = zf1.read(zi)
+            if path_split_all(zi.filename)[1] != 'plugin' or '.ico' in zi.filename: # TODO !!! for debug 
+                if not zi.is_dir():
+                    res[fn] = ZipRecord(zf1.read(zi), time.mktime(zi.date_time + (0, 0, -1))) 
     return res
 
 def version_check_zip(zipname, ignore_crlf=True, ignore_missing=True):
@@ -76,10 +80,10 @@ def version_check_zip(zipname, ignore_crlf=True, ignore_missing=True):
             with open(zn, 'rb') as f:
                 data : bytes = f.read()
             if ignore_crlf:
-                if data.replace(b'\r\n', b'\n').strip() != zd.replace(b'\r\n', b'\n').strip():
+                if data.replace(b'\r\n', b'\n').strip() != zd.content.replace(b'\r\n', b'\n').strip():
                     different.append(zn)
             else:
-                if data != zd:
+                if data != zd.content:
                     different.append(zn)
         elif not ignore_missing:
             different.append(zn)
@@ -93,7 +97,8 @@ def version_update_zip(new_zipname):
         if not os.path.isdir(dir_name):
             os.makedirs(dir_name, exist_ok=True)
         with open(zn, 'wb') as f:
-            f.write(zd)
+            f.write(zd.content)
+        os.utime(zn, (zd.mtime, zd.mtime))  # fix file datetime by zip
 
 class Session():
     'Класс для сессии с дополнительными фишками для сохранения и проверки'
