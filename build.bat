@@ -3,6 +3,31 @@
 @REM clean:
 @REM git clean -fXd
 
+if NOT "%1"=="" goto %1
+ECHO RUN build clean/test/build
+
+goto :EOF
+@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+:test
+py.test tests %2 %3 %4 %5 %6 %7 %8 %9
+
+goto :EOF
+@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+:run
+
+goto :EOF
+@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+:clean
+%~d0
+if NOT EXIST ..\mbplugin\store\git-clear-protected (git clean -fXd) ELSE echo git-clear-protected
+if exist ..\mbplugin\dist rd ..\mbplugin\dist /S /Q
+
+goto :EOF
+@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+:build
+%~d0
+if not exist dist mkdir dist
+
 SET PACKET_MODE=ON
 
 where 7z >nul 2>&1
@@ -79,7 +104,6 @@ if EXIST mbplugin\store\web-server.pid (
     GOTO :EOF
 )
 
-
 cd "%~dp0\.."
 del mbplugin\log\*.log
 del mbplugin\log\*.png
@@ -88,8 +112,14 @@ del mbplugin\python\scripts\*.exe
 
 cd "%~dp0"
 for /F "tokens=1 delims=#" %%T IN ('git rev-parse HEAD') DO set mbpluginhead=%%T
+for /F "tokens=3 delims= " %%T IN ('find "## mbplugin 1." changelist.md') DO set mbpluginversion=%%T
 curl -Lk https://github.com/artyl/mbplugin/archive/%mbpluginhead%.zip -o pack\current.zip
+7z rn pack\current.zip mbplugin-%mbpluginhead% mbplugin
+copy pack\current.zip dist\mbplugin_bare.%mbpluginversion%.zip
 call git-restore-mtime
 
 cd "%~dp0\.."
-7z a -tzip mbplugin mbplugin -xr!.git
+7z a -tzip mbplugin\dist\mbplugin.%mbpluginversion%.zip mbplugin -xr!.git -xr!dist -xr!*.log
+
+goto :EOF
+@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

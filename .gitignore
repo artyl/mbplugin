@@ -1,7 +1,7 @@
-_TKINTER_install.zip
-_HLAM/*
-DISTR/*
-DB/*
+_tkinter_install.zip
+distr/*
+dist/*
+db/*
 pack/*
 webdriver/*
 */__pycache__
@@ -9,7 +9,6 @@ webdriver/*
 tests/data/mbplugin/*
 BalanceHistory.sqlite
 balance.html
-plugin/personalsetting.py
 plugin/debug.log
 mbplugin*.zip
 python-*.zip

@@ -437,7 +437,10 @@ def restart_program(reason='', exit_only=False, delay=0):
     logging.info(f'{"Exit" if exit_only else "Restart"} by {reason} with cmd:{subprocess.list2cmdline(cmd)}')
     TrayIcon().stop()
     if os.path.exists(filename_pid):
-        os.remove(filename_pid)    
+        with open(filename_pid) as f:
+            pid_from_file = int(f.read())
+        if pid_from_file == os.getpid():
+            os.remove(filename_pid)    
     if not exit_only:
         subprocess.Popen(cmd)  # Crossplatform run process
     psutil.Process().kill()
@@ -446,7 +449,7 @@ def send_http_signal(cmd, force=True):
     'Посылаем сигнал локальному веб серверу'
     logging.info(f'Send {cmd} signal to web server')
     filename_pid = store.abspath_join(store.options('storefolder'), 'web-server.pid')
-    if not os.path.exists(filename_pid):
+    if not os.path.exists(filename_pid) and not force:
         return
     port = int(store.options('port', section='HttpServer'))
     try:

@@ -20,6 +20,9 @@ mbplugin\python\python mbplugin\plugin\util.py recompile-plugin
 REM Проверяем что все модули импортируются
 mbplugin\python\python mbplugin\plugin\util.py check-import
 
+REM Проверяем корректность ini файлов
+mbplugin\python\python mbplugin\plugin\util.py clear-browser-cache
+
 REM Автозапуск браузера
 mbplugin\python\python mbplugin\plugin\util.py web-server-autostart
 
@@ -34,3 +37,6 @@ mbplugin\python\python mbplugin\plugin\util.py check-jsmblh chrome
 
 REM Проверяем что все работает DLL PLUGIN
 mbplugin\python\python mbplugin\plugin\util.py check-dll
+
+REM Показываем версию
+mbplugin\python\python mbplugin\plugin\util.py version -v

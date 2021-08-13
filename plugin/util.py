@@ -4,7 +4,7 @@
 непосредственно в bat и sh скриптах оставляем вызов этого скрипта
 '''
 import os, sys, re, time, subprocess, shutil, glob, traceback, logging, importlib
-import click, requests
+import click
 
 # Т.к. мы меняем текущую папку, то sys.argv[0] будет смотреть не туда, пользоваться можно только
 # папка где плагины
@@ -30,9 +30,8 @@ except ModuleNotFoundError:
 @click.group()
 @click.option('-d', '--debug', is_flag=True, help='Debug mode')
 @click.option('-v', '--verbose', is_flag=True, help='Verbose mode')
-@click.option('--start_http', type=click.Choice(['true', 'false', 'reset', 'nochange'], case_sensitive=False), default='nochange', help='Autostart web server')
 @click.pass_context
-def cli(ctx, debug, verbose, start_http):
+def cli(ctx, debug, verbose):
     ctx.ensure_object(dict)
     ctx.obj['DEBUG'] = debug
     ctx.obj['VERBOSE'] = verbose
@@ -543,14 +542,14 @@ def version(ctx, verbose):
     'Текущая установленная версия'
     changelist_fn= os.path.join(ROOT_PATH, 'mbplugin', 'changelist.md')
     if os.path.isdir('mbplugin') and os.path.exists(changelist_fn):
-        version = re.findall('## (mbplugin.*?\))',open(changelist_fn, encoding='utf8').read())[-1]
+        version = re.findall('## (mbplugin \d.*?\))',open(changelist_fn, encoding='utf8').read())[-1]
         click.echo(version)
     else:
         click.echo('Mbplugin version unknown')
     if not verbose:
         return
     click.echo(f'Python {sys.version}')
-    import playwright._repo_version, playwright.sync_api
+    import playwright._repo_version, playwright.sync_api, requests
     click.echo(f'Playwright {playwright._repo_version.version}')
     with playwright.sync_api.sync_playwright() as p:
         click.echo(f'Chromium path {p.chromium.executable_path}')
@@ -559,6 +558,9 @@ def version(ctx, verbose):
         browser = p.chromium.launch()
         click.echo(f'Chromium {browser.version}')
         browser.close()  
+    releases = requests.get('https://api.github.com/repos/artyl/mbplugin/releases').json()
+    release = [r for r in releases if not r['prerelease'] and not r['draft']][0]
+    click.echo(f'Latest release on github {release["tag_name"]} by {release["published_at"]} with description:\n{release["body"]}')
 
 
 #@cli.command()
@@ -608,8 +610,9 @@ def version_update_git(ctx, force, branch):
 @click.option('--only-install', is_flag=True, help='Только установить новую (должна быть скачана заранее)')
 @click.option('--by-current', is_flag=True, help='Обновить файлы по архиву текущей версии')
 @click.option('--undo-update', is_flag=True, help='Вернуть файлы к варианту до обновления')
+@click.option('--ask-update', is_flag=True, help='Выдать запрос на обновление')
 @click.pass_context
-def version_update(ctx, force, version, only_download, only_check, only_install, by_current, undo_update):
+def version_update(ctx, force, version, only_download, only_check, only_install, by_current, undo_update, ask_update):
     'Загружает и обновляет файлы из pack с новой версией'
     def rename_new_to_current(new_zipname, current_zipname, current_bak_zipname, undo=False):
         '''Rename files new.zip -> current.zip -> current.zip.bak 
@@ -678,17 +681,26 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
         if len(diff_new) > 0:
             # Установка new.zip
             if not skip_install and (force or len(diff_current1) == 0):
+                if ask_update and not click.confirm('Will we make an update?', default=True):
+                    click.echo(f'OK {name} update canceled')
+                    return
                 click.echo('Update:\n'+'\n'.join(diff_current2))
                 store.version_update_zip(new_zipname)
-                rename_new_to_current(new_zipname, current_zipname)
+                rename_new_to_current(new_zipname, current_zipname, current_bak_zipname)
         else:
             click.echo(f'Your version is up to date with {new_zipname}')
-            rename_new_to_current(new_zipname, current_zipname)
+            rename_new_to_current(new_zipname, current_zipname, current_bak_zipname)
     # Устанавливаем файлы из current.zip
     if by_current and os.path.exists(current_zipname):
+        if ask_update and not click.confirm('Will we make an reaplly update current version?', default=True):
+            click.echo(f'OK {name} update canceled')
+            return
         store.version_update_zip(current_zipname)
     # Устанавливаем файлы из current.zip.bak
     if undo_update and os.path.exists(current_bak_zipname):
+        if ask_update and not click.confirm('Will we make an undo update?', default=True):
+            click.echo(f'OK {name} update canceled')
+            return
         store.version_update_zip(current_bak_zipname)
         rename_new_to_current(new_zipname, current_zipname, current_bak_zipname, undo=True)
     click.echo(f'OK {name}')
