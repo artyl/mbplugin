@@ -36,6 +36,7 @@ TRAY_MENU = (
     {'text':"View report", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/report'), 'show':True},
     {'text':"Edit config", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/editcfg'), 'show':str(store.options('HttpConfigEdit')) == '1'},
     {'text':"View log", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log?lines=40'), 'show':True},
+    {'text':"View screenshot log", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log/list'), 'show':True},
     {'text':"Get balance request", 'cmd':lambda:threading.Thread(target=getbalance_standalone, name='Getbalance', daemon=True).start(), 'show':True},
     {'text':"Flush log", 'cmd':lambda:store.logging_restart(), 'show':True},
     {'text':"Reload schedule", 'cmd':lambda:Scheduler().reload(), 'show':True},
@@ -957,10 +958,14 @@ class WebServer():
                 param = urllib.parse.parse_qs(environ['QUERY_STRING'])
                 ct, text = getbalance_plugin('get', param)
             elif cmd.lower() == 'log': # просмотр лога
-                if len(param)>0 and re.match('^\w*$',param[0]):
+                if len(param)>0 and param[0]=='list':
+                    ss = glob.glob(store.abspath_join(store.options('loggingfolder'), '*.png'))
+                    allmatch = [re.search('(.*)_\d+\.png',os.path.split(fn)[-1]) for fn in ss]
+                    allgroups = sorted(set([m.groups()[0] for m in allmatch if m]))
+                    text = [f'<a href=/log/{g}>{g}<a/><br>' for g in allgroups]
+                elif len(param)>0 and re.match('^\w*$',param[0]):
                     store.abspath_join(store.options('loggingfolder'), param[0]+'*.png')
                     ss = glob.glob(store.abspath_join(store.options('loggingfolder'), param[0]+'*.png'))
-                    ct = 'text/html'
                     text = [f'<img src=/screenshot/{os.path.split(fn)[-1]}/><br>' for fn in ss]
                 else:
                     qs = urllib.parse.parse_qs(environ['QUERY_STRING'])
