@@ -1,7 +1,8 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys,io, re, time, json, traceback, threading, logging, importlib, queue, argparse, subprocess, psutil
-import wsgiref.simple_server, socketserver, socket, requests, urllib.parse, urllib.request, bs4, uuid
+import os, sys,io, re, time, json, traceback, threading, logging, importlib, queue, argparse, subprocess, glob
+import wsgiref.simple_server, socketserver, socket, urllib.parse, urllib.request
+import requests, psutil, bs4, uuid
 import settings, store, dbengine, compile_all_jsmblh  # pylint: disable=import-error
 try:
     import schedule
@@ -487,7 +488,7 @@ class TrayIcon:
             self.icon = TrayIcon.icon
 
     def _create(self):
-        icon_fn = store.abspath_join(os.path.split(__file__)[0], 'httpserver.ico')
+        icon_fn = store.abspath_join('mbplugin','plugin', 'httpserver.ico')
         self.image = PIL.Image.open(icon_fn)
         items = []
         for item in TRAY_MENU:
@@ -956,8 +957,20 @@ class WebServer():
                 param = urllib.parse.parse_qs(environ['QUERY_STRING'])
                 ct, text = getbalance_plugin('get', param)
             elif cmd.lower() == 'log': # просмотр лога
-                param = urllib.parse.parse_qs(environ['QUERY_STRING'])
-                ct, text = view_log(param)
+                if len(param)>0 and re.match('^\w*$',param[0]):
+                    store.abspath_join(store.options('loggingfolder'), param[0]+'*.png')
+                    ss = glob.glob(store.abspath_join(store.options('loggingfolder'), param[0]+'*.png'))
+                    ct = 'text/html'
+                    text = [f'<img src=/screenshot/{os.path.split(fn)[-1]}/><br>' for fn in ss]
+                else:
+                    qs = urllib.parse.parse_qs(environ['QUERY_STRING'])
+                    ct, text = view_log(qs)
+            elif cmd.lower() == 'screenshot': # скриншоты
+                if len(param)==0 or not re.match('^\w*\.png$',param[0]):
+                    return
+                with open(store.abspath_join(store.options('loggingfolder'), param[0]), 'rb') as f: 
+                    text = f.read()
+                ct = 'image/png'
             elif cmd.lower() == 'schedule': # просмотр расписания
                 ct, text = Scheduler().view_html()
             elif cmd.lower() == 'reload_schedule': # обновление расписания
@@ -999,6 +1012,8 @@ class WebServer():
                 headers = [('Location', '')] + add_headers
             start_response(status, headers)
             logging.debug('web_app done')
+            if 'png' in ct:
+                return [text]
             return [line.encode('cp1251', errors='ignore') for line in text]
         except Exception:
             exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
