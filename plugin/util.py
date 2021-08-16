@@ -658,11 +658,14 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
         diff_current2 = store.version_check_zip(current_zipname, ignore_missing=False)
     # Загрузка
     if not skip_download:
+        # TODO !!! Сначала проверить по https://api.github.com/repos/artyl/mbplugin/releases Что есть более новая версия
         # TODO !!! при переключении ветки на master закомитить в эту ветку новым адресом и исправить адрес на 
         # https://github.com/artyl/mbplugin/archive/refs/heads/master.zip
         url = 'https://github.com/artyl/mbplugin/archive/refs/heads/dev_playwright.zip'
         if version != '':
             url = f'https://github.com/artyl/mbplugin/archive/refs/tags/{version}.zip'
+            # https://github.com/artyl/mbplugin/releases/download/0.99.32/mbplugin.0.99.32.zip
+            url = f'https://github.com/artyl/mbplugin/releases/download/{version}/mbplugin_bare{version}.zip'
         click.echo(url)
         store.download_file(url, new_zipname)
         click.echo('Download complete')
