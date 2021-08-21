@@ -14,7 +14,7 @@ try:
 except ModuleNotFoundError:
     print('No telegram installed, no telegram bot')
 
-lang = 'p'  # Для плагинов на python преффикс lang всегда 'p'
+lang = 'p'  # Для плагинов на python префикс lang всегда 'p'
 
 HTML_NO_REPORT = '''Для того чтобы были доступны отчеты необходимо в mbplugin.ini включить запись результатов в sqlite базу<br>
 sqlitestore = 1<br>Также можно настроить импорт из базы BalanceHistory.mdb включив <br>
@@ -34,7 +34,7 @@ def detbalance_standalone(filter=[], only_failed=False, feedback=None) :
     Если не пустой - то логин/алиас/оператор или его часть
     для автономной версии в поле Password2 находится незашифрованный пароль
     ВНИМАНИЕ! при редактировании файла phones.ini через MobileBalance строки с паролями будут удалены
-    для совместного использования с MobileBalance храните пароли password2 и другие специфидняе опции
+    для совместного использования с MobileBalance храните пароли password2 и другие специфичные опции
     для Standalone версии в файле phones_add.ini
     only_failed=True - делать запросы только по тем номерам, по которым прошлый запрос был неудачный
     feedback - если не None - то это функция, которая умеет выдавать статус на экран
@@ -94,7 +94,7 @@ def getbalance_plugin(method, param_source):
             result = module.get_balance(param['login'], param['password'], storename)
             text = store.result_to_html(result)
             if 'Balance' not in result:
-                raise RuntimeError(f'В result отсутствеут баланс')
+                raise RuntimeError(f'В result отсутствует баланс')
         except:
             logging.info(f'{plugin} fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
             dbengine.flags('set',f"{lang}_{plugin}_{param['login']}",'error call')  # выставляем флаг о ошибке вызова
@@ -233,7 +233,7 @@ def getreport(param=[]):
             if he not in line:
                 continue
             hover = ''
-            if he == 'UslugiOn':  # На услуги вешаем hover со списоком услуг
+            if he == 'UslugiOn':  # На услуги вешаем hover со списком услуг
                 uslugi = json.loads(responses.get(f"{line['Operator']}_{line['PhoneNumber']}",'{}')).get('UslugiList','')
                 if uslugi !='':
                     h_html_header = f'<th id="hUsluga" class="p_n">Услуга</th><th id="hPrice" class="p_n">р/мес</th>'
@@ -280,7 +280,7 @@ def write_report():
 
 def filter_balance(table, filter='FULL', params={}):
     ''' Фильтруем данные для отчета
-    filter = FULL - Все телефоны, LASTCHANGE - Изменивниеся за день, LASTCHANGE - Изменившиеся в последнем запросе
+    filter = FULL - Все телефоны, LASTDAYCHANGE - Изменившиеся за день, LASTCHANGE - Изменившиеся в последнем запросе
     params['include'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат
     params['exclude'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для исключения из результата'''
     flags = dbengine.flags('getall')
@@ -387,8 +387,8 @@ def prepare_balance(filter='FULL', params={}):
 
 
 def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={}):
-    """Отправка сообщения в телеграм через requests без задействия python-telegram-bot
-    Может пригодится при каких-то проблемах с ботом или в ситуации когда на одной машине у нас крутится бот, 
+    """Отправка сообщения в телеграм через requests без использования python-telegram-bot
+    Может пригодиться при каких-то проблемах с ботом или в ситуации когда на одной машине у нас крутится бот,
     а с другой в этого бота мы еще хотим засылать инфу
     text - сообщение, если не указано, то это баланс для телефонов у которых он изменился
     auth_id - список id через запятую на которые слать, если не указано, то берется список из mbplugin.ini 
@@ -592,7 +592,7 @@ class TelegramBot():
         /receivebalancefailed
         """
         def feedback(txt):
-            'команда для показа прогреса'
+            'команда для показа прогресса'
             try:
                 msg.edit_text(txt, parse_mode=telegram.ParseMode.HTML)
             except Exception:
@@ -634,7 +634,7 @@ class TelegramBot():
         logging.info(f'TG:reply /getone to {update.effective_chat.id} CHOISE:{context}')
         query.edit_message_text('Request received. Wait...', parse_mode=telegram.ParseMode.HTML)
         if cmd.lower() == 'che':  # /checkone - получаем баланс /getone - показываем
-            detbalance_standalone(filter=[f'__{keypair}__'])  # приходится добавлять попчеркивания чтобы исключить попадание по части строки
+            detbalance_standalone(filter=[f'__{keypair}__'])  # приходится добавлять подчеркивания чтобы исключить попадание по части строки
         params = {'include': f'__{keypair}__'}
         baltxt = prepare_balance('FULL', params=params)
         query.edit_message_text(baltxt, parse_mode=telegram.ParseMode.HTML)
@@ -643,7 +643,7 @@ class TelegramBot():
         if keypair in responses:
             response = json.loads(responses[f"{keypair}"])
         else:
-            logging.info(f'Not found responce in responses for {keypair}')
+            logging.info(f'Not found response in responses for {keypair}')
             return
         # берем всю информацию по номеру
         response = {k:(round(v,2) if type(v)==float else v)for k,v in response.items()}
@@ -685,13 +685,13 @@ class TelegramBot():
         baltxt = prepare_balance('LASTCHANGE')
         self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML)
 
-    def send_subsribtions(self):
+    def send_subscriptions(self):
         'Отправляем подписки - это строки из ini вида:'
-        'subscribtionXXX = id:123456 include:1111,2222 exclude:6666'
+        'subscriptionXXX = id:123456 include:1111,2222 exclude:6666'
         if self.updater is None:
             return
-        subscribtions = store.options('subscribtion', section='Telegram', listparam=True)
-        for subscr in subscribtions:
+        subscriptions = store.options('subscription', section='Telegram', listparam=True)
+        for subscr in subscriptions:
             # id:123456 include:1111,2222 -> {'id':'123456','include':'1111,2222'}
             params = {k: v.strip() for k, v in [i.split(':', 1) for i in subscr.split(' ')]}
             baltxt = prepare_balance('LASTCHANGE', params)
@@ -904,7 +904,7 @@ class WebServer():
             elif cmd.lower() == 'sendtgbalance':
                 self.telegram_bot.send_balance()
             elif cmd.lower() == 'sendtgsubscriptions':
-                self.telegram_bot.send_subsribtions()
+                self.telegram_bot.send_subscriptions()
             elif cmd.lower() == 'get':  # вариант через get запрос
                 param = urllib.parse.parse_qs(environ['QUERY_STRING'])
                 ct, text = getbalance_plugin('get', param)
