@@ -615,6 +615,7 @@ def version_update_git(ctx, force, branch):
 def version_update(ctx, force, version, only_download, only_check, only_install, by_current, undo_update, ask_update):
     'Загружает и обновляет файлы из pack с новой версией, архив с новой версией при обновлении копируем в current.zip'
     name = 'version-update'
+    click.echo(f'Current version {store.version()}')
     res, msg = True, ''
     import updateengine
     updater = updateengine.UpdaterFromInternet()
@@ -624,7 +625,8 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
     skip_download = only_check or only_install or by_current or undo_update and not only_download
     skip_install = only_check or only_download and not only_install and not by_current and not undo_update
     if version == '' and not by_current and not undo_update:
-        version = updater.check_update()
+        version, msg_version = updater.check_update()
+        click.echo(f'New version {version}\n{msg_version}')
     if not skip_download:
         updater.download_version(version)
     if not skip_install:

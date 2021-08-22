@@ -79,23 +79,20 @@ class UpdaterFromInternet():
 
     def __init__(self) -> None:
         self.releases = requests.get('https://api.github.com/repos/artyl/mbplugin1/releases').json()
-        print([r["tag_name"] for r in self.releases])
+        # print([r["tag_name"] for r in self.releases])
 
     def check_update(self, prerelease=False, draft=False) -> bool:
         'проверяем наличие обновлений, prerelease=True - get prerelease, draft=True - get draft'
-        print(f'{store.version()=}')
-
         release = [r for r in self.releases if (not r['prerelease'] or prerelease) and (not r['draft'] or draft)][0]
-        print(f'Latest release on github {release["tag_name"]} by {release["published_at"]} with description:\n{release["body"]}')
-        #pp([(a['name'], a['download_count']) for a in release['assets']])
+        cnt = [a['download_count'] for a in release['assets'] if '_bare' in a['name']][0]
+        msg = f'Latest release on github {release["tag_name"]} by {release["published_at"]}, downloaded {cnt} times with description:\n{release["body"]}'
+        # print([(a['name'], a['download_count']) for a in release['assets']])
         current_ver = tuple(map(int, re.findall('\d+', store.version())))
         latest_ver = tuple(map(int, re.findall('\d+', release["tag_name"])))
-        print(current_ver, latest_ver)
-        print(f'{store.version()==release["tag_name"]}')  # Последний релиз уже установлен
         if current_ver < latest_ver: # Есть новая версия
-            return release["tag_name"]
+            return release["tag_name"], msg
         else:
-            return ''
+            return '', ''
 
     def download_version(self, version, force=False, checksign=True):
         'Загружаем обновление, force=True независимо от наличия на диске, checksign=False - не проверять подпись'
@@ -104,7 +101,7 @@ class UpdaterFromInternet():
         url_sum = [a['browser_download_url'] for a in release['assets'] if 'sha256sums.txt' == a['name']][0]
         url_sig = [a['browser_download_url'] for a in release['assets'] if 'sha256sums.txt.sig' == a['name']][0]
         local_filename = store.abspath_join('mbplugin', 'pack', name)
-        print(name)
+        # print(name)
         if checksign:
             sha_sum_verifier = ShaSumFile()
             sha_sum_verifier.load_sum_and_sig_by_url(url_sum=url_sum, url_sig=url_sig)
