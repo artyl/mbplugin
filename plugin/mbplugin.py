@@ -4,13 +4,13 @@ import time, os, sys, re, logging, traceback
 import xml.etree.ElementTree as etree
 import dbengine, store, settings, httpserver_mobile
 
-lang = 'p'  # Для плагинов на python преффикс lang всегда 'p'
+lang = 'p'  # Для плагинов на python префикс lang всегда 'p'
 
 def main():
     logging.basicConfig(filename=store.options('loggingfilename'),
                         level=store.options('logginglevel'),
                         format=store.options('loggingformat'))
-    # В коммандной строке указан плагин ?
+    # В командной строке указан плагин ?
     if len(sys.argv) < 2:
         exception_text = f'При вызове mbplugin.bat не указан модуль'
         logging.error(exception_text)
@@ -53,7 +53,7 @@ def main():
         storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
         result = module.get_balance(login, password, storename)
         if 'Balance' not in result:
-            raise RuntimeError(f'В result отсутствеут баланс')
+            raise RuntimeError(f'В result отсутствует баланс')
     except Exception:
         exception_text = f'Ошибка при вызове модуля \n{plugin}: {"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)
