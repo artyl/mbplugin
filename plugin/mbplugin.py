@@ -4,11 +4,11 @@ import time, os, sys, re, logging, traceback
 import xml.etree.ElementTree as etree
 import dbengine, store, settings, httpserver_mobile
 
-lang = 'p'  # Для плагинов на python преффикс lang всегда 'p'
+lang = 'p'  # Для плагинов на python префикс lang всегда 'p'
 
 def main():
     store.turn_logging()
-    # В коммандной строке указан плагин ?
+    # В командной строке указан плагин ?
     if len(sys.argv) < 2:
         exception_text = f'При вызове mbplugin.bat не указан модуль'
         logging.error(exception_text)

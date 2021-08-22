@@ -174,7 +174,7 @@ def check_import(ctx):
 @cli.command()
 @click.pass_context
 def web_control(ctx):
-    'Открываем страницу управления mbplugin (если запущен веб сервер)'
+    'Открываем страницу управления mbplugin (если запущен веб-сервер)'
     name = 'web-control'
     if sys.platform == 'win32':
         start_cmd = 'start'
@@ -387,7 +387,7 @@ def copy_all_from_mdb(ctx):
 @click.option('-r', '--over_requests', is_flag=True, help='Отправка баланса TG чистым requests без использования web сервера')
 @click.pass_context
 def send_tgbalance(ctx, over_requests):
-    'Отправка баланса TG через API веб сервера'
+    'Отправка баланса TG через API веб-сервера'
     name = 'send-tgbalance'
     import httpserver_mobile
     if over_requests:
