@@ -4,8 +4,6 @@ import os, sys, time, io, re, json, pickle, requests, configparser, pprint, zipf
 from os.path import abspath
 import settings
 
-ZipRecord = collections.namedtuple('ZipRecord','content mtime')
-
 def abspath_join(*argv):
     'собираем в путь все переданные куски, если получившийся не абсолютный, то приделываем к нему путь до корня'
     path = os.path.join(*argv)
@@ -17,6 +15,12 @@ def session_folder(storename):
     'Возвращает путь к папке хранения сессий'
     storefolder = abspath_join(options('storefolder'), storename)
     return storefolder
+
+def version():
+    'Возвращает версию mbplugin по информации из changelist.md'
+    with open(abspath_join('mbplugin','changelist.md'), encoding='utf8') as f:
+        res = re.findall('## mbplugin (\d.*?) \(', f.read())[-1]
+    return res
 
 def path_split_all(path):
     'разбивает путь на список'
@@ -33,72 +37,6 @@ def path_split_all(path):
             path = p1
             res.insert(0, p2)
     return res
-
-def download_file(url, path='', rewrite=True):
-    'Загружает файл по ссылке'
-    try:
-        local_filename = path
-        if len(path) == 0:
-            local_filename = url.split('/')[-1]
-        local_filename = abspath_join(local_filename)
-        if os.path.exists(local_filename) and not rewrite:
-            print(f'File {local_filename} exists')
-            return local_filename
-        # NOTE the stream=True parameter below
-        with requests.get(url, stream=True) as r:
-            r.raise_for_status()
-            sz = 0
-            with open(local_filename, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192): 
-                    f.write(chunk)
-                    sz += len(chunk)
-                    print(f'{local_filename} {sz/1048576:4.2f} MB', end='\r')
-            print()
-        return local_filename
-    except Exception:
-        print(f'Error download:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
-
-def read_zip(zipname) -> typing.Dict[str, ZipRecord]:
-    '''Читает zip в словарь, ключи словаря - абсолютные пути на диске (где они у нас должны находится), 
-    каталоги игнорим, для них у нас в пустых папках флаговые файлы созданы
-    элементы - namedtuple content mtime '''
-    res = {}
-    with zipfile.ZipFile(abspath_join(zipname), 'r') as zf1:
-        for zi in zf1.infolist(): # Во временную переменную прочитали
-            # Первый элемент пути в зависимости от ветки может называться не так как нам нужно
-            fn = abspath_join('mbplugin', *(path_split_all(zi.filename)[1:]))
-            if path_split_all(zi.filename)[1] != 'plugin' or '.ico' in zi.filename: # TODO !!! for debug 
-                if not zi.is_dir():
-                    res[fn] = ZipRecord(zf1.read(zi), time.mktime(zi.date_time + (0, 0, -1))) 
-    return res
-
-def version_check_zip(zipname, ignore_crlf=True, ignore_missing=True):
-    'Проверяет соответствие файлов в архиве и на диске'
-    different = []
-    for zn,zd in read_zip(abspath_join(zipname)).items():
-        if os.path.isfile(zn):
-            with open(zn, 'rb') as f:
-                data : bytes = f.read()
-            if ignore_crlf:
-                if data.replace(b'\r\n', b'\n').strip() != zd.content.replace(b'\r\n', b'\n').strip():
-                    different.append(zn)
-            else:
-                if data != zd.content:
-                    different.append(zn)
-        elif not ignore_missing:
-            different.append(zn)
-    return different
-
-def version_update_zip(new_zipname):
-    'Обновляет файлы на диске из архива'
-    z_new = read_zip(abspath_join(new_zipname))
-    for zn,zd in z_new.items():
-        dir_name = os.path.split(zn)[0]
-        if not os.path.isdir(dir_name):
-            os.makedirs(dir_name, exist_ok=True)
-        with open(zn, 'wb') as f:
-            f.write(zd.content)
-        os.utime(zn, (zd.mtime, zd.mtime))  # fix file datetime by zip
 
 class Session():
     'Класс для сессии с дополнительными фишками для сохранения и проверки'
@@ -243,7 +181,7 @@ class ini():
         # mbpath = self.find_files_up('phones.ini')
         mbpath = abspath_join(settings.mbplugin_ini_path, 'phones.ini')
         if not os.path.exists(mbpath):
-            # Если нашли mobilebalance - cоздадим mbplugin.ini и sqlite базу там же где и ini-шники mobilebalance
+            # Если нашли mobilebalance - создадим mbplugin.ini и sqlite базу там же где и ini-шники mobilebalance
             print(f'Not found phones.ini in {settings.mbplugin_ini_path}')
             raise RuntimeError(f'Not found phones.ini')
         # создадим mbplugin.ini над папкой mbplugin
@@ -288,7 +226,7 @@ class ini():
         os.rename(undozipname+"~tmp", undozipname) # Переименовываем временный на место первоначального
 
     def write(self):
-        '''Сохраняем только mbplugin.ini и phones.ini для остальных - игнорим
+        '''Сохраняем только mbplugin.ini и phones.ini для остальных - игнорируем
         phones.ini всегда сохраняем в phones.ini, без phones_add.ini, если есть phones_add.ini не работаем 
         '''
         def ini_write_to_string(ini: configparser.ConfigParser) -> str:
@@ -344,7 +282,7 @@ class ini():
         return json.dumps(result, ensure_ascii=False)
 
     def phones(self):
-        'Читает phones.ini добавляет данные из phones_add.ini дополнительную инфу'
+        'Читает phones.ini добавляет данные из phones_add.ini дополнительную информацию'
         'И возвращает словарь с ключами в виде пары вида (number,region)'
         if self.fn.lower() != 'phones.ini':
             raise RuntimeError(f'{self.fn} is not phones.ini')

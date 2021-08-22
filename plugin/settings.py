@@ -31,8 +31,9 @@ mbplugin_root_path = os.path.abspath(os.path.join(os.path.split(__file__)[0], '.
 # т.к. раньше допускалось что папка mbplugin может находится на несколько уровней вложенности вниз ищем вверх phones.ini
 mbplugin_ini_path = find_file_up(mbplugin_root_path, 'phones.ini')
 # В нормальном случае mbplugin_root_path и mbplugin_ini_path - одна и та же папка
-
-# сюда пропишем сразу возможные варианты для путя хрома
+# Список открытых ключей для подписи файла контрольных сумм для проверки при обновлении из интернета
+public_keys = [b'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtD5e5dyS4dmHWLL1tx2ZfBoqCY5G72sRYllLvWMX0R sign-key-20210818']
+# сюда пропишем сразу возможные варианты для пути хрома
 chrome_executable_path_alternate = [
         'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
         'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
@@ -60,8 +61,8 @@ ini = {
         # лог http сервера и плагинов из него
         'logginghttpfilename_': {'descr':'лог http сервера и плагинов из него', 'type':'text'},
         'logginghttpfilename': os.path.join('mbplugin', 'log', 'http.log'), # mbplugin\log\http.log
-        # Уровень логгирования
-        'logginglevel_': {'descr':'Уровень логгирования', 'type':'select', 'variants':'DEBUG INFO WARNING ERROR CRITICAL'},
+        # Уровень логирования
+        'logginglevel_': {'descr':'Уровень логирования', 'type':'select', 'variants':'DEBUG INFO WARNING ERROR CRITICAL'},
         'logginglevel': 'INFO',
         # Кидать логи в консоль, удобно для докера (чтобы работал docker log), при использовании с MobileBalance должно быть выключено 
         'logconsole_': {'descr':'Вести дополнительное логирование в консоль', 'type':'checkbox'},
@@ -160,12 +161,12 @@ ini = {
         'turnofflessthen': '2',
         # В отчете будут показаны красным, если по номеру не было изменения более чем ... дней
         # Если данный параметр не выставлен индивидуально для номера в phones.ini
-        'balancenotchangedmorethen_': {'descr':'Красить номера, бананс по которым не менялся ... дней', 'type':'text', 'validate':lambda i:i.isdigit()},
+        'balancenotchangedmorethen_': {'descr':'Красить номера, баланс по которым не менялся ... дней', 'type':'text', 'validate':lambda i:i.isdigit()},
         'balancenotchangedmorethen': '60',
         # В отчете будут показаны красным, если по номеру были изменения менее чем ... дней
         # Если данный параметр не выставлен индивидуально для номера в phones.ini
         # Полезно когда вы следите за балансом который не должен меняться и вдруг начал меняться
-        'balancechangedlessthen_': {'descr':'Красить номера, бананс по меньше чем', 'type':'text', 'validate':lambda i:i.isdigit()},
+        'balancechangedlessthen_': {'descr':'Красить номера, баланс по меньше чем', 'type':'text', 'validate':lambda i:i.isdigit()},
         'balancechangedlessthen': '0',
         # показывает в всплывающем окне историю на N дней назад. 0 - не показывает
         'realaveragedays_': {'descr':'Показывать в всплывающем окне историю на N дней назад. 0 - не показывает', 'type':'text', 'validate':lambda i:i.isdigit()},
@@ -210,7 +211,7 @@ ini = {
         'auth_id_': {'descr':'Список id пользователей, которые взаимодействовать с ТГ ботом', 'type':'text'},
         'auth_id': '',  # список id пользователей, которые авторизованы
         'send_balance_changes_': {'descr':'Отправлять изменения баланса по sendtgbalance', 'type':'checkbox'},
-        'send_balance_changes': '1',  # отправлять изменения баланса по sendtgbalance (может приходится если мы не хотим получать полняй список а фильтровать по подписке)
+        'send_balance_changes': '1',  # отправлять изменения баланса по sendtgbalance (может приходится если мы не хотим получать полный список а фильтровать по подписке)
         # формат для строки telegram bot из sqlite
         'tg_format_': {'descr':'Формат для строки telegram bot из sqlite', 'type':'text', 'size':200},
         'tg_format': '<b>{Alias}</b>\t<code>{PhoneNumberFormat2}</code>\t<b>{Balance}</b>({BalDeltaQuery})',
@@ -243,12 +244,12 @@ ini = {
         # зайти на такие альтернативные report можно по ссылке http://localhost:19777/report/NNN
         'table_format_': {'descr':'Формат вывода по умолчанию, для страницы http://localhost:19777/report', 'size':200},
         'table_format': 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime',  # ? UserName
-        # расписание опросов, строк может быть несколько sheduler= ... sheduler1=... и т.д как сделано с table_format
+        # расписание опросов, строк может быть несколько scheduler= ... scheduler1=... и т.д как сделано с table_format
         # расписание имеет вид:
         # every(4).hour либо every().day.at("10:30")
         # при желании после расписания можно указать фильтры (можно несколько) например так
-        # shedule = every(4).hour,mts,beeline
-        # если фильтры не указаны, то опрос проводится по всем телефонам, для которых указан passowrd2 в phones.ini либо в phones_add.ini
+        # schedule = every(4).hour,mts,beeline
+        # если фильтры не указаны, то опрос проводится по всем телефонам, для которых указан passord2 в phones.ini либо в phones_add.ini
         # после изменения расписания необходим перезапуск сервера или команда util.py reload-schedule
         'schedule_': {'descr':'Расписание опросов', 'size':200},
         'schedule': '',
@@ -299,7 +300,7 @@ editor_html=r'''
     </div>
     <p id=wrongPassword class=hidden>Wrong Password</p>
     <p id=buttonBlock class=hidden><Button onclick='show_default()'>Показать умолчания</Button>
-        <Button onclick='hide_default()'>Cкрыть умолчания</Button></p>
+        <Button onclick='hide_default()'>Скрыть умолчания</Button></p>
     <div id=formIni class=hidden></div>
 
 
@@ -328,7 +329,7 @@ editor_html=r'''
 <body>
 
     <script>
-        inifile = JSON.parse('') // Сюда вcтавим JSON сгенерированный из ini
+        inifile = JSON.parse('') // Сюда вставим JSON сгенерированный из ini
         function getCookie(name) {
             let matches = document.cookie.match(new RegExp(
                 "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"

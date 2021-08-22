@@ -404,7 +404,7 @@ def send_tgbalance(ctx, over_requests):
 @click.argument('action', type=click.Choice(['hide', 'show'], case_sensitive=False), default='hide')
 @click.pass_context
 def show_chrome(ctx, action):
-    'Показывает спрятанный crome. Работает только на windows, и только при headless_chrome = 0, если chrome запущен в режиме headless то его показать нельзя'
+    'Показывает спрятанный chrome. Работает только на windows, и только при headless_chrome = 0, если chrome запущен в режиме headless то его показать нельзя'
     name = 'show-chrome'
     import browsercontroller
     if sys.platform == 'win32':
@@ -569,7 +569,7 @@ def version(ctx, verbose):
 #@click.pass_context
 def version_update_git(ctx, force, branch):
     '''Обновление mbplugin из https://github.com/artyl/mbplugin если репозиторий не установлен устанавливаем
-    При желании можно явно указать комит/тэг/ветку на которую переключаемся'''
+    При желании можно явно указать коммит/тэг/ветку на которую переключаемся'''
     name = 'version-update-git'
     # TODO проверить наличие git в системе
     if os.system('git --version') > 0:
@@ -603,7 +603,7 @@ def version_update_git(ctx, force, branch):
 
 
 @cli.command()
-@click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
+@click.option('-f', '--force', is_flag=True, help='С заменой измененных файлов')
 @click.option('-v', '--version', type=str, default='', help='Указать конкретный номер версии (по тэгу)')
 @click.option('--only-download', is_flag=True, help='Только загрузить')
 @click.option('--only-check', is_flag=True, help='Только проверить')
@@ -613,7 +613,7 @@ def version_update_git(ctx, force, branch):
 @click.option('--ask-update', is_flag=True, help='Выдать запрос на обновление')
 @click.pass_context
 def version_update(ctx, force, version, only_download, only_check, only_install, by_current, undo_update, ask_update):
-    'Загружает и обновляет файлы из pack с новой версией'
+    'Загружает и обновляет файлы из pack с новой версией, архив с новой версией при обновлении копируем в current.zip'
     def rename_new_to_current(new_zipname, current_zipname, current_bak_zipname, undo=False):
         '''Rename files new.zip -> current.zip -> current.zip.bak 
         if undo: current.zip <-> current.zip.bak'''
@@ -633,6 +633,7 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
         if os.path.exists(new_zipname):
             os.rename(new_zipname, current_zipname)        
     name = 'version-update'
+    import updateengine
     if sum([only_download, only_check, only_install, by_current, undo_update])>1:
         click.echo(f'Only one option can be used')
         return
@@ -648,7 +649,7 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
         click.echo(f'Not exists {current_zipname} (use -f)')
         return
     if os.path.exists(current_zipname):
-        # Проверяем что нет файлов которые отличаются от релизных чтобе не перезатереть чужие изменения
+        # Проверяем что нет файлов которые отличаются от релизных чтобы не перезатереть чужие изменения
         diff_current1 = store.version_check_zip(current_zipname, ignore_missing=True)
         if len(diff_current1) > 0:
             click.echo(f'The current files are different from the release{"" if force else" (use -f)"}')
@@ -667,7 +668,7 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
             # https://github.com/artyl/mbplugin/releases/download/0.99.32/mbplugin.0.99.32.zip
             url = f'https://github.com/artyl/mbplugin/releases/download/{version}/mbplugin_bare{version}.zip'
         click.echo(url)
-        store.download_file(url, new_zipname)
+        updateengine.download_file(url, new_zipname)
         click.echo('Download complete')
     # проверка файлов по new.zip
     # проверяем что new.zip отличается от current.zip
@@ -688,7 +689,7 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
                     click.echo(f'OK {name} update canceled')
                     return
                 click.echo('Update:\n'+'\n'.join(diff_current2))
-                store.version_update_zip(new_zipname)
+                updateengine.version_update_zip(new_zipname)
                 rename_new_to_current(new_zipname, current_zipname, current_bak_zipname)
         else:
             click.echo(f'Your version is up to date with {new_zipname}')
@@ -704,7 +705,7 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
         if ask_update and not click.confirm('Will we make an undo update?', default=True):
             click.echo(f'OK {name} update canceled')
             return
-        store.version_update_zip(current_bak_zipname)
+        updateengine.version_update_zip(current_bak_zipname)
         rename_new_to_current(new_zipname, current_zipname, current_bak_zipname, undo=True)
     click.echo(f'OK {name}')
 

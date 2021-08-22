@@ -86,7 +86,7 @@ sh mbplugin/standalone/mbp
 ## Установка и обновление через git из github
 Данная возможность работает для всех ОС Windows, Linux и MacOs
 Установите систему контроля версий [git](https://git-scm.com/), для работы через docker git устанавливать не нужно  
-Вариант устанавливать через git с github хорош тем что можно легко обновлять версию (через `mbp version-update-git`).
+Вариант устанавливать через git с github хорош тем что можно легко обновлять версию на любую.
 Все действия выполняются из нашей корневой папки mbstandalone
 ### Установка из gitgub
 ```
@@ -104,7 +104,7 @@ sh mbplugin/standalone/mbp docker
 ### Обновление 
 Дайте команду:
 ```
-mbp version-update-git
+mbp version-update
 ```
 
 ## Расписание проверок
