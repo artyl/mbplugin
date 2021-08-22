@@ -614,100 +614,22 @@ def version_update_git(ctx, force, branch):
 @click.pass_context
 def version_update(ctx, force, version, only_download, only_check, only_install, by_current, undo_update, ask_update):
     'Загружает и обновляет файлы из pack с новой версией, архив с новой версией при обновлении копируем в current.zip'
-    def rename_new_to_current(new_zipname, current_zipname, current_bak_zipname, undo=False):
-        '''Rename files new.zip -> current.zip -> current.zip.bak 
-        if undo: current.zip <-> current.zip.bak'''
-        if undo:
-            if os.path.exists(current_zipname + '_'):
-                os.remove(current_zipname + '_')            
-            if os.path.exists(current_zipname):
-                os.rename(current_zipname, current_zipname + '_')
-            if os.path.exists(current_bak_zipname):
-                os.rename(current_bak_zipname, current_zipname)
-            os.rename(current_zipname + '_', current_bak_zipname)
-            return
-        if os.path.exists(current_bak_zipname):
-            os.remove(current_bak_zipname)
-        if os.path.exists(current_zipname):
-            os.rename(current_zipname, current_bak_zipname)
-        if os.path.exists(new_zipname):
-            os.rename(new_zipname, current_zipname)        
     name = 'version-update'
+    res, msg = True, ''
     import updateengine
-    if sum([only_download, only_check, only_install, by_current, undo_update])>1:
+    updater = updateengine.UpdaterFromInternet()
+    if sum([only_download, only_check, only_install, by_current, undo_update]) > 1:
         click.echo(f'Only one option can be used')
         return
-    current_zipname = store.abspath_join('mbplugin', 'pack', 'current.zip')
-    current_bak_zipname = store.abspath_join('mbplugin', 'pack', 'current.zip.bak')
-    new_zipname = store.abspath_join('mbplugin', 'pack', 'new.zip')
     skip_download = only_check or only_install or by_current or undo_update and not only_download
     skip_install = only_check or only_download and not only_install and not by_current and not undo_update
-    # проверка файлов по current.zip
-    # Здесь проверяем чтобы не поменять что-то что руками поменяно (отсутствующие на диске файлы не важны)
-    if not os.path.exists(current_zipname) and not force:
-        # Если текущего файла нет мы не можем проверить на что обновляемся
-        click.echo(f'Not exists {current_zipname} (use -f)')
-        return
-    if os.path.exists(current_zipname):
-        # Проверяем что нет файлов которые отличаются от релизных чтобы не перезатереть чужие изменения
-        diff_current1 = store.version_check_zip(current_zipname, ignore_missing=True)
-        if len(diff_current1) > 0:
-            click.echo(f'The current files are different from the release{"" if force else" (use -f)"}')
-            click.echo('\n'.join(diff_current1))
-            if not force:
-                click.echo(f'For update use option -f')
-        diff_current2 = store.version_check_zip(current_zipname, ignore_missing=False)
-    # Загрузка
+    if version == '' and not by_current and not undo_update:
+        version = updater.check_update()
     if not skip_download:
-        # TODO !!! Сначала проверить по https://api.github.com/repos/artyl/mbplugin/releases Что есть более новая версия
-        # TODO !!! при переключении ветки на master закомитить в эту ветку новым адресом и исправить адрес на 
-        # https://github.com/artyl/mbplugin/archive/refs/heads/master.zip
-        url = 'https://github.com/artyl/mbplugin/archive/refs/heads/dev_playwright.zip'
-        if version != '':
-            url = f'https://github.com/artyl/mbplugin/archive/refs/tags/{version}.zip'
-            # https://github.com/artyl/mbplugin/releases/download/0.99.32/mbplugin.0.99.32.zip
-            url = f'https://github.com/artyl/mbplugin/releases/download/{version}/mbplugin_bare{version}.zip'
-        click.echo(url)
-        updateengine.download_file(url, new_zipname)
-        click.echo('Download complete')
-    # проверка файлов по new.zip
-    # проверяем что new.zip отличается от current.zip
-    # zip нельзя просто сравнивать binary из-за разного названия корневой папки можно только по содержимому
-    if os.path.exists(new_zipname) and os.path.exists(current_zipname) and not force:
-        if store.read_zip(new_zipname) == store.read_zip(current_zipname):
-            click.echo(f'The file of the new version matches the current one')
-            os.remove(new_zipname)
-    # Здесь проверяем что вдруг все файлы соответствуют новой версии (отсутствующие файлы важны)
-    # и если отличаются и мы не указали пропустить установку и 
-    # установку надо делать из new.zip ( не  by_current и не undo_update) - устанавливаем
-    if os.path.exists(new_zipname) and not by_current and not undo_update:
-        diff_new = store.version_check_zip(new_zipname, ignore_missing=False)
-        if len(diff_new) > 0:
-            # Установка new.zip
-            if not skip_install and (force or len(diff_current1) == 0):
-                if ask_update and not click.confirm('Will we make an update?', default=True):
-                    click.echo(f'OK {name} update canceled')
-                    return
-                click.echo('Update:\n'+'\n'.join(diff_current2))
-                updateengine.version_update_zip(new_zipname)
-                rename_new_to_current(new_zipname, current_zipname, current_bak_zipname)
-        else:
-            click.echo(f'Your version is up to date with {new_zipname}')
-            rename_new_to_current(new_zipname, current_zipname, current_bak_zipname)
-    # Устанавливаем файлы из current.zip
-    if by_current and os.path.exists(current_zipname):
-        if ask_update and not click.confirm('Will we make an reaplly update current version?', default=True):
-            click.echo(f'OK {name} update canceled')
-            return
-        store.version_update_zip(current_zipname)
-    # Устанавливаем файлы из current.zip.bak
-    if undo_update and os.path.exists(current_bak_zipname):
-        if ask_update and not click.confirm('Will we make an undo update?', default=True):
-            click.echo(f'OK {name} update canceled')
-            return
-        updateengine.version_update_zip(current_bak_zipname)
-        rename_new_to_current(new_zipname, current_zipname, current_bak_zipname, undo=True)
-    click.echo(f'OK {name}')
+        updater.download_version(version)
+    if not skip_install:
+        res, msg = updater.install_update(version=version, force=force, undo_update=undo_update, by_current=by_current)
+    click.echo(f'{"OK" if res else "Fail"} {name}: {msg}')
 
 @cli.command()
 @click.argument('query', type=str, nargs=-1)

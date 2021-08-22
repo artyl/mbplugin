@@ -94,6 +94,8 @@ class UpdaterFromInternet():
         print(f'{store.version()==release["tag_name"]}')  # Последний релиз уже установлен
         if current_ver < latest_ver: # Есть новая версия
             return release["tag_name"]
+        else:
+            return ''
 
     def download_version(self, version, force=False, checksign=True):
         'Загружаем обновление, force=True независимо от наличия на диске, checksign=False - не проверять подпись'
@@ -178,7 +180,7 @@ class UpdaterFromInternet():
                             time.mktime(zi.date_time + (0, 0, -1)))
         return res
 
-    def install_update(self, version, force=False, undo_update=False, by_current=False):
+    def install_update(self, version='', force=False, undo_update=False, by_current=False):
         'Устанавливаем обновление, undo_update - откатить, by_current - переставить текущую'
         current_zipname = store.abspath_join('mbplugin', 'pack', 'current.zip')
         current_bak_zipname = store.abspath_join('mbplugin', 'pack', 'current.zip.bak')
