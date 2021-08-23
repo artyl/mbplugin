@@ -18,9 +18,12 @@ def session_folder(storename):
 
 def version():
     'Возвращает версию mbplugin по информации из changelist.md'
-    with open(abspath_join('mbplugin','changelist.md'), encoding='utf8') as f:
-        res = re.findall('## mbplugin (\d.*?) \(', f.read())[-1]
-    return res
+    try:
+        with open(abspath_join('mbplugin','changelist.md'), encoding='utf8') as f:
+            res = re.findall('## mbplugin (\d.*?) \(', f.read())[-1]
+        return res
+    except Exception:
+        return 'unknown'
 
 def path_split_all(path):
     'разбивает путь на список'

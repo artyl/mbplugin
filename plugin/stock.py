@@ -126,7 +126,7 @@ def thread_call_market(market,security,cnt,qu):
             return get_finex(market,security,cnt,qu)
         else:
             raise RuntimeError(f'Unknown market marker {market} for {security}')
-    except:
+    except Exception:
         exception_text = f'Error {market},{security}:{"".join(traceback.format_exception(*sys.exc_info()))}'
         logging.error(exception_text)    
 

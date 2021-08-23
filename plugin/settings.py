@@ -48,6 +48,8 @@ path_param = ['loggingfolder', 'loggingfilename', 'logginghttpfilename', 'storef
 ########################################################################################
 ini = {
     'Options': {  # Раздел mbplugin.ini [Options]
+        'autoupdate_': {'descr':'Проверять и предлагать устанавливать новые версии', 'type':'checkbox'},
+        'autoupdate': '0',
         # logging
         # Формат лога
         'loggingformat_': {'descr':'Формат лога', 'type':'text', 'size':100},

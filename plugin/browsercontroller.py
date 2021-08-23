@@ -7,7 +7,7 @@ import playwright
 if sys.platform == 'win32':
     try:
         import win32gui, win32process
-    except:
+    except Exception:
         print('No win32 installed, no fake-headless mode')
 import psutil
 #import pyppeteeradd
@@ -72,7 +72,7 @@ def safe_run(func, *args, **kwargs):
     try:
         res = func(*args, **kwargs)  # CALL
         return res
-    except:
+    except Exception:
         log_string = f'{func.__name__}({", ".join(map(repr,args))}, {", ".join([f"{k}={repr(v)}" for k,v in kwargs.items()])})'
         logging.info(f'call {log_string} fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
 
@@ -275,7 +275,7 @@ class BalanceOverPlaywright():
                 # txt = response.text()
                 # if '2336' in txt:
                 #    logging.info(f'2336 in {response.request.url}')
-            except:
+            except Exception:
                 exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
                 logging.debug(exception_text)
 

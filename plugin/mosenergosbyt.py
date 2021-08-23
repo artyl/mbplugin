@@ -47,7 +47,7 @@ class browserengine(browsercontroller.BrowserController):
             try:
                 nm_indication_variants = dict([map(str.strip,i.split(':')) for i in store.options('mosenergosbyt_nm_indication_variants').strip().split(',')])
                 nm_indication_take = nm_indication_variants.get(str(store.options('mosenergosbyt_nm_indication_take').strip()),'')
-            except:
+            except Exception:
                 logging.error(f'Неправильные настройки для nm_indication в mbplugin.ini: {"".join(traceback.format_exception(*sys.exc_info()))}')
                 nm_indication_take = ''
             res1 = self.wait_params(params=[{

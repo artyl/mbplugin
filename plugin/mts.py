@@ -157,7 +157,7 @@ class browserengine(browsercontroller.BrowserController):
                         logging.info(f'mts_usedbyme common collect: сdata_rest={сdata_rest} cdata_charge={cdata_charge}')
                     else:  #  Со страницы общего пакета не отдали данные, чистим все, иначе будут кривые графики. ТОЛЬКО для common
                         raise RuntimeError(f'Страница общего пакета не возвращает данных')
-            except:
+            except Exception:
                 logging.info(f'Ошибка при получении obshchiy_paket {"".join(traceback.format_exception(*sys.exc_info()))}')
                 if self.acc_num.lower().startswith('common'): 
                     self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных'}

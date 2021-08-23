@@ -76,7 +76,7 @@ def fix_embedded_python_path(ctx):
                 open(os.path.join(EMB_PYTHON_PATH, 'sitecustomize.py'), 'a').write(txt)
             click.echo(f'OK {name}')
         except Exception:
-            click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')                
+            click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
     else:
         click.echo(f'Not needed {name}')
 
@@ -106,7 +106,7 @@ def pip_update(ctx, quiet):
         os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --no-warn-script-location -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements_win.txt")}')
     else:
         os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --no-warn-script-location -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements.txt")}')
-    click.echo(f'OK {name}') 
+    click.echo(f'OK {name}')
 
 @cli.command()
 @click.pass_context
@@ -119,7 +119,7 @@ def clear_browser_cache(ctx):
         shutil.rmtree(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'headless'), ignore_errors=True)
         click.echo(f'OK {name}')
     except Exception:
-        click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')         
+        click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
 
 @cli.command()
 @click.option('--only-dll', is_flag=True, help='Только DLL')
@@ -181,7 +181,7 @@ def web_control(ctx):
     elif sys.platform == 'linux':
         start_cmd = 'xdg-open'
     elif sys.platform == 'darwin':
-        start_cmd = 'open'        
+        start_cmd = 'open'
     else:
         click.echo(f'Unknown platform {sys.platform}')
     os.system(f'{start_cmd} http://localhost:{store.options("port", section="HttpServer")}/main')
@@ -220,10 +220,10 @@ def web_server_autostart(ctx, turn):
             time.sleep(4)
             click.echo(f'OK {name} {turn}')
         except Exception:
-            click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')                
+            click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
     else:
         click.echo('On windows platform only')
-    
+
 @cli.command()
 @click.argument('cmd', type=click.Choice(['start', 'stop', 'restart'], case_sensitive=False))
 @click.option('-f', '--force', is_flag=True, help='Force kill')
@@ -244,7 +244,7 @@ def web_server(ctx, cmd, force):
         time.sleep(3)
         click.echo(f'OK {name} {cmd}')
     except Exception:
-        click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')                
+        click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
 
 @cli.command()
 @click.pass_context
@@ -285,7 +285,7 @@ def check_jsmblh(ctx, plugin):
 def check_dll(ctx):
     'Проверяем что все работает DLL PLUGIN'
     name = 'check-dll'
-    #call plugin\test_mbplugin_dll_call.bat p_test1 123 456 
+    #call plugin\test_mbplugin_dll_call.bat p_test1 123 456
     if sys.platform == 'win32':
         try:
             import dll_call_test
@@ -301,7 +301,7 @@ def check_dll(ctx):
         except Exception:
             click.echo(f'Fail {name}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
     else:
-        click.echo('On windows platform only')    
+        click.echo('On windows platform only')
 
 @cli.command()
 @click.pass_context
@@ -350,7 +350,7 @@ def init(ctx):
         ini.write()
         click.echo(f'OK {name}')
     except Exception:
-        click.echo(f'Fail {name}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')    
+        click.echo(f'Fail {name}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
 
 @cli.command()
 @click.option('--only_failed', is_flag=True, help='Запросить балансы, по которым были ошибки')
@@ -411,7 +411,7 @@ def show_chrome(ctx, action):
         browsercontroller.hide_chrome(hide=(action == 'hide'))
         click.echo(f'OK {name}')
     else:
-        click.echo(f'{name}:On windows platform only')    
+        click.echo(f'{name}:On windows platform only')
 
 @cli.command()
 @click.pass_context
@@ -438,7 +438,7 @@ def check_ini(ctx):
 def check_plugin(ctx, bpoint, plugin, login, password):
     'Проверка работы плагина по заданному логину и паролю'
     name = 'check-plugin'
-    store.turn_logging() 
+    store.turn_logging()
     click.echo(f'{plugin} {login} {password}')
     import httpserver_mobile
     if bpoint:
@@ -495,10 +495,10 @@ def phone_change(ctx, num, delete, plugin, monitor, alias, login, password):
         if str(num) in phones.ini.sections():
             click.echo(f'Delete {list(phones.ini[str(num)].items())}')
             del phones.ini[str(num)]
-        else: 
+        else:
             for sec in phones.ini.sections():
-                if ((phones.ini[sec]['Region'] == plugin or plugin == '') and 
-                    (phones.ini[sec]['Number'] == login or login == '') and 
+                if ((phones.ini[sec]['Region'] == plugin or plugin == '') and
+                    (phones.ini[sec]['Number'] == login or login == '') and
                     (phones.ini[sec]['Alias'] == alias or alias == '')):
                     click.echo(f'Delete {list(phones.ini[sec].items())}')
                     del phones.ini[sec]
@@ -540,12 +540,7 @@ def phone_change(ctx, num, delete, plugin, monitor, alias, login, password):
 @click.pass_context
 def version(ctx, verbose):
     'Текущая установленная версия'
-    changelist_fn= os.path.join(ROOT_PATH, 'mbplugin', 'changelist.md')
-    if os.path.isdir('mbplugin') and os.path.exists(changelist_fn):
-        version = re.findall('## (mbplugin \d.*?\))',open(changelist_fn, encoding='utf8').read())[-1]
-        click.echo(version)
-    else:
-        click.echo('Mbplugin version unknown')
+    click.echo(f'Mbplugin version {store.version()}')
     if not verbose:
         return
     click.echo(f'Python {sys.version}')
@@ -557,7 +552,7 @@ def version(ctx, verbose):
         # browser = p.chromium.launch_persistent_context(user_data_dir=user_data_dir)
         browser = p.chromium.launch()
         click.echo(f'Chromium {browser.version}')
-        browser.close()  
+        browser.close()
     releases = requests.get('https://api.github.com/repos/artyl/mbplugin/releases').json()
     release = [r for r in releases if not r['prerelease'] and not r['draft']][0]
     click.echo(f'Latest release on github {release["tag_name"]} by {release["published_at"]} with description:\n{release["body"]}')
@@ -604,32 +599,43 @@ def version_update_git(ctx, force, branch):
 
 @cli.command()
 @click.option('-f', '--force', is_flag=True, help='С заменой измененных файлов')
-@click.option('-v', '--version', type=str, default='', help='Указать конкретный номер версии (по тэгу)')
+@click.option('-v', '--version', type=str, default='', help='Указать конкретный номер версии (по тэгу) или имени файла')
 @click.option('--only-download', is_flag=True, help='Только загрузить')
 @click.option('--only-check', is_flag=True, help='Только проверить')
 @click.option('--only-install', is_flag=True, help='Только установить новую (должна быть скачана заранее)')
 @click.option('--by-current', is_flag=True, help='Обновить файлы по архиву текущей версии')
 @click.option('--undo-update', is_flag=True, help='Вернуть файлы к варианту до обновления')
 @click.option('--ask-update', is_flag=True, help='Выдать запрос на обновление')
+@click.option('--no-check-sign', is_flag=True, help='Не проверять подпись файла с версией при загрузке')
+@click.option('--install-prerelease', is_flag=True, help='Устанавливать бета-версии')
+@click.option('--batch_mode', is_flag=True, help='Игнорировать ключи, брать параметры из mbplugin.ini')
 @click.pass_context
-def version_update(ctx, force, version, only_download, only_check, only_install, by_current, undo_update, ask_update):
+def version_update(ctx, force, version, only_download, only_check, only_install, by_current, undo_update, ask_update, no_check_sign, install_prerelease, batch_mode):
     'Загружает и обновляет файлы из pack с новой версией, архив с новой версией при обновлении копируем в current.zip'
     name = 'version-update'
-    click.echo(f'Current version {store.version()}')
+    if batch_mode:
+        # Если это batch режим и не включен autoupdate то сразу выходим
+        if str(store.options('autoupdate')) == '0':
+            return
+        ask_update = True
+    skip_download = only_check or only_install or by_current or undo_update and not only_download
+    skip_install = only_check or only_download and not only_install and not by_current and not undo_update    
+    click.echo(f'Current version {store.version()}')    
     res, msg = True, ''
     import updateengine
-    updater = updateengine.UpdaterFromInternet()
+    updater = updateengine.UpdaterEngine(version=version, prerelease=install_prerelease)
     if sum([only_download, only_check, only_install, by_current, undo_update]) > 1:
         click.echo(f'Only one option can be used')
         return
-    skip_download = only_check or only_install or by_current or undo_update and not only_download
-    skip_install = only_check or only_download and not only_install and not by_current and not undo_update
     if version == '' and not by_current and not undo_update:
         version, msg_version = updater.check_update()
         click.echo(f'New version {version}\n{msg_version}')
     if not skip_download:
-        updater.download_version(version)
-    if not skip_install:
+        updater.download_version(version=version, force=force, checksign=not no_check_sign)
+    if not skip_install and version != '':
+        if ask_update and not click.confirm('Will we make an update?', default=True):
+            click.echo(f'OK {name} update canceled')
+            return
         res, msg = updater.install_update(version=version, force=force, undo_update=undo_update, by_current=by_current)
     click.echo(f'{"OK" if res else "Fail"} {name}: {msg}')
 

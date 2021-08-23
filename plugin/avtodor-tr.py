@@ -34,7 +34,7 @@ def get_balance(login, password, storename=None):
             raise RuntimeError(f'GET Login page {login_url} error: status_code {response1.status_code}')
         try:
             url_lk = re.search('action="(.*?)"',response1.text).group(1).replace('&amp;','&')
-        except:
+        except Exception:
             raise RuntimeError(f'No action url on {login_url}')
         data = {'username': login, 'password': password}
         response2 = session.post(url_lk, data=data)

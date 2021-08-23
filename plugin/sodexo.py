@@ -35,7 +35,7 @@ def get_balance(login, password, storename=None):
             history.append([f"{histdate} {','.join([i.replace('3DI ','').replace('MD00','').replace('EPS*','') for i in hist['locationName']])}",f"{hist['amount']}"])
         result['UslugiOn'] = f'{len(data["history"])}'
         result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in sorted(history)])
-    except:
+    except Exception:
         logging.info(f'Ошибка при получении списка транзакций {"".join(traceback.format_exception(*sys.exc_info()))}')
 
     return result

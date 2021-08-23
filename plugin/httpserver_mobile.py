@@ -78,7 +78,7 @@ def getbalance_standalone(filter=[], only_failed=False, feedback=None) :
             if feedback is not None:
                 feedback(f"Receive {val['Alias']}:{val['Region']}_{val['Number']}")
             getbalance_plugin('get',{'plugin':[val['Region']],'login':[val['Number']],'password':[val['Password2']],'date':['date']})
-        except:
+        except Exception:
             logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {''.join(traceback.format_exception(*sys.exc_info()))}")
 
 def getbalance_plugin(method, param_source):
@@ -117,7 +117,7 @@ def getbalance_plugin(method, param_source):
             text = store.result_to_html(result)
             if 'Balance' not in result:
                 raise RuntimeError(f'В result отсутствует баланс')
-        except:
+        except Exception:
             logging.info(f'{plugin} fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
             dbengine.flags('set',f"{lang}_{plugin}_{param['login']}",'error call')  # выставляем флаг о ошибке вызова
             return 'text/html', [f"<html>Error call {param['fplugin']}</html>"]

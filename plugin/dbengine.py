@@ -174,7 +174,7 @@ class dbengine():
         try:        
             options_ini = store.ini('Options.ini').read()
             average_days = int(options_ini['Additional']['AverageDays'])
-        except:
+        except Exception:
             average_days = int(store.options('average_days'))
         self.cur.execute(f"select {line['Balance']}-balance from phones where phonenumber='{login}' and operator='{plugin}' and QueryDateTime>date('now','-{average_days} day') and strftime('%Y%m%d', QueryDateTime)<>strftime('%Y%m%d', date('now')) order by QueryDateTime desc limit 1")
         qres = self.cur.fetchall()
