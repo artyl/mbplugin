@@ -564,7 +564,7 @@ def version(ctx, verbose):
 
 
 #@cli.command()
-#@click.option('-f', '--force', is_flag=True, help='С заменой измененых файлов')
+#@click.option('-f', '--force', is_flag=True, help='С заменой измененных файлов')
 #@click.argument('branch', nargs=-1)
 #@click.pass_context
 def version_update_git(ctx, force, branch):
@@ -578,7 +578,7 @@ def version_update_git(ctx, force, branch):
     if len(branch) > 2:
         click.echo('Use not more 1 phrases for branch')
         return
-    branch_name = 'dev_playwright'  # TODO после переключения в master поменять на master и закомитить последнюю версию с master в ветку dev_playwright
+    branch_name = 'dev_playwright'  # TODO после переключения в master поменять на master и закоммитить последнюю версию с master в ветку dev_playwright
     if len(branch) == 1:
         branch_name = branch[0]
     if re.match('\A0\.99.(\d+)\.?\d?\Z', branch_name) and int(re.search('\A0\.99.(\d+)\.?\d*\Z', branch_name).groups()[0])>32:

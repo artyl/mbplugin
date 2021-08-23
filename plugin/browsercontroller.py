@@ -14,7 +14,7 @@ import psutil
 #import pprint; pp = pprint.PrettyPrinter(indent=4).pprint
 import store, settings
 
-# Какой бы ни был режим в mbplugin для всех сторониих модулей отключаем расширенное логирование
+# Какой бы ни был режим в mbplugin для всех сторонних модулей отключаем расширенное логирование
 # иначе в лог польется все тоннами
 [logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict]  # pylint: disable=no-member
 
@@ -78,7 +78,7 @@ def safe_run(func, *args, **kwargs):
 
 @safe_run_decorator
 def hide_chrome(hide=True, foreground=False):
-    'Прячем или показываем окно хрома, только в винде в линуксе и маке не умеем'
+    'Прячем или показываем окно хрома, только в windows в linux и macOS не умеем'
     # TODO 
     def enumWindowFunc(hwnd, windowList):
         """ win32gui.EnumWindows() callback """
@@ -110,7 +110,7 @@ def hide_chrome(hide=True, foreground=False):
 
 @safe_run_decorator
 def kill_chrome():
-    '''Киляем дебажный хром если вдруг какой-то висит, т.к. народ умудряется запускать не только хром, то имя exe возьмем из пути '''
+    '''Киляем бажный хром если вдруг какой-то висит, т.к. народ умудряется запускать не только хром, то имя exe возьмем из пути '''
     # TODO получилось как-то сложно пока убиваем то что начинается на chrome и имеет remote-debugging-port в cmdline
     pname = 'chrome'  # chrome or chrome.exe # os.path.split(chrome_executable_path)[-1].lower()
     # TODO в сложном случае когда мы запускаем встроенный у нас может получиться что имя exe которое мы берем из chrome_executable_path
@@ -175,7 +175,7 @@ class BalanceOverPlaywright():
 
     def safe_run_with_log_decorator(func):  # pylint: disable=no-self-argument
         def wrapper(self, *args, **kwargs):
-            '''decorator для безопасного запуска функции не падает в случае ошибки, а пишет в лог и возвращяет default=None
+            '''decorator для безопасного запуска функции не падает в случае ошибки, а пишет в лог и возвращает default=None
             параметры предназначенные декоратору, и не передаются в вызываемую функцию:
             default: возвращаемое в случае ошибки значение'''
             default = kwargs.pop('default', None)
@@ -206,7 +206,7 @@ class BalanceOverPlaywright():
         max_timeout=15 - сколько секунд ждать прогрузки страниц, появления форм и т.п.
         login_url, user_selectors - можно передать параметры для логона при создании класса
         headless можно указать явно, иначе будет взято из настроек, но работать будет только в playwright
-        force - коэфициент, на который будет умножено страховочное ожидание 0 - ускориться, 2 - замедлиться
+        force - коэффициент, на который будет умножено страховочное ожидание 0 - ускориться, 2 - замедлиться
         если все проверки заданы качественно - можно указать force=0'''
         self.browser, self.page = None, None  # откроем браузер - заполним
         self.browser_open = True  # флаг что браузер работает
@@ -239,7 +239,7 @@ class BalanceOverPlaywright():
             self.login, self.acc_num = self.login_ori.split('/')
             # !!! в storename уже преобразован поэтому чтобы выкинуть из него ненужную часть нужно по ним тоже регуляркой пройтись
             self.storename = self.storename.replace(re.sub(r'\W', '_', self.login_ori), re.sub(r'\W', '_', self.login))  # исправляем storename
-        kill_chrome()  # Превинтивно убиваем все наши хромы, чтобы не появлялось кучи зависших
+        kill_chrome()  # Превентивно убиваем все наши хромы, чтобы не появлялось кучи зависших
         clear_cache(self.storefolder, self.storename)
         self.result = {}
         self.responses = {}
@@ -322,7 +322,7 @@ class BalanceOverPlaywright():
 
 
     def page_check_response_url(self, response_url):
-        ''' проверяем наличие response_url в загруженных url, если не задан или пустой то возвращяем True '''
+        ''' проверяем наличие response_url в загруженных url, если не задан или пустой то возвращаем True '''
         if response_url == None or response_url == '':
             return True
         if len([i for i in self.responses.keys() if response_url in i]) > 0:
@@ -388,7 +388,7 @@ class BalanceOverPlaywright():
             res = None
             for cnt in range(self.max_timeout):
                 try:
-                    # в процессе выполнения можем грохнуться т.к. страница может перезагрузиться, такие даже не логируем
+                    # в процессе выполнения можем грохнуться т.к. страница может перезагрузиться, такие даже не пишем в лог
                     res = self.page.evaluate(expression, **kwargs)
                 except Exception:
                     exception_text = f'Ошибка в page_wait_for:{"".join(traceback.format_exception(*sys.exc_info()))}'
@@ -508,7 +508,7 @@ class BalanceOverPlaywright():
         if set(user_selectors)-set(selectors) != set():
             logging.error(f'Не все ключи из user_selectors есть в selectors. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}')
         selectors.update(user_selectors)
-        # Если проверка на нахождение в личном кабинете на отсутсвие элемента - дополнительно ожидаем чтобы страница гарантированно загрузилась
+        # Если проверка на нахождение в личном кабинете на отсутствие элемента - дополнительно ожидаем чтобы страница гарантированно загрузилась
         is_bad_chk_lk_page_js = ' == null' in selectors['chk_lk_page_js'] or '=== null' in selectors['chk_lk_page_js']
         if url is not None:  # Иногда мы должны сложным путем попасть на страницу - тогда указываем url=None
             self.page_goto(url)
@@ -562,12 +562,12 @@ class BalanceOverPlaywright():
                                 break  # ВЫХОДИМ ИЗ ЦИКЛА - капчи на странице больше нет
                             self.sleep(1)
                         else:  # Капчу так никто и не ввел
-                            self.page_screenshot(suffix='captha')
+                            self.page_screenshot(suffix='captcha')
                             logging.error(f'Show captcha timeout. A captcha appeared, but no one entered it')        
                             raise RuntimeError(f'A captcha appeared, but no one entered it')
                     else:  # Показ капчи не зададан выдаем ошибку и завершаем
                         logging.error(f'Captcha appeared')
-                        self.page_screenshot(suffix='captha')       
+                        self.page_screenshot(suffix='captcha')       
                         raise RuntimeError(f'Captcha appeared')
                 else:
                     # Никуда не попали и это не капча
@@ -620,9 +620,9 @@ class BalanceOverPlaywright():
         url если url пустой то не переходим а просто производим действия на текущей странице
         --- 
         params - список словарей вида 
-        {'name':'text', 'url_tag':['text1','text2'], 'pformula':'text'} - ожидается приход json с урлом содержащим все строки из  url_tag из этого json через python eval возьмем tag_pformula
+        {'name':'text', 'url_tag':['text1','text2'], 'pformula':'text'} - ожидается приход json с url содержащим все строки из  url_tag из этого json через python eval возьмем tag_pformula
         либо 
-        {'name':'text', 'url_tag':['text'], 'jsformula':'text'} - ожидается приход json с урлом содержащим url_tag из этого json через js eval возьмем tag_jformula
+        {'name':'text', 'url_tag':['text'], 'jsformula':'text'} - ожидается приход json с url содержащим url_tag из этого json через js eval возьмем tag_jsformula
         либо
         {'name':'text', 'url_tag':[], 'jsformula':'text'} - url_tag - пустой список или не указан, на странице выполняется js из jsformula
         Если нужно указать что в url_tag url заканчивается этим текстом, то поставьте после него знак $
@@ -657,8 +657,8 @@ class BalanceOverPlaywright():
                 # так и не дождались - пробуем перезагрузить и еще подождать
                 self.page_reload('Data not received')        
         else:  # время вышло а получено не все - больше не ждем 
-            no_receved_keys = {i['name'] for i in params} - set(result)
-            logging.error(f'Not found all param on {url}: {",".join(no_receved_keys)}')
+            no_received_keys = {i['name'] for i in params} - set(result)
+            logging.error(f'Not found all param on {url}: {",".join(no_received_keys)}')
         if save_to_result:
             self.result.update({k:v for k,v in result.items() if not k.startswith('#')})  # Не переносим те что с решеткой в начале
         self.page_screenshot()
