@@ -87,6 +87,7 @@ class UpdaterEngine():
         self.current_zipname = store.abspath_join('mbplugin', 'pack', 'current.zip')
         self.current_bak_zipname = store.abspath_join('mbplugin', 'pack', 'current.zip.bak')
         self.new_zipname = None
+        self.version = ''
         self.set_version(version)
 
     def github_releases(self) -> list:
@@ -108,7 +109,7 @@ class UpdaterEngine():
         if os.path.exists(version_fn):
             self.new_zipname = version_fn
             return
-        if version != '':
+        if version == '':
             return
         if self.exist_version(version):
             self.version = version
@@ -125,7 +126,7 @@ class UpdaterEngine():
         current_ver = tuple(map(int, re.findall('\d+', store.version())))
         latest_ver = tuple(map(int, re.findall('\d+', release["tag_name"])))
         if current_ver < latest_ver: # Есть новая версия
-            self.version = release["tag_name"]
+            self.set_version(release["tag_name"])
             return self.version, msg
         else:
             return '', ''
@@ -240,7 +241,9 @@ class UpdaterEngine():
         # Здесь проверяем что вдруг все файлы соответствуют новой версии (отсутствующие файлы важны)
         # и если отличаются и мы не указали пропустить установку и
         # установку надо делать из new.zip (не  by_current и не undo_update) - устанавливаем
-        if os.path.exists(self.new_zipname) and not by_current and not undo_update:
+        if not by_current and not undo_update:
+            if not os.path.exists(self.new_zipname):
+                return False, f'File for update {self.new_zipname} not found'
             diff_new = self.version_check_zip(self.new_zipname, ignore_missing=False)
             if len(diff_new) > 0:
                 # Установка new.zip

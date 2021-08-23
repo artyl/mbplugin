@@ -632,7 +632,7 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
         click.echo(f'New version {version}\n{msg_version}')
     if not skip_download:
         updater.download_version(version=version, force=force, checksign=not no_check_sign)
-    if not skip_install and version != '':
+    if not skip_install:
         if ask_update and not click.confirm('Will we make an update?', default=True):
             click.echo(f'OK {name} update canceled')
             return
