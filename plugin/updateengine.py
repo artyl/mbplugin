@@ -234,7 +234,7 @@ class UpdaterEngine():
             diff_current2 = self.version_check_zip(self.current_zipname, ignore_missing=False)
         # проверка файлов по new.zip
         # проверяем что new.zip отличается от current.zip (проверяем zip по файлам)
-        if not undo_update and os.path.exists(self.new_zipname) and os.path.exists(self.current_zipname) and not force:
+        if not by_current and not undo_update and os.path.exists(self.new_zipname) and os.path.exists(self.current_zipname) and not force:
             if self.read_zip(self.new_zipname) == self.read_zip(self.current_zipname):
                 return True, f'The file of the new version matches the current one'
         # Здесь проверяем что вдруг все файлы соответствуют новой версии (отсутствующие файлы важны)
@@ -256,7 +256,7 @@ class UpdaterEngine():
                 return True, f'Your version is up to date with {self.new_zipname}'
         # Устанавливаем файлы из current.zip
         if by_current and os.path.exists(self.current_zipname):
-            store.version_update_zip(self.current_zipname)
+            self.version_update_zip(self.current_zipname)
             return True, f'Update by current version {store.version()} complete'
         # Устанавливаем файлы из current.zip.bak
         if undo_update and os.path.exists(self.current_bak_zipname):
