@@ -127,7 +127,11 @@ class browserengine(browsercontroller.BrowserController):
                     break
                 logging.info(f'mts_usedbyme: GetUserClaims вернул claim_error - reload')
                 self.page_reload()
-                self.sleep(5)            
+                self.sleep(5)
+            else:
+                logging.info(f'mts_usedbyme: GetUserClaims за три попытки так и не дал результат. Уходим')
+                self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных (claim_error)'}
+                return
             try:
                 if 'RoleDonor' in str(res3):  # Просто ищем подстроку во всем json вдруг что-то изменится
                     logging.info(f'mts_usedbyme: RoleDonor')
