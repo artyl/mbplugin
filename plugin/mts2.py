@@ -117,7 +117,18 @@ class mts_over_puppeteer(pa.balance_over_puppeteer):
         # Но только если телефон в списке в поле mts_usedbyme или для всех телефонов если там 1
         if mts_usedbyme == '1' or self.login in mts_usedbyme.split(',') or self.acc_num.lower().startswith('common'):
             await self.page_goto('https://lk.mts.ru/obshchiy_paket')
-            res3 = await self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/Widgets/GetUserClaims', '/longtask/'], 'jsformula': "data.result"}])
+            # 24.08.2021 иногда возвращается легальная страница, но вместо информации там сообщение об ошибке - тогда релоадим и повторяем
+            for i in range(3):
+                res3 = await self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/Widgets/GetUserClaims', '/longtask/'], 'jsformula': "data.result"}])
+                if 'claim_error' not in str(res3):
+                    break
+                logging.info(f'mts_usedbyme: GetUserClaims вернул claim_error - reload')
+                await self.page_reload()
+                await asyncio.sleep(5)
+            else:
+                logging.info(f'mts_usedbyme: GetUserClaims за три попытки так и не дал результат. Уходим')
+                self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных (claim_error)'}
+                return
             try:
                 if 'RoleDonor' in str(res3):  # Просто ищем подстроку во всем json вдруг что-то изменится
                     logging.info(f'mts_usedbyme: RoleDonor')
