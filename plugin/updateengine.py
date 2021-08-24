@@ -233,14 +233,13 @@ class UpdaterEngine():
                     return False, 'The current files are different from the release'
             diff_current2 = self.version_check_zip(self.current_zipname, ignore_missing=False)
         # проверка файлов по new.zip
-        # проверяем что new.zip отличается от current.zip
-        # zip нельзя просто сравнивать binary из-за разного названия корневой папки можно только по содержимому
-        if os.path.exists(self.new_zipname) and os.path.exists(self.current_zipname) and not force:
+        # проверяем что new.zip отличается от current.zip (проверяем zip по файлам)
+        if not undo_update and os.path.exists(self.new_zipname) and os.path.exists(self.current_zipname) and not force:
             if self.read_zip(self.new_zipname) == self.read_zip(self.current_zipname):
                 return True, f'The file of the new version matches the current one'
         # Здесь проверяем что вдруг все файлы соответствуют новой версии (отсутствующие файлы важны)
         # и если отличаются и мы не указали пропустить установку и
-        # установку надо делать из new.zip (не  by_current и не undo_update) - устанавливаем
+        # установку надо делать из new.zip (не by_current и не undo_update) - устанавливаем
         if not by_current and not undo_update:
             if not os.path.exists(self.new_zipname):
                 return False, f'File for update {self.new_zipname} not found'
