@@ -121,5 +121,8 @@ call git-restore-mtime
 cd "%~dp0\.."
 7z a -tzip mbplugin\dist\mbplugin.%mbpluginversion%.zip mbplugin -xr!.git -xr!dist -xr!*.log
 
+cd "%~dp0\plugin"
+..\python\python -c "import updateengine;updateengine.create_signature()"
+
 goto :EOF
 @REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
