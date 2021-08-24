@@ -127,15 +127,15 @@ def kill_chrome():
 @safe_run_decorator
 def fix_crash_banner(storefolder, storename):
     'Исправляем Preferences чтобы убрать баннер Работа Chrome была завершена некорректно'
-    fn_pref = store.abspath_join(storefolder, 'puppeteer', storename, 'Preferences')
+    fn_pref = store.abspath_join(storefolder, 'headless', storename,'Default', 'Preferences')
     if not os.path.exists(fn_pref):
         return  # Нет Preferences - выходим
-    with open(fn_pref) as f:
+    with open(fn_pref, encoding='utf8') as f:
         data = f.read()
     data1 = data.replace('"exit_type":"Crashed"','"exit_type":"Normal"').replace('"exited_cleanly":false','"exited_cleanly":true')
     if data != data1:
         logging.info(f'Fix chrome crash banner')
-        open(fn_pref, mode='w').write(data1)        
+        open(fn_pref, encoding='utf8', mode='w').write(data1)        
 
 @safe_run_decorator
 def clear_cache(storefolder, storename):

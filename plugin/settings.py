@@ -50,6 +50,8 @@ ini = {
     'Options': {  # Раздел mbplugin.ini [Options]
         'autoupdate_': {'descr':'Проверять и предлагать устанавливать новые версии', 'type':'checkbox'},
         'autoupdate': '0',
+        'ask_update_': {'descr':'При обновлении не задавать вопрос', 'type':'checkbox'},
+        'ask_update': '1',        
         # logging
         # Формат лога
         'loggingformat_': {'descr':'Формат лога', 'type':'text', 'size':100},

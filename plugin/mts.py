@@ -120,7 +120,14 @@ class browserengine(browsercontroller.BrowserController):
         # Но только если телефон в списке в поле mts_usedbyme или для всех телефонов если там 1
         if mts_usedbyme == '1' or self.login in mts_usedbyme.split(',') or self.acc_num.lower().startswith('common'):
             self.page_goto('https://lk.mts.ru/obshchiy_paket')
-            res3 = self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/Widgets/GetUserClaims', '/longtask/'], 'jsformula': "data.result"}])
+            # 24.08.2021 иногда возвращается легальная страница, но вместо информации там сообщение об ошибке - тогда перегружаем и повторяем
+            for i in range(3):
+                res3 = self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/Widgets/GetUserClaims', '/longtask/'], 'jsformula': "data.result"}])
+                if 'claim_error' not in str(res3):
+                    break
+                logging.info(f'mts_usedbyme: GetUserClaims вернул claim_error - reload')
+                self.page_reload()
+                self.sleep(5)            
             try:
                 if 'RoleDonor' in str(res3):  # Просто ищем подстроку во всем json вдруг что-то изменится
                     logging.info(f'mts_usedbyme: RoleDonor')

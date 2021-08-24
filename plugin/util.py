@@ -617,7 +617,7 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
         # Если это batch режим и не включен autoupdate то сразу выходим
         if str(store.options('autoupdate')) == '0':
             return
-        ask_update = True
+        ask_update = str(store.options('ask_update')) == '1'
     skip_download = only_check or only_install or by_current or undo_update and not only_download
     skip_install = only_check or only_download and not only_install and not by_current and not undo_update    
     click.echo(f'Current version {store.version()}')    
