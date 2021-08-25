@@ -10,14 +10,16 @@ import store, settings
 
 ZipRecord = collections.namedtuple('ZipRecord', 'content mtime')
 
+
 class ShaSumFile():
     'Класс для работы с файлом контрольных сумм, генерация, проверка'
-    def __init__(self) -> None:
-        self.raw_data = None  # данные, как они лежат в файле
-        self.signature = None  # сигнатура, как она лежит в файле
-        self.data = {}
+    def __init__(self, verify_ssl=True) -> None:
+        self.raw_data: typing.Optional[bytes] = None  # данные, как они лежат в файле
+        self.signature: typing.Optional[bytes] = None  # сигнатура, как она лежит в файле
+        self.verify_ssl = verify_ssl
+        self.data: typing.Dict[str, str] = {}
 
-    def sign_and_save(self, priv_keyname, fn_shasum, fn_shasum_sig, filelist:list):
+    def sign_and_save(self, priv_keyname, fn_shasum, fn_shasum_sig, filelist: list):
         'Подписываем файл и сохраняем файлы с суммами и с подписью'
         for fn in filelist:
             with open(fn, 'rb') as f:
@@ -26,24 +28,23 @@ class ShaSumFile():
             private_key = serialization.load_ssh_private_key(
                 key_file.read(), password=None, backend=default_backend())
         res = []
-        for k,v in self.data.items():
+        for k, v in self.data.items():
             res.append(f"{v}\t{k}")
         self.raw_data = '\n'.join(res).encode()
-        self.signature = base64.b64encode(private_key.sign(self.raw_data))
+        self.signature = base64.b64encode(private_key.sign(self.raw_data))  # type: ignore
         with open(fn_shasum, 'wb') as f:
             f.write(self.raw_data)
         with open(fn_shasum_sig, 'wb') as f:
             f.write(self.signature)
 
-    def verify(self, filelist:list):
+    def verify(self, filelist: list):
         'проверяем подпись и суммы, для files(имя: содержимое)'
         if self.raw_data is None or self.signature is None:
             raise RuntimeError('raw_data and signatute must not be None')
         for public_key_txt in settings.public_keys:
-            public_key = serialization.load_ssh_public_key(
-                public_key_txt, default_backend())
+            public_key = serialization.load_ssh_public_key(public_key_txt, default_backend())
             try:
-                public_key.verify(base64.b64decode(self.signature), self.raw_data)
+                public_key.verify(base64.b64decode(self.signature), self.raw_data)  # type: ignore
                 print(f'Signature checked by key {public_key_txt.split()[-1].decode()} OK')
                 break
             except cryptography.exceptions.InvalidSignature as e:
@@ -80,33 +81,34 @@ class UpdaterEngine():
     '''Движок обновления через интернет и с диска с проверкой подписи файлов
     prerelease=False - не устанавливать prerelease
     draft=False - не устанавливать draft '''
-    def __init__(self, prerelease=False, draft=False, version='') -> None:
-        self.releases = None
+    def __init__(self, version='', prerelease=False, draft=False, verify_ssl=True) -> None:
+        self.releases: list = []  # Список релизов удовлетворяющих условиям
+        self.version = ''
         self.prerelease = prerelease
         self.draft = draft
+        self.verify_ssl = verify_ssl
         self.current_zipname = store.abspath_join('mbplugin', 'pack', 'current.zip')
         self.current_bak_zipname = store.abspath_join('mbplugin', 'pack', 'current.zip.bak')
         self.new_zipname = None
-        self.version = ''
         self.set_version(version)
 
-    def github_releases(self) -> list:
+    def github_releases(self) -> typing.List[dict]:
         'При первом обращении получаем информацию с github'
-        if self.releases is None:
+        if len(self.releases) == 0:
             url = 'https://api.github.com/repos/artyl/mbplugin1/releases'
-            self.releases = requests.get(url).json()
+            data = requests.get(url, verify=self.verify_ssl).json()
+            self.releases = [r for r in data if (not r['prerelease'] or self.prerelease) and (not r['draft'] or self.draft)]
             # print([r["tag_name"] for r in self.releases])
         return self.releases
 
     def exist_version(self, tag) -> bool:
         'проверяет существует ли такая версия'
-        tags = [r['tag_name'] for r in self.github_releases()]
-        return tag in tags
+        return tag in [r['tag_name'] for r in self.github_releases()]
 
     def set_version(self, version):
         'Выставляем версию для обновления - если version это имя файла, то запоминаем его и не пытаемся дергать github'
         version_fn = store.abspath_join('mbplugin', 'pack', version)
-        if os.path.exists(version_fn):
+        if os.path.isfile(version_fn):
             self.new_zipname = version_fn
             return
         if version == '':
@@ -117,15 +119,15 @@ class UpdaterEngine():
         else:
             raise RuntimeError(f'Not existing version "{version}"')
 
-    def check_update(self) -> bool:
+    def check_update(self) -> typing.Tuple[str, str]:
         'проверяем наличие обновлений, prerelease=True - get prerelease, draft=True - get draft'
-        release = [r for r in self.github_releases() if (not r['prerelease'] or self.prerelease) and (not r['draft'] or self.draft)][0]
+        release = self.github_releases()[0]
         cnt = [a['download_count'] for a in release['assets'] if '_bare' in a['name']][0]
         msg = f'Latest release on github {release["tag_name"]} by {release["published_at"]}, downloaded {cnt} times with description:\n{release["body"]}'
         # print([(a['name'], a['download_count']) for a in release['assets']])
-        current_ver = tuple(map(int, re.findall('\d+', store.version())))
-        latest_ver = tuple(map(int, re.findall('\d+', release["tag_name"])))
-        if current_ver < latest_ver: # Есть новая версия
+        current_ver = tuple(map(int, re.findall(r'\d+', store.version())))
+        latest_ver = tuple(map(int, re.findall(r'\d+', release["tag_name"])))
+        if current_ver < latest_ver:  # Есть новая версия
             self.set_version(release["tag_name"])
             return self.version, msg
         else:
@@ -134,17 +136,19 @@ class UpdaterEngine():
     def download_version(self, version='', force=False, checksign=True) -> None:
         'Загружаем обновление, force=True независимо от наличия на диске, checksign=False - не проверять подпись'
         self.set_version(version)
-        release = [r for r in self.github_releases() if r["tag_name"]==self.version][0]
+        if not self.exist_version(self.version):
+            raise RuntimeError('Download: the version "{self.version}" is not specified or not found')
+        release = [r for r in self.github_releases() if r["tag_name"] == self.version][0]
         name, url = [(a['name'], a['browser_download_url']) for a in release['assets'] if '_bare' in a['name']][0]
         url_sum = [a['browser_download_url'] for a in release['assets'] if 'sha256sums.txt' == a['name']][0]
         url_sig = [a['browser_download_url'] for a in release['assets'] if 'sha256sums.txt.sig' == a['name']][0]
         local_filename = store.abspath_join('mbplugin', 'pack', name)
         # print(name)
         if checksign:
-            sha_sum_verifier = ShaSumFile()
+            sha_sum_verifier = ShaSumFile(verify_ssl=self.verify_ssl)
             sha_sum_verifier.load_sum_and_sig_by_url(url_sum=url_sum, url_sig=url_sig)
         if not os.path.exists(local_filename) or force:
-            data = requests.get(url).content
+            data = requests.get(url, verify=self.verify_ssl).content
             open(local_filename, 'wb').write(data)
         if checksign:
             sha_sum_verifier.verify(filelist=[local_filename])
@@ -178,7 +182,7 @@ class UpdaterEngine():
             os.utime(zn, (zd.mtime, zd.mtime))  # fix file datetime by zip
 
     def rename_new_to_current(self, undo=False):
-        ''' Rename files new.zip -> current.zip -> current.zip.bak 
+        ''' Rename files new.zip -> current.zip -> current.zip.bak
             undo: current.zip <-> current.zip.bak'''
         if undo:
             if os.path.exists(self.current_zipname + '_'):
@@ -197,7 +201,7 @@ class UpdaterEngine():
             shutil.copy(self.new_zipname, self.current_zipname)
 
     def read_zip(self, zipname) -> typing.Dict[str, ZipRecord]:
-        '''Читает zip в словарь, ключи словаря - абсолютные пути на диске (где они у нас должны находится), 
+        '''Читает zip в словарь, ключи словаря - абсолютные пути на диске (где они у нас должны находится),
         каталоги игнорируем, для них у нас в пустых папках файлы флаги созданы
         элементы - namedtuple content mtime '''
         res = {}
@@ -218,7 +222,7 @@ class UpdaterEngine():
         'Устанавливаем обновление, undo_update - откатить, by_current - переставить текущую'
         # проверка файлов по current.zip
         # Здесь проверяем чтобы не поменять что-то что руками поменяно (отсутствующие на диске файлы не важны)
-        self.set_version(version)       
+        self.set_version(version)
         if not os.path.exists(self.current_zipname) and not force:
             # Если текущего файла нет мы не можем проверить на что обновляемся
             return False, f'Not exists {self.current_zipname} (use -f)'
@@ -247,7 +251,7 @@ class UpdaterEngine():
             if len(diff_new) > 0:
                 # Установка new.zip
                 if force or len(diff_current1) == 0:
-                    print('Update:\n'+'\n'.join(diff_current2))
+                    print('Update:\n' + '\n'.join(diff_current2))
                     self.version_update_zip(self.new_zipname)
                     self.rename_new_to_current()
                     return True, f'Update to version {store.version()} complete'
@@ -264,9 +268,10 @@ class UpdaterEngine():
             self.rename_new_to_current(undo=True)
             return True, f'Undo to version {store.version()} complete'
 
-def create_signature():
+
+def create_signature(verify_ssl=True):
     'Создаем файлы контрольных сумм и подпись для дистрибутива'
-    sha_sum_verifier = ShaSumFile()
+    sha_sum_verifier = ShaSumFile(verify_ssl=verify_ssl)
     priv_keyname = os.path.join(os.path.expanduser('~'), '.ssh', 'sign.private.key')
     fn_sum = store.abspath_join('mbplugin', 'dist', 'sha256sums.txt')
     fn_sig = store.abspath_join('mbplugin', 'dist', 'sha256sums.txt.sig')
@@ -276,7 +281,7 @@ def create_signature():
     del sha_sum_verifier
     # Verify
     try:
-        sha_sum_verifier2 = ShaSumFile()
+        sha_sum_verifier2 = ShaSumFile(verify_ssl=verify_ssl)
         sha_sum_verifier2.load_sum_and_sig_by_file(fn_sum, fn_sig)
         sha_sum_verifier2.verify(filelist)
     except Exception:
@@ -286,32 +291,4 @@ def create_signature():
 
 
 if __name__ == '__main__':
-    #create_signature();sys.exit()
-
-    import pprint
-    pp = pprint.PrettyPrinter(indent=4).pprint
-    updater = UpdaterEngine()
-    #new_version = updater.check_update()
-    #print(f'{new_version=}')
-    #updater.download_version(new_version)
-    #updater.install_update(new_version)
-    print(updater.install_update('1.00.02'))
-    #print(updater.install_update('', undo_update=True))
-    '''
-    #releases = requests.get('https://api.github.com/repos/artyl/mbplugin1/releases').json()
-    #release = [r for r in releases if not r['prerelease'] and not r['draft']][0]
-    #print(f'Latest release on github {release["tag_name"]} by {release["published_at"]} with description:\n{release["body"]}')
-    #pp([(a['name'], a['download_count']) for a in release['assets']])
-
-    #print(f'{store.version()==release["tag_name"]}')  # Последний релиз уже установлен
-
-    #name, url = [(a['name'], a['browser_download_url']) for a in release['assets'] if '_bare' in a['name']][0]
-    #url_sum = [a['browser_download_url'] for a in release['assets'] if 'sha256sums.txt' == a['name']][0]
-    #url_sig = [a['browser_download_url'] for a in release['assets'] if 'sha256sums.txt.sig' == a['name']][0]
-    #print(url)
-    #data = requests.get(url).content
-    #data_sum = requests.get(url_sum).content
-    #data_sig = requests.get(url_sig).content
-    #sha_sum_verifier = ShaSumFile()
-    #sha_sum_verifier.load_and_verify_by_url(url_sum=url_sum, url_sig=url_sig, files={name: data})
-    '''
+    pass
