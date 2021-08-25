@@ -108,7 +108,7 @@ def pip_update(ctx, quiet):
     if sys.platform == 'win32':
         os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --no-warn-script-location -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements_win.txt")}')
     else:
-        os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --no-warn-script-location -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements.txt")}')
+        os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements.txt")}')
     click.echo(f'OK {name}')
 
 
