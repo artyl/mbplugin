@@ -270,6 +270,7 @@ main_html=r'''
 <html>
 <head></head>
 <body>
+%(info)s
 <a href=report>View report</a><br>
 <a href=schedule>View schedule</a><br>
 <a href=editcfg>Edit config</a><br>
@@ -288,7 +289,6 @@ main_html=r'''
 editor_html=r'''
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>Editor</title>
     <meta http-equiv="Content-Type" content="text/html; charset=cp1251">
@@ -333,9 +333,7 @@ editor_html=r'''
         }
        </style>
 </head>
-
 <body>
-
     <script>
         inifile = JSON.parse('') // Сюда вставим JSON сгенерированный из ini
         function getCookie(name) {
@@ -463,8 +461,6 @@ editor_html=r'''
         }
         main()
     </script>
-
 </body>
-
 </html>
 '''

@@ -990,7 +990,7 @@ class WebServer():
                 else:
                     ct, text = 'text/html', HTML_NO_REPORT
             elif cmd.lower() == 'main':  # главная страница
-                ct, text = 'text/html; charset=cp1251', [settings.main_html]
+                ct, text = 'text/html; charset=cp1251', [settings.main_html % {'info': f'Mbplugin {store.version()}<br>'}]
             elif cmd.lower() == 'editcfg':  # вариант через get запрос
                 if str(store.options('HttpConfigEdit')) == '1':
                     ct, text, status, add_headers = self.editor(environ)
