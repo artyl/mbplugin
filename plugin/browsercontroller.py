@@ -674,7 +674,7 @@ class BalanceOverPlaywright():
 
     def main(self, run='normal'):
         logging.info(f"browserengine=Playwright")
-        if sys.platform != 'win32' and not self.launch_config.get('headless', True):
+        if sys.platform != 'win32' and not self.launch_config.get('headless', True) and str(store.options('xvfb')) == '1':
             os.system('pgrep Xvfb || Xvfb :99 -screen 0 1920x1080x24 &')            
             os.system('export DISPLAY=:99')  # On linux and headless:False use Xvfb
             os.environ['DISPLAY']=':99'

@@ -106,13 +106,17 @@ ini = {
         'max_wait_captcha': '180',
         # Показывать окна Chrome (при logginglevel=DEBUG всегда показывает), отключить можно только в windows, на линукс и mac всегда показывается
         # Этот режим был сделан из-за нестабильности работа headles chrome на pyppeteer
-        'show_chrome_': {'descr':'Показывать окно crome', 'type':'checkbox'},
+        'show_chrome_': {'descr':'Показывать окно chrome', 'type':'checkbox'},
         'show_chrome': '0',
         # Режим Headless Прятать окна Chrome (при logginglevel=DEBUG всегда показывает)
         # Честный headless chrome режим, из этого режима вернуть окно в видимое нельзя
         # TODO Похоже с headless как то не гладко все - пока по дефолту поставил нормальное окно
         'headless_chrome_': {'descr':'Headless режим работы chrome', 'type':'checkbox'},
         'headless_chrome': '1',
+        # Если в linux не установлен GUI или в докере чтобы запустить браузер не в headless может потребоваться включить xvfb 
+        # В докере он уже установлен из коробки
+        'xvfb_': {'descr':'Включить xvfb', 'type':'checkbox'},
+        'xvfb': '0',
         # движок для работы с браузером
         'browserengine_': {'descr':'Движок для работы с браузером', 'type':'select', 'variants':'PYPPETEER PLAYWRIGHT'},
         'browserengine': 'PLAYWRIGHT',
