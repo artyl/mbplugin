@@ -18,6 +18,12 @@ root_path=$(realpath $(dirname $0))
 [ -f $util_path ] && root_path=$(realpath $(dirname $0)/../..)
 echo "root_path is $root_path"
 
+### SETUP # run from folder mbplugin/standalone - setup mode - [ -f $util_path ]
+if [ -f $util_path ] && [ "$1" = "" ] && [ ! -f env/bin/activate ] then
+    echo "No python3 and venv installed and tuned use docker or install python >= 3.8 + venv"
+    exit 1
+fi
+
 # if not use docker - remove dockervar
 if [ -f $util_path ] && [ "$1" = "" ]; then
     [ -f dockervar ] && rm dockervar
@@ -55,12 +61,14 @@ if [ "$DOCKER" != "" ] && [ "$1 $2" = "web-server start" ]; then
     DOCKER=$DOCKER_WEB
 fi
 
-[ -f env/bin/activate ] &&  . env/bin/activate
-
-pythonver=$(python3 -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
-if [ ! -f dockervar ] && [ "$pythonver" -lt "38" ] ; then
-    echo "This script requires python 3.8 or greater, you have $pythonver"
-    exit 1
+# if exist env/bin/activate - apply
+if [ ! -f dockervar ] ; then
+    [ -f env/bin/activate ] &&  . env/bin/activate
+     pythonver=$(python3 -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
+    if [ ! -f dockervar ] && [ "$pythonver" -lt "38" ] ; then
+        echo "This script requires python 3.8 or greater, you have $pythonver"
+        exit 1
+    fi
 fi
 
 # ../plugin/util.py exists go into installation mode
