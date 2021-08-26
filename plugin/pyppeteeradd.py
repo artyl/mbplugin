@@ -467,7 +467,7 @@ class balance_over_puppeteer():
                 if param.get('url_tag', []) != []:  # Ищем в загруженных страницах
                     response_result_ = [v for k,v in self.responses.items() if [i for i in param['url_tag'] if i not in k]==[]]
                     if len(response_result_)>0:
-                        response_result = response_result_[0]
+                        response_result = response_result_[-1]  # если ответов несколько - берем последний, так правильнее
                         if param.get('pformula','') != '':
                             logging.info(f'pformula on {param["url_tag"]}:{param["pformula"]}')
                             # Для скрипта на python делаем 
@@ -504,23 +504,33 @@ class balance_over_puppeteer():
         return result
 
     async def _async_main(self, run):
-        await self.launch_browser()
-        if run == 'normal':
-            await self.async_main()  # !!! CALL async_main
-        elif run == 'check_logon':
-            await self.async_check_logon_selectors_prepare()
-            await self.check_logon_selectors()
-        logging.debug(f'Data ready {self.result.keys()}')
-        if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
-            import pprint
-            text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
-                                for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
-            with open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
-                f.write(text)
-        await self.browser.close()
-        kill_chrome()  # Добиваем  все наши незакрытые хромы, чтобы не появлялось кучи зависших
-        clear_cache(self.storename)
-        return self.result
+        try:
+            await self.launch_browser()
+            if run == 'normal':
+                await self.async_main()  # !!! CALL async_main
+            elif run == 'check_logon':
+                await self.async_check_logon_selectors_prepare()
+                await self.check_logon_selectors()
+            logging.debug(f'Data ready {self.result.keys()}')
+            if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
+                import pprint
+                text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
+                                    for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
+                with open(os.path.join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
+                    f.write(text)
+            await self.browser.close()
+            kill_chrome()  # Добиваем  все наши незакрытые хромы, чтобы не появлялось кучи зависших
+            clear_cache(self.storename)
+            return self.result
+        except Exception:
+            # если упали - то закрываем хром и падаем дальше
+            try:
+                await self.browser.close()
+            except Exception:
+                pass
+            kill_chrome()  # Добиваем  все наши незакрытые хромы, чтобы не появлялось кучи зависших
+            clear_cache(self.storename)
+            raise
 
     async def async_check_logon_selectors_prepare(self):
         pass
