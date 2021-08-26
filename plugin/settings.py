@@ -124,7 +124,7 @@ ini = {
         'use_builtin_browser_': {'descr':'Использовать браузер встроенный в движок playwright', 'type':'checkbox'},
         'use_builtin_browser': '1',
         # Какой браузерный движок используется для запросов
-        'browsertype_': {'descr': 'В каких единицах идет выдача по интернету', 'type': 'select', 'variants': 'chromium firefox'},
+        'browsertype_': {'descr': 'Какой браузерный движок используется для запросов', 'type': 'select', 'variants': 'chromium firefox'},
         'browsertype':'chromium', 
         # Путь к хрому - можно прописать явно в ini, иначе поищет из вариантов chrome_executable_path_alternate
         'chrome_executable_path_': {'descr':'Путь к хрому', 'type':'text', 'size':100, 'validate':lambda i:os.path.exists(i)},

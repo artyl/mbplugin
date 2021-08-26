@@ -93,7 +93,7 @@ def install_chromium(ctx):
         click.echo(f'Not needed {name}')
         return
     try:
-        subprocess.check_call([sys.executable, '-m', 'playwright', 'install', store.options('browsertype')])
+        subprocess.check_call([sys.executable, '-m', 'playwright', 'install', '--with-deps', store.options('browsertype')])
         click.echo(f"OK {name} {store.options('browsertype')}")
     except Exception:
         click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
@@ -106,8 +106,10 @@ def pip_update(ctx, quiet):
     '''Обновляем пакеты по requirements.txt или requirements_win.txt '''
     name = 'pip-update'
     if sys.platform == 'win32':
+        os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --no-warn-script-location --upgrade pip')
         os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --no-warn-script-location -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements_win.txt")}')
     else:
+        os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --upgrade pip')
         os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements.txt")}')
     click.echo(f'OK {name}')
 

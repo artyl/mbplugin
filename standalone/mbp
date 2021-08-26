@@ -1,11 +1,19 @@
 #!/bin/bash
-#ls env/bin/activate
+# Должен быть либо докер и dockervar либо env/bin/activate либо питон>=3.8 либо идите нафиг
+#mkdir mbstandalone
+#cd mbstandalone
+#git clone https://github.com/artyl/mbplugin
+#git -C mbplugin checkout -f dev_playwright
+#apt-get install -y python3.8 python3-venv npm
+#npx playwright install-deps
 #python3.8 -m venv env 
 #. env/bin/activate
 #python -m pip install --upgrade pip
 #python -m pip install -r mbplugin/docker/requirements.txt
+#sh mbplugin/standalone/mbp
+#./mbp check-plugin
 
-util_path=$(dirname $0)/../plugin/util.py
+util_path=$(dirname $0)/../../mbplugin/plugin/util.py
 root_path=$(realpath $(dirname $0))
 [ -f $util_path ] && root_path=$(realpath $(dirname $0)/../..)
 echo "root_path is $root_path"
@@ -35,7 +43,7 @@ fi
 # if exist dockervar - set DOCKER variables
 [ -f dockervar ] && . ./dockervar 
 # if mbplugin container is running use docker exec instead docker run 
-docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && DOCKER=$DOCKER_EXEC
+[ -f dockervar ] && docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && DOCKER=$DOCKER_EXEC
 
 # port mapping for docker only for web-server start
 if [ "$DOCKER" != "" ] && [ "$1 $2" = "web-server start" ]; then
@@ -47,12 +55,9 @@ if [ "$DOCKER" != "" ] && [ "$1 $2" = "web-server start" ]; then
     DOCKER=$DOCKER_WEB
 fi
 
-pythonver=$(python -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
-if [ ! -f dockervar ] && [ "$pythonver" -lt "38" ] && [ -f env/bin/activate ] ; then 
-    . env/bin/activate
-fi
+[ -f env/bin/activate ] &&  . env/bin/activate
 
-pythonver=$(python -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
+pythonver=$(python3 -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
 if [ ! -f dockervar ] && [ "$pythonver" -lt "38" ] ; then
     echo "This script requires python 3.8 or greater, you have $pythonver"
     exit 1

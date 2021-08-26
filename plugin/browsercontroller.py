@@ -588,7 +588,7 @@ class BalanceOverPlaywright():
         if url_tag != []:  # Ищем в загруженных страницах
             response_result_ = [v for k,v in self.responses.items() if [i for i in url_tag if i not in k]==[]]
             if len(response_result_)>0:
-                response_result = response_result_[0]
+                response_result = response_result_[-1]  # если ответов несколько - берем последний, так правильнее
                 if pformula != '':
                     logging.info(f'pformula on {url_tag}:{pformula}')
                     # Для скрипта на python делаем 
