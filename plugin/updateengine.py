@@ -226,6 +226,7 @@ class UpdaterEngine():
         if not os.path.exists(self.current_zipname) and not force:
             # Если текущего файла нет мы не можем проверить на что обновляемся
             return False, f'Not exists {self.current_zipname} (use -f)'
+        diff_current1, diff_current2 = [], []
         if os.path.exists(self.current_zipname):
             # Проверяем что нет файлов которые отличаются от релизных чтобы не перезатереть чужие изменения
             diff_current1 = self.version_check_zip(self.current_zipname, ignore_missing=True)
