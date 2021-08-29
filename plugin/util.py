@@ -93,7 +93,7 @@ def install_chromium(ctx):
         click.echo(f'Not needed {name}')
         return
     try:
-        subprocess.check_call([sys.executable, '-m', 'playwright', 'install', '--with-deps', store.options('browsertype')])
+        subprocess.check_call([sys.executable, '-m', 'playwright', 'install', store.options('browsertype')])  # '--with-deps', ???
         click.echo(f"OK {name} {store.options('browsertype')}")
     except Exception:
         click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
