@@ -1,15 +1,16 @@
 #!/bin/bash
-# Должен быть либо докер и dockervar либо env/bin/activate либо питон>=3.8 либо идите нафиг
+# There should be either docker and dockervarfile or env/bin/activate with python>=3.8
 #mkdir mbstandalone
 #cd mbstandalone
 #git clone https://github.com/artyl/mbplugin
 #git -C mbplugin checkout -f dev_playwright
 #apt-get install -y python3.8 python3-venv npm
-#npx playwright install-deps
-#python3.8 -m venv env 
+#python3.8 -m venv env
 #. env/bin/activate
 #python -m pip install --upgrade pip
 #python -m pip install -r mbplugin/docker/requirements.txt
+#python -m playwright install
+#??? python -m playwright install-deps
 #sh mbplugin/standalone/mbp
 #./mbp check-plugin
 
@@ -18,38 +19,58 @@ root_path=$(realpath $(dirname $0))
 [ -f $util_path ] && root_path=$(realpath $(dirname $0)/../..)
 echo "root_path is $root_path"
 
-### SETUP # run from folder mbplugin/standalone - setup mode - [ -f $util_path ]
-if [ -f $util_path ] && [ "$1" = "" ] && [ ! -f env/bin/activate ] then
-    echo "No python3 and venv installed and tuned use docker or install python >= 3.8 + venv"
-    exit 1
-fi
+### SETUP mode
+# run from folder mbplugin/standalone - setup mode - condition !!! [ -f $util_path ]
+if [ -f $util_path ]; then
+    # if $1 - empty, use previous mode docker/python, if no dockervarfile - use python
+    [ -f $util_path ] && [ "$1" = "" ] && [ ! -f dockervarfile ] && pythonvar=python
+    [ -f $util_path ] && [ "$1" = "" ] && [ -f dockervarfile ] && dockervarvar=docker
+    
+    # explicitly specified $1 python or docker 
+    [ -f $util_path ] && [ "$1" == "python" ] && pythonvar=python
+    [ -f $util_path ] && [ "$1" == "docker" ] && dockervarvar=docker
 
-# if not use docker - remove dockervar
-if [ -f $util_path ] && [ "$1" = "" ]; then
-    [ -f dockervar ] && rm dockervar
-fi
+    # if use python (pythonvar)
+    if [ -f $util_path ] && [ -n "$pythonvar"]; then
+        # if do not use docker (use python) - remove dockervarfile
+        [ -f dockervarfile ] && rm dockervarfile
+        # if no env/bin/activate 
+        if [ ! -f env/bin/activate ]; then
+            echo "Not found env/bin/activate (see the readme how to install):"
+            exit 1
+        fi
+        [ -f env/bin/activate ] &&  . env/bin/activate
+    fi
 
-if [ -f $util_path ] && [ "$1" = "docker" ]; then 
-    if [ ! -x "$(command -v docker)" ]; then
-        echo "Install docker. See https://docs.docker.com/engine/install"
+    # if use docker (dockervar)
+    if [ -f $util_path ] && [ -n "$dockervarvar"]; then
+        if [ ! -x "$(command -v docker)" ]; then
+            echo "Install docker. See https://docs.docker.com/engine/install"
+            exit 1
+        fi
+        echo 'DOCKER="docker run --rm -it -v $PWD:/mbstandalone mbplugin "' > dockervarfile
+        echo 'DOCKER_STD="docker run --rm -it -v $PWD:/mbstandalone mbplugin "' >> dockervarfile
+        echo 'DOCKER_WEB="docker run --name mbplugin -d -v $PWD:/mbstandalone -p 127.0.0.1:19777:19777 mbplugin "' >> dockervarfile
+        echo 'DOCKER_EXEC="docker exec -it mbplugin "' >> dockervarfile
+        # if ! docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null; then ... ; fi
+        # docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && echo "RUN"
+
+        # Build image for playwright
+        docker build --tag mbplugin mbplugin/docker
+        # -p 127.0.0.1:19777:19777
+    fi
+
+    if [ -z "pythonvar"] && [ -z "dockervarvar" ]; then 
+        echo "Unknown command $1"
         exit 1
     fi
-    echo 'DOCKER="docker run --rm -it -v $PWD:/mbstandalone mbplugin "' > dockervar
-    echo 'DOCKER_STD="docker run --rm -it -v $PWD:/mbstandalone mbplugin "' >> dockervar
-    echo 'DOCKER_WEB="docker run --name mbplugin -d -v $PWD:/mbstandalone -p 127.0.0.1:19777:19777 mbplugin "' >> dockervar
-    echo 'DOCKER_EXEC="docker exec -it mbplugin "' >> dockervar
-    # if ! docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null; then ... ; fi
-    # docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && echo "RUN"
 
-    # Build image for playwright
-    docker build --tag mbplugin mbplugin/docker
-    # -p 127.0.0.1:19777:19777
 fi
 
-# if exist dockervar - set DOCKER variables
-[ -f dockervar ] && . ./dockervar 
+# if exist dockervarfile - set DOCKER variables
+[ -f dockervarfile ] && . ./dockervarfile 
 # if mbplugin container is running use docker exec instead docker run 
-[ -f dockervar ] && docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && DOCKER=$DOCKER_EXEC
+[ -f dockervarfile ] && docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && DOCKER=$DOCKER_EXEC
 
 # port mapping for docker only for web-server start
 if [ "$DOCKER" != "" ] && [ "$1 $2" = "web-server start" ]; then
@@ -62,10 +83,10 @@ if [ "$DOCKER" != "" ] && [ "$1 $2" = "web-server start" ]; then
 fi
 
 # if exist env/bin/activate - apply
-if [ ! -f dockervar ] ; then
+if [ ! -f dockervarfile ] ; then
     [ -f env/bin/activate ] &&  . env/bin/activate
      pythonver=$(python3 -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
-    if [ ! -f dockervar ] && [ "$pythonver" -lt "38" ] ; then
+    if [ ! -f dockervarfile ] && [ "$pythonver" -lt "38" ] ; then
         echo "This script requires python 3.8 or greater, you have $pythonver"
         exit 1
     fi
@@ -77,7 +98,7 @@ if [ -f $util_path ]; then
     cd $root_path
     cp mbplugin/standalone/mbp .
     chmod +x mbp
-    [ -f dockervar ] && echo $DOCKER 
+    [ -f dockervarfile ] && echo $DOCKER 
     $DOCKER_STD python mbplugin/plugin/util.py init
     $DOCKER_STD python mbplugin/plugin/util.py pip-update
     $DOCKER_STD python mbplugin/plugin/util.py install-chromium
@@ -90,5 +111,5 @@ if [ -f $util_path ]; then
 fi
 
 cd $root_path
-[ -f dockervar ] && echo $DOCKER python mbplugin/plugin/util.py $*
+[ -f dockervarfile ] && echo $DOCKER python mbplugin/plugin/util.py $*
 $DOCKER python mbplugin/plugin/util.py $*
