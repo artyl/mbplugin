@@ -1,18 +1,18 @@
 #!/bin/bash
+# Prepare:
 # There should be either docker and dockervarfile or env/bin/activate with python>=3.8
-#mkdir mbstandalone
-#cd mbstandalone
-#git clone https://github.com/artyl/mbplugin
-#git -C mbplugin checkout -f dev_playwright
-#apt-get install -y python3.8 python3-venv npm
-#python3.8 -m venv env
-#. env/bin/activate
-#python -m pip install --upgrade pip
-#python -m pip install -r mbplugin/docker/requirements.txt
-#python -m playwright install
-#??? python -m playwright install-deps
-#sh mbplugin/standalone/mbp
-#./mbp check-plugin
+# mkdir mbstandalone
+# cd mbstandalone
+# git clone https://github.com/artyl/mbplugin
+# git -C mbplugin checkout -f dev_playwright
+# apt-get install -y python3.8 python3-venv npm
+# python3.8 -m venv env
+# . env/bin/activate
+# python -m pip install --upgrade pip
+# python -m pip install -r mbplugin/docker/requirements.txt
+# python -m playwright install chrome
+# bash mbplugin/standalone/mbp
+# ./mbp check-plugin
 
 util_path=$(dirname $0)/../../mbplugin/plugin/util.py
 root_path=$(realpath $(dirname $0))
@@ -31,7 +31,7 @@ if [ -f $util_path ]; then
     [ -f $util_path ] && [ "$1" == "docker" ] && dockervarvar=docker
 
     # if use python (pythonvar)
-    if [ -f $util_path ] && [ -n "$pythonvar"]; then
+    if [ -f $util_path ] && [ -n "$pythonvar" ]; then
         # if do not use docker (use python) - remove dockervarfile
         [ -f dockervarfile ] && rm dockervarfile
         # if no env/bin/activate 
@@ -43,7 +43,7 @@ if [ -f $util_path ]; then
     fi
 
     # if use docker (dockervar)
-    if [ -f $util_path ] && [ -n "$dockervarvar"]; then
+    if [ -f $util_path ] && [ -n "$dockervarvar" ]; then
         if [ ! -x "$(command -v docker)" ]; then
             echo "Install docker. See https://docs.docker.com/engine/install"
             exit 1
@@ -60,7 +60,7 @@ if [ -f $util_path ]; then
         # -p 127.0.0.1:19777:19777
     fi
 
-    if [ -z "pythonvar"] && [ -z "dockervarvar" ]; then 
+    if [ -z "pythonvar" ] && [ -z "dockervarvar" ]; then 
         echo "Unknown command $1"
         exit 1
     fi
