@@ -41,11 +41,15 @@ class browserengine(browsercontroller.BrowserController):
             # если заход через другой номер то переключаемся на нужный номер
             # TODO возможно с прошлого раза может сохраниться переключенный но вроде работает и так
             self.page_wait_for(selector="[id=ng-header__account-phone_desktop]")
-            self.responses = {}  # Сбрасываем все загруженные данные - там данные по материнскому телефону                
-            url_redirect = f'https://login.mts.ru/amserver/UI/Login?service=idp2idp&IDButton=switch&IDToken1=id={self.acc_num},ou=user,o=users,ou=services,dc=amroot&org=/users&ForceAuth=true&goto=https://lk.mts.ru'
+            self.responses = {}  # Сбрасываем все загруженные данные - там данные по материнскому телефону            
+            # Так больше не работает
+            # url_redirect = f'https://login.mts.ru/amserver/UI/Login?service=idp2idp&IDButton=switch&IDToken1=id={self.acc_num},ou=user,o=users,ou=services,dc=amroot&org=/users&ForceAuth=true&goto=https://lk.mts.ru'
+            # Теперь добываем url так
+            url_redirect = self.page_evaluate(f"Array.from(document.querySelectorAll('a.user-block__content')).filter(el => el.querySelector('.user-block__phone').innerText.replace(/\D/g,'').endsWith('{self.acc_num}'))[0].href")
             self.page_goto(url_redirect)
             # !!! Раньше я на каждой странице при таком заходе проверял что номер тот, сейчас проверяю только на старте
             for _ in range(10):
+                self.sleep(1)
                 numb = self.page_evaluate("document.getElementById('ng-header__account-phone_desktop').innerText")
                 if numb is not None and numb !='':
                     break
