@@ -715,5 +715,28 @@ def bash(ctx, args):
     click.echo(f'OK {name}')
 
 
+def mbplugin_ini_md_gen():
+    'Генерирует mbplugin_ini.md с актуальным описанием ключей'
+    fn_md = store.abspath_join(store.settings.mbplugin_root_path, 'mbplugin', 'mbplugin_ini.md')
+    import settings
+    data = []
+    for sec in settings.ini:
+        data.append(f'# Секция {sec}')
+        for param in settings.ini[sec]:
+            if not param.endswith('_'):
+                data.append(f'## __{param}__')
+                p_default = settings.ini[sec][param]
+                p_attr = settings.ini[sec][param + '_']
+                data.append(f'Описание: {p_attr["descr"]}  ')
+                data.append(f'Значение по умолчанию: {p_default}  ')
+                if p_attr['type'] == 'checkbox':
+                    data.append(f'Варианты значения {param}: 0 - выключено или 1 - включено  ')
+                if p_attr['type'] == 'select':
+                    data.append(f'Варианты значения {param}: {p_attr["variants"]}  ')
+
+    with open(fn_md, 'w', encoding='utf8') as f:
+        f.write('\n'.join(data))
+
+
 if __name__ == '__main__':
     cli(obj={})

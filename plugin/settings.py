@@ -250,7 +250,7 @@ ini = {
         # Также можно сделать несколько альтернативных видов с разными наборами полей 
         # они должны быть вида table_formatNNN где NNN произвольное число, которое не должно повторяться, 
         # зайти на такие альтернативные report можно по ссылке http://localhost:19777/report/NNN
-        'table_format_': {'descr':'Формат вывода по умолчанию, для страницы http://localhost:19777/report', 'size':200},
+        'table_format_': {'descr':'Формат вывода по умолчанию, для страницы http://localhost:19777/report', 'type':'text', 'size':200},
         'table_format': 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime',  # ? UserName
         # расписание опросов, строк может быть несколько scheduler= ... scheduler1=... и т.д как сделано с table_format
         # расписание имеет вид:
@@ -259,7 +259,7 @@ ini = {
         # schedule = every(4).hour,mts,beeline
         # если фильтры не указаны, то опрос проводится по всем телефонам, для которых указан passord2 в phones.ini либо в phones_add.ini
         # после изменения расписания необходим перезапуск сервера или команда util.py reload-schedule
-        'schedule_': {'descr':'Расписание опросов', 'size':200},
+        'schedule_': {'descr':'Расписание опросов', 'type':'text', 'size':200},
         'schedule': '',
 
     },
