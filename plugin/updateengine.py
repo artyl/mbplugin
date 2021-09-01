@@ -90,55 +90,43 @@ class UpdaterEngine():
         self.current_zipname = store.abspath_join('mbplugin', 'pack', 'current.zip')
         self.current_bak_zipname = store.abspath_join('mbplugin', 'pack', 'current.zip.bak')
         self.new_zipname = None
-        self.set_version(version)
-
-    def github_releases(self) -> typing.List[dict]:
-        'При первом обращении получаем информацию с github'
-        if len(self.releases) == 0:
-            url = 'https://api.github.com/repos/artyl/mbplugin1/releases'
-            data = requests.get(url, verify=self.verify_ssl).json()
-            self.releases = [r for r in data if (not r['prerelease'] or self.prerelease) and (not r['draft'] or self.draft)]
-            # print([r["tag_name"] for r in self.releases])
-        return self.releases
-
-    def exist_version(self, tag) -> bool:
-        'проверяет существует ли такая версия'
-        return tag in [r['tag_name'] for r in self.github_releases()]
-
-    def set_version(self, version):
-        'Выставляем версию для обновления - если version это имя файла, то запоминаем его и не пытаемся дергать github'
         version_fn = store.abspath_join('mbplugin', 'pack', version)
         if os.path.isfile(version_fn):
             self.new_zipname = version_fn
-            return
-        if version == '':
-            return
-        if self.exist_version(version):
-            self.version = version
-            self.new_zipname = store.abspath_join('mbplugin', 'pack', f'mbplugin_bare.{self.version}.zip')
-        else:
-            raise RuntimeError(f'Not existing version "{version}"')
+
+    def github_release(self, version) -> typing.List[dict]:
+        '''возвращает словарь release от указанной версии
+        При первом обращении получаем информацию с github
+        LATEST - ищем последний релиз согласно флагам prerelease и draft
+        Если указанный релиз не найден - падаем RuntimeError'''
+        if len(self.releases) == 0:
+            url = 'https://api.github.com/repos/artyl/mbplugin1/releases'
+            self.releases = requests.get(url, verify=self.verify_ssl).json()
+        if version.upper() == 'LATEST':
+            version = [r['tag_name'] for r in self.releases if (not r['prerelease'] or self.prerelease) and (not r['draft'] or self.draft)][0]
+        if version not in [r['tag_name'] for r in self.releases]:
+            raise RuntimeError('Release with version "{version}" not found on github release')
+        release = [r['tag_name'] for r in self.releases if r['tag_name']  == version]
+        return release      
 
     def check_update(self) -> typing.Tuple[str, str]:
         'проверяем наличие обновлений, prerelease=True - get prerelease, draft=True - get draft'
-        release = self.github_releases()[0]
+        release = self.github_release('LATEST')
         cnt = [a['download_count'] for a in release['assets'] if '_bare' in a['name']][0]
         msg = f'Latest release on github {release["tag_name"]} by {release["published_at"]}, downloaded {cnt} times with description:\n{release["body"]}'
         # print([(a['name'], a['download_count']) for a in release['assets']])
         current_ver = tuple(map(int, re.findall(r'\d+', store.version())))
         latest_ver = tuple(map(int, re.findall(r'\d+', release["tag_name"])))
         if current_ver < latest_ver:  # Есть новая версия
-            self.set_version(release["tag_name"])
-            return self.version, msg
+            version = release["tag_name"]
+            return version, msg
         else:
             return '', ''
 
     def download_version(self, version='', force=False, checksign=True) -> None:
-        'Загружаем обновление, force=True независимо от наличия на диске, checksign=False - не проверять подпись'
-        self.set_version(version)
-        if not self.exist_version(self.version):
-            raise RuntimeError('Download: the version "{self.version}" is not specified or not found')
-        release = [r for r in self.github_releases() if r["tag_name"] == self.version][0]
+        '''Загружаем обновление, force=True независимо от наличия на диске, checksign=False - не проверять подпись 
+        возвращаем полный путь к скачанному файлу'''
+        release = self.github_release(version)
         name, url = [(a['name'], a['browser_download_url']) for a in release['assets'] if '_bare' in a['name']][0]
         url_sum = [a['browser_download_url'] for a in release['assets'] if 'sha256sums.txt' == a['name']][0]
         url_sig = [a['browser_download_url'] for a in release['assets'] if 'sha256sums.txt.sig' == a['name']][0]
@@ -152,6 +140,7 @@ class UpdaterEngine():
             open(local_filename, 'wb').write(data)
         if checksign:
             sha_sum_verifier.verify(filelist=[local_filename])
+        return local_filename
 
     def version_check_zip(self, zipname, ignore_crlf=True, ignore_missing=True) -> list:
         'Проверяет соответствие файлов в архиве и на диске, возвращает список файлов которые отличаются'
@@ -219,13 +208,18 @@ class UpdaterEngine():
         return res
 
     def install_update(self, version='', force=False, undo_update=False, by_current=False):
-        'Устанавливаем обновление, undo_update - откатить, by_current - переставить текущую'
+        '''Устанавливаем обновление, undo_update - откатить, by_current - переставить текущую
+        по дефолту из self.new_zipname по version
+        если by_current - из self.current_zipname
+        если undo_update - self.current_bak_zipname'''
+        if self.new_zipname is None and version != '':
+            self.new_zipname = store.abspath_join('mbplugin', 'pack', f'mbplugin_bare.{version}.zip')
         # проверка файлов по current.zip
         # Здесь проверяем чтобы не поменять что-то что руками поменяно (отсутствующие на диске файлы не важны)
-        self.set_version(version)
         if not os.path.exists(self.current_zipname) and not force:
-            # Если текущего файла нет мы не можем проверить на что обновляемся
-            return False, f'Not exists {self.current_zipname} (use -f)'
+            # Если текущего файла нет мы не можем проверить на что обновляемся - должны скачать
+            fn_current_version = self.download_version(version=store.version())
+            shutil.copy(fn_current_version, self.current_zipname)
         diff_current1, diff_current2 = [], []
         if os.path.exists(self.current_zipname):
             # Проверяем что нет файлов которые отличаются от релизных чтобы не перезатереть чужие изменения

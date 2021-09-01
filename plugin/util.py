@@ -636,7 +636,8 @@ def version_update_git(ctx, force, branch):
 @click.option('--batch_mode', is_flag=True, help='Игнорировать ключи, брать параметры из mbplugin.ini')
 @click.pass_context
 def version_update(ctx, force, version, only_download, only_check, only_install, by_current, undo_update, ask_update, no_check_sign, no_verify_ssl, install_prerelease, batch_mode):
-    'Загружает и обновляет файлы из pack с новой версией, архив с новой версией при обновлении копируем в current.zip'
+    '''Загружает и обновляет файлы из pack с новой версией, архив с новой версией при обновлении копируем в current.zip
+    version=='' - обновляем до последней, если указана как имя zip файла из папки pack если указана как номер версии по тэгу качаем с гитхаба'''
     name = 'version-update'
     if batch_mode:
         # Если это batch режим и не включен autoupdate то сразу выходим
