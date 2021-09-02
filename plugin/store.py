@@ -114,13 +114,19 @@ class Session():
         return response
 
 
-def options(param, default=None, section='Options', listparam=False, mainparams={}):
+def options(param, default=None, section='Options', listparam=False, mainparams={}, pkey=None):
     '''Читаем параметр из mbplugin.ini либо дефолт из settings
     Если listparam=True, то читаем список из всех, что начинается на param
     mainparams - перекрывает любые другие варианты, если в нем присутствует - берем его
     Если результат путь (settings.path_param) - то вычисляем для него абсолютный путь
+    Если указан pkey (number, plugin) и секция Options то пытаемся прочитать индивидуальные параметры для этого телефона из phones.ini/phones_add.ini 
     '''
     options_all_sec = ini().read()
+    phones_options = {}
+    if pkey is not None and section == 'Options':
+        phones = ini('phones.ini').phones()
+        if pkey in phones:
+            phones_options = phones[pkey]
     if listparam:
         res = []
         if section in options_all_sec:
@@ -134,7 +140,7 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
             res = options_all_sec.get(section, param, fallback=default)
         if param.lower() in settings.path_param:
             res = abspath_join(res)
-    return res
+    return phones_options.get(param, res) 
     
 class ini():
     def __init__(self, fn=settings.mbplugin_ini):
@@ -295,7 +301,7 @@ class ini():
         for secnum,el in self.read().items():
             if secnum.isnumeric() and 'Monitor' in el:
                 key = (re.sub(r' #\d+','',el['Number']),el['Region'])
-                data[key] = {}
+                data[key] = dict(el)
                 data[key]['NN'] = int(secnum)
                 data[key]['Alias'] = el.get('Alias','')
                 data[key]['Region'] = el.get('Region','')

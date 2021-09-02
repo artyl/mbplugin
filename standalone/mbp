@@ -8,7 +8,6 @@
 # git -C mbplugin checkout -f dev_playwright
 # OR
 # curl -LO https://github.com/artyl/mbplugin1/releases/download/1.00.02b/mbplugin_bare.1.00.02b.zip
-# cp mbplugin_bare.1.00.02b.zip mbplugin/pack/current.zip
 # python3.8 -m venv env
 # . env/bin/activate
 # python -m pip install --upgrade pip
@@ -103,6 +102,7 @@ if [ -f $util_path ]; then
     chmod +x mbp
     [ -f dockervarfile ] && echo $DOCKER 
     $DOCKER_STD python mbplugin/plugin/util.py init
+    $DOCKER_STD python mbplugin/plugin/util.py web-server stop -f
     $DOCKER_STD python mbplugin/plugin/util.py pip-update
     $DOCKER_STD python mbplugin/plugin/util.py install-chromium
     $DOCKER_STD python mbplugin/plugin/util.py check-import

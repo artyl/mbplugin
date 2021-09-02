@@ -302,7 +302,7 @@ def write_report():
 
 def filter_balance(table, filter='FULL', params={}):
     ''' Фильтруем данные для отчета
-    filter = FULL - Все телефоны, LASTDAYCHANGE - Изменивниеся за день, LASTCHANGE - Изменившиеся в последнем запросе
+    filter = FULL - Все телефоны, LASTDAYCHANGE - Изменившиеся за день, LASTCHANGE - Изменившиеся в последнем запросе
     params['include'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат
     params['exclude'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для исключения из результата'''
     flags = dbengine.flags('getall')

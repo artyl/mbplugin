@@ -85,8 +85,8 @@ def hide_chrome(hide=True, foreground=False):
         text = win32gui.GetWindowText(hwnd).lower()
         className = win32gui.GetClassName(hwnd).lower()
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
-        try:  #  ??? text.lower().find('chrome')>=0
-            if (text != '' and 'remote-debugging-port' in ''.join(psutil.Process(pid).cmdline())
+        try:  #  ??? text.lower().find('chrome')>=0  remote-debugging-port or remote-debugging-pipe
+            if (text != '' and 'remote-debugging-p' in ''.join(psutil.Process(pid).cmdline())
             and not text.startswith('msct') and not text.startswith('default') and 'восстановить' not in text):
                 windowList.append((hwnd, text, className))
                 logging.debug(f'enumWindowFunc:text={text}, className={className}')
@@ -183,7 +183,7 @@ class BalanceOverPlaywright():
                 return default            
             # Готовим строку для лога
             log_string = f'call: {getattr(func,"__name__","")}({", ".join(map(repr,args))}, {", ".join([f"{k}={repr(v)}" for k,v in kwargs.items()])})'
-            if str(store.options('log_full_eval_string')) == '0':
+            if str(self.options('log_full_eval_string')) == '0':
                 log_string = log_string if len(log_string) < 200 else log_string[:100]+'...'+log_string[-100:]
                 if 'password' in log_string:
                     log_string = log_string.split('password')[0]+'password ....'
@@ -198,7 +198,12 @@ class BalanceOverPlaywright():
         wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
         return wrapper
 
-    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, max_timeout=15, login_url=None, user_selectors=None, headless=None, force=1):
+    def options(self, param):
+        ''' Обертка вокруг store.options чтобы передать в нее пару (номер, плагин) для вытаскивания индивидуальных параметров'''
+        lang = 'p'
+        return store.options(param, pkey=(self.login, f'{lang}_{self.plugin_name}'))
+
+    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, max_timeout=15, login_url=None, user_selectors=None, headless=None, force=1, plugin_name=''):
         '''Передаем стандартно login, password, storename'
         Дополнительно
         wait_loop=30 - Сколько секунд ждать появления информации на странице
@@ -207,32 +212,32 @@ class BalanceOverPlaywright():
         login_url, user_selectors - можно передать параметры для логона при создании класса
         headless можно указать явно, иначе будет взято из настроек, но работать будет только в playwright
         force - коэффициент, на который будет умножено страховочное ожидание 0 - ускориться, 2 - замедлиться
-        если все проверки заданы качественно - можно указать force=0'''
+        если все проверки заданы качественно - можно указать force=0
+        plugin_name - нужен для поиска индивидуальных параметров в phones.ini'''
         self.browser, self.page = None, None  # откроем браузер - заполним
         self.browser_open = True  # флаг что браузер работает
         self.wait_loop = wait_loop  # TODO подобрать параметр
         self.max_timeout = max_timeout
         self.force = force
+        self.plugin_name = plugin_name
         self.wait_and_reload = wait_and_reload
         self.password = password
         self.login_ori, self.acc_num = login, ''
         self.login = login
-        self.storefolder = store.options('storefolder')
+        self.storefolder = self.options('storefolder')
         self.storename = storename
         self.login_url = login_url
         self.user_selectors = user_selectors
         self.ss_counter = 0  # Счетчик скриншотов
         # Удаляем скриншоты с прошлых разов
-        for fn in glob.glob(store.abspath_join(store.options('loggingfolder'), self.storename + '*.png')):
+        for fn in glob.glob(store.abspath_join(self.options('loggingfolder'), self.storename + '*.png')):
             os.remove(fn)
         # headless ТОЛЬКО в PLAYWRIGHT и ТОЛЬКО если отключен показ капчи, и ТОЛЬКО если не стоит show_chrome=0
         # иначе мы видимость браузера из headless уже не вернем и капчу показать не сможем
         self.headless = headless
         if headless is None:
-            if(store.options('browserengine').upper()[:2] == 'PL' 
-                    and str(store.options('show_captcha')) == '0'
-                    and str(store.options('show_chrome')) == '0'):
-                self.headless = str(store.options('headless_chrome')) == '1'
+            if(str(self.options('show_captcha')) == '0' and str(self.options('show_chrome')) == '0'):
+                self.headless = str(self.options('headless_chrome')) == '1'
             else:
                 self.headless = False
         if '/' in login:
@@ -243,7 +248,7 @@ class BalanceOverPlaywright():
         clear_cache(self.storefolder, self.storename)
         self.result = {}
         self.responses = {}
-        self.hide_chrome_flag = str(store.options('show_chrome')) == '0' and store.options('logginglevel') != 'DEBUG'
+        self.hide_chrome_flag = str(self.options('show_chrome')) == '0' and self.options('logginglevel') != 'DEBUG'
         self.profile_directory = self.storename
         self.launch_config_args = [
             '--log-level=3', # no logging
@@ -354,13 +359,13 @@ class BalanceOverPlaywright():
         return self.page.content()
 
     def page_screenshot(self, path='', number=-1, suffix=''):
-        if str(store.options('log_responses')) != '1' and store.options('logginglevel') != 'DEBUG':
+        if str(self.options('log_responses')) != '1' and self.options('logginglevel') != 'DEBUG':
             return
         if number == -1 and suffix == '':
             suffix = self.ss_counter
             self.ss_counter += 1
         if path == '':
-            path = store.abspath_join(store.options('loggingfolder'), f'{self.storename}_{suffix}.png')
+            path = store.abspath_join(self.options('loggingfolder'), f'{self.storename}_{suffix}.png')
         self.page.screenshot(path=path)
 
     @check_browser_opened_decorator
@@ -431,8 +436,8 @@ class BalanceOverPlaywright():
             'ignore_https_errors': True,
             'args': self.launch_config_args,
             })
-        if store.options('use_builtin_browser').strip() == '0':
-            self.chrome_executable_path = store.options('chrome_executable_path')
+        if self.options('use_builtin_browser').strip() == '0':
+            self.chrome_executable_path = self.options('chrome_executable_path')
             if not os.path.exists(self.chrome_executable_path):
                 chrome_paths = [p for p in settings.chrome_executable_path_alternate if os.path.exists(p)]
                 if len(chrome_paths) == 0:
@@ -443,8 +448,8 @@ class BalanceOverPlaywright():
         else:
             self.chrome_executable_path = self.browsertype.executable_path
         logging.info(f'Launch chrome from {self.chrome_executable_path}')
-        if store.options('proxy_server').strip() != '':
-            self.launch_config['args'].append(f'--proxy-server={store.options("proxy_server").strip()}') 
+        if self.options('proxy_server').strip() != '':
+            self.launch_config['args'].append(f'--proxy-server={self.options("proxy_server").strip()}') 
         # playwright: launch_func = self.sync_pw.chromium.launch_persistent_context
         self.browser = launch_func(**self.launch_config) # sync_pw.chromium.launch_persistent_context
         if self.hide_chrome_flag:
@@ -452,7 +457,7 @@ class BalanceOverPlaywright():
         self.page = self.browser.pages[0]
         [p.close() for p in self.browser.pages[1:]]
         self.page.on("response", self.response_worker)
-        if str(store.options('intercept_request')) == '1' and str(store.options('show_captcha')) == '0':            
+        if str(self.options('intercept_request')) == '1' and str(self.options('show_captcha')) == '0':            
             # Если включено показывать капчу - то придется грузить все чтобы загрузить картинки
             self.page.route("*", self.on_route_worker)        
         self.browser.on("disconnected", self.disconnected_worker) # вешаем обработчик закрытие браузера
@@ -552,11 +557,11 @@ class BalanceOverPlaywright():
                 # Проверяем - это не капча ?
                 if self.page_evaluate(selectors['captcha_checker'], False):
                     # Если стоит флаг показывать капчу то включаем видимость хрома и ждем заданное время
-                    if str(store.options('show_captcha')) == '1':
+                    if str(self.options('show_captcha')) == '1':
                         logging.info('Show captcha')
                         hide_chrome(hide=False, foreground=True)
                         self.page_evaluate(selectors['captcha_focus'])
-                        for cnt2 in range(int(store.options('max_wait_captcha'))):
+                        for cnt2 in range(int(self.options('max_wait_captcha'))):
                             _ = cnt2
                             if not self.page_evaluate(selectors['captcha_checker'], False):
                                 break  # ВЫХОДИМ ИЗ ЦИКЛА - капчи на странице больше нет
@@ -674,12 +679,12 @@ class BalanceOverPlaywright():
 
     def main(self, run='normal'):
         logging.info(f"browserengine=Playwright")
-        if sys.platform != 'win32' and not self.launch_config.get('headless', True) and str(store.options('xvfb')) == '1':
+        if sys.platform != 'win32' and not self.launch_config.get('headless', True) and str(self.options('xvfb')) == '1':
             os.system('pgrep Xvfb || Xvfb :99 -screen 0 1920x1080x24 &')            
             os.system('export DISPLAY=:99')  # On linux and headless:False use Xvfb
             os.environ['DISPLAY']=':99'
         with sync_playwright() as self.sync_pw:
-            browsertype_text = store.options('browsertype')
+            browsertype_text = self.options('browsertype')
             self.browsertype : playwright.sync_api._generated.BrowserType = getattr(self.sync_pw, browsertype_text)
             self.launch_browser(self.browsertype.launch_persistent_context)  # self.sync_pw.chromium.launch_persistent_context
             if run == 'normal':
@@ -688,11 +693,11 @@ class BalanceOverPlaywright():
                 self.check_logon_selectors_prepare()
                 self.check_logon_selectors()
             logging.debug(f'Data ready {self.result.keys()}')
-            if str(store.options('log_responses')) == '1' or store.options('logginglevel') == 'DEBUG':
+            if str(self.options('log_responses')) == '1' or self.options('logginglevel') == 'DEBUG':
                 import pprint
                 text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
                                     for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
-                with open(store.abspath_join(store.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
+                with open(store.abspath_join(self.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
                     f.write(text)
             self.browser_close()
         kill_chrome()  # Добиваем все наши незакрытые хромы, чтобы не появлялось кучи зависших
@@ -707,6 +712,6 @@ class BrowserController(BalanceOverPlaywright):
 #    pass
 #
 # TODO в будущем этот код для переключения на движок pyppeteer будет удален
-#if store.options('browserengine').upper()[:2] in ('PY', 'PU'):  # 'PYPPETEER'
+#if store.options('browserengine').upper()[:2] in ('PL', 'PU'):  # 'PYPPETEER'
 #    pyppeteeradd.check_pyppiteer_lib_bug()
 #    BrowserController = BrowserControllerPP

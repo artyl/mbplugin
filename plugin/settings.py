@@ -117,9 +117,9 @@ ini = {
         # В докере он уже установлен из коробки
         'xvfb_': {'descr':'Включить xvfb', 'type':'checkbox'},
         'xvfb': '0',
-        # движок для работы с браузером
-        'browserengine_': {'descr':'Движок для работы с браузером', 'type':'select', 'variants':'PYPPETEER PLAYWRIGHT'},
-        'browserengine': 'PLAYWRIGHT',
+        # движок для работы с браузером obsolete
+        # 'browserengine_': {'descr':'Движок для работы с браузером', 'type':'select', 'variants':'PYPPETEER PLAYWRIGHT'},
+        # 'browserengine': 'PLAYWRIGHT',
         # Использовать браузер встроенный в движок playwright, если отключен, то движки не скачиваются
         'use_builtin_browser_': {'descr':'Использовать браузер встроенный в движок playwright', 'type':'checkbox'},
         'use_builtin_browser': '1',

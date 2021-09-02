@@ -8,6 +8,7 @@ if EXIST ..\plugin\util.py (
     cd ..\..
     copy mbplugin\standalone\%~nx0 .
     %mbpluginpythonpath%\python mbplugin\plugin\util.py init
+    %mbpluginpythonpath%\python mbplugin\plugin\util.py web-server stop -f
     %mbpluginpythonpath%\python mbplugin\plugin\util.py pip-update -q
     %mbpluginpythonpath%\python mbplugin\plugin\util.py install-chromium
     %mbpluginpythonpath%\python mbplugin\plugin\util.py check-import
