@@ -21,7 +21,7 @@ class browserengine(browsercontroller.BrowserController):
 
 def get_balance(login, password, storename=None):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    return browserengine(login, password, storename).main()
+    return browserengine(login, password, storename, plugin_name=__name__).main()
 
 if __name__ == '__main__':
     print('This is module yota')
