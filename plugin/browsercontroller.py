@@ -86,7 +86,8 @@ def hide_chrome(hide=True, foreground=False):
         className = win32gui.GetClassName(hwnd).lower()
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
         try:  #  ??? text.lower().find('chrome')>=0  remote-debugging-port or remote-debugging-pipe
-            if (text != '' and 'remote-debugging-p' in ''.join(psutil.Process(pid).cmdline())
+            if (text != '' and 
+            ('remote-debugging-p' in ''.join(psutil.Process(pid).cmdline()) or 'ms-playwright\\firefox' in ''.join(psutil.Process(pid).cmdline()))
             and not text.startswith('msct') and not text.startswith('default') and 'восстановить' not in text):
                 windowList.append((hwnd, text, className))
                 logging.debug(f'enumWindowFunc:text={text}, className={className}')

@@ -740,3 +740,6 @@ def mbplugin_ini_md_gen():
 
 if __name__ == '__main__':
     cli(obj={})
+
+# ..\python\python -c "import updateengine;updateengine.create_signature()"
+# ..\python\python -c "import util;util.mbplugin_ini_md_gen()"
