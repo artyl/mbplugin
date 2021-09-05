@@ -46,6 +46,9 @@ default_logon_selectors = {
             'pause_press_submit': '1',  # Пауза перед нажатием submit не меньше 1
 }
 
+# Константы для отключения headless mode в хроме (не на всех сайтах работает), если в опциях персонально не поменяно - просто отключаем
+NOT_IN_CHROME = 'NOT_IN_CHROME'
+
 
 def safe_run_decorator(func):
     def wrapper(*args, **kwargs):
@@ -235,8 +238,15 @@ class BalanceOverPlaywright():
             os.remove(fn)
         # headless ТОЛЬКО в PLAYWRIGHT и ТОЛЬКО если отключен показ капчи, и ТОЛЬКО если не стоит show_chrome=0
         # иначе мы видимость браузера из headless уже не вернем и капчу показать не сможем
-        self.headless = headless
-        if headless is None:
+        if type(headless) == bool:
+            self.headless = headless
+        elif headless == NOT_IN_CHROME:
+            # Если указано что в хроме headless не работает и настройками это не поменяли, то выключаем чтобы хоть как-то отработало
+            if str(self.options('headless_chrome')) == '1' and self.options('browsertype') == 'chromium':
+                self.headless = False
+            else:
+                self.headless = True
+        else:  #if headless is None:
             if(str(self.options('show_captcha')) == '0' and str(self.options('show_chrome')) == '0'):
                 self.headless = str(self.options('headless_chrome')) == '1'
             else:
