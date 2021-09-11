@@ -586,7 +586,8 @@ def version(ctx, verbose):
 # @click.option('-f', '--force', is_flag=True, help='С заменой измененных файлов')
 # @click.argument('branch', nargs=-1)
 # @click.pass_context
-def version_update_git(ctx, force, branch):
+# Данный вариант устарел (хотя и даже не ушел в релиз)
+def obsolete_version_update_git(ctx, force, branch):
     '''Обновление mbplugin из https://github.com/artyl/mbplugin если репозиторий не установлен устанавливаем
     При желании можно явно указать коммит/тэг/ветку на которую переключаемся'''
     name = 'version-update-git'

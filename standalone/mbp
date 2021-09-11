@@ -5,9 +5,8 @@
 # mkdir mbstandalone
 # cd mbstandalone
 # git clone https://github.com/artyl/mbplugin
-# git -C mbplugin checkout -f dev_playwright
 # OR
-# curl -LO https://github.com/artyl/mbplugin1/releases/download/1.00.02b/mbplugin_bare.1.00.02b.zip
+# curl -LO https://github.com/artyl/mbplugin/releases/download/1.00.00/mbplugin_bare.1.00.00.zip
 # python3.8 -m venv env
 # . env/bin/activate
 # python -m pip install --upgrade pip

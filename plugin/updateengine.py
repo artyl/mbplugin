@@ -100,7 +100,7 @@ class UpdaterEngine():
         LATEST - ищем последний релиз согласно флагам prerelease и draft
         Если указанный релиз не найден - падаем RuntimeError'''
         if len(self.releases) == 0:
-            url = 'https://api.github.com/repos/artyl/mbplugin1/releases'
+            url = 'https://api.github.com/repos/artyl/mbplugin/releases'
             self.releases = requests.get(url, verify=self.verify_ssl).json()
         if version.upper() == 'LATEST':
             version = [r['tag_name'] for r in self.releases if (not r['prerelease'] or self.prerelease) and (not r['draft'] or self.draft)][0]
@@ -199,8 +199,7 @@ class UpdaterEngine():
                 # Первый элемент пути в зависимости от ветки может называться не так как нам нужно
                 fn = store.abspath_join('mbplugin', *(store.path_split_all(zi.filename)[1:]))
                 # TODO !!! Для тестов не обновляю папку plugin в релизе убрать
-                if 'plugin' in store.path_split_all(zi.filename) or '.ico' in zi.filename:  # TODO !!! for debug
-                    continue
+                # if 'plugin' in store.path_split_all(zi.filename) or '.ico' in zi.filename: continue # TODO !!! for debug
                 if not zi.is_dir():
                     res[fn] = ZipRecord(
                         zf1.read(zi),
