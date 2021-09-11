@@ -9,7 +9,8 @@ import cryptography.exceptions
 import store, settings
 
 ZipRecord = collections.namedtuple('ZipRecord', 'content mtime')
-
+# Symbolic constants
+LATEST = 'LATEST'
 
 class ShaSumFile():
     'Класс для работы с файлом контрольных сумм, генерация, проверка'
@@ -105,26 +106,30 @@ class UpdaterEngine():
                 # Для отладки обновлений, берем из тестового репозитория
                 url = 'https://api.github.com/repos/artyl/mbplugin1/releases'
             self.releases = requests.get(url, verify=self.verify_ssl).json()
-        if version.upper() == 'LATEST':
+        if version.upper() == LATEST:
             version = [r['tag_name'] for r in self.releases if (not r['prerelease'] or self.prerelease) and (not r['draft'] or self.draft)][0]
         if version not in [r['tag_name'] for r in self.releases]:
             raise RuntimeError('Release with version "{version}" not found on github release')
         release = [r for r in self.releases if r['tag_name']  == version][0]
         return release      
 
-    def check_update(self) -> typing.Tuple[str, str]:
-        'проверяем наличие обновлений, prerelease=True - get prerelease, draft=True - get draft'
-        release = self.github_release('LATEST')
-        cnt = [a['download_count'] for a in release['assets'] if '_bare' in a['name']][0]
-        msg = f'Latest release on github {release["tag_name"]} by {release["published_at"]}, downloaded {cnt} times with description:\n{release["body"]}'
-        # print([(a['name'], a['download_count']) for a in release['assets']])
+    def latest_version_info(self, short=False) -> typing.Tuple[str, str]:
+        'Возвращает инфо о последней версии парой, short - без подробного описания -> (версия, описание)'
+        release = self.github_release(LATEST)
+        bare_counters = [a['download_count'] for a in release['assets'] if '_bare' in a['name']]
+        version = release["tag_name"]
+        msg = f'Latest release on github {release["tag_name"]} by {release["published_at"]}, downloaded {"unknown" if len(bare_counters)==0 else bare_counters[0]} times'
+        if not short:
+            msg += f' with description:\n{release["body"]}'
+        return version, msg
+
+    def check_update(self) -> bool:
+        '''проверяем наличие обновлений, prerelease=True - get prerelease, draft=True - get draft
+        True - есть новая версия'''
+        release = self.github_release(LATEST)
         current_ver = tuple(map(int, re.findall(r'\d+', store.version())))
         latest_ver = tuple(map(int, re.findall(r'\d+', release["tag_name"])))
-        if current_ver < latest_ver:  # Есть новая версия
-            version = release["tag_name"]
-            return version, msg
-        else:
-            return '', ''
+        return current_ver < latest_ver  # Есть новая версия
 
     def download_version(self, version='', force=False, checksign=True) -> None:
         '''Загружаем обновление, force=True независимо от наличия на диске, checksign=False - не проверять подпись 

@@ -577,9 +577,15 @@ def version(ctx, verbose):
         browser = p.chromium.launch()
         click.echo(f'Chromium {browser.version}')
         browser.close()
-    releases = requests.get('https://api.github.com/repos/artyl/mbplugin/releases').json()
-    release = [r for r in releases if not r['prerelease'] and not r['draft']][0]
-    click.echo(f'Latest release on github {release["tag_name"]} by {release["published_at"]} with description:\n{release["body"]}')
+    import updateengine
+    updater = updateengine.UpdaterEngine()
+    if updater.check_update():
+        version, msg_version = updater.latest_version_info()
+        click.echo(f'New version found {version}\n{msg_version}')
+    else:
+        version, msg_version = updater.latest_version_info(short=True)
+        click.echo(f'No new version found on github release, latest version:{version}\n{msg_version}')
+        return    
 
 
 # @cli.command()
@@ -655,11 +661,11 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
         click.echo(f'Only one option can be used')
         return
     if version == '' and not by_current and not undo_update:
-        version, msg_version = updater.check_update()
-        if version != '':
+        if updater.check_update():
+            version, msg_version = updater.latest_version_info()
             click.echo(f'New version {version}\n{msg_version}')
         else:
-            click.echo(f'No new version found')
+            click.echo(f'No new version found on github release')
             return
     if not skip_download:
         updater.download_version(version=version, force=force, checksign=not no_check_sign)
