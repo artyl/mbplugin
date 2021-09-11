@@ -20,7 +20,7 @@ def version():
     'Возвращает версию mbplugin по информации из changelist.md'
     try:
         with open(abspath_join('mbplugin','changelist.md'), encoding='utf8') as f:
-            res = re.findall('## mbplugin (\d.*?) \(', f.read())[-1]
+            res = re.findall('## mbplugin (v\d.*?) \(', f.read())[-1]
         return res
     except Exception:
         return 'unknown'
