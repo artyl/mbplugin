@@ -101,6 +101,9 @@ class UpdaterEngine():
         Если указанный релиз не найден - падаем RuntimeError'''
         if len(self.releases) == 0:
             url = 'https://api.github.com/repos/artyl/mbplugin/releases'
+            if 'ANOTHER' in os.environ.get('DEBUG_UPDATE',''):
+                # Для отладки обновлений, берем из тестового репозитория
+                url = 'https://api.github.com/repos/artyl/mbplugin1/releases'
             self.releases = requests.get(url, verify=self.verify_ssl).json()
         if version.upper() == 'LATEST':
             version = [r['tag_name'] for r in self.releases if (not r['prerelease'] or self.prerelease) and (not r['draft'] or self.draft)][0]
@@ -198,8 +201,11 @@ class UpdaterEngine():
             for zi in zf1.infolist():  # Во временную переменную прочитали
                 # Первый элемент пути в зависимости от ветки может называться не так как нам нужно
                 fn = store.abspath_join('mbplugin', *(store.path_split_all(zi.filename)[1:]))
-                # TODO !!! Для тестов не обновляю папку plugin в релизе убрать
-                # if 'plugin' in store.path_split_all(zi.filename) or '.ico' in zi.filename: continue # TODO !!! for debug
+                if 'PLUGIN' in os.environ.get('DEBUG_UPDATE',''):
+                    # Для отладки обновлений
+                    # В debug режиме не обновляю папку plugin
+                    if 'plugin' in store.path_split_all(zi.filename) or '.ico' in zi.filename: 
+                        continue
                 if not zi.is_dir():
                     res[fn] = ZipRecord(
                         zf1.read(zi),

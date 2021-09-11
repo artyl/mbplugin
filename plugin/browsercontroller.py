@@ -10,7 +10,6 @@ if sys.platform == 'win32':
     except Exception:
         print('No win32 installed, no fake-headless mode')
 import psutil
-#import pyppeteeradd
 #import pprint; pp = pprint.PrettyPrinter(indent=4).pprint
 import store, settings
 
@@ -394,7 +393,6 @@ class BalanceOverPlaywright():
                 self.page.wait_for_load_state("networkidle", timeout=self.max_timeout*1000)
             except Exception:
                 logging.info(f'wait_for_load_state timeout')
-        # Пока аналогичного метода нет в классе для pyppeteer        
         if location_href_url != None and location_href_url != '':
             self.page.wait_for_url(location_href_url, **kwargs)
         if  selector != None and selector != '':
@@ -719,10 +717,3 @@ class BalanceOverPlaywright():
 class BrowserController(BalanceOverPlaywright):
     pass
 
-#class BrowserControllerPP(pyppeteeradd.BalanceOverPyppeteer):
-#    pass
-#
-# TODO в будущем этот код для переключения на движок pyppeteer будет удален
-#if store.options('browserengine').upper()[:2] in ('PL', 'PU'):  # 'PYPPETEER'
-#    pyppeteeradd.check_pyppiteer_lib_bug()
-#    BrowserController = BrowserControllerPP

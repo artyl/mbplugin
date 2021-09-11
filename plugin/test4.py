@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-''' пример плагина почти на чистом puppeteer без упрощенной логики '''
+''' пример плагина почти на чистом playwright без упрощенной логики '''
 import time, re, json, logging, os
 import browsercontroller
 
@@ -38,4 +38,4 @@ def get_balance(login, password, storename=None):
     return browserengine(login, password, storename, plugin_name=__name__).main()
 
 if __name__ == '__main__':
-    print('This is module test3 for test chrome on puppeteer')
+    print('This is module test3 for test chrome on playwright')
