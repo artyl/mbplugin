@@ -112,7 +112,7 @@ del mbplugin\python\scripts\*.exe
 
 cd "%~dp0"
 for /F "tokens=1 delims=#" %%T IN ('git rev-parse HEAD') DO set mbpluginhead=%%T
-for /F "tokens=3 delims= " %%T IN ('find "## mbplugin 1." changelist.md') DO set mbpluginversion=%%T
+for /F "tokens=3 delims= " %%T IN ('find "## mbplugin v1." changelist.md') DO set mbpluginversion=%%T
 curl -Lk https://github.com/artyl/mbplugin/archive/%mbpluginhead%.zip -o pack\current.zip
 7z rn pack\current.zip mbplugin-%mbpluginhead% mbplugin
 copy pack\current.zip dist\mbplugin_bare.%mbpluginversion%.zip
