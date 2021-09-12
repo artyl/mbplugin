@@ -3,7 +3,7 @@
 для того чтобы не писать утилиты два раза для windows и linux все переносим сюда, а
 непосредственно в bat и sh скриптах оставляем вызов этого скрипта
 '''
-import os, sys, re, time, subprocess, shutil, glob, traceback, logging, importlib
+import os, sys, re, time, subprocess, shutil, glob, traceback, logging, importlib, zipfile
 import click
 
 # Т.к. мы меняем текущую папку, то sys.argv[0] будет смотреть не туда, пользоваться можно только
@@ -706,6 +706,53 @@ def db_query(ctx, query):
         if cur.rowcount >= 0:
             print(f'{cur.rowcount} line affected')
         db.conn.commit()
+    click.echo(f'OK {name}')
+
+
+@cli.command()
+@click.option('-n', '--num', type=int, default=-1)
+@click.option('-a', '--alias', type=str, default='')
+@click.option('-pl', '--plugin', type=str, default='')
+@click.option('-l', '--login', type=str, default='')
+@click.pass_context
+def bugreport(ctx, num, alias, plugin, login):
+    'Подготовка данных по запросу баланса для отправки разработчику, задайте либо порядковый номер, либо псевдоним, либо имя плагина и логин'
+    name = 'bugreport'
+    print(num, plugin, alias, login)
+    phones = store.ini('phones.ini')
+    phones.read()
+    # Делаем словарь телефонов для поиска
+    dp = [dict([('nn',sec)]+list(phones.ini[sec].items())) for sec in phones.ini.sections() if phones.ini[sec].get('Monitor', 'FALSE') == 'TRUE']
+    p_num = [i for i in dp if i['nn'] == str(num)]
+    p_alias = [i for i in dp if i['alias'] == alias]
+    p_plugin_login = [i for i in dp if i['region'] == plugin and i['login'] == num]
+    line = []
+    if len(p_num) == 1:
+        line = p_num[0]
+    elif len(p_alias) == 1:
+        line = p_alias[0]
+    elif len(p_plugin_login) == 1:
+        line = p_plugin_login[0]
+    else:
+        click.echo(f'Fail {name}')
+        return
+    plugin, login = line['region'], line['number']
+    plugin_login = line['region'] + '_' + re.sub(r'\W', '_', line['number'].split('/')[0])
+    path = store.abspath_join('mbplugin', 'log', f'*{plugin_login}*')
+    logname = store.abspath_join('mbplugin', 'log', 'http.log')
+    zfn = store.abspath_join('mbplugin', 'log', f'bugreport_{plugin_login}.zip')
+    with zipfile.ZipFile(zfn, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for fn in glob.glob(path):
+            if fn.lower().endswith('.zip'):
+                continue
+            #breakpoint()
+            zf.write(fn, os.path.split(fn)[-1])
+        with open(logname, encoding='cp1251', errors='ignore') as lf: 
+            # getbalance_plugin Start {plugin} {login}
+            log_all = lf.read().split('\n\n')
+            log_flt = [el for el in log_all if f'getbalance_plugin Start {plugin} {login}' in el]
+        if len(log_flt)>0:
+            zf.writestr('http.log', log_flt[-1].encode('cp1251'))
     click.echo(f'OK {name}')
 
 

@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys, re, logging, random
+import os, sys, re, logging, random, time
 import requests
 import store
 
@@ -31,7 +31,11 @@ def get_balance(login, password, storename=None):
             # 'ErrorMsg':	'Сообщение об ошибке', # Если оо есть в Reponce то это ошибка
             'UslugiOn': '2/8',
             }
-    session.save_session()            
+    session.save_session()     
+    # В реальном случае мы получаем баланс гораздо больше чем за секунду
+    # Если мы получаем несколько результатов в секунду, то у нас ломаются отчеты.
+    # Так что чтобы не чинить что не сломано просто чуть подождем
+    time.sleep(1)
     return result
 
 
