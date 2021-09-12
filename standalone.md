@@ -37,6 +37,7 @@
     * `python -m pip install -r mbplugin/docker/requirements.txt`
     * `python -m playwright install chrome`
     * `bash mbplugin/standalone/mbp python`
+
 Если в системе установлен git, то вместо шагов 2 и 3 можно дать команду `git clone https://github.com/artyl/mbplugin`
 
 ## Установка в **linux** и **macOS** через докер
