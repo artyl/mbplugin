@@ -39,7 +39,7 @@ class browserengine(browsercontroller.BrowserController):
         },{  # со страницы client-api/getAccountServicesMainInfo возьмем сумму всех месячных плат и назовем это тарифным планом (тоже по accountId)
             'name': 'TarifPlan',
             'url_tag': ['client-api/getAccountServicesMainInfo'] + ([str(accountId)] if self.acc_num != '' else []),
-            'pformula': r"','.join([i['fee'] for i in data['services'].values()])",
+            'pformula': r"','.join([i['fee'][:-2] for i in data['services'].values()])",
         },{  # и со страницы client-api/getProfile соберем UserName (для него не нужен accountId)
             'name': 'UserName',
             'url_tag': ['client-api/getProfile'],
