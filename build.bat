@@ -119,7 +119,7 @@ copy pack\current.zip dist\mbplugin_bare.%mbpluginversion%.zip
 call git-restore-mtime
 
 cd "%~dp0\.."
-7z a -tzip mbplugin\dist\mbplugin.%mbpluginversion%.zip mbplugin -xr!.git -xr!dist -xr!*.log
+7z a -tzip mbplugin\dist\mbplugin.%mbpluginversion%.zip mbplugin -xr0!mbplugin\.git -xr0!mbplugin\dist -xr!*.log
 
 cd "%~dp0\plugin"
 ..\python\python -c "import updateengine;updateengine.create_signature()"
