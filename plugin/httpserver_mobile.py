@@ -210,7 +210,7 @@ def getreport(param=[]):
     <head><title>MobileBalance</title><meta http-equiv="content-type" content="text/html; charset=windows-1251"></head>{style}
     <body style="font-family: Verdana; cursor:default">
     <table class="BackgroundTable">
-    <tr><td class="hdr">Информация о балансе телефонов - MobileBalance Mbplugin</td></tr>
+    <tr><td class="hdr">Информация о балансе телефонов - MobileBalance Mbplugin {title}</td></tr>
     <tr><td bgcolor="#808080">
     <table class="InfoTable" border="0" cellpadding="2" cellspacing="1">
         <tr class="header">{html_header}</tr>
@@ -285,7 +285,7 @@ def getreport(param=[]):
             classflag = 'n_us'
         html_table.append(f'<tr id="row" class="{classflag}">{"".join(html_line)}</tr>')
     style = style.replace('{HoverCss}',store.options('HoverCss'))
-    res = template_page.format(style=style, html_header=html_header, html_table='\n'.join(html_table))
+    res = template_page.format(style=style, html_header=html_header, html_table='\n'.join(html_table), title=store.version())
     return 'text/html', [res]
 
 
