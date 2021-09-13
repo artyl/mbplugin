@@ -48,7 +48,7 @@ class browserengine(browsercontroller.BrowserController):
                 nm_indication_variants = dict([map(str.strip,i.split(':')) for i in store.options('mosenergosbyt_nm_indication_variants').strip().split(',')])
                 nm_indication_take = nm_indication_variants.get(str(store.options('mosenergosbyt_nm_indication_take').strip()),'')
             except Exception:
-                logging.error(f'Неправильные настройки для nm_indication в mbplugin.ini: {"".join(traceback.format_exception(*sys.exc_info()))}')
+                logging.error(f'Неправильные настройки для nm_indication в mbplugin.ini: {store.exception_text()}')
                 nm_indication_take = ''
             res1 = self.wait_params(params=[{
                 'name': 'Balance',  # Баланс в зависимости от вида ЛК может придти либо так

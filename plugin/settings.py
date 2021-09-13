@@ -269,17 +269,17 @@ main_html=r'''
 <head></head>
 <body>
 %(info)s
-<a href=report>View report</a><br>
-<a href=schedule>View schedule</a><br>
-<a href=editcfg>Edit config</a><br>
-<a href=log>View log</a><br>
-<a href=log/list>View screenshot log</a><br>
-<button onclick="fetch('getbalance_standalone').then(function(response) {return response})">Get balance request</button><br>
-<button onclick="fetch('flushlog').then(function(response) {return response})">Flush log</button><br>
-<button onclick="fetch('reload_schedule').then(function(response) {return response})">Reload schedule</button><br>
-<button onclick="fetch('recompile').then(function(response) {return response})">Recompile jsmblh plugin</button><br>
-<button onclick="fetch('restart').then(function(response) {return response})">Restart web server</button><br>
-<button onclick="fetch('exit').then(function(response) {return response})">Exit web server</button><br>
+<a href=/report>View report</a><br>
+<a href=/schedule>View schedule</a><br>
+<a href=/editcfg>Edit config</a><br>
+<a href=/log?lines=40>View log</a><br>
+<a href=/log/list>View screenshot log</a><br>
+<button onclick="fetch('/getbalance_standalone').then(function(response) {return response})">Get balance request</button><br>
+<button onclick="fetch('/flushlog').then(function(response) {return response})">Flush log</button><br>
+<button onclick="fetch('/reload_schedule').then(function(response) {return response})">Reload schedule</button><br>
+<button onclick="fetch('/recompile').then(function(response) {return response})">Recompile jsmblh plugin</button><br>
+<button onclick="fetch('/restart').then(function(response) {return response})">Restart web server</button><br>
+<button onclick="fetch('/exit').then(function(response) {return response})">Exit web server</button><br>
 </body>
 </html>
 '''

@@ -118,7 +118,7 @@ def getbalance_plugin(method, param_source):
             if 'Balance' not in result:
                 raise RuntimeError(f'В result отсутствует баланс')
         except Exception:
-            logging.info(f'{plugin} fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
+            logging.info(f'{plugin} fail: {store.exception_text()}')
             dbengine.flags('set',f"{lang}_{plugin}_{param['login']}",'error call')  # выставляем флаг о ошибке вызова
             return 'text/html', [f"<html>Error call {param['fplugin']}</html>"]
         dbengine.flags('delete',f"{lang}_{plugin}_{param['login']}",'start')  # запрос завершился успешно - сбрасываем флаг
@@ -128,13 +128,13 @@ def getbalance_plugin(method, param_source):
             # обновляем данные из mdb
             dbengine.update_sqlite_from_mdb()
         except Exception:    
-            exception_text = f'Ошибка при подготовке работе с БД: {"".join(traceback.format_exception(*sys.exc_info()))}'
+            exception_text = f'Ошибка при подготовке работе с БД: {store.exception_text()}'
             logging.error(exception_text)   
         try:
             # генерируем balance_html
             write_report()
         except Exception:    
-            exception_text = f'Ошибка при подготовке report: {"".join(traceback.format_exception(*sys.exc_info()))}'
+            exception_text = f'Ошибка при подготовке report: {store.exception_text()}'
             logging.error(exception_text)        
         logging.info(f"Complete {param['fplugin']} {param['login']}")
         return 'text/html', text
@@ -298,7 +298,7 @@ def write_report():
             logging.info(f'Создаем {balance_html}')
             open(balance_html, encoding='cp1251', mode='w').write('\n'.join(res))
     except Exception:
-        logging.error(f'Ошибка генерации balance_html {"".join(traceback.format_exception(*sys.exc_info()))}')
+        logging.error(f'Ошибка генерации balance_html {store.exception_text()}')
 
 def filter_balance(table, filter='FULL', params={}):
     ''' Фильтруем данные для отчета
@@ -403,7 +403,7 @@ def prepare_balance(filter='FULL', params={}):
             baltxt = 'No changes'
         return baltxt
     except Exception:
-        exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        exception_text = f'Ошибка: {store.exception_text()}'
         logging.error(exception_text)
         return 'error'
 
@@ -634,7 +634,7 @@ class TelegramBot():
             try:
                 msg.edit_text(txt, parse_mode=telegram.ParseMode.HTML)
             except Exception:
-                logging.info(f'Unsuccess tg send:{txt} {"".join(traceback.format_exception(*sys.exc_info()))}')
+                logging.info(f'Unsuccess tg send:{txt} {store.exception_text()}')
         filtertext = '' if len(context.args)==0 else f", with filter by {' '.join(context.args)}"
         msg = update.message.reply_text(f'Request all number{filtertext}. Wait...', parse_mode=telegram.ParseMode.HTML)
         getbalance_standalone(filter=context.args, only_failed=(update.message.text=="/receivebalancefailed"), feedback=feedback)
@@ -714,7 +714,7 @@ class TelegramBot():
             try:
                 self.updater.bot.sendMessage(chat_id=id, text=text, parse_mode=parse_mode)
             except Exception:
-                exception_text = f'Ошибка отправки сообщения {text} для {id} telegram bot {"".join(traceback.format_exception(*sys.exc_info()))}'
+                exception_text = f'Ошибка отправки сообщения {text} для {id} telegram bot {store.exception_text()}'
                 logging.error(exception_text)            
 
     def send_balance(self):
@@ -776,7 +776,7 @@ class TelegramBot():
                 if str(store.options('send_empty', section='Telegram'))=='1':
                     self.send_message(text='Hey there!')
             except Exception:
-                exception_text = f'Ошибка запуска telegram bot {"".join(traceback.format_exception(*sys.exc_info()))}'
+                exception_text = f'Ошибка запуска telegram bot {store.exception_text()}'
                 logging.error(exception_text)
         elif 'telegram' not in sys.modules:
             logging.info('Module telegram not found')
@@ -1021,7 +1021,7 @@ class WebServer():
                 return [text]
             return [line.encode('cp1251', errors='ignore') for line in text]
         except Exception:
-            exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
+            exception_text = f'Ошибка: {store.exception_text()}'
             logging.error(exception_text)
             headers = [('Content-type', 'text/html')]
             return ['<html>ERROR</html>'.encode('cp1251')]
@@ -1040,7 +1040,7 @@ def main():
         if ARGS.cmd.lower() == 'stop':
             send_http_signal(cmd='exit')
     except Exception:
-        exception_text = f'Ошибка запуска WebServer: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        exception_text = f'Ошибка запуска WebServer: {store.exception_text()}'
         logging.error(exception_text)
 
 

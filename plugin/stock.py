@@ -127,7 +127,7 @@ def thread_call_market(market,security,cnt,qu):
         else:
             raise RuntimeError(f'Unknown market marker {market} for {security}')
     except Exception:
-        exception_text = f'Error {market},{security}:{"".join(traceback.format_exception(*sys.exc_info()))}'
+        exception_text = f'Error {market},{security}:{store.exception_text()}'
         logging.error(exception_text)    
 
     

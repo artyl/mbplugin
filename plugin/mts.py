@@ -118,7 +118,7 @@ class browserengine(browsercontroller.BrowserController):
             self.result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
             self.result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
         except Exception:
-            logging.info(f'Ошибка при получении списка услуг {"".join(traceback.format_exception(*sys.exc_info()))}')
+            logging.info(f'Ошибка при получении списка услуг {store.exception_text()}')
         
         # Идем и пытаемся взять инфу со страницы https://lk.mts.ru/obshchiy_paket
         # Но только если телефон в списке в поле mts_usedbyme или для всех телефонов если там 1
@@ -173,7 +173,7 @@ class browserengine(browsercontroller.BrowserController):
                     else:  #  Со страницы общего пакета не отдали данные, чистим все, иначе будут кривые графики. ТОЛЬКО для common
                         raise RuntimeError(f'Страница общего пакета не возвращает данных')
             except Exception:
-                logging.info(f'Ошибка при получении obshchiy_paket {"".join(traceback.format_exception(*sys.exc_info()))}')
+                logging.info(f'Ошибка при получении obshchiy_paket {store.exception_text()}')
                 if self.acc_num.lower().startswith('common'): 
                     self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных'}
                 

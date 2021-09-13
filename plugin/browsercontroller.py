@@ -64,7 +64,7 @@ def safe_run_decorator(func):
             logging.info(f'{log_string} OK')
             return res
         except Exception:
-            logging.info(f'{log_string} fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
+            logging.info(f'{log_string} fail: {store.exception_text()}')
             return default
     wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
     return wrapper
@@ -76,7 +76,7 @@ def safe_run(func, *args, **kwargs):
         return res
     except Exception:
         log_string = f'{func.__name__}({", ".join(map(repr,args))}, {", ".join([f"{k}={repr(v)}" for k,v in kwargs.items()])})'
-        logging.info(f'call {log_string} fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
+        logging.info(f'call {log_string} fail: {store.exception_text()}')
 
 @safe_run_decorator
 def hide_chrome(hide=True, foreground=False):
@@ -196,7 +196,7 @@ class BalanceOverPlaywright():
                 logging.info(f'{log_string} OK')
                 return res
             except Exception:
-                logging.info(f'{log_string} fail: {"".join(traceback.format_exception(*sys.exc_info()))}')
+                logging.info(f'{log_string} fail: {exception_text()}')
                 return default
         wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
         return wrapper
@@ -291,7 +291,7 @@ class BalanceOverPlaywright():
                 # if '2336' in txt:
                 #    logging.info(f'2336 in {response.request.url}')
             except Exception:
-                exception_text = f'Ошибка: {"".join(traceback.format_exception(*sys.exc_info()))}'
+                exception_text = f'Ошибка: {store.exception_text()}'
                 logging.debug(exception_text)
 
     def on_route_worker(self, route):
@@ -330,7 +330,7 @@ class BalanceOverPlaywright():
         try:
             return self.page.evaluate(eval_string, args)
         except Exception:
-            exception_text = f'Ошибка в page_evaluate:{"".join(traceback.format_exception(*sys.exc_info()))}'
+            exception_text = f'Ошибка в page_evaluate:{store.exception_text()}'
             if 'Execution context was destroyed' not in exception_text:
                 logging.info(exception_text)
                 raise
@@ -405,7 +405,7 @@ class BalanceOverPlaywright():
                     # в процессе выполнения можем грохнуться т.к. страница может перезагрузиться, такие даже не пишем в лог
                     res = self.page.evaluate(expression, **kwargs)
                 except Exception:
-                    exception_text = f'Ошибка в page_wait_for:{"".join(traceback.format_exception(*sys.exc_info()))}'
+                    exception_text = f'Ошибка в page_wait_for:{store.exception_text()}'
                     if 'Execution context was destroyed' not in exception_text:
                         logging.info(exception_text)   
                 if res:
@@ -610,7 +610,7 @@ class BalanceOverPlaywright():
                         res = eval(pformula, {'data':response_result})
                         return res
                     except Exception:
-                        exception_text = f'Ошибка в pformula:{pformula} :{"".join(traceback.format_exception(*sys.exc_info()))}'
+                        exception_text = f'Ошибка в pformula:{pformula} :{store.exception_text()}'
                         logging.info(exception_text)    
                 if jsformula != '':
                     logging.info(f'jsformula on {url_tag}:{jsformula}')
@@ -686,6 +686,7 @@ class BalanceOverPlaywright():
         'Переопределите для своего плагина'
         pass
 
+    @safe_run_decorator
     def main(self, run='normal'):
         logging.info(f"browserengine=Playwright")
         if sys.platform != 'win32' and not self.launch_config.get('headless', True) and str(self.options('xvfb')) == '1':

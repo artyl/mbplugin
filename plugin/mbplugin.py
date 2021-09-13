@@ -24,7 +24,7 @@ def main():
     try:
         module = __import__(plugin, globals(), locals(), [], 0)
     except Exception:
-        exception_text = f'Модуль {plugin} не грузится: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        exception_text = f'Модуль {plugin} не грузится: {store.exception_text()}'
         logging.error(exception_text)
         sys.stdout.write(exception_text)
         return -1
@@ -38,7 +38,7 @@ def main():
             login = root.find('Login').text
             password = root.find('Password').text
         except Exception:
-            exception_text = f'Не смог взять RequestVariable: {"".join(traceback.format_exception(*sys.exc_info()))}'
+            exception_text = f'Не смог взять RequestVariable: {store.exception_text()}'
             logging.error(exception_text)
             sys.stdout.write(exception_text)
             return -1
@@ -53,7 +53,7 @@ def main():
         if 'Balance' not in result:
             raise RuntimeError(f'В result отсутствует баланс')
     except Exception:
-        exception_text = f'Ошибка при вызове модуля \n{plugin}: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        exception_text = f'Ошибка при вызове модуля \n{plugin}: {store.exception_text()}'
         logging.error(exception_text)
         sys.stdout.write(exception_text)
         dbengine.flags('set',f'{lang}_{plugin}_{login}','error call')  # выставляем флаг о ошибке вызова
@@ -62,7 +62,7 @@ def main():
     try:
         sys.stdout.write(store.result_to_xml(result))
     except Exception:
-        exception_text = f'Ошибка при подготовке результата: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        exception_text = f'Ошибка при подготовке результата: {store.exception_text()}'
         logging.error(exception_text)
         sys.stdout.write(exception_text)
         dbengine.flags('set',f'{lang}_{plugin}_{login}','error result')  # выставляем флаг о плохом результате]
@@ -74,13 +74,13 @@ def main():
         # обновляем данные из mdb
         dbengine.update_sqlite_from_mdb()
     except Exception:    
-        exception_text = f'Ошибка при подготовке работе с БД: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        exception_text = f'Ошибка при подготовке работе с БД: {store.exception_text()}'
         logging.error(exception_text)        
     try:
         # генерируем balance_html
         httpserver_mobile.write_report()
     except Exception:    
-        exception_text = f'Ошибка при подготовке report: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        exception_text = f'Ошибка при подготовке report: {store.exception_text()}'
         logging.error(exception_text)        
     logging.debug(f'result = {result}')
     logging.info(f'Complete {lang} {plugin} {login}\n')

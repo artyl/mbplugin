@@ -79,7 +79,7 @@ def fix_embedded_python_path(ctx):
                 open(os.path.join(EMB_PYTHON_PATH, 'sitecustomize.py'), 'a').write(txt)
             click.echo(f'OK {name}')
         except Exception:
-            click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
+            click.echo(f'Fail {name}: {store.exception_text()}')
     else:
         click.echo(f'Not needed {name}')
 
@@ -96,7 +96,7 @@ def install_chromium(ctx):
         subprocess.check_call([sys.executable, '-m', 'playwright', 'install', store.options('browsertype')])  # '--with-deps', ???
         click.echo(f"OK {name} {store.options('browsertype')}")
     except Exception:
-        click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
+        click.echo(f'Fail {name}: {store.exception_text()}')
 
 
 @cli.command()
@@ -125,7 +125,7 @@ def clear_browser_cache(ctx):
         shutil.rmtree(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'headless'), ignore_errors=True)
         click.echo(f'OK {name}')
     except Exception:
-        click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
+        click.echo(f'Fail {name}: {store.exception_text()}')
 
 
 @cli.command()
@@ -153,14 +153,14 @@ def recompile_plugin(ctx, only_dll, only_jsmblh):
                         click.echo(f'Move {pluginname}.dll -> dllplugin\\')
                 click.echo(f'OK {name} DLL')
             except Exception:
-                click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
+                click.echo(f'Fail {name}: {store.exception_text()}')
         if not skip_jsmblh:  # Пересобираем JSMB LH plugin
             import compile_all_jsmblh
             try:
                 compile_all_jsmblh.recompile(PLUGIN_PATH, verbose=ctx.obj['VERBOSE'])
                 click.echo(f'OK {name} jsmblh')
             except Exception:
-                click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
+                click.echo(f'Fail {name}: {store.exception_text()}')
     else:
         click.echo('On windows platform only')
 
@@ -175,7 +175,7 @@ def check_import(ctx):
         if sys.platform == 'win32':
             import win32api, win32gui, win32con, pyodbc, pystray
     except ModuleNotFoundError:
-        click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
+        click.echo(f'Fail {name}: {store.exception_text()}')
         return
     click.echo(f'OK {name}')
 
@@ -230,7 +230,7 @@ def web_server_autostart(ctx, turn):
             time.sleep(4)
             click.echo(f'OK {name} {turn}')
         except Exception:
-            click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
+            click.echo(f'Fail {name}: {store.exception_text()}')
     else:
         click.echo('On windows platform only')
 
@@ -255,7 +255,7 @@ def web_server(ctx, cmd, force):
         time.sleep(3)
         click.echo(f'OK {name} {cmd}')
     except Exception:
-        click.echo(f'Fail {name}: {"".join(traceback.format_exception(*sys.exc_info()))}')
+        click.echo(f'Fail {name}: {store.exception_text()}')
 
 
 @cli.command()
@@ -291,7 +291,7 @@ def check_jsmblh(ctx, plugin):
         if ctx.obj['VERBOSE']:
             click.echo(f'{res}')
     except Exception:
-        click.echo(f'Fail {name} {plugin}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
+        click.echo(f'Fail {name} {plugin}:\n{store.exception_text()}')
 
 
 @cli.command()
@@ -313,7 +313,7 @@ def check_dll(ctx):
                 click.echo(f'Execute:{res}')
             click.echo(f'OK {name}')
         except Exception:
-            click.echo(f'Fail {name}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
+            click.echo(f'Fail {name}:\n{store.exception_text()}')
     else:
         click.echo('On windows platform only')
 
@@ -333,7 +333,7 @@ def check_playwright(ctx):
                 click.echo(f'OK {name} {len(page.content())}')
             browser.close()
     except Exception:
-        click.echo(f'Fail {name}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
+        click.echo(f'Fail {name}:\n{store.exception_text()}')
 
 
 @cli.command()
@@ -366,7 +366,7 @@ def init(ctx):
         ini.write()
         click.echo(f'OK {name}')
     except Exception:
-        click.echo(f'Fail {name}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
+        click.echo(f'Fail {name}:\n{store.exception_text()}')
 
 
 @cli.command()
@@ -449,7 +449,7 @@ def check_ini(ctx):
         ini.read()
         click.echo(f'OK {name} phones.ini')
     except Exception:
-        click.echo(f'Fail {name}:\n{"".join(traceback.format_exception(*sys.exc_info()))}')
+        click.echo(f'Fail {name}:\n{store.exception_text()}')
 
 
 @cli.command()

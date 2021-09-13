@@ -21,7 +21,7 @@ def recompile(pluginpath = store.abspath_join(os.path.split(sys.argv[0])[0]), ve
                 if verbose:
                     print(os.path.abspath(plugin_filename))
             except Exception:
-                errmsg = "".join(traceback.format_exception(*sys.exc_info()))
+                errmsg = store.exception_text()
                 if 'import tkinter' not in errmsg:
                     print(f'Compile {plugin} fail: {errmsg}')
 

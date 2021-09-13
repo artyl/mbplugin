@@ -386,7 +386,7 @@ def update_sqlite_from_mdb(deep=None):
     try:
         update_sqlite_from_mdb_core(deep)
     except Exception:
-        logging.error(f'Ошибка при переносе данных из mdb в sqlite {"".join(traceback.format_exception(*sys.exc_info()))}')
+        logging.error(f'Ошибка при переносе данных из mdb в sqlite {store.exception_text()}')
 
 
 def write_result_to_db(plugin, login, result):
@@ -397,9 +397,9 @@ def write_result_to_db(plugin, login, result):
             logging.info(f'Пишем в базу {db.dbname}')
             db.write_result(plugin, login, result)
     except AttributeError:
-        logging.info(f'Отсутствуют параметры {"".join(traceback.format_exception(*sys.exc_info()))} дополнительные действия не производятся')
+        logging.info(f'Отсутствуют параметры {store.exception_text()} дополнительные действия не производятся')
     except Exception:
-        logging.error(f'Ошибка при записи в БД {"".join(traceback.format_exception(*sys.exc_info()))}')
+        logging.error(f'Ошибка при записи в БД {store.exception_text()}')
 
 
 def flags(cmd, key=None, value=None):
@@ -430,7 +430,7 @@ def flags(cmd, key=None, value=None):
             if cmd.lower() == 'getall':
                 return {}
     except Exception:
-        logging.error(f'Ошибка при записи в БД {"".join(traceback.format_exception(*sys.exc_info()))}')
+        logging.error(f'Ошибка при записи в БД {store.exception_text()}')
 
 def responses():
     'Возвращаем все responses словарем'
@@ -444,7 +444,7 @@ def responses():
         else:
             return {}
     except Exception:
-        logging.error(f'Ошибка при записи в БД {"".join(traceback.format_exception(*sys.exc_info()))}')
+        logging.error(f'Ошибка при записи в БД {store.exception_text()}')
 
 if __name__ == '__main__':
     print('This is module dbengine')
