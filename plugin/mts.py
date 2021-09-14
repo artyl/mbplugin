@@ -68,7 +68,7 @@ class browserengine(browsercontroller.BrowserController):
 
         # Потом все остальное
         res1 = self.wait_params(params=[
-            {'name': 'TarifPlan', 'url_tag': ['api/login/userInfo'], 'jsformula': "data.userProfile.tariff"},
+            {'name': 'TarifPlan', 'url_tag': ['api/login/userInfo'], 'jsformula': "data.userProfile.tariff.replace('(МАСС) (SCP)','')"},
             {'name': 'UserName', 'url_tag': ['api/login/userInfo'], 'jsformula': "data.userProfile.displayName"},
             {'name': 'Balance', 'url_tag': ['for=api/accountInfo/mscpBalance'], 'jsformula': "parseFloat(data.data.amount).toFixed(2)"},
             {'name': 'Balance2', 'url_tag': ['for=api/cashback/account'], 'jsformula': "parseFloat(data.data.balance).toFixed(2)"},
