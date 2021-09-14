@@ -196,7 +196,7 @@ class BalanceOverPlaywright():
                 logging.info(f'{log_string} OK')
                 return res
             except Exception:
-                logging.info(f'{log_string} fail: {exception_text()}')
+                logging.info(f'{log_string} fail: {store.exception_text()}')
                 return default
         wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
         return wrapper
