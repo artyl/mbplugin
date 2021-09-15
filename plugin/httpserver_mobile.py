@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys,io, re, time, json, traceback, threading, logging, importlib, queue, argparse, subprocess, glob
+import os, sys, io, re, time, json, traceback, threading, logging, importlib, queue, argparse, subprocess, glob
 import wsgiref.simple_server, socketserver, socket, urllib.parse, urllib.request
 import requests, psutil, bs4, uuid
 import settings, store, dbengine, compile_all_jsmblh  # pylint: disable=import-error
@@ -32,21 +32,22 @@ createhtmlreport = 1<br>
 
 # TODO в командах для traymeny используется os.system(f'start ... это будет работать только в windows, но пока пофигу, т.к. сам pystrayработает только в windows
 TRAY_MENU = (
-    {'text':"Main page", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/main'), 'show':True, 'default':True},
-    {'text':"View report", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/report'), 'show':True},
-    {'text':"Edit config", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/editcfg'), 'show':str(store.options('HttpConfigEdit')) == '1'},
-    {'text':"View log", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log?lines=40'), 'show':True},
-    {'text':"View screenshot log", 'cmd':lambda:os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log/list'), 'show':True},
-    {'text':"Get balance request", 'cmd':lambda:threading.Thread(target=getbalance_standalone, name='Getbalance', daemon=True).start(), 'show':True},
-    {'text':"Flush log", 'cmd':lambda:store.logging_restart(), 'show':True},
-    {'text':"Reload schedule", 'cmd':lambda:Scheduler().reload(), 'show':True},
-    {'text':"Recompile jsmblh plugin",'cmd':lambda:compile_all_jsmblh.recompile(), 'show':True},
-    {'text':"Restart server", 'cmd':lambda:restart_program(reason='tray icon command'), 'show':True},
-    {'text':"Exit program", 'cmd':lambda:restart_program(reason='Tray icon exit', exit_only=True), 'show':True}
+    {'text': "Main page", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/main'), 'show': True, 'default': True},
+    {'text': "View report", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/report'), 'show': True},
+    {'text': "Edit config", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/editcfg'), 'show': str(store.options('HttpConfigEdit')) == '1'},
+    {'text': "View log", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log?lines=40'), 'show': True},
+    {'text': "View screenshot log", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log/list'), 'show': True},
+    {'text': "Get balance request", 'cmd': lambda: threading.Thread(target=getbalance_standalone, name='Getbalance', daemon=True).start(), 'show': True},
+    {'text': "Flush log", 'cmd': lambda: store.logging_restart(), 'show': True},
+    {'text': "Reload schedule", 'cmd': lambda: Scheduler().reload(), 'show': True},
+    {'text': "Recompile jsmblh plugin", 'cmd': lambda: compile_all_jsmblh.recompile(), 'show': True},
+    {'text': "Restart server", 'cmd': lambda: restart_program(reason='tray icon command'), 'show': True},
+    {'text': "Exit program", 'cmd': lambda: restart_program(reason='Tray icon exit', exit_only=True), 'show': True}
 )
 
-def getbalance_standalone(filter=[], only_failed=False, feedback=None) :
-    ''' Получаем балансы самостоятельно без mobilebalance 
+
+def getbalance_standalone(filter=[], only_failed=False, feedback=None):
+    ''' Получаем балансы самостоятельно без mobilebalance
     Если filter пустой то по всем номерам из phones.ini
     Если не пустой - то логин/алиас/оператор или его часть
     для автономной версии в поле Password2 находится незашифрованный пароль
@@ -65,11 +66,11 @@ def getbalance_standalone(filter=[], only_failed=False, feedback=None) :
         # Проверяем все у кого задан плагин, логин и пароль пароль
         if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
             if len(filter) == 0 or [1 for i in filter if i.lower() in f"__{keypair}__{val['Alias']}".lower()] != []:
-                if not only_failed or only_failed and str(dbengine.flags('get',keypair)).startswith('error'):
+                if not only_failed or only_failed and str(dbengine.flags('get', keypair)).startswith('error'):
                     # Формируем очередь на получение балансов и размечаем балансы из очереди в таблице flags чтобы красить их по другому
                     queue_balance.append(val)
                     logging.info(f'getbalance_standalone queued: {keypair}')
-                    dbengine.flags('set',f'{keypair}','queue')  # выставляем флаг о постановке в очередь
+                    dbengine.flags('set', f'{keypair}', 'queue')  # выставляем флаг о постановке в очередь
     if feedback is not None:
         feedback(f'Queued {len(queue_balance)} numbers')
     for val in queue_balance:
@@ -77,9 +78,10 @@ def getbalance_standalone(filter=[], only_failed=False, feedback=None) :
         try:
             if feedback is not None:
                 feedback(f"Receive {val['Alias']}:{val['Region']}_{val['Number']}")
-            getbalance_plugin('get',{'plugin':[val['Region']],'login':[val['Number']],'password':[val['Password2']],'date':['date']})
+            getbalance_plugin('get', {'plugin': [val['Region']], 'login': [val['Number']], 'password': [val['Password2']], 'date': ['date']})
         except Exception:
             logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {''.join(traceback.format_exception(*sys.exc_info()))}")
+
 
 def getbalance_plugin(method, param_source):
     ''' fplugin, login, password, date
@@ -111,7 +113,7 @@ def getbalance_plugin(method, param_source):
         module = __import__(plugin, globals(), locals(), [], 0)
         importlib.reload(module)  # обновляем модуль, на случай если он менялся
         storename = re.sub(r'\W', '_', f"{lang}_{plugin}_{param['login']}")
-        dbengine.flags('set',f"{lang}_{plugin}_{param['login']}",'start')  # выставляем флаг о начале запроса
+        dbengine.flags('set', f"{lang}_{plugin}_{param['login']}", 'start')  # выставляем флаг о начале запроса
         try:
             result = module.get_balance(param['login'], param['password'], storename)
             text = store.result_to_html(result)
@@ -119,23 +121,23 @@ def getbalance_plugin(method, param_source):
                 raise RuntimeError(f'В result отсутствует баланс')
         except Exception:
             logging.info(f'{plugin} fail: {store.exception_text()}')
-            dbengine.flags('set',f"{lang}_{plugin}_{param['login']}",'error call')  # выставляем флаг о ошибке вызова
+            dbengine.flags('set', f"{lang}_{plugin}_{param['login']}", 'error call')  # выставляем флаг о ошибке вызова
             return 'text/html', [f"<html>Error call {param['fplugin']}</html>"]
-        dbengine.flags('delete',f"{lang}_{plugin}_{param['login']}",'start')  # запрос завершился успешно - сбрасываем флаг
-        try:    
+        dbengine.flags('delete', f"{lang}_{plugin}_{param['login']}", 'start')  # запрос завершился успешно - сбрасываем флаг
+        try:
             # пишем в базу
             dbengine.write_result_to_db(f'{lang}_{plugin}', param['login'], result)
             # обновляем данные из mdb
             dbengine.update_sqlite_from_mdb()
-        except Exception:    
+        except Exception:
             exception_text = f'Ошибка при подготовке работе с БД: {store.exception_text()}'
-            logging.error(exception_text)   
+            logging.error(exception_text)
         try:
             # генерируем balance_html
             write_report()
-        except Exception:    
+        except Exception:
             exception_text = f'Ошибка при подготовке report: {store.exception_text()}'
-            logging.error(exception_text)        
+            logging.error(exception_text)
         logging.info(f"Complete {param['fplugin']} {param['login']}")
         return 'text/html', text
     logging.error(f"Unknown plugin {param['fplugin']}")
@@ -150,12 +152,13 @@ def view_log(param):
     fn = store.options('logginghttpfilename')
     res = open(fn).readlines()[-lines:]
     for num in range(len(res)):
-        #.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+        # .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         if ' ERROR ' in res[num]:
             res[num] = f'<span style="color:red;background-color:white">{res[num]}</span>'
         elif ' WARNING ' in res[num]:
             res[num] = f'<span style="color:yellow;background-color:white">{res[num]}</span>'
-    return 'text/html; charset=cp1251', ['<html><head></head><body><pre>']+res+['</pre><script>window.scrollTo(0,document.body.scrollHeight);</script></body></html>']
+    return 'text/html; charset=cp1251', ['<html><head></head><body><pre>'] + res + ['</pre><script>window.scrollTo(0,document.body.scrollHeight);</script></body></html>']
+
 
 def getreport(param=[]):
     'Делает html отчет balance.html'
@@ -178,7 +181,7 @@ def getreport(param=[]):
         if he != 'Balance' and (el == 0.0 or el == 0) and mark == '':
             el = ''
         if type(el) == float:
-            el = f'{el:.2f}'  #round(el,2)
+            el = f'{el:.2f}'  # round(el, 2)
         if hover != '':
             el = f'<div class="item">{el}<div class="hoverHistory">{hover}</div></div>'
         return f'<{"th" if he=="NN" else "td"} id="{he}"{mark}>{el}</td>'
@@ -230,38 +233,38 @@ def getreport(param=[]):
     </table>
     </td></tr>
     </table>
-    '''    
+    '''
     db = dbengine.dbengine()
     flags = dbengine.flags('getall')  # берем все флаги словарем
     responses = dbengine.responses()  # все ответы по запросам
     # номера провайдеры и логины из phones.ini
     num_format = '' if len(param) == 0 or not param[0].isnumeric() else str(int(param[0]))
-    table_format = store.options('table_format' + num_format, default=store.options('table_format',section='HttpServer'), section='HttpServer')
+    table_format = store.options('table_format' + num_format, default=store.options('table_format', section='HttpServer'), section='HttpServer')
     table = db.report()
     phones = store.ini('phones.ini').phones()
     if 'Alias' not in table_format:
         table_format = 'NN,Alias,' + table_format  # Если старый ini то этих столбцов нет - добавляем
-    table = [i for i in table if i['Alias']!='Unknown']  # filter Unknown
-    table.sort(key=lambda i:[i['NN'],i['Alias']])  # sort by NN, after by Alias
+    table = [i for i in table if i['Alias'] != 'Unknown']  # filter Unknown
+    table.sort(key=lambda i: [i['NN'], i['Alias']])  # sort by NN, after by Alias
     header = table_format.strip().split(',')
     # классы для формата заголовка
     header_class = {'Balance': 'p_b', 'RealAverage': 'p_r', 'BalDelta': 'p_r', 'BalDeltaQuery': 'p_r', 'NoChangeDays': 'p_r', 'CalcTurnOff': 'p_r', 'MinAverage': 'p_r', }
-    html_header = ''.join([f'<th id="h{h}" class="{header_class.get(h,"p_n")}">{dbengine.PhonesHText.get(h,h)}</th>' for h in header])
+    html_header = ''.join([f'<th id="h{h}" class="{header_class.get(h,"p_n")}">{dbengine.PhonesHText.get(h, h)}</th>' for h in header])
     html_table = []
     for line in table:
         html_line = []
-        pkey = (line['PhoneNumber'],line['Operator'])
+        pkey = (line['PhoneNumber'], line['Operator'])
         for he in header:
             if he not in line:
                 continue
             hover = ''
             if he == 'UslugiOn':  # На услуги вешаем hover со списком услуг
-                uslugi = json.loads(responses.get(f"{line['Operator']}_{line['PhoneNumber']}",'{}')).get('UslugiList','')
-                if uslugi !='':
+                uslugi = json.loads(responses.get(f"{line['Operator']}_{line['PhoneNumber']}", '{}')).get('UslugiList', '')
+                if uslugi != '':
                     h_html_header = f'<th id="hUsluga" class="p_n">Услуга</th><th id="hPrice" class="p_n">р/мес</th>'
                     h_html_table = []
-                    for h_line in [l.split('\t',1) for l in sorted(uslugi.split('\n')) if '\t' in l]:
-                        txt = h_line[0].replace("  "," &nbsp;")
+                    for h_line in [li.split('\t', 1) for li in sorted(uslugi.split('\n')) if '\t' in li]:
+                        txt = h_line[0].replace("  ", " &nbsp;")
                         bal = f'{float(h_line[1]):.2f}' if re.match(r'^ *-?\d+(?:\.\d+)? *$', h_line[1]) else h_line[1]
                         h_html_line = f'<td id="Alias">{txt}</td><td id="Balance">{bal}</td>'
                         h_html_table.append(f'<tr id="row" class="n">{h_html_line}</tr>')
@@ -269,22 +272,22 @@ def getreport(param=[]):
             if he == 'Balance':  # На баланс вешаем hover с историей
                 history = db.history(line['PhoneNumber'], line['Operator'], int(store.options('RealAverageDays')), int(store.options('ShowOnlyLastPerDay')))
                 if history != []:
-                    h_html_header = ''.join([f'<th id="h{h}" class="{header_class.get(h,"p_n")}">{dbengine.PhonesHText.get(h,h)}</th>' for h in history[0].keys()])
+                    h_html_header = ''.join([f'<th id="h{h}" class="{header_class.get(h, "p_n")}">{dbengine.PhonesHText.get(h, h)}</th>' for h in history[0].keys()])
                     h_html_table = []
                     for h_line in history:
-                        h_html_line = ''.join([pp_field(pkey, h, v, '') for h,v in h_line.items()])
+                        h_html_line = ''.join([pp_field(pkey, h, v, '') for h, v in h_line.items()])
                         h_html_table.append(f'<tr id="row" class="n">{h_html_line}</tr>')
                     hover = template_history.format(h_header=f"История запросов по {line['Alias']}", html_header=h_html_header, html_table='\n'.join(h_html_table))
             html_line.append(pp_field(pkey, he, line[he], hover))  # append <td>...</td>
         classflag = 'n'  # красим строки - с ошибкой красным, еще в очереди - серым и т.д.
-        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}",'').startswith('error'):  
+        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('error'):
             classflag = 'e_us'
-        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}",'').startswith('start'):
+        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('start'):
             classflag = 'n_us'
-        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}",'').startswith('queue'):
+        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('queue'):
             classflag = 'n_us'
         html_table.append(f'<tr id="row" class="{classflag}">{"".join(html_line)}</tr>')
-    style = style.replace('{HoverCss}',store.options('HoverCss'))
+    style = style.replace('{HoverCss}', store.options('HoverCss'))
     res = template_page.format(style=style, html_header=html_header, html_table='\n'.join(html_table), title=store.version())
     return 'text/html', [res]
 
@@ -300,6 +303,7 @@ def write_report():
     except Exception:
         logging.error(f'Ошибка генерации balance_html {store.exception_text()}')
 
+
 def filter_balance(table, filter='FULL', params={}):
     ''' Фильтруем данные для отчета
     filter = FULL - Все телефоны, LASTDAYCHANGE - Изменившиеся за день, LASTCHANGE - Изменившиеся в последнем запросе
@@ -309,15 +313,15 @@ def filter_balance(table, filter='FULL', params={}):
     # фильтр по filter_include - оставляем только строчки попавшие в фильтр
     if params.get('include', None) is not None:
         filter_include = [re.sub(r'\W', '', el).lower() for el in params['include'].split(',')]
-        table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', ('_'.join(map(str,line.values()))+'__'+line.get('Operator','')+'_'+line.get('PhoneNumber','')+'__').lower())])>0]
+        table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', ('_'.join(map(str, line.values())) + '__' + line.get('Operator', '') + '_' + line.get('PhoneNumber', '') + '__').lower())]) > 0]
     # фильтр по filter_exclude - выкидываем строчки попавшие в фильтр
     if params.get('exclude', None) is not None:
         filter_exclude = [re.sub(r'\W', '', el).lower() for el in params['exclude'].split(',')]
-        table = [line for line in table if len([1 for i in filter_exclude if i in re.sub(r'\W', '', '_'.join(map(str,line.values())).lower())])==0]
+        table = [line for line in table if len([1 for i in filter_exclude if i in re.sub(r'\W', '', '_'.join(map(str, line.values())).lower())]) == 0]
     if filter == 'LASTCHANGE':  # TODO сделать настройку в ini на счет line['Balance']
         # Balance==0 Это скорее всего глюк проверки, соответственно его исключаем
         # Также исключаем BalDeltaQuery==Balance - это возврат обратно с кривого нуля
-        # BUG: line['Operator'] и line['PhoneNumber']в случае получения отчета через MobileBalance будет давать KeyError: 
+        # BUG: line['Operator'] и line['PhoneNumber']в случае получения отчета через MobileBalance будет давать KeyError:
         # Так что делаем костыль с .get который приведет к тому что это условие мы не зацепим
         table = [line for line in table
                  if line['BalDeltaQuery'] != 0 and line['Balance'] != 0 and line['BalDeltaQuery'] != line['Balance']
@@ -325,8 +329,8 @@ def filter_balance(table, filter='FULL', params={}):
                  or flags.get(f"{line.get('Operator','')}_{line.get('PhoneNumber','')}", '').startswith('error')
                  ]
     elif filter == 'LASTDAYCHANGE':
-        table = [line for line in table if line['BalDelta'] != 0 and line['Balance'] !=0]
-        table = [line for line in table if line['BalDelta'] != '' and line['Balance'] !='']
+        table = [line for line in table if line['BalDelta'] != 0 and line['Balance'] != 0]
+        table = [line for line in table if line['BalDelta'] != '' and line['Balance'] != '']
     return table
 
 
@@ -334,7 +338,7 @@ def prepare_balance_mobilebalance(filter='FULL', params={}):
     """Формируем текст для отправки в telegram из html файла полученного из web сервера mobilebalance
     """
     phones = store.ini('phones.ini').phones()
-    phones_by_num = {v['NN']:v for v in phones.values()}
+    phones_by_num = {v['NN']: v for v in phones.values()}
     url = store.options('mobilebalance_http', section='Telegram')
     tgmb_format = store.options('tgmb_format', section='Telegram')
     response1_text = requests.get(url).content.decode('cp1251')
@@ -353,8 +357,8 @@ def prepare_balance_mobilebalance(filter='FULL', params={}):
     data = [[''.join(el.contents) for el in line.findAll(['th', 'td'])] for line in soup.findAll(id='row')]
     table = [dict(zip(headers, line)) for line in data]  # Берем данные из html
     for line in table:  # Добавляем Region/Operator и  из phones.ini - нужен для фильтра
-        line['Operator'] = line['Region'] = phones_by_num.get(int(line['NN']),'')['Region']
-        line['PhoneNumber'] = phones_by_num.get(int(line['NN']),'')['Number'].split(' #')[0]  # Также отрезаем хвост <space>#num
+        line['Operator'] = line['Region'] = phones_by_num.get(int(line['NN']), '')['Region']
+        line['PhoneNumber'] = phones_by_num.get(int(line['NN']), '')['Number'].split(' #')[0]  # Также отрезаем хвост <space>#num
     table = filter_balance(table, filter, params)
     res = [tgmb_format.format(**line) for line in table]
     return '\n'.join(res)
@@ -363,12 +367,13 @@ def prepare_balance_mobilebalance(filter='FULL', params={}):
 def prepare_balance_sqlite(filter='FULL', params={}):
     'Готовим данные для отчета из sqlite базы'
     db = dbengine.dbengine()
-    table_format = store.options('tg_format', section='Telegram').replace('\\t','\t').replace('\\n','\n')
+    table_format = store.options('tg_format', section='Telegram').replace('\\t', '\t').replace('\\n', '\n')
     phones = store.ini('phones.ini').phones()
     flags = dbengine.flags('getall')
+
     def alert_suffix(line):
-        pkey = (line['PhoneNumber'],line['Operator'])
-        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}",'').startswith('error'):
+        pkey = (line['PhoneNumber'], line['Operator'])
+        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('error'):
             return '<b> ! последняя попытка получить баланс завершилась ошибкой !</b>'
         if line['Balance'] is not None and line['Balance'] < float(phones[pkey]['BalanceLessThen']):
             return '<b> ! достигнут порог баланса !</b>'
@@ -384,10 +389,10 @@ def prepare_balance_sqlite(filter='FULL', params={}):
     if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
         table_format = ' '.join([f'{{{i}}}' for i in table_format.strip().split(',')])
     table = db.report()
-    table = [i for i in table if i['Alias']!='Unknown']  # filter Unknown
-    table.sort(key=lambda i:[i['NN'],i['Alias']])  # sort by NN, after by Alias
+    table = [i for i in table if i['Alias'] != 'Unknown']  # filter Unknown
+    table.sort(key=lambda i: [i['NN'], i['Alias']])  # sort by NN, after by Alias
     table = filter_balance(table, filter, params)
-    res = [table_format.format(**line)+alert_suffix(line) for line in table]
+    res = [table_format.format(**line) + alert_suffix(line) for line in table]
     return '\n'.join(res)
 
 
@@ -399,7 +404,7 @@ def prepare_balance(filter='FULL', params={}):
             baltxt = prepare_balance_sqlite(filter, params)
         else:
             baltxt = prepare_balance_mobilebalance(filter, params)
-        if baltxt == '' and str(store.options('send_empty', section='Telegram'))=='1':
+        if baltxt == '' and str(store.options('send_empty', section='Telegram')) == '1':
             baltxt = 'No changes'
         return baltxt
     except Exception:
@@ -410,10 +415,10 @@ def prepare_balance(filter='FULL', params={}):
 
 def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={}):
     """Отправка сообщения в телеграм через requests без задействия python-telegram-bot
-    Может пригодится при каких-то проблемах с ботом или в ситуации когда на одной машине у нас крутится бот, 
+    Может пригодится при каких-то проблемах с ботом или в ситуации когда на одной машине у нас крутится бот,
     а с другой в этого бота мы еще хотим засылать инфу
     text - сообщение, если не указано, то это баланс для телефонов у которых он изменился
-    auth_id - список id через запятую на которые слать, если не указано, то берется список из mbplugin.ini 
+    auth_id - список id через запятую на которые слать, если не указано, то берется список из mbplugin.ini
     """
     store.turn_logging(httplog=True)  # Т.к. сюда можем придти извне, то включаем логирование здесь
     if text is None:
@@ -425,9 +430,10 @@ def send_telegram_over_requests(text=None, auth_id=None, filter='FULL', params={
     if auth_id is None:
         auth_id = list(map(int, store.options('auth_id', section='Telegram', mainparams=params).strip().split(',')))
     else:
-        auth_id = list(map(int,str(auth_id).strip().split(',')))
-    r=[requests.post(f'https://api.telegram.org/bot{api_token}/sendMessage',data={'chat_id':chat_id,'text':text,'parse_mode':'HTML'}) for chat_id in auth_id if text!='']
+        auth_id = list(map(int, str(auth_id).strip().split(',')))
+    r = [requests.post(f'https://api.telegram.org/bot{api_token}/sendMessage', data={'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'}) for chat_id in auth_id if text != '']
     return [repr(i) for i in r]
+
 
 def restart_program(reason='', exit_only=False, delay=0):
     'Restart or exit with delay'
@@ -442,10 +448,11 @@ def restart_program(reason='', exit_only=False, delay=0):
         with open(filename_pid) as f:
             pid_from_file = int(f.read())
         if pid_from_file == os.getpid():
-            os.remove(filename_pid)    
+            os.remove(filename_pid)
     if not exit_only:
         subprocess.Popen(cmd)  # Crossplatform run process
     psutil.Process().kill()
+
 
 def send_http_signal(cmd, force=True):
     'Посылаем сигнал локальному веб-серверу'
@@ -463,15 +470,15 @@ def send_http_signal(cmd, force=True):
         return
     for i in range(50):  # Подождем пока сервер остановится
         if os.path.exists(filename_pid):
-            time.sleep(0.1)    
+            time.sleep(0.1)
     if os.path.exists(filename_pid):
         with open(filename_pid) as f:
             pid = int(open(filename_pid).read())
         if not psutil.pid_exists(pid):
             return
         proc = psutil.Process(pid)
-        if len([c for c in proc.connections() if c.status=='LISTEN' and c.laddr.port==port])>0:
-            proc.kill()    
+        if len([c for c in proc.connections() if c.status == 'LISTEN' and c.laddr.port == port]) > 0:
+            proc.kill()
 
 
 class TrayIcon:
@@ -483,20 +490,22 @@ class TrayIcon:
             return
         if TrayIcon.icon is None:
             print('pystray traymeny')
-            threading.Thread(target=self._create, name='TrayIcon',  daemon=True).start()
+            threading.Thread(target=self._create, name='TrayIcon', daemon=True).start()
             logging.info('Tray icon started')
         else:
             self.icon = TrayIcon.icon
 
     def _create(self):
-        icon_fn = store.abspath_join('mbplugin','plugin', 'httpserver.ico')
+        icon_fn = store.abspath_join('mbplugin', 'plugin', 'httpserver.ico')
         self.image = PIL.Image.open(icon_fn)
         items = []
         for item in TRAY_MENU:
             if item['show']:
                 items.append(pystray.MenuItem(item['text'], item['cmd'], default=item.get('default', False)))
         self.menu = pystray.Menu(*items)
-        self.icon = pystray.Icon("mbplugin", self.image, "mbplugin", self.menu)
+        host = store.options('host', section='HttpServer')
+        port = int(store.options('port', section='HttpServer'))
+        self.icon = pystray.Icon('mbplugin', icon=self.image, title=f"Mbbplugin {store.version()} ({host}:{port})", menu=self.menu)
         TrayIcon.icon = self.icon
         self.icon.run()
 
@@ -514,9 +523,10 @@ class Scheduler():
     # schedule2 = every().day.at("10:30"),megafon
     # строк с заданиями может быть несколько и их можно пихать в ini как
     # sheduler= ... sheduler1=... и т.д как сделано с table_format
+
     def __init__(self) -> None:
         if Scheduler.thread is None:
-            self.thread = threading.Thread(target=self._forever, name='Scheduler',  daemon=True)
+            self.thread = threading.Thread(target=self._forever, name='Scheduler', daemon=True)
             self.thread.start()
             Scheduler.thread = self.thread
             logging.info('Scheduler started')
@@ -539,7 +549,7 @@ class Scheduler():
                 job = job.at(param['at'])
             return job
         except Exception:
-            logging.error(f'Error parse {sched}')                
+            logging.error(f'Error parse {sched}')
 
     def reload(self):
         'Читает расписание из ini'
@@ -553,11 +563,11 @@ class Scheduler():
                 job.do(getbalance_standalone, filter=filter)
         logging.info('Schedule was reloaded')
         return 'OK'
-    
+
     def view_html(self):
         res = ['\n'.join(map(repr, schedule.jobs))]
-        return 'text/html; charset=cp1251', ['<html><head></head><body><pre>']+res+['</pre></body></html>']
-    
+        return 'text/html; charset=cp1251', ['<html><head></head><body><pre>'] + res + ['</pre></body></html>']
+
     def stop(self):
         pass
 
@@ -590,7 +600,7 @@ class TelegramBot():
         help_text = '''/help\n/id\n/balance\n/balancefile\n/receivebalance\n/receivebalancefailed\n/restart\n/getone\n/checkone'''
         logging.info(f'TG:{update.message.chat_id} /help')
         update.message.reply_text(help_text, parse_mode=telegram.ParseMode.HTML)
-   
+
     @auth_decorator
     def get_balancetext(self, update, context):
         """Send balance only auth user."""
@@ -616,7 +626,7 @@ class TelegramBot():
     def receivebalance_OLD(self, update, context):
         """Receive balance by filter, only auth user."""
         logging.info(f'TG:{update.message.chat_id} /receivebalance {context.args}')
-        #baltxt = prepare_balance('FULL')
+        # baltxt = prepare_balance('FULL')
         update.message.reply_text('Request received. Wait...', parse_mode=telegram.ParseMode.HTML)
         getbalance_standalone(filter=context.args)
         params = {'include': None if context.args == [] else ','.join(context.args)}
@@ -625,7 +635,7 @@ class TelegramBot():
 
     @auth_decorator
     def receivebalance(self, update, context):
-        """ Запросить балансы по всем номерам 
+        """ Запросить балансы по всем номерам
         /receivebalance
         /receivebalancefailed
         """
@@ -635,9 +645,9 @@ class TelegramBot():
                 msg.edit_text(txt, parse_mode=telegram.ParseMode.HTML)
             except Exception:
                 logging.info(f'Unsuccess tg send:{txt} {store.exception_text()}')
-        filtertext = '' if len(context.args)==0 else f", with filter by {' '.join(context.args)}"
+        filtertext = '' if len(context.args) == 0 else f", with filter by {' '.join(context.args)}"
         msg = update.message.reply_text(f'Request all number{filtertext}. Wait...', parse_mode=telegram.ParseMode.HTML)
-        getbalance_standalone(filter=context.args, only_failed=(update.message.text=="/receivebalancefailed"), feedback=feedback)
+        getbalance_standalone(filter=context.args, only_failed=(update.message.text == "/receivebalancefailed"), feedback=feedback)
         params = {'include': None if context.args == [] else ','.join(context.args)}
         baltxt = prepare_balance('FULL', params=params)
         msg.edit_text(baltxt, parse_mode=telegram.ParseMode.HTML)
@@ -649,7 +659,7 @@ class TelegramBot():
         logging.info(f'TG:{update.message.chat_id} {update.message.text}')
         phones = store.ini('phones.ini').phones()
         keyboard = []
-        for val in list(phones.values())+[{'Alias':'Cancel', 'Region':'Cancel', 'Number':'Cancel'}]:
+        for val in list(phones.values()) + [{'Alias': 'Cancel', 'Region': 'Cancel', 'Number': 'Cancel'}]:
             # ключом для calback у нас <3 буквы команды>_Region_Number
             btn = InlineKeyboardButton(val['Alias'], callback_data=f"{update.message.text[1:4]}_{val['Region']}_{val['Number']}")
             if len(keyboard) == 0 or len(keyboard[-1]) == 3:
@@ -685,14 +695,14 @@ class TelegramBot():
             logging.info(f'Not found response in responses for {keypair}')
             return
         # берем всю информацию по номеру
-        response = {k:(round(v,2) if type(v)==float else v)for k,v in response.items()}
-        detailed = '\n'.join([f'{name} = {response[k]}' for k,name in dbengine.PhonesHText.items() if k in response])
+        response = {k: (round(v, 2) if type(v) == float else v)for k, v in response.items()}
+        detailed = '\n'.join([f'{name} = {response[k]}' for k, name in dbengine.PhonesHText.items() if k in response])
         uslugi = ''
-        if response.get('UslugiList','') != '':
+        if response.get('UslugiList', '') != '':
             ul = response['UslugiList'].split('\n')
             if str(store.options('ShowOnlyPaid', section='Telegram')) == '1':
                 ul = [line for line in ul if '\t0' not in line]
-            uslugi = '\n'.join(ul).replace('\t',' = ')
+            uslugi = '\n'.join(ul).replace('\t', ' = ')
         else:
             logging.info(f'Not found UslugiList in response for {keypair}')
         msgtxt = f"{baltxt}\n{detailed}\n{uslugi}".strip()
@@ -700,7 +710,7 @@ class TelegramBot():
             try:
                 query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
             except Exception:
-                msgtxt = msgtxt.replace('<','').replace('>','')
+                msgtxt = msgtxt.replace('<', '').replace('>', '')
                 query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
 
     def send_message(self, text, parse_mode='HTML', ids=None):
@@ -715,7 +725,7 @@ class TelegramBot():
                 self.updater.bot.sendMessage(chat_id=id, text=text, parse_mode=parse_mode)
             except Exception:
                 exception_text = f'Ошибка отправки сообщения {text} для {id} telegram bot {store.exception_text()}'
-                logging.error(exception_text)            
+                logging.error(exception_text)
 
     def send_balance(self):
         'Отправляем баланс'
@@ -731,7 +741,7 @@ class TelegramBot():
             return
         subscriptions = store.options('subscription', section='Telegram', listparam=True)
         for subscr in subscriptions:
-            # id:123456 include:1111,2222 -> {'id':'123456','include':'1111,2222'}
+            # id:123456 include:1111,2222 -> {'id':'123456', 'include':'1111,2222'}
             params = {k: v.strip() for k, v in [i.split(':', 1) for i in subscr.split(' ')]}
             baltxt = prepare_balance('LASTCHANGE', params)
             ids = [int(i) for i in params.get('id', '').split(',') if i.isdigit()]
@@ -773,7 +783,7 @@ class TelegramBot():
                 dp.add_handler(CallbackQueryHandler(self.button))
                 self.updater.start_polling()  # Start the Bot
                 logging.info('Telegram bot started')
-                if str(store.options('send_empty', section='Telegram'))=='1':
+                if str(store.options('send_empty', section='Telegram')) == '1':
                     self.send_message(text='Hey there!')
             except Exception:
                 exception_text = f'Ошибка запуска telegram bot {store.exception_text()}'
@@ -824,7 +834,7 @@ class WebServer():
             return
         with wsgiref.simple_server.make_server(self.host, self.port, self.web_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
             with open(self.filename_pid, 'w') as f:
-                f.write(f'{os.getpid()}')            
+                f.write(f'{os.getpid()}')
             logging.info(f'Listening pid={os.getpid()} {self.host}:{self.port}....')
             threading.Thread(target=self.httpd.serve_forever, name='httpd', daemon=True).start()
             if 'pystray' in sys.modules:  # Иконка в трее
@@ -835,7 +845,7 @@ class WebServer():
                 self.scheduler = Scheduler()
             # Запустили все остальное демонами и ждем, когда они пришлют сигнал
             self.cmdqueue.get()
-    
+
     def shutdown(self):
         self.telegram_bot.stop()
         self.scheduler.stop()
@@ -845,7 +855,7 @@ class WebServer():
     def editor(self, environ):
         ''' Редактор конфигов editcfg
         возвращаем Content-type, text, status, add_headers'''
-        ## print(environ)
+        # print(environ)
         # т.к. возвращаем разные статусы и куки, готовим переменные под них
         autorized = False  # Изначально считаем что пользователь не авторизован
         # breakpoint() if os.path.exists('breakpoint') else None
@@ -855,21 +865,21 @@ class WebServer():
         # Читаем список сохраненных кук
         if os.path.exists(cookie_store_name):
             with open(cookie_store_name) as f:
-                authcookies = [i for i in map(str.strip,f.readlines()) if i!='']
+                authcookies = [i for i in map(str.strip, f.readlines()) if i != '']
         else:
             authcookies = []
         # Получаем переданные куки из заголовка
-        cookies = {k:v[0] for k,v in urllib.parse.parse_qs(environ.get('HTTP_COOKIE','{}')).items()}
+        cookies = {k: v[0] for k, v in urllib.parse.parse_qs(environ.get('HTTP_COOKIE', '{}')).items()}
         # Авторизованы если переданная кука в списке сохраненных
         autorized = cookies.get('auth', 'None') in authcookies
         # Если пришли с localhost и разрешено локалхосту без авторизации
-        local_autorized = environ.get('REMOTE_ADDR','None')=='127.0.0.1' and str(store.options('httpconfigeditnolocalauth'))=='1'
+        local_autorized = environ.get('REMOTE_ADDR', 'None') == '127.0.0.1' and str(store.options('httpconfigeditnolocalauth')) == '1'
         if local_autorized:
-            autorized = True        
+            autorized = True
         # если еще не открывали редактируемый ini открываем
-        if not hasattr(self,'editini'):
+        if not hasattr(self, 'editini'):
             self.editini = store.ini()
-        print(cookies, f"auth in authcookies={cookies.get('auth', 'None') in authcookies}",f'autorized={autorized}')
+        print(cookies, f"auth in authcookies={cookies.get('auth', 'None') in authcookies}", f'autorized={autorized}')
         if environ['REQUEST_METHOD'] == 'POST':
             try:
                 request_size = int(environ['CONTENT_LENGTH'])
@@ -881,21 +891,21 @@ class WebServer():
             except Exception:
                 try:
                     request = urllib.parse.parse_qs(request_raw.decode())
-                    request = {k:v[0] for k,v, in request.items()}
+                    request = {k: v[0] for k, v, in request.items()}
                 except Exception:
-                    request = {'cmd':'error'}
+                    request = {'cmd': 'error'}
             print(f'request={request}')
             if autorized and request['cmd'] == 'update':
-                params = settings.ini[request['sec']].get(request['id']+'_',{})
+                params = settings.ini[request['sec']].get(request['id'] + '_', {})
                 # Если для параметра указана функция валидации - вызываем ее
-                if not params.get('validate',lambda i:True)(request['value']):
+                if not params.get('validate', lambda i: True)(request['value']):
                     return 'text/plain', 'ERROR', status, add_headers
-                logging.info(f"ini change key [{request['sec']}] {request['id']} {self.editini.ini[request['sec']].get(request['id'],'default')}->{request['value']}")
+                logging.info(f"ini change key [{request['sec']}] {request['id']} {self.editini.ini[request['sec']].get(request['id'], 'default')}->{request['value']}")
                 self.editini.ini[request['sec']][request['id']] = request['value']
                 self.editini.write()
-                #print('\n'.join([f'{k}={v}' for k,v in self.editini.ini[request['sec']].items()]))
+                # print('\n'.join([f'{k}={v}' for k, v in self.editini.ini[request['sec']].items()]))
             elif autorized and request['cmd'] == 'delete':
-                logging.info(f"ini delete key [{request['sec']}] {request['id']} {self.editini.ini[request['sec']].get(request['id'],'default')}")
+                logging.info(f"ini delete key [{request['sec']}] {request['id']} {self.editini.ini[request['sec']].get(request['id'], 'default')}")
                 self.editini.ini[request['sec']].pop(request['id'], None)
                 self.editini.write()
             elif request['cmd'] == 'logon':
@@ -908,8 +918,9 @@ class WebServer():
                     authcookies.append(auth_token)
                     with open(cookie_store_name, 'w') as f:
                         f.write('\n'.join(authcookies))
-                    add_headers = [('Set-Cookie', f'auth={auth_token}'),
-                                    ('Set-Cookie', 'wrongpassword=deleted; expires=Thu, 01 Jan 1970 00:00:00 GMT')]
+                    add_headers = [
+                        ('Set-Cookie', f'auth={auth_token}'),
+                        ('Set-Cookie', 'wrongpassword=deleted; expires=Thu, 01 Jan 1970 00:00:00 GMT')]
                 else:
                     add_headers = [('Set-Cookie', 'wrongpassword=true')]
                 return 'text/html', 'redirect', status, add_headers
@@ -922,10 +933,10 @@ class WebServer():
                 return 'text/html', 'redirect', status, add_headers
             elif request['cmd'] == 'error':
                 return 'text/plain', 'Error', status, add_headers
-            else: 
+            else:
                 return 'text/plain', 'Error, unknown cmd', status, add_headers
             return 'text/plain', 'OK', status, add_headers
-        if environ['REQUEST_METHOD']=='GET':
+        if environ['REQUEST_METHOD'] == 'GET':
             self.editini = store.ini()
             self.editini.read()
             # TODO в финале editor.html будем брать из settings.py
@@ -933,11 +944,11 @@ class WebServer():
             editor_html = settings.editor_html
             inidata = '{}'
             if autorized:
-                inidata = self.editini.ini_to_json().replace('\\','\\\\')
+                inidata = self.editini.ini_to_json().replace('\\', '\\\\')
             editor_html = editor_html.replace("inifile = JSON.parse('')", f"inifile = JSON.parse('{inidata}')")
             if local_autorized:
                 editor_html = editor_html.replace('localAuthorized = false // init', f'localAuthorized = true // init')
-            return 'text/html',editor_html, status, add_headers
+            return 'text/html', editor_html, status, add_headers
 
     def web_app(self, environ, start_response):
         try:
@@ -957,28 +968,28 @@ class WebServer():
             elif cmd.lower() == 'get':  # вариант через get запрос
                 param = urllib.parse.parse_qs(environ['QUERY_STRING'])
                 ct, text = getbalance_plugin('get', param)
-            elif cmd.lower() == 'log': # просмотр лога
-                if len(param)>0 and param[0]=='list':
+            elif cmd.lower() == 'log':  # просмотр лога
+                if len(param) > 0 and param[0] == 'list':
                     ss = glob.glob(store.abspath_join(store.options('loggingfolder'), '*.png'))
-                    allmatch = [re.search('(.*)_\d+\.png',os.path.split(fn)[-1]) for fn in ss]
+                    allmatch = [re.search(r'(.*)_\d+\.png', os.path.split(fn)[-1]) for fn in ss]
                     allgroups = sorted(set([m.groups()[0] for m in allmatch if m]))
                     text = [f'<a href=/log/{g}>{g}<a/><br>' for g in allgroups]
-                elif len(param)>0 and re.match('^\w*$',param[0]):
-                    store.abspath_join(store.options('loggingfolder'), param[0]+'*.png')
-                    ss = glob.glob(store.abspath_join(store.options('loggingfolder'), param[0]+'*.png'))
+                elif len(param) > 0 and re.match(r'^\w*$', param[0]):
+                    store.abspath_join(store.options('loggingfolder'), param[0] + '*.png')
+                    ss = glob.glob(store.abspath_join(store.options('loggingfolder'), param[0] + '*.png'))
                     text = [f'<img src=/screenshot/{os.path.split(fn)[-1]}/><br>' for fn in ss]
                 else:
                     qs = urllib.parse.parse_qs(environ['QUERY_STRING'])
                     ct, text = view_log(qs)
-            elif cmd.lower() == 'screenshot': # скриншоты
-                if len(param)==0 or not re.match('^\w*\.png$',param[0]):
+            elif cmd.lower() == 'screenshot':  # скриншоты
+                if len(param) == 0 or not re.match(r'^\w*\.png$', param[0]):
                     return
-                with open(store.abspath_join(store.options('loggingfolder'), param[0]), 'rb') as f: 
+                with open(store.abspath_join(store.options('loggingfolder'), param[0]), 'rb') as f:
                     text = f.read()
                 ct = 'image/png'
-            elif cmd.lower() == 'schedule': # просмотр расписания
+            elif cmd.lower() == 'schedule':  # просмотр расписания
                 ct, text = Scheduler().view_html()
-            elif cmd.lower() == 'reload_schedule': # обновление расписания
+            elif cmd.lower() == 'reload_schedule':  # обновление расписания
                 Scheduler().reload()
                 ct, text = Scheduler().view_html()
             elif cmd == 'logging_restart':  # logging_restart
@@ -997,7 +1008,7 @@ class WebServer():
             elif cmd == 'getbalance_standalone':  # start balance request
                 # TODO подумать над передачей параметров в fetch - filter=filter,only_failed=only_failed
                 res = getbalance_standalone()
-                ct, text = 'text/html; charset=cp1251', ['OK']                    
+                ct, text = 'text/html; charset=cp1251', ['OK']
             elif cmd == 'flushlog':  # Start new log
                 store.logging_restart()
                 ct, text = 'text/html; charset=cp1251', ['OK']
@@ -1007,10 +1018,10 @@ class WebServer():
             elif cmd == 'restart':  # exit cmd
                 ct, text = 'text/html; charset=cp1251', ['OK']
                 # TODO нужен редирект иначе она зацикливается на рестарте
-                threading.Thread(target=lambda:restart_program(reason=f'WEB: /restart', delay=0.1), name='Restart', daemon=True).start()
+                threading.Thread(target=lambda: restart_program(reason=f'WEB: /restart', delay=0.1), name='Restart', daemon=True).start()
             elif cmd == 'exit':  # exit cmd
                 ct, text = 'text/html; charset=cp1251', ['OK']
-                threading.Thread(target=lambda:restart_program(reason=f'WEB: /exit', exit_only=True, delay=0.1), name='Exit', daemon=True).start()
+                threading.Thread(target=lambda: restart_program(reason=f'WEB: /exit', exit_only=True, delay=0.1), name='Exit', daemon=True).start()
             if status.startswith('200'):
                 headers = [('Content-type', ct)]
             if status.startswith('303'):
@@ -1031,6 +1042,7 @@ def parse_arguments(argv, parcerclass=argparse.ArgumentParser):
     parser = parcerclass()
     parser.add_argument('--cmd', type=str, help='command for web server (start/stop)', default='start')
     return parser.parse_args(argv)
+
 
 def main():
     try:
