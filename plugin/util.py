@@ -85,16 +85,21 @@ def fix_embedded_python_path(ctx):
 
 
 @cli.command()
+@click.argument('browsers', nargs=-1)
 @click.pass_context
-def install_chromium(ctx):
-    '''Устанавливаем движок chromium, только если включена опция use_builtin_browser'''
+def install_chromium(ctx, browsers):
+    '''Устанавливаем движок chromium, только если включена опция use_builtin_browser, по умолчанию ставим только тот движoк, который прописан в ini'''
     name = 'install_chromium'
     if str(store.options('use_builtin_browser')) != '1':
         click.echo(f'Not needed {name}')
         return
     try:
-        subprocess.check_call([sys.executable, '-m', 'playwright', 'install', store.options('browsertype')])  # '--with-deps', ???
-        click.echo(f"OK {name} {store.options('browsertype')}")
+        if len(browsers)==0:
+            subprocess.check_call([sys.executable, '-m', 'playwright', 'install', store.options('browsertype')])  # '--with-deps', ???
+            click.echo(f"OK {name} {store.options('browsertype')}")
+        else:
+            subprocess.check_call([sys.executable, '-m', 'playwright', 'install', *browsers])  # '--with-deps', ???
+            click.echo(f"OK {name} {','.join(browsers)}")
     except Exception:
         click.echo(f'Fail {name}: {store.exception_text()}')
 

@@ -15,7 +15,7 @@ import store, settings
 
 # Какой бы ни был режим в mbplugin для всех сторонних модулей отключаем расширенное логирование
 # иначе в лог польется все тоннами
-[logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict]  # pylint: disable=no-member
+[logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict]  # type: ignore
 
 # Селекторы и скрипты по умолчанию для формы логона
 # Проверять попадание в ЛК по отсутствию поля пароля - универсальный, простой, но ненадежный путь - 
@@ -147,10 +147,15 @@ def clear_cache(storefolder, storename):
     profilepath = store.abspath_join(storefolder, 'headless', storename)
     shutil.rmtree(store.abspath_join(profilepath, 'BrowserMetrics'), ignore_errors=True)
     shutil.rmtree(store.abspath_join(profilepath, 'cache2'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'pnacl'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'GrShaderCache', 'GPUCache'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'ShaderCache', 'GPUCache'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'OnDeviceHeadSuggestModel'), ignore_errors=True)
     shutil.rmtree(store.abspath_join(profilepath, 'startupCache'), ignore_errors=True)
     shutil.rmtree(store.abspath_join(profilepath, 'Crashpad'), ignore_errors=True)
     shutil.rmtree(store.abspath_join(profilepath, 'Default', 'Cache'), ignore_errors=True)
     shutil.rmtree(store.abspath_join(profilepath, 'Default', 'Code Cache'), ignore_errors=True)
+    shutil.rmtree(store.abspath_join(profilepath, 'Default', 'GPUCache'), ignore_errors=True)
     shutil.rmtree(store.abspath_join(profilepath, 'Default', 'Service Worker', 'CacheStorage'), ignore_errors=True)
 
 @safe_run_decorator
@@ -160,46 +165,48 @@ def delete_profile(storefolder, storename):
     profilepath = store.abspath_join(storefolder, 'headless', storename)
     shutil.rmtree(profilepath)
 
+def check_browser_opened_decorator(func):  # pylint: disable=no-self-argument
+    def wrapper(self, *args, **kwargs):
+        'decorator Проверка на закрытый браузер, если браузера нет пишем в лог и падаем'
+        if self.browser_open:
+            res = func(self, *args, **kwargs)  # pylint: disable=not-callable
+            return res
+        else:
+            logging.error(f'Browser was not open')
+            raise RuntimeError(f'Browser was not open')
+    wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
+    return wrapper
+
+def safe_run_with_log_decorator(func):  # pylint: disable=no-self-argument
+    def wrapper(self, *args, **kwargs):
+        '''decorator для безопасного запуска функции не падает в случае ошибки, а пишет в лог и возвращает default=None
+        параметры предназначенные декоратору, и не передаются в вызываемую функцию:
+        default: возвращаемое в случае ошибки значение'''
+        default = kwargs.pop('default', None)
+        if len(args) > 0 and (args[0] == '' or args[0] == None):
+            return default            
+        # Готовим строку для лога
+        log_string = f'call: {getattr(func,"__name__","")}({", ".join(map(repr,args))}, {", ".join([f"{k}={repr(v)}" for k,v in kwargs.items()])})'
+        if str(self.options('log_full_eval_string')) == '0':
+            log_string = log_string if len(log_string) < 200 else log_string[:100]+'...'+log_string[-100:]
+            if 'password' in log_string:
+                log_string = log_string.split('password')[0]+'password ....'
+        log_string = log_string.encode('cp1251', errors='ignore').decode('cp1251', errors='ignore')  # Убираем всякую хрень
+        try:
+            res = func(self, *args, **kwargs)  # pylint: disable=not-callable
+            logging.info(f'{log_string} OK')
+            return res
+        except Exception:
+            exception_text = store.exception_text()
+            if 'Target page, context or browser has been closed' in exception_text:
+                raise RuntimeError(f'Browser has been closed') # браузера уже нет
+            logging.info(f'{log_string} fail: {exception_text}')
+            return default
+    wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
+    return wrapper
 
 class BalanceOverPlaywright():
     '''Общая часть класса управления браузером '''
-
-    def check_browser_opened_decorator(func):  # pylint: disable=no-self-argument
-        def wrapper(self, *args, **kwargs):
-            'decorator Проверка на закрытый браузер, если браузера нет пишем в лог и падаем'
-            if self.browser_open:
-                res = func(self, *args, **kwargs)  # pylint: disable=not-callable
-                return res
-            else:
-                logging.error(f'Browser was not open')
-                raise RuntimeError(f'Browser was not open')
-        wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
-        return wrapper
-
-    def safe_run_with_log_decorator(func):  # pylint: disable=no-self-argument
-        def wrapper(self, *args, **kwargs):
-            '''decorator для безопасного запуска функции не падает в случае ошибки, а пишет в лог и возвращает default=None
-            параметры предназначенные декоратору, и не передаются в вызываемую функцию:
-            default: возвращаемое в случае ошибки значение'''
-            default = kwargs.pop('default', None)
-            if len(args) > 0 and (args[0] == '' or args[0] == None):
-                return default            
-            # Готовим строку для лога
-            log_string = f'call: {getattr(func,"__name__","")}({", ".join(map(repr,args))}, {", ".join([f"{k}={repr(v)}" for k,v in kwargs.items()])})'
-            if str(self.options('log_full_eval_string')) == '0':
-                log_string = log_string if len(log_string) < 200 else log_string[:100]+'...'+log_string[-100:]
-                if 'password' in log_string:
-                    log_string = log_string.split('password')[0]+'password ....'
-            log_string = log_string.encode('cp1251', errors='ignore').decode('cp1251', errors='ignore')  # Убираем всякую хрень
-            try:
-                res = func(self, *args, **kwargs)  # pylint: disable=not-callable
-                logging.info(f'{log_string} OK')
-                return res
-            except Exception:
-                logging.info(f'{log_string} fail: {store.exception_text()}')
-                return default
-        wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
-        return wrapper
 
     def options(self, param):
         ''' Обертка вокруг store.options чтобы передать в нее пару (номер, плагин) для вытаскивания индивидуальных параметров'''
@@ -407,7 +414,9 @@ class BalanceOverPlaywright():
                 except Exception:
                     exception_text = f'Ошибка в page_wait_for:{store.exception_text()}'
                     if 'Execution context was destroyed' not in exception_text:
-                        logging.info(exception_text)   
+                        logging.info(exception_text)
+                    if 'Target page, context or browser has been closed' in exception_text:
+                        raise RuntimeError(f'Browser has been closed') # браузера уже нет
                 if res:
                     break
                 self.sleep(1)
@@ -457,8 +466,8 @@ class BalanceOverPlaywright():
         else:
             self.chrome_executable_path = self.browsertype.executable_path
         logging.info(f'Launch chrome from {self.chrome_executable_path}')
-        if self.options('proxy_server').strip() != '':
-            self.launch_config['args'].append(f'--proxy-server={self.options("proxy_server").strip()}') 
+        if self.options('browser_proxy').strip() != '':
+            self.launch_config['args'].append(f'--proxy-server={self.options("browser_proxy").strip()}') 
         # playwright: launch_func = self.sync_pw.chromium.launch_persistent_context
         self.browser = launch_func(**self.launch_config) # sync_pw.chromium.launch_persistent_context
         if self.hide_chrome_flag:
@@ -611,7 +620,7 @@ class BalanceOverPlaywright():
                         return res
                     except Exception:
                         exception_text = f'Ошибка в pformula:{pformula} :{store.exception_text()}'
-                        logging.info(exception_text)    
+                        logging.info(exception_text)
                 if jsformula != '':
                     logging.info(f'jsformula on {url_tag}:{jsformula}')
                     # !!! TODO Было: 

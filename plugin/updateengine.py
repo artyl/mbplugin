@@ -2,7 +2,6 @@
 'Модуль для обновления версии'
 import base64, collections, re, hashlib, glob, os, sys, time, typing, traceback, zipfile, shutil
 from typing_extensions import runtime
-import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 import cryptography.exceptions
@@ -19,6 +18,7 @@ class ShaSumFile():
         self.signature: typing.Optional[bytes] = None  # сигнатура, как она лежит в файле
         self.verify_ssl = verify_ssl
         self.data: typing.Dict[str, str] = {}
+        self.session = store.Session()
 
     def sign_and_save(self, priv_keyname, fn_shasum, fn_shasum_sig, filelist: list):
         'Подписываем файл и сохраняем файлы с суммами и с подписью'
@@ -66,9 +66,9 @@ class ShaSumFile():
     def load_sum_and_sig_by_url(self, url_sum, url_sig):
         'Загружаем по url файлы с контрольными суммами и подпись'
         if url_sum is not None:
-            self.raw_data = requests.get(url_sum).content
+            self.raw_data = self.session.get(url_sum).content
         if url_sig is not None:
-            self.signature = requests.get(url_sig).content
+            self.signature = self.session.get(url_sig).content
 
     def load_sum_and_sig_by_file(self, fn_sum, fn_sig):
         'Загружаем по имени файла файлы с контрольными суммами и подпись'
@@ -92,6 +92,7 @@ class UpdaterEngine():
         self.current_bak_zipname = store.abspath_join('mbplugin', 'pack', 'current.zip.bak')
         self.new_zipname = None
         version_fn = store.abspath_join('mbplugin', 'pack', version)
+        self.session = store.Session()
         if os.path.isfile(version_fn):
             self.new_zipname = version_fn
 
@@ -105,7 +106,7 @@ class UpdaterEngine():
             if 'ANOTHER' in os.environ.get('DEBUG_UPDATE',''):
                 # Для отладки обновлений, берем из тестового репозитория
                 url = 'https://api.github.com/repos/artyl/mbplugin1/releases'
-            self.releases = requests.get(url, verify=self.verify_ssl).json()
+            self.releases = self.session.get(url, verify=self.verify_ssl).json()
         if version.upper() == LATEST:
             version = [r['tag_name'] for r in self.releases if (not r['prerelease'] or self.prerelease) and (not r['draft'] or self.draft)][0]
         if version not in [r['tag_name'] for r in self.releases]:
@@ -144,7 +145,7 @@ class UpdaterEngine():
             sha_sum_verifier = ShaSumFile(verify_ssl=self.verify_ssl)
             sha_sum_verifier.load_sum_and_sig_by_url(url_sum=url_sum, url_sig=url_sig)
         if not os.path.exists(local_filename) or force:
-            data = requests.get(url, verify=self.verify_ssl).content
+            data = self.session.get(url, verify=self.verify_ssl).content
             open(local_filename, 'wb').write(data)
         if checksign:
             sha_sum_verifier.verify(filelist=[local_filename])

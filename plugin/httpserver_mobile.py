@@ -1,13 +1,10 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys, io, re, time, json, traceback, threading, logging, importlib, queue, argparse, subprocess, glob
+import typing, os, sys, io, re, time, json, traceback, threading, logging, importlib, queue, argparse, subprocess, glob, base64
 import wsgiref.simple_server, socketserver, socket, urllib.parse, urllib.request
 import requests, psutil, bs4, uuid
 import settings, store, dbengine, compile_all_jsmblh  # pylint: disable=import-error
-try:
-    import schedule
-except ModuleNotFoundError:
-    print('No schedule installed')
+import schedule
 try:
     # TODO не смотря на декларированную кроссплатформенность pystray нормально заработал только на windows
     # на ubuntu он работает странно а на маке вызывает падение уже дальше по коду
@@ -46,8 +43,8 @@ TRAY_MENU = (
 )
 
 
-def getbalance_standalone(filter=[], only_failed=False, feedback=None):
-    ''' Получаем балансы самостоятельно без mobilebalance
+def getbalance_standalone_one(filter:list=[], only_failed:bool=False, feedback:typing.Callable=None) -> None:
+    ''' Получаем балансы самостоятельно без mobilebalance ОДИН ПРОХОД
     Если filter пустой то по всем номерам из phones.ini
     Если не пустой - то логин/алиас/оператор или его часть
     для автономной версии в поле Password2 находится незашифрованный пароль
@@ -81,6 +78,16 @@ def getbalance_standalone(filter=[], only_failed=False, feedback=None):
             getbalance_plugin('get', {'plugin': [val['Region']], 'login': [val['Number']], 'password': [val['Password2']], 'date': ['date']})
         except Exception:
             logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {''.join(traceback.format_exception(*sys.exc_info()))}")
+
+def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=2, feedback:typing.Callable=None) -> None:
+    ''' Получаем балансы делая несколько проходов по неудачным
+    retry=N количество повторов по неудачным попыткам, после запроса по всем (повторы только при only_failed=False)'''
+    if only_failed:
+        getbalance_standalone_one(filter=filter, only_failed=True, feedback=feedback)
+    else:
+        getbalance_standalone_one(filter=filter, only_failed=False, feedback=feedback)
+        for i in range(retry):
+            getbalance_standalone_one(filter=filter, only_failed=True, feedback=feedback)
 
 
 def getbalance_plugin(method, param_source):
@@ -116,9 +123,9 @@ def getbalance_plugin(method, param_source):
         dbengine.flags('set', f"{lang}_{plugin}_{param['login']}", 'start')  # выставляем флаг о начале запроса
         try:
             result = module.get_balance(param['login'], param['password'], storename)
-            text = store.result_to_html(result)
-            if 'Balance' not in result:
+            if type(result) != dict or 'Balance' not in result:
                 raise RuntimeError(f'В result отсутствует баланс')
+            text = store.result_to_html(result)
         except Exception:
             logging.info(f'{plugin} fail: {store.exception_text()}')
             dbengine.flags('set', f"{lang}_{plugin}_{param['login']}", 'error call')  # выставляем флаг о ошибке вызова
@@ -542,9 +549,12 @@ class Scheduler():
         # every(4).day.at("10:30")
         m = re.match(r'^every\((?P<every>\d*)\)\.(?P<interval>\w*)(\.at\("(?P<at>.*)"\))?$', sched.strip())
         try:
+            if not m:
+                raise
+            # every(4).hours,mts,beeline -> {'every': '4', 'interval': 'hours', 'at': None}
             param = m.groupdict()
             param['every'] = int(param['every']) if param['every'].isdigit() else 1
-            job = getattr(schedule.every(int(param['every'])), param.get('interval'))
+            job = getattr(schedule.every(int(param['every'])), param.get('interval',''))
             if param['at'] is not None:
                 job = job.at(param['at'])
             return job
@@ -556,10 +566,17 @@ class Scheduler():
         schedule.clear()
         schedules = store.options('schedule', section='HttpServer', listparam=True)
         for schedule_str in schedules:
-            sched = schedule_str.split(',')[0]
-            filter = schedule_str.split(',')[1:]
+            if len(schedule_str.split(','))<2:
+                logging.info(f'Bad schedule "{schedule_str}", cmd not found skipped')
+                continue
+            sched = schedule_str.split(',')[0].strip()
+            cmd = schedule_str.split(',')[1].strip().lower()
+            filter = [i.strip() for i in schedule_str.split(',')[2:]]
             job = self.validate(sched)
-            if job is not None:
+            if job is None:
+                logging.info(f'Bad schedule "{schedule_str}", error parse job, skipped')
+                continue
+            if cmd == 'check':
                 job.do(getbalance_standalone, filter=filter)
         logging.info('Schedule was reloaded')
         return 'OK'
@@ -568,20 +585,23 @@ class Scheduler():
         res = ['\n'.join(map(repr, schedule.jobs))]
         return 'text/html; charset=cp1251', ['<html><head></head><body><pre>'] + res + ['</pre></body></html>']
 
+    def view_txt(self):
+        return '\n'.join(map(repr, schedule.jobs))+' '
+
     def stop(self):
         pass
 
+def auth_decorator(func):  # pylint: disable=no-self-argument
+    def wrapper(self, update, context):
+        # update.message.chat_id отсутствует у CallbackQueryHandler пробуем через update.effective_chat.id:
+        if update.effective_chat.id in self.auth_id():
+            res = func(self, update, context)  # pylint: disable=not-callable
+            return res
+        else:
+            logging.info(f'TG:{update.message.chat_id} unautorized get /balance')
+    return wrapper
 
 class TelegramBot():
-    def auth_decorator(func):  # pylint: disable=no-self-argument
-        def wrapper(self, update, context):
-            # update.message.chat_id отсутствует у CallbackQueryHandler пробуем через update.effective_chat.id:
-            if update.effective_chat.id in self.auth_id():
-                res = func(self, update, context)  # pylint: disable=not-callable
-                return res
-            else:
-                logging.info(f'TG:{update.message.chat_id} unautorized get /balance')
-        return wrapper
 
     def auth_id(self):
         auth_id = store.options('auth_id', section='Telegram').strip()
@@ -597,7 +617,7 @@ class TelegramBot():
     @auth_decorator
     def get_help(self, update, context):
         """Send help."""
-        help_text = '''/help\n/id\n/balance\n/balancefile\n/receivebalance\n/receivebalancefailed\n/restart\n/getone\n/checkone'''
+        help_text = '''/help\n/id\n/balance\n/balancefile\n/receivebalance\n/receivebalancefailed\n/restart\n/getone\n/checkone\n/schedule'''
         logging.info(f'TG:{update.message.chat_id} /help')
         update.message.reply_text(help_text, parse_mode=telegram.ParseMode.HTML)
 
@@ -647,10 +667,25 @@ class TelegramBot():
                 logging.info(f'Unsuccess tg send:{txt} {store.exception_text()}')
         filtertext = '' if len(context.args) == 0 else f", with filter by {' '.join(context.args)}"
         msg = update.message.reply_text(f'Request all number{filtertext}. Wait...', parse_mode=telegram.ParseMode.HTML)
-        getbalance_standalone(filter=context.args, only_failed=(update.message.text == "/receivebalancefailed"), feedback=feedback)
+        # Если запросили плохие - то просто запрашиваем плохие
+        # Если запросили все - запрашиваем все, потом два раза только плохие
+        if update.message.text == "/receivebalancefailed":
+            getbalance_standalone(filter=context.args, only_failed=(True), feedback=feedback)
+        else:
+            getbalance_standalone(filter=context.args, only_failed=(False), feedback=feedback)
+            getbalance_standalone(filter=context.args, only_failed=(True), feedback=feedback)
+            getbalance_standalone(filter=context.args, only_failed=(True), feedback=feedback)
         params = {'include': None if context.args == [] else ','.join(context.args)}
         baltxt = prepare_balance('FULL', params=params)
         msg.edit_text(baltxt, parse_mode=telegram.ParseMode.HTML)
+
+    @auth_decorator
+    def get_schedule(self, update, context):
+        """Show schedule only auth user."""
+        logging.info(f'TG:{update.message.chat_id} /schedule')
+        Scheduler().reload()
+        ct, text = Scheduler().view_html()
+        update.message.reply_text(text, parse_mode=telegram.ParseMode.HTML)
 
     @auth_decorator
     def getone(self, update, context):
@@ -780,6 +815,7 @@ class TelegramBot():
                 dp.add_handler(CommandHandler("restart", self.restartservice))
                 dp.add_handler(CommandHandler("getone", self.getone))
                 dp.add_handler(CommandHandler("checkone", self.getone))
+                dp.add_handler(CommandHandler("schedule", self.get_schedule))
                 dp.add_handler(CallbackQueryHandler(self.button))
                 self.updater.start_polling()  # Start the Bot
                 logging.info('Telegram bot started')
@@ -977,7 +1013,8 @@ class WebServer():
                 elif len(param) > 0 and re.match(r'^\w*$', param[0]):
                     store.abspath_join(store.options('loggingfolder'), param[0] + '*.png')
                     ss = glob.glob(store.abspath_join(store.options('loggingfolder'), param[0] + '*.png'))
-                    text = [f'<img src=/screenshot/{os.path.split(fn)[-1]}/><br>' for fn in ss]
+                    # text = [f'<img src=/screenshot/{os.path.split(fn)[-1]}/><br>' for fn in ss]
+                    text = [f'<img src="data:image/png;base64,{base64.b64encode(open(fn, "rb").read()).decode()}"/><br>\n' for fn in ss]
                 else:
                     qs = urllib.parse.parse_qs(environ['QUERY_STRING'])
                     ct, text = view_log(qs)

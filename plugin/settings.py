@@ -96,8 +96,11 @@ ini = {
         'show_tray_icon_': {'descr':'показывать иконку web сервера в трее', 'type':'text'},
         'show_tray_icon': '1',
         # Прокси сервер для работы хром плагинов http://user:pass@12.23.34.56:6789 для socks5 пишем socks5://...
-        'proxy_server_': {'descr':'Прокси сервер для работы хром плагинов http://user:pass@12.23.34.56:6789 для socks5 пишем socks5://...', 'type':'text'},
-        'proxy_server': '',
+        'browser_proxy_': {'descr':'Прокси сервер для работы хром плагинов http://user:pass@12.23.34.56:6789 для socks5 пишем socks5://...', 'type':'text'},
+        'browser_proxy': '',
+        # Прокси сервер для работы обычных плагинов http://user:pass@12.23.34.56:6789 для socks5 пишем socks5://...
+        'requests_proxy_': {'descr':'''Прокси сервер для работы обычных плагинов в формате json {"http": "http://10.10.1.10:3128", "https": "http://10.10.1.10:1080"}''', 'type':'text'},
+        'requests_proxy': '',        
         # показывать окно chrome если на странице найдена капча
         'show_captcha_': {'descr':'Показывать окно chrome если на странице найдена капча', 'type':'checkbox'},
         'show_captcha': '0',

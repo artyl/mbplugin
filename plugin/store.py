@@ -45,21 +45,15 @@ def path_split_all(path):
     return res
 
 class Session():
-    'Класс для сессии с дополнительными фишками для сохранения и проверки'
-    def __init__(self, storename, headers=None):
+    '''Класс для сессии с дополнительными фишками для сохранения и проверки и с подтягиванием настроек
+    если не указать storename то сессия без сохранения'''
+    def __init__(self, storename=None, headers=None):
         self.storename = storename
         self.storefolder = options('storefolder')
         self.pagecounter = 1  # Счетчик страниц для сохранения
         self.json_response = {}  # Сохраняем json ответы
         self.headers = headers
-        try:
-            with open(abspath_join(self.storefolder, self.storename), 'rb') as f:
-                self.session = pickle.load(f)
-                self.headers = self.session.headers
-        except Exception:
-            self.session = requests.Session()
-            if self.headers:
-                self.session.headers.update(self.headers)
+        self.load_session()
 
     def update_headers(self, headers):
         self.headers.update(headers)
@@ -67,23 +61,52 @@ class Session():
 
     def drop_and_create(self, headers=None):
         'удаляем сессию и создаем новую'
+        self.load_session(headers=headers, drop=True)
+
+    def load_session(self, headers=None, drop=False):
+        'Загружаем сессии из файла, если файла нет, просто создаем заново, если drop=True то СТРОГО создаем заново'
+        if self.storename is None:
+            self.session = requests.Session()
+            self.tune_session(headers)
+            return self.session
+        if drop:
+            try:
+                os.remove(abspath_join(self.storefolder, self.storename))
+            except Exception:
+                pass            
         try:
-            os.remove(abspath_join(self.storefolder, self.storename))
+            with open(abspath_join(self.storefolder, self.storename), 'rb') as f:
+                self.session = pickle.load(f)
+                self.headers = self.session.headers
         except Exception:
-            pass
-        self.session = requests.Session()
+            self.session = requests.Session()
+            self.tune_session(headers)
+
+    def disable_warnings(self):
+        'Запретить insecure warning - приходится включать для кривых сайтов'
+        requests.packages.urllib3.disable_warnings()  # pylint: disable=no-member
+    
+    def tune_session(self, headers=None):
+        'Применяем к сессии настройки'
+        if options('requests_proxy') != '':
+            proxy = json.loads(options('requests_proxy'))
+            self.session.proxies.update(proxy)
         if headers:
-            self.headers = headers
+            self.headers = headers            
         if self.headers:
-            self.session.headers.update(self.headers)
+            self.session.headers.update(self.headers)            
 
     def save_session(self):
         'Сохраняем сессию в файл'
+        if self.storename is None:
+            return
         with open(abspath_join(self.storefolder, self.storename), 'wb') as f:
             pickle.dump(self.session, f)
 
     def save_response(self, url, response):
         'debug save response'
+        if self.storename is None:
+            return
         # Сохраняем по старинке в режиме DEBUG каждую страницу в один файл
         if not hasattr(response, 'content'):
             return
