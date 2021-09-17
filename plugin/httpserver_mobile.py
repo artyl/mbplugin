@@ -2,14 +2,14 @@
 ''' Автор ArtyLa '''
 import typing, os, sys, io, re, time, json, traceback, threading, logging, importlib, queue, argparse, subprocess, glob, base64
 import wsgiref.simple_server, socketserver, socket, urllib.parse, urllib.request
-import requests, psutil, bs4, uuid
+import requests, psutil, bs4, uuid, PIL.Image
 import settings, store, dbengine, compile_all_jsmblh  # pylint: disable=import-error
 import schedule
 try:
     # TODO не смотря на декларированную кроссплатформенность pystray нормально заработал только на windows
     # на ubuntu он работает странно а на маке вызывает падение уже дальше по коду
     if sys.platform == 'win32':
-        import pystray, PIL.Image
+        import pystray
 except Exception:
     print('No pystray installed or other error, no tray icon')
 try:
@@ -79,9 +79,11 @@ def getbalance_standalone_one(filter:list=[], only_failed:bool=False, feedback:t
         except Exception:
             logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {''.join(traceback.format_exception(*sys.exc_info()))}")
 
-def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=2, feedback:typing.Callable=None) -> None:
+def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=2, feedback:typing.Callable=None, params=None) -> None:
     ''' Получаем балансы делая несколько проходов по неудачным
-    retry=N количество повторов по неудачным попыткам, после запроса по всем (повторы только при only_failed=False)'''
+    retry=N количество повторов по неудачным попыткам, после запроса по всем (повторы только при only_failed=False)
+    params добавлен чтобы унифицировать вызовы
+    Результаты сохраняются в базу'''
     if only_failed:
         getbalance_standalone_one(filter=filter, only_failed=True, feedback=feedback)
     else:
@@ -166,6 +168,25 @@ def view_log(param):
             res[num] = f'<span style="color:yellow;background-color:white">{res[num]}</span>'
     return 'text/html; charset=cp1251', ['<html><head></head><body><pre>'] + res + ['</pre><script>window.scrollTo(0,document.body.scrollHeight);</script></body></html>']
 
+def prepare_loglist_personal():
+    'Делает список пар по которым есть скриншоты'
+    ss = glob.glob(store.abspath_join(store.options('loggingfolder'), '*.png'))
+    allmatch = [re.search(r'(.*)_\d+\.png', os.path.split(fn)[-1]) for fn in ss]
+    allgroups = sorted(set([m.groups()[0] for m in allmatch if m]))
+    return allgroups
+
+def prepare_log_personal(prefix):
+    'Готовит html лог со скриншотами начинающимися на prefix'
+    def png_to_jpg_base64(fn):
+        im = PIL.Image.open(fn)
+        im = im.convert('RGB')
+        f = io.BytesIO()
+        im.save(f, format="jpeg")
+        return base64.b64encode(f.getvalue()).decode()
+    ss = glob.glob(store.abspath_join(store.options('loggingfolder'), prefix + '*.png'))
+    # text = [f'<img src=/screenshot/{os.path.split(fn)[-1]}/><br>' for fn in ss]
+    text = [f'<img src="data:image/jpeg;base64,{png_to_jpg_base64(fn)}"/><br>\n' for fn in ss]
+    return '\n'.join(text)
 
 def getreport(param=[]):
     'Делает html отчет balance.html'
@@ -404,7 +425,10 @@ def prepare_balance_sqlite(filter='FULL', params={}):
 
 
 def prepare_balance(filter='FULL', params={}):
-    """Prepare balance for TG."""
+    """Готовим баланс для TG, смотрим параметр tg_from (sqlite или mobilebalance) и в зависимости от него кидаем на
+    prepare_balance_sqlite - Готовим данные для отчета из sqlite базы
+    prepare_balance_mobilebalance - Формируем текст для отправки в telegram из html файла полученного из web сервера mobilebalance
+    """
     try:
         baltxt = ''
         if store.options('tg_from', section='Telegram') == 'sqlite':
@@ -525,17 +549,19 @@ class TrayIcon:
 
 class Scheduler():
     '''Класс для работы с расписанием'''
-    thread = None
+    instance = None
     # Форматы расписаний см https://schedule.readthedocs.io
     # schedule2 = every().day.at("10:30"),megafon
     # строк с заданиями может быть несколько и их можно пихать в ini как
-    # sheduler= ... sheduler1=... и т.д как сделано с table_format
+    # scheduler= ... scheduler1=... и т.д как сделано с table_format
 
     def __init__(self) -> None:
-        if Scheduler.thread is None:
+        if Scheduler.instance is None:
+            self._scheduler_running = True  # Флаг, что шедулер работает
+            self._job_running = False  # Флаг что в текущий момент задание выполняется
             self.thread = threading.Thread(target=self._forever, name='Scheduler', daemon=True)
             self.thread.start()
-            Scheduler.thread = self.thread
+            Scheduler.instance = self
             logging.info('Scheduler started')
             self.reload()
 
@@ -543,6 +569,44 @@ class Scheduler():
         while True:
             schedule.run_pending()
             time.sleep(1)
+            if not self._scheduler_running:
+                break
+
+    def _run(self, cmd, once=False, kwargs={}):
+        '''Запускаем задание, именно вызовы _run мы помещаем в очередь
+        напрямую вызывать нельзя
+        once - удалить задание после выполнения
+        kwargs - передается сюда ИМЕННО как словарь без **
+        feedback - куда слать сообщения в процессе, если None то закинем как в ini прописано'''
+        self._job_running = True
+        current_job = [job for job in schedule.jobs if job.should_run][0]
+        try:
+            if cmd == 'check':
+                getbalance_standalone(**kwargs)
+                baltxt = prepare_balance('FULL', params=kwargs.get('params', None))
+                feedback: typing.Callable = kwargs.get('feedback', None)
+                if feedback is not None:
+                    feedback(baltxt)
+                else:  # Шлем по адресатам прописанным в ini
+                    if TelegramBot.instance is not None:
+                        TelegramBot.instance.send_balance()
+                        TelegramBot.instance.send_subscriptions()
+            if cmd == 'checksend':
+                getbalance_standalone(**kwargs)  # TODO add send
+        except Exception:
+            logging.info(f'Scheduler: Error while run job {current_job}: {store.exception_text()}')
+        self._job_running = False
+        if once:
+            return schedule.CancelJob
+
+    def job_is_running(self):
+        return Scheduler.instance._job_running
+
+    def run_once(self, cmd, delay:int=1, kwargs={}):
+        'Запланировать команду на однократный запуск, delay - отложить старт на N секунд'
+        if Scheduler.instance is not None:
+            Scheduler.instance._job_running = True  # Сразу выставляем флаг что работаем, чтобы вдогонку не поставить второе
+            schedule.every(delay).seconds.do(Scheduler.instance._run, cmd=cmd, once=True, kwargs=kwargs)
 
     def validate(self, sched) -> schedule.Job:
         'Проверяет одно расписание на валидность и возвращает в виде job'
@@ -561,8 +625,8 @@ class Scheduler():
         except Exception:
             logging.error(f'Error parse {sched}')
 
-    def reload(self):
-        'Читает расписание из ini'
+    def _reload(self):
+        'метод который отрабатывает в инстансе в котором работает _forever'
         schedule.clear()
         schedules = store.options('schedule', section='HttpServer', listparam=True)
         for schedule_str in schedules:
@@ -576,20 +640,26 @@ class Scheduler():
             if job is None:
                 logging.info(f'Bad schedule "{schedule_str}", error parse job, skipped')
                 continue
-            if cmd == 'check':
-                job.do(getbalance_standalone, filter=filter)
+            job.do(self._run, cmd=cmd, kwargs={'filter':filter})
         logging.info('Schedule was reloaded')
         return 'OK'
 
-    def view_html(self):
+    def reload(self):
+        'Читает расписание из ini'
+        Scheduler.instance._reload()
+
+    def view_html(self) -> typing.Tuple[str, typing.List[str]]:
+        'все задания html страницей'
         res = ['\n'.join(map(repr, schedule.jobs))]
         return 'text/html; charset=cp1251', ['<html><head></head><body><pre>'] + res + ['</pre></body></html>']
 
-    def view_txt(self):
+    def view_txt(self) -> str:
+        'Все задания текстом'
         return '\n'.join(map(repr, schedule.jobs))+' '
 
     def stop(self):
-        pass
+        'Останавливаем шедулер'
+        Scheduler.instance._scheduler_running = False
 
 def auth_decorator(func):  # pylint: disable=no-self-argument
     def wrapper(self, update, context):
@@ -598,10 +668,12 @@ def auth_decorator(func):  # pylint: disable=no-self-argument
             res = func(self, update, context)  # pylint: disable=not-callable
             return res
         else:
-            logging.info(f'TG:{update.message.chat_id} unautorized get /balance')
+            logging.info(f'TG:{update.message.chat_id} unauthorized get /balance')
     return wrapper
 
 class TelegramBot():
+
+    instance = None  # когда создадим класс сюда запишем ссылку на созданный экземпляр
 
     def auth_id(self):
         auth_id = store.options('auth_id', section='Telegram').strip()
@@ -617,7 +689,7 @@ class TelegramBot():
     @auth_decorator
     def get_help(self, update, context):
         """Send help."""
-        help_text = '''/help\n/id\n/balance\n/balancefile\n/receivebalance\n/receivebalancefailed\n/restart\n/getone\n/checkone\n/schedule'''
+        help_text = '''/help\n/id\n/balance\n/balancefile\n/receivebalance\n/receivebalancefailed\n/restart\n/getone\n/checkone\n/schedule\n/schedulereload\n/getlog'''
         logging.info(f'TG:{update.message.chat_id} /help')
         update.message.reply_text(help_text, parse_mode=telegram.ParseMode.HTML)
 
@@ -643,19 +715,8 @@ class TelegramBot():
         restart_program(reason=f'TG:{update.message.chat_id} /restart {context.args}')
 
     @auth_decorator
-    def receivebalance_OLD(self, update, context):
-        """Receive balance by filter, only auth user."""
-        logging.info(f'TG:{update.message.chat_id} /receivebalance {context.args}')
-        # baltxt = prepare_balance('FULL')
-        update.message.reply_text('Request received. Wait...', parse_mode=telegram.ParseMode.HTML)
-        getbalance_standalone(filter=context.args)
-        params = {'include': None if context.args == [] else ','.join(context.args)}
-        baltxt = prepare_balance('FULL', params=params)
-        update.message.reply_text(baltxt, parse_mode=telegram.ParseMode.HTML)
-
-    @auth_decorator
     def receivebalance(self, update, context):
-        """ Запросить балансы по всем номерам
+        """ Запросить балансы по всем номерам, only auth user.
         /receivebalance
         /receivebalancefailed
         """
@@ -664,91 +725,142 @@ class TelegramBot():
             try:
                 msg.edit_text(txt, parse_mode=telegram.ParseMode.HTML)
             except Exception:
-                logging.info(f'Unsuccess tg send:{txt} {store.exception_text()}')
+                exception_text = store.exception_text()
+                if 'Message is not modified' not in exception_text:
+                    logging.info(f'Unsuccess tg send:{txt} {exception_text}')
         filtertext = '' if len(context.args) == 0 else f", with filter by {' '.join(context.args)}"
         msg = update.message.reply_text(f'Request all number{filtertext}. Wait...', parse_mode=telegram.ParseMode.HTML)
         # Если запросили плохие - то просто запрашиваем плохие
         # Если запросили все - запрашиваем все, потом два раза только плохие
-        if update.message.text == "/receivebalancefailed":
-            getbalance_standalone(filter=context.args, only_failed=(True), feedback=feedback)
-        else:
-            getbalance_standalone(filter=context.args, only_failed=(False), feedback=feedback)
-            getbalance_standalone(filter=context.args, only_failed=(True), feedback=feedback)
-            getbalance_standalone(filter=context.args, only_failed=(True), feedback=feedback)
+        only_failed = (update.message.text == "/receivebalancefailed")
         params = {'include': None if context.args == [] else ','.join(context.args)}
-        baltxt = prepare_balance('FULL', params=params)
-        msg.edit_text(baltxt, parse_mode=telegram.ParseMode.HTML)
+        if not Scheduler().job_is_running():
+            Scheduler().run_once(cmd='check', kwargs={'filter':context.args, 'params':params, 'only_failed':only_failed, 'feedback':feedback})
+        else:
+            feedback('Одно из заданий сейчас выполняется, попробуйте позже')
+        # getbalance_standalone(filter=context.args, only_failed=only_failed, feedback=feedback)
+        # baltxt = prepare_balance('FULL', params=params)
+        # msg.edit_text(baltxt, parse_mode=telegram.ParseMode.HTML)
 
     @auth_decorator
     def get_schedule(self, update, context):
-        """Show schedule only auth user."""
-        logging.info(f'TG:{update.message.chat_id} /schedule')
-        Scheduler().reload()
-        ct, text = Scheduler().view_html()
-        update.message.reply_text(text, parse_mode=telegram.ParseMode.HTML)
+        """Show schedule only auth user.
+        /schedule
+        /schedulereload
+        """
+        logging.info(f'TG:{update.message.chat_id} {update.message.text}')
+        if update.message.text == "/schedulereload":
+            Scheduler().reload()
+        text = Scheduler().view_txt()
+        update.message.reply_text(text if text.strip() != '' else 'Empty', parse_mode=telegram.ParseMode.HTML)
 
     @auth_decorator
-    def getone(self, update, context):
-        """Receive one balance with inline keyboard, only auth user."""
-        '/checkone - получаем баланс /getone - показываем'
-        logging.info(f'TG:{update.message.chat_id} {update.message.text}')
-        phones = store.ini('phones.ini').phones()
-        keyboard = []
-        for val in list(phones.values()) + [{'Alias': 'Cancel', 'Region': 'Cancel', 'Number': 'Cancel'}]:
-            # ключом для calback у нас <3 буквы команды>_Region_Number
-            btn = InlineKeyboardButton(val['Alias'], callback_data=f"{update.message.text[1:4]}_{val['Region']}_{val['Number']}")
-            if len(keyboard) == 0 or len(keyboard[-1]) == 3:
-                keyboard.append([btn])
+    def get_one(self, update, context):
+        """Receive one balance with inline keyboard, only auth user.
+        /checkone - получаем баланс
+        /getone - показываем"""
+        query: typing.Optional[telegram.callbackquery.CallbackQuery] = update.callback_query
+        if query is None:  # Создаем клавиатуру
+            logging.info(f'TG:{update.message.chat_id} {update.message.text}')
+            phones = store.ini('phones.ini').phones()
+            keyboard = []
+            cmd = update.message.text[1:]  # checkone или getone
+            for val in list(phones.values()) + [{'Alias': 'Cancel', 'Region': 'Cancel', 'Number': 'Cancel'}]:
+                # ключом для calback у нас <6 букв команды>_Region_Number
+                btn = InlineKeyboardButton(val['Alias'], callback_data=f"{cmd}_{val['Region']}_{val['Number']}")
+                if len(keyboard) == 0 or len(keyboard[-1]) == 3:
+                    keyboard.append([btn])
+                else:
+                    keyboard[-1].append(btn)
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            update.message.reply_text('Please choose:', reply_markup=reply_markup)
+        else:  # реагируем на клавиатуру
+            cmd, keypair = query.data.split('_', 1)  # До _ команда, далее Region_Number
+            if cmd == 'checkone':  # /checkone - получаем баланс /getone - показываем
+                getbalance_standalone(filter=[f'__{keypair}__'])  # приходится добавлять подчеркивания чтобы исключить попадание по части строки
+            params = {'include': f'__{keypair}__'}
+            baltxt = prepare_balance('FULL', params=params)
+            query.edit_message_text(baltxt, parse_mode=telegram.ParseMode.HTML)
+            # Детализация UslugiList по ключу val['Region']}_{val['Number']
+            responses = dbengine.responses()
+            if keypair in responses:
+                response = json.loads(responses[f"{keypair}"])
             else:
-                keyboard[-1].append(btn)
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        update.message.reply_text('Please choose:', reply_markup=reply_markup)
+                logging.info(f'Not found response in responses for {keypair}')
+                return
+            # берем всю информацию по номеру
+            response = {k: (round(v, 2) if type(v) == float else v)for k, v in response.items()}
+            detailed = '\n'.join([f'{name} = {response[k]}' for k, name in dbengine.PhonesHText.items() if k in response])
+            uslugi = ''
+            if response.get('UslugiList', '') != '':
+                ul = response['UslugiList'].split('\n')
+                if str(store.options('ShowOnlyPaid', section='Telegram')) == '1':
+                    ul = [line for line in ul if '\t0' not in line]
+                uslugi = '\n'.join(ul).replace('\t', ' = ')
+            else:
+                logging.info(f'Not found UslugiList in response for {keypair}')
+            msgtxt = f"{baltxt}\n{detailed}\n{uslugi}".strip()
+            if baltxt != msgtxt:  # TG ругается если новое сообщение совпадает со старым, приходится проверять
+                try:
+                    query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
+                except Exception:
+                    msgtxt = msgtxt.replace('<', '').replace('>', '')
+                    query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
+
+    @auth_decorator
+    def get_log(self, update: telegram.update.Update, context: telegram.ext.callbackcontext.CallbackContext):
+        """Receive one log with inline keyboard, only auth user.
+        /getlog - лог по последнему запросу
+        сюда приходим ДВА раза сначала чтобы создать клавиатуру(query=None), 
+        а потом чтобы отреагировать на нее
+        """
+        query: typing.Optional[telegram.callbackquery.CallbackQuery] = update.callback_query
+        if query is None:  # Создаем клавиатуру
+            if update.message is None:
+                return
+            logging.info(f'TG:{update.message.chat_id} {update.message.text}')
+            keyboard: typing.List[typing.List[InlineKeyboardButton]] = []
+            logs = prepare_loglist_personal()
+            for val in logs + ['Cancel']:
+                # ключом для calback у нас <6 букв команды>_Region_Number
+                btn = InlineKeyboardButton(val, callback_data=f"getlog_{val}")
+                if len(keyboard) == 0 or len(keyboard[-1]) == 3:
+                    keyboard.append([btn])
+                else:
+                    keyboard[-1].append(btn)
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            update.message.reply_text('Please choose:', reply_markup=reply_markup)
+        else:  # реагируем на клавиатуру
+            # ...
+            if query.message is None or query.data is None:
+                return
+            query.edit_message_text('This is log', parse_mode=telegram.ParseMode.HTML)
+            cmd, keypair = query.data.split('_', 1)
+            res = prepare_log_personal(keypair)
+            query.message.reply_document(filename=f'{keypair}_log.htm', document=io.BytesIO(res.strip().encode('cp1251')))
 
     @auth_decorator
     def button(self, update, context) -> None:
-        'Ответ для команд /checkone - получаем баланс и /getone - показываем'
-        query = update.callback_query
+        '''Клавиатура, здесь реакция на нажатие
+        Определяем откуда пришли и бросаем обратно'''
+        query: typing.Optional[telegram.callbackquery.CallbackQuery] = update.callback_query
+        if query is None or query.data is None:
+            return
         query.answer()
-        cmd = query.data[:3]  # Первые 3 буквы - команда
-        keypair = query.data[4:]  # Далее Region_Number
-        if keypair.startswith('Cancel'):
+        cmd = query.data.split('_', 1)[0]  # До _ команда, далее кнопка, например Region_Number
+        if cmd.startswith('Cancel'):
             query.edit_message_text('Canceled', parse_mode=telegram.ParseMode.HTML)
             return
-        logging.info(f'TG:reply /getone to {update.effective_chat.id} CHOISE:{context}')
+        logging.info(f'TG:reply keyboard to {update.effective_chat.id} CHOICE:{query.data}')
         query.edit_message_text('Request received. Wait...', parse_mode=telegram.ParseMode.HTML)
-        # ключом для calback у нас <3 буквы
-        if cmd.lower() == 'che':  # /checkone - получаем баланс /getone - показываем
-            getbalance_standalone(filter=[f'__{keypair}__'])  # приходится добавлять подчеркивания чтобы исключить попадание по части строки
-        params = {'include': f'__{keypair}__'}
-        baltxt = prepare_balance('FULL', params=params)
-        query.edit_message_text(baltxt, parse_mode=telegram.ParseMode.HTML)
-        # Детализация UslugiList по ключу val['Region']}_{val['Number']
-        responses = dbengine.responses()
-        if keypair in responses:
-            response = json.loads(responses[f"{keypair}"])
-        else:
-            logging.info(f'Not found response in responses for {keypair}')
-            return
-        # берем всю информацию по номеру
-        response = {k: (round(v, 2) if type(v) == float else v)for k, v in response.items()}
-        detailed = '\n'.join([f'{name} = {response[k]}' for k, name in dbengine.PhonesHText.items() if k in response])
-        uslugi = ''
-        if response.get('UslugiList', '') != '':
-            ul = response['UslugiList'].split('\n')
-            if str(store.options('ShowOnlyPaid', section='Telegram')) == '1':
-                ul = [line for line in ul if '\t0' not in line]
-            uslugi = '\n'.join(ul).replace('\t', ' = ')
-        else:
-            logging.info(f'Not found UslugiList in response for {keypair}')
-        msgtxt = f"{baltxt}\n{detailed}\n{uslugi}".strip()
-        if baltxt != msgtxt:  # TG ругается если новое сообщение совпадает со старым, приходится проверять
-            try:
-                query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
-            except Exception:
-                msgtxt = msgtxt.replace('<', '').replace('>', '')
-                query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
+        # ключом для calback у нас 6 букв
+        if cmd == 'getlog':  # /getlog - генерим лог и выходим
+            self.get_log(update, context)
+        if cmd in ['checkone', 'getone']:
+            self.get_one(update, context)
 
     def send_message(self, text, parse_mode='HTML', ids=None):
+        'Отправляем собщение по списку ids, либо по списку auth_id из mbplugin.ini'
         if self.updater is None or text == '':
             return
         if ids is None:
@@ -790,6 +902,7 @@ class TelegramBot():
     def __init__(self):
         if 'telegram' not in sys.modules:
             return  # Нет модуля TG - просто выходим
+        TelegramBot.instance = self
         api_token = store.options('api_token', section='Telegram').strip()
         request_kwargs = {}
         tg_proxy = store.options('tg_proxy', section='Telegram').strip()
@@ -813,9 +926,11 @@ class TelegramBot():
                 dp.add_handler(CommandHandler("receivebalance", self.receivebalance))
                 dp.add_handler(CommandHandler("receivebalancefailed", self.receivebalance))
                 dp.add_handler(CommandHandler("restart", self.restartservice))
-                dp.add_handler(CommandHandler("getone", self.getone))
-                dp.add_handler(CommandHandler("checkone", self.getone))
+                dp.add_handler(CommandHandler("getone", self.get_one))
+                dp.add_handler(CommandHandler("checkone", self.get_one))
                 dp.add_handler(CommandHandler("schedule", self.get_schedule))
+                dp.add_handler(CommandHandler("schedulereload", self.get_schedule))
+                dp.add_handler(CommandHandler("getlog", self.get_log))
                 dp.add_handler(CallbackQueryHandler(self.button))
                 self.updater.start_polling()  # Start the Bot
                 logging.info('Telegram bot started')
@@ -871,6 +986,7 @@ class WebServer():
         with wsgiref.simple_server.make_server(self.host, self.port, self.web_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
             with open(self.filename_pid, 'w') as f:
                 f.write(f'{os.getpid()}')
+            logging.info(f'Starting web server from {os.path.abspath(__file__)}')
             logging.info(f'Listening pid={os.getpid()} {self.host}:{self.port}....')
             threading.Thread(target=self.httpd.serve_forever, name='httpd', daemon=True).start()
             if 'pystray' in sys.modules:  # Иконка в трее
@@ -1004,18 +1120,14 @@ class WebServer():
             elif cmd.lower() == 'get':  # вариант через get запрос
                 param = urllib.parse.parse_qs(environ['QUERY_STRING'])
                 ct, text = getbalance_plugin('get', param)
-            elif cmd.lower() == 'log':  # просмотр лога
-                if len(param) > 0 and param[0] == 'list':
-                    ss = glob.glob(store.abspath_join(store.options('loggingfolder'), '*.png'))
-                    allmatch = [re.search(r'(.*)_\d+\.png', os.path.split(fn)[-1]) for fn in ss]
-                    allgroups = sorted(set([m.groups()[0] for m in allmatch if m]))
+            elif cmd.lower() == 'log':  # просмотр лога /log/....
+                if len(param) > 0 and param[0] == 'list':  # /log/list
+                    allgroups = prepare_loglist_personal()
                     text = [f'<a href=/log/{g}>{g}<a/><br>' for g in allgroups]
-                elif len(param) > 0 and re.match(r'^\w*$', param[0]):
-                    store.abspath_join(store.options('loggingfolder'), param[0] + '*.png')
-                    ss = glob.glob(store.abspath_join(store.options('loggingfolder'), param[0] + '*.png'))
+                elif len(param) > 0 and re.match(r'^\w*$', param[0]):  # /log/p_plugin_number
                     # text = [f'<img src=/screenshot/{os.path.split(fn)[-1]}/><br>' for fn in ss]
-                    text = [f'<img src="data:image/png;base64,{base64.b64encode(open(fn, "rb").read()).decode()}"/><br>\n' for fn in ss]
-                else:
+                    text = [prepare_log_personal(param[0])]
+                else:  # /log
                     qs = urllib.parse.parse_qs(environ['QUERY_STRING'])
                     ct, text = view_log(qs)
             elif cmd.lower() == 'screenshot':  # скриншоты

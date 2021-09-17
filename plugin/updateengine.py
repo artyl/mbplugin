@@ -96,7 +96,7 @@ class UpdaterEngine():
         if os.path.isfile(version_fn):
             self.new_zipname = version_fn
 
-    def github_release(self, version) -> typing.List[dict]:
+    def github_release(self, version) -> typing.Dict[str, typing.Any]:
         '''возвращает словарь release от указанной версии
         При первом обращении получаем информацию с github
         LATEST - ищем последний релиз согласно флагам prerelease и draft

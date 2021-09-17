@@ -9,7 +9,7 @@ https://stackoverflow.com/questions/45362440/32bit-pyodbc-for-32bit-python-3-6-w
 set up some constants
 
 '''
-import time, os, sys, re, logging, traceback, sqlite3, datetime, json
+import time, os, sys, re, logging, traceback, sqlite3, datetime, json, typing
 import settings, store
 
 DB_SCHEMA = ['''
@@ -432,8 +432,9 @@ def flags(cmd, key=None, value=None):
     except Exception:
         logging.error(f'Ошибка при записи в БД {store.exception_text()}')
 
-def responses():
-    'Возвращаем все responses словарем'
+
+def responses() -> typing.Dict[str, str]:
+    'Возвращаем все responses словарем, ключ - плагин_номер значение - json ответа'
     try:
         if store.options('sqlitestore') == '1':
             logging.debug(f'Responses from sqlite')
@@ -445,6 +446,8 @@ def responses():
             return {}
     except Exception:
         logging.error(f'Ошибка при записи в БД {store.exception_text()}')
+        return {}
+
 
 if __name__ == '__main__':
     print('This is module dbengine')

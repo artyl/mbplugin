@@ -449,6 +449,9 @@ def check_ini(ctx):
     try:
         ini = store.ini()
         ini.read()
+        if'Telegram' in ini.ini:
+            if len([i for i in ini.ini['Telegram'].keys() if i.startswith('subscribtion')]):
+                click.echo(f'Warning {name} mbplugin.ini - subsri_B_tion key found in ini')
         click.echo(f'OK {name} mbplugin.ini')
         ini = store.ini('phones.ini')
         ini.read()

@@ -149,20 +149,22 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     '''
     options_all_sec = ini().read()
     phones_options = {}
+    # Параметры из phones.ini/phones_add.ini
     if pkey is not None and section == 'Options':
         phones = ini('phones.ini').phones()
         if pkey in phones:
             phones_options = phones[pkey]
+    # Параметр список, например subscriptionNNN
     if listparam:
         res = []
         if section in options_all_sec:
             res = [v for k,v in options_all_sec[section].items() if k.startswith(param)]
-    else:
-        if default is None:
+    else:  # Обычный параметр
+        if default is None:  # default не задан = возьмем из settings
             default = settings.ini[section].get(param.lower(), None)        
-        if param in mainparams:
+        if param in mainparams:  # х.з. уже не помню зачем делал надо разобраться и задеприкейтить
             res = mainparams[param]
-        else:
+        else:  # Берем обычный параметр, если в ini его нет, то default
             res = options_all_sec.get(section, param, fallback=default)
         if param.lower() in settings.path_param:
             res = abspath_join(res)
