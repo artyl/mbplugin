@@ -80,6 +80,9 @@ ini = {
         # Создавать файлик html отчета, после получения данных
         'createhtmlreport_': {'descr':'Создавать файлик html отчета, после получения данных', 'type':'checkbox'},
         'createhtmlreport': '0',
+        # Сколько раз повторно опрашивать балансы, которые опросились неудачно
+        'retry_failed_': {'descr':'Сколько раз повторно опрашивать балансы, которые опросились неудачно', 'type':'text', 'validate':lambda i:i.isdigit()},
+        'retry_failed': '2',
         # путь к БД sqlite - TODO не используем, всегда ищем ее в папке с phones.ini
         #'dbfilename_': {'descr':'путь к БД sqlite', 'type':'text', 'size':100},
         #'dbfilename': os.path.join('BalanceHistory.sqlite'), # BalanceHistory.sqlite

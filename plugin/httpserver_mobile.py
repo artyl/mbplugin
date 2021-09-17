@@ -79,11 +79,13 @@ def getbalance_standalone_one(filter:list=[], only_failed:bool=False, feedback:t
         except Exception:
             logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {''.join(traceback.format_exception(*sys.exc_info()))}")
 
-def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=2, feedback:typing.Callable=None, params=None) -> None:
+def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=-1, feedback:typing.Callable=None, params=None) -> None:
     ''' Получаем балансы делая несколько проходов по неудачным
     retry=N количество повторов по неудачным попыткам, после запроса по всем (повторы только при only_failed=False)
     params добавлен чтобы унифицировать вызовы
     Результаты сохраняются в базу'''
+    if retry == 0:
+        retry = store.options('retry_failed')
     if only_failed:
         getbalance_standalone_one(filter=filter, only_failed=True, feedback=feedback)
     else:
@@ -684,21 +686,28 @@ class TelegramBot():
     def get_id(self, update, context):
         """Echo chat id."""
         logging.info(f'TG:{update.message.chat_id} /id')
-        update.message.reply_text(update.message.chat_id)
+        self.put_text(update.message.reply_text, update.message.chat_id)
+
+    def put_text(self, func: typing.Callable, text: str, parse_mode: str=telegram.ParseMode.HTML) -> typing.Callable:
+        '''Вызываем функцию для размещения текста'''
+        try:
+            return func(text, parse_mode=parse_mode)
+        except Exception:
+            return func(text, parse_mode=None)
 
     @auth_decorator
     def get_help(self, update, context):
         """Send help."""
         help_text = '''/help\n/id\n/balance\n/balancefile\n/receivebalance\n/receivebalancefailed\n/restart\n/getone\n/checkone\n/schedule\n/schedulereload\n/getlog'''
         logging.info(f'TG:{update.message.chat_id} /help')
-        update.message.reply_text(help_text, parse_mode=telegram.ParseMode.HTML)
+        self.put_text(update.message.reply_text, help_text)
 
     @auth_decorator
     def get_balancetext(self, update, context):
         """Send balance only auth user."""
         logging.info(f'TG:{update.message.chat_id} /balance')
         baltxt = prepare_balance('FULL')
-        update.message.reply_text(baltxt, parse_mode=telegram.ParseMode.HTML)
+        self.put_text(update.message.reply_text, baltxt)
 
     @auth_decorator
     def get_balancefile(self, update, context):
@@ -711,7 +720,7 @@ class TelegramBot():
     @auth_decorator
     def restartservice(self, update, context):
         """Hard reset service"""
-        update.message.reply_text('Service will be restarted', parse_mode=telegram.ParseMode.HTML)
+        self.put_text(update.message.reply_text, 'Service will be restarted')
         restart_program(reason=f'TG:{update.message.chat_id} /restart {context.args}')
 
     @auth_decorator
@@ -723,13 +732,13 @@ class TelegramBot():
         def feedback(txt):
             'команда для показа прогресса'
             try:
-                msg.edit_text(txt, parse_mode=telegram.ParseMode.HTML)
+                self.put_text(msg.edit_text, txt)
             except Exception:
                 exception_text = store.exception_text()
                 if 'Message is not modified' not in exception_text:
                     logging.info(f'Unsuccess tg send:{txt} {exception_text}')
         filtertext = '' if len(context.args) == 0 else f", with filter by {' '.join(context.args)}"
-        msg = update.message.reply_text(f'Request all number{filtertext}. Wait...', parse_mode=telegram.ParseMode.HTML)
+        msg = self.put_text(update.message.reply_text, f'Request all number{filtertext}. Wait...')
         # Если запросили плохие - то просто запрашиваем плохие
         # Если запросили все - запрашиваем все, потом два раза только плохие
         only_failed = (update.message.text == "/receivebalancefailed")
@@ -738,9 +747,6 @@ class TelegramBot():
             Scheduler().run_once(cmd='check', kwargs={'filter':context.args, 'params':params, 'only_failed':only_failed, 'feedback':feedback})
         else:
             feedback('Одно из заданий сейчас выполняется, попробуйте позже')
-        # getbalance_standalone(filter=context.args, only_failed=only_failed, feedback=feedback)
-        # baltxt = prepare_balance('FULL', params=params)
-        # msg.edit_text(baltxt, parse_mode=telegram.ParseMode.HTML)
 
     @auth_decorator
     def get_schedule(self, update, context):
@@ -752,7 +758,7 @@ class TelegramBot():
         if update.message.text == "/schedulereload":
             Scheduler().reload()
         text = Scheduler().view_txt()
-        update.message.reply_text(text if text.strip() != '' else 'Empty', parse_mode=telegram.ParseMode.HTML)
+        self.put_text(update.message.reply_text, text if text.strip() != '' else 'Empty')
 
     @auth_decorator
     def get_one(self, update, context):
@@ -780,7 +786,7 @@ class TelegramBot():
                 getbalance_standalone(filter=[f'__{keypair}__'])  # приходится добавлять подчеркивания чтобы исключить попадание по части строки
             params = {'include': f'__{keypair}__'}
             baltxt = prepare_balance('FULL', params=params)
-            query.edit_message_text(baltxt, parse_mode=telegram.ParseMode.HTML)
+            self.put_text(query.edit_message_text, baltxt)
             # Детализация UslugiList по ключу val['Region']}_{val['Number']
             responses = dbengine.responses()
             if keypair in responses:
@@ -801,11 +807,7 @@ class TelegramBot():
                 logging.info(f'Not found UslugiList in response for {keypair}')
             msgtxt = f"{baltxt}\n{detailed}\n{uslugi}".strip()
             if baltxt != msgtxt:  # TG ругается если новое сообщение совпадает со старым, приходится проверять
-                try:
-                    query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
-                except Exception:
-                    msgtxt = msgtxt.replace('<', '').replace('>', '')
-                    query.edit_message_text(msgtxt, parse_mode=telegram.ParseMode.HTML)
+                self.put_text(query.edit_message_text, msgtxt)
 
     @auth_decorator
     def get_log(self, update: telegram.update.Update, context: telegram.ext.callbackcontext.CallbackContext):
@@ -834,7 +836,7 @@ class TelegramBot():
             # ...
             if query.message is None or query.data is None:
                 return
-            query.edit_message_text('This is log', parse_mode=telegram.ParseMode.HTML)
+            self.put_text(query.edit_message_text, 'This is log')
             cmd, keypair = query.data.split('_', 1)
             res = prepare_log_personal(keypair)
             query.message.reply_document(filename=f'{keypair}_log.htm', document=io.BytesIO(res.strip().encode('cp1251')))
@@ -849,10 +851,10 @@ class TelegramBot():
         query.answer()
         cmd = query.data.split('_', 1)[0]  # До _ команда, далее кнопка, например Region_Number
         if cmd.startswith('Cancel'):
-            query.edit_message_text('Canceled', parse_mode=telegram.ParseMode.HTML)
+            self.put_text(query.edit_message_text, 'Canceled')
             return
         logging.info(f'TG:reply keyboard to {update.effective_chat.id} CHOICE:{query.data}')
-        query.edit_message_text('Request received. Wait...', parse_mode=telegram.ParseMode.HTML)
+        self.put_text(query.edit_message_text, 'Request received. Wait...')
         # ключом для calback у нас 6 букв
         if cmd == 'getlog':  # /getlog - генерим лог и выходим
             self.get_log(update, context)
@@ -860,7 +862,7 @@ class TelegramBot():
             self.get_one(update, context)
 
     def send_message(self, text, parse_mode='HTML', ids=None):
-        'Отправляем собщение по списку ids, либо по списку auth_id из mbplugin.ini'
+        'Отправляем сообщение по списку ids, либо по списку auth_id из mbplugin.ini'
         if self.updater is None or text == '':
             return
         if ids is None:

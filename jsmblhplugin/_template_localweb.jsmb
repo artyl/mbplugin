@@ -26,6 +26,7 @@ function main(){
     // Старый вариант
     // document.location="http://127.0.0.1:{{port}}/getbalance/{{pluginname}}/"+request.loginValue+"/"+request.passwValue+"/"+Date.now();
     // Новый вариант через get запрос
+    // request = {loginValue: "login", passwValue: "password"}
     document.location="http://127.0.0.1:{{port}}/get?plugin={{pluginname}}&login="+encodeURIComponent(request.loginValue)+"&password="+encodeURIComponent(request.passwValue)+"&date="+Date.now();
     if(!external.WaitBrowser) return;
     response.pages[p++]=external.source;
@@ -34,8 +35,10 @@ function main(){
 
     html=document.documentElement.outerHTML;
     //external.sleep(2000);
-
-    response = json(document.getElementById("response").innerText);
+    if(document.getElementById("response")!=null){
+        response = json(document.getElementById("response").innerText);
+		response.pages = [external.source];
+    }
     
 };
 main();
