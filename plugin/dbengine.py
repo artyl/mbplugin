@@ -134,7 +134,7 @@ addition_queries = [
     "delete from phones where phonenumber like 'p_%' or operator='p_test1' or (phonenumber='tinkoff' and operator='???') or operator in ('#01','#02')"]
 
 
-class dbengine():
+class Dbengine():
     def __init__(self, dbname=None, updatescheme=True, fast=False):
         'fast - быстрее, но менее безопасно'
         if dbname is None:
@@ -275,7 +275,7 @@ class dbengine():
             dc.execute(ins, c)
         self.conn.commit()
 
-class mdbengine():
+class Mdbengine():
     def __init__(self, dbname=None):
         import pyodbc
         if dbname is None:
@@ -319,8 +319,8 @@ def update_sqlite_from_mdb_core(deep=None):
     if deep is None:
         deep = int(store.options('updatefrommdbdeep'))
     # читаем sqlite БД
-    db = dbengine(fast=True)
-    mdb = mdbengine()  # BalanceHistory.mdb
+    db = Dbengine(fast=True)
+    mdb = Mdbengine()  # BalanceHistory.mdb
     # Дата согласно указанному deep от которой сверяем данные
     dd = datetime.datetime.now() - datetime.timedelta(days=deep)
     logging.debug(f'Read from sqlite QueryDateTime>{dd}')
@@ -411,7 +411,7 @@ def write_result_to_db(plugin, login, result):
     'пишем в базу если в ini установлен sqlitestore=1'
     try:
         if store.options('sqlitestore') == '1':
-            db = dbengine()
+            db = Dbengine()
             logging.info(f'Пишем в базу {db.dbname}')
             db.write_result(plugin, login, result)
     except AttributeError:
@@ -425,7 +425,7 @@ def flags(cmd, key=None, value=None):
     try:
         if store.options('sqlitestore') == '1':
             logging.debug(f'Flag:{cmd}')
-            db = dbengine()
+            db = Dbengine()
             if cmd.lower() == 'set':
                 db.cur.execute('REPLACE INTO flags(key,value) VALUES(?,?)', [key, value])
                 db.conn.commit()
@@ -456,7 +456,7 @@ def responses() -> typing.Dict[str, str]:
     try:
         if store.options('sqlitestore') == '1':
             logging.debug(f'Responses from sqlite')
-            db = dbengine()
+            db = Dbengine()
             db.cur.execute('select key,value from responses')
             qres = db.cur.fetchall()
             return {k: v for k, v in qres}

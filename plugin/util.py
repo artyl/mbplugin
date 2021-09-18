@@ -422,7 +422,7 @@ def copy_all_from_sqlite(ctx, path):
     name = 'copy-all-from-sqlite'
     import dbengine
     store.turn_logging(logginglevel=logging.DEBUG)
-    res = dbengine.dbengine().copy_data(path)
+    res = dbengine.Dbengine().copy_data(path)
     echo(f'OK {name}\n{res}')
 
 @cli.command()
@@ -710,7 +710,7 @@ def db_query(ctx, query):
     name = 'db-query'
     if store.options('sqlitestore') == '1':
         import dbengine
-        db = dbengine.dbengine()
+        db = dbengine.Dbengine()
         if len(query) == 0:
             query1 = "SELECT name FROM sqlite_master WHERE type='table'"
             dbdata = db.cur.execute(query1).fetchall()

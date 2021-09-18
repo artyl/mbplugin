@@ -253,7 +253,7 @@ def getreport(param=[]):
     template_page = settings.table_template['page']
     template_history = settings.table_template['history']
     temlate_style = settings.table_template['style']
-    db = dbengine.dbengine()
+    db = dbengine.Dbengine()
     flags = dbengine.flags('getall')  # берем все флаги словарем
     responses = dbengine.responses()  # все ответы по запросам
     # номера провайдеры и логины из phones.ini
@@ -385,7 +385,7 @@ def prepare_balance_mobilebalance(filter:str='FULL', params:typing.Dict={}):
 
 def prepare_balance_sqlite(filter:str='FULL', params:typing.Dict={}):
     'Готовим данные для отчета из sqlite базы'
-    db = dbengine.dbengine()
+    db = dbengine.Dbengine()
     table_format = store.options('tg_format', section='Telegram').replace('\\t', '\t').replace('\\n', '\n')
     phones = store.ini('phones.ini').phones()
     flags = dbengine.flags('getall')
