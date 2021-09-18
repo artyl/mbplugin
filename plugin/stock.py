@@ -33,7 +33,7 @@ https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQTE/securities.xml
 https://finex-etf.ru/products/FXIT
 '''
 ''' Автор ArtyLa '''
-import os, sys, re, time, logging, threading, traceback, queue, json
+import os, sys, re, time, logging, threading, queue, json
 import xml.etree.ElementTree as etree
 import store, settings
 

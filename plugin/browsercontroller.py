@@ -1,7 +1,7 @@
 ''' Чтобы не делать кашу из синхронных и асинхронных решено оставить здесь только синхронный вариант
 pyppiteradd останется для совместимости со старыми плагинами через async
 '''
-import glob, json, logging, os, re, shutil, subprocess, sys, time, traceback
+import glob, json, logging, os, re, shutil, subprocess, sys, time
 from playwright.sync_api import sync_playwright
 import playwright
 if sys.platform == 'win32':

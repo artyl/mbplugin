@@ -3,7 +3,7 @@
 для того чтобы не писать утилиты два раза для windows и linux все переносим сюда, а
 непосредственно в bat и sh скриптах оставляем вызов этого скрипта
 '''
-import os, sys, re, time, subprocess, shutil, glob, traceback, logging, importlib, zipfile
+import os, sys, re, time, subprocess, shutil, glob, logging, importlib, zipfile
 import click
 
 # Т.к. мы меняем текущую папку, то sys.argv[0] будет смотреть не туда, пользоваться можно только
@@ -27,6 +27,13 @@ except ModuleNotFoundError:
     sys.path.insert(0, PLUGIN_PATH)
     import store
 
+def echo(msg:str):
+    'Обертка, для click.echo чтобы можно было завернуть запись в файл диагностики параллельно с выводом на экран'
+    click.echo(msg)
+    if os.environ.get('MBPLUGIN_WRITE_DIAG'):
+        path = store.abspath_join('mbplugin', 'log', 'setup_diag.txt')
+        with open(path, 'a') as f:
+            f.write(f"{time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())} {msg}\n")
 
 @click.group()
 @click.option('-d', '--debug', is_flag=True, help='Debug mode')
@@ -51,7 +58,7 @@ def set(ctx, expression):
     mbplugin_ini = store.ini()
     mbplugin_ini.read()
     if not re.match(r'^\w+/\w+/\w+=\S+$', expression_prep):
-        click.echo(f'Non valid expression {expression_prep}')
+        echo(f'Non valid expression {expression_prep}')
         return
     path, value = expression_prep.split('=')
     _, section, key = path.split('/')
@@ -60,7 +67,7 @@ def set(ctx, expression):
     else:
         mbplugin_ini.ini[section][key] = value
     mbplugin_ini.write()
-    click.echo(f'Set {path} -> {value}')
+    echo(f'Set {path} -> {value}')
 
 
 @cli.command()
@@ -73,15 +80,15 @@ def fix_embedded_python_path(ctx):
     name = 'fix_embedded_python_path'
     if PLUGIN_PATH not in SYS_PATH_ORIGIN:
         try:
-            click.echo(f'Add current path to sys.path by default')
+            echo(f'Add current path to sys.path by default')
             txt = '\nimport os, sys\nsys.path.insert(0,os.path.abspath(os.path.split(sys.argv[0])[0]))\n'
             if os.path.isdir(EMB_PYTHON_PATH):
                 open(os.path.join(EMB_PYTHON_PATH, 'sitecustomize.py'), 'a').write(txt)
-            click.echo(f'OK {name}')
+            echo(f'OK {name}')
         except Exception:
-            click.echo(f'Fail {name}: {store.exception_text()}')
+            echo(f'Fail {name}: {store.exception_text()}')
     else:
-        click.echo(f'Not needed {name}')
+        echo(f'Not needed {name}')
 
 
 @cli.command()
@@ -91,17 +98,17 @@ def install_chromium(ctx, browsers):
     '''Устанавливаем движок chromium, только если включена опция use_builtin_browser, по умолчанию ставим только тот движoк, который прописан в ini'''
     name = 'install_chromium'
     if str(store.options('use_builtin_browser')) != '1':
-        click.echo(f'Not needed {name}')
+        echo(f'Not needed {name}')
         return
     try:
         if len(browsers)==0:
             subprocess.check_call([sys.executable, '-m', 'playwright', 'install', store.options('browsertype')])  # '--with-deps', ???
-            click.echo(f"OK {name} {store.options('browsertype')}")
+            echo(f"OK {name} {store.options('browsertype')}")
         else:
             subprocess.check_call([sys.executable, '-m', 'playwright', 'install', *browsers])  # '--with-deps', ???
-            click.echo(f"OK {name} {','.join(browsers)}")
+            echo(f"OK {name} {','.join(browsers)}")
     except Exception:
-        click.echo(f'Fail {name}: {store.exception_text()}')
+        echo(f'Fail {name}: {store.exception_text()}')
 
 
 @cli.command()
@@ -116,7 +123,7 @@ def pip_update(ctx, quiet):
     else:
         os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --upgrade pip')
         os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements.txt")}')
-    click.echo(f'OK {name}')
+    echo(f'OK {name}')
 
 
 @cli.command()
@@ -128,9 +135,9 @@ def clear_browser_cache(ctx):
         [os.remove(fn) for fn in glob.glob(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'p_*'))]
         shutil.rmtree(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'puppeteer'), ignore_errors=True)
         shutil.rmtree(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'headless'), ignore_errors=True)
-        click.echo(f'OK {name}')
+        echo(f'OK {name}')
     except Exception:
-        click.echo(f'Fail {name}: {store.exception_text()}')
+        echo(f'Fail {name}: {store.exception_text()}')
 
 
 @cli.command()
@@ -155,19 +162,19 @@ def recompile_plugin(ctx, only_dll, only_jsmblh):
                         os.system(f'{compile_bat} {pluginname}')
                         shutil.move(src, dst)
                     if ctx.obj['VERBOSE']:
-                        click.echo(f'Move {pluginname}.dll -> dllplugin\\')
-                click.echo(f'OK {name} DLL')
+                        echo(f'Move {pluginname}.dll -> dllplugin\\')
+                echo(f'OK {name} DLL')
             except Exception:
-                click.echo(f'Fail {name}: {store.exception_text()}')
+                echo(f'Fail {name}: {store.exception_text()}')
         if not skip_jsmblh:  # Пересобираем JSMB LH plugin
             import compile_all_jsmblh
             try:
                 compile_all_jsmblh.recompile(PLUGIN_PATH, verbose=ctx.obj['VERBOSE'])
-                click.echo(f'OK {name} jsmblh')
+                echo(f'OK {name} jsmblh')
             except Exception:
-                click.echo(f'Fail {name}: {store.exception_text()}')
+                echo(f'Fail {name}: {store.exception_text()}')
     else:
-        click.echo('On windows platform only')
+        echo('On windows platform only')
 
 
 @cli.command()
@@ -180,9 +187,9 @@ def check_import(ctx):
         if sys.platform == 'win32':
             import win32api, win32gui, win32con, pyodbc, pystray
     except ModuleNotFoundError:
-        click.echo(f'Fail {name}: {store.exception_text()}')
+        echo(f'Fail {name}: {store.exception_text()}')
         return
-    click.echo(f'OK {name}')
+    echo(f'OK {name}')
 
 
 @cli.command()
@@ -197,9 +204,9 @@ def web_control(ctx):
     elif sys.platform == 'darwin':
         start_cmd = 'open'
     else:
-        click.echo(f'Unknown platform {sys.platform}')
+        echo(f'Unknown platform {sys.platform}')
     os.system(f'{start_cmd} http://localhost:{store.options("port", section="HttpServer")}/main')
-    click.echo(f'OK {name}')
+    echo(f'OK {name}')
 
 
 @cli.command()
@@ -228,16 +235,16 @@ def web_server_autostart(ctx, turn):
                     shutil.copy(lnk_path, lnk_startup_path)
                     os.system(f'"{lnk_startup_full_name}"')
                 else:
-                    click.echo(f'Start http server disabled in mbplugin.ini (start_http=0)')
+                    echo(f'Start http server disabled in mbplugin.ini (start_http=0)')
             if turn == 'off':
                 if os.path.exists(lnk_startup_full_name):
                     os.remove(lnk_startup_full_name)
             time.sleep(4)
-            click.echo(f'OK {name} {turn}')
+            echo(f'OK {name} {turn}')
         except Exception:
-            click.echo(f'Fail {name}: {store.exception_text()}')
+            echo(f'Fail {name}: {store.exception_text()}')
     else:
-        click.echo('On windows platform only')
+        echo('On windows platform only')
 
 
 @cli.command()
@@ -258,9 +265,9 @@ def web_server(ctx, cmd, force):
             else:
                 httpserver_mobile.WebServer()
         time.sleep(3)
-        click.echo(f'OK {name} {cmd}')
+        echo(f'OK {name} {cmd}')
     except Exception:
-        click.echo(f'Fail {name}: {store.exception_text()}')
+        echo(f'Fail {name}: {store.exception_text()}')
 
 
 @cli.command()
@@ -270,7 +277,7 @@ def reload_schedule(ctx):
     name = 'reload-schedule'
     import httpserver_mobile
     res = httpserver_mobile.send_http_signal(cmd='reload_schedule')
-    click.echo(f'OK {name}\n{res}')
+    echo(f'OK {name}\n{res}')
 
 
 @cli.command()
@@ -280,7 +287,7 @@ def check_jsmblh(ctx, plugin):
     'Проверяем что все работает JSMB LH PLUGIN простой плагин'
     name = 'check_jsmblh'
     if str(store.options('start_http', section='HttpServer')) != '1':
-        click.echo(f'Start http server disabled in mbplugin.ini (start_http=0)')
+        echo(f'Start http server disabled in mbplugin.ini (start_http=0)')
         return
     import re, requests
     # Здесь не важно какой плагин мы берем, нам нужен только адрес с портом, а он у всех одинаковый
@@ -292,11 +299,11 @@ def check_jsmblh(ctx, plugin):
             res = requests.session().get(url + f'getbalance/p_test1/123/456/789').content.decode('cp1251')
         else:
             res = requests.session().get(url + 'getbalance/p_test3/demo@saures.ru/demo/789').content.decode('cp1251')
-        click.echo(f'OK {name} {plugin}')
+        echo(f'OK {name} {plugin}')
         if ctx.obj['VERBOSE']:
-            click.echo(f'{res}')
+            echo(f'{res}')
     except Exception:
-        click.echo(f'Fail {name} {plugin}:\n{store.exception_text()}')
+        echo(f'Fail {name} {plugin}:\n{store.exception_text()}')
 
 
 @cli.command()
@@ -311,16 +318,16 @@ def check_dll(ctx):
             # echo INFO:
             res = dll_call_test.dll_call('p_test1', 'Info', '123', '456')
             if ctx.obj['VERBOSE']:
-                click.echo(f'Info:{res}')
+                echo(f'Info:{res}')
             # echo EXECUTE:
             res = dll_call_test.dll_call('p_test1', 'Execute', '123', '456')
             if ctx.obj['VERBOSE']:
-                click.echo(f'Execute:{res}')
-            click.echo(f'OK {name}')
+                echo(f'Execute:{res}')
+            echo(f'OK {name}')
         except Exception:
-            click.echo(f'Fail {name}:\n{store.exception_text()}')
+            echo(f'Fail {name}:\n{store.exception_text()}')
     else:
-        click.echo('On windows platform only')
+        echo('On windows platform only')
 
 
 @cli.command()
@@ -335,10 +342,10 @@ def check_playwright(ctx):
             page = browser.new_page()
             page.goto("https://wikipedia.org/")
             if len(page.content()):
-                click.echo(f'OK {name} {len(page.content())}')
+                echo(f'OK {name} {len(page.content())}')
             browser.close()
     except Exception:
-        click.echo(f'Fail {name}:\n{store.exception_text()}')
+        echo(f'Fail {name}:\n{store.exception_text()}')
 
 
 @cli.command()
@@ -351,7 +358,7 @@ def init(ctx):
     name = 'init'
     try:
         if not os.path.exists(store.abspath_join(store.settings.mbplugin_ini_path, 'phones.ini')):
-            click.echo(f'The folder {store.settings.mbplugin_ini_path} must contain a file phones.ini, copy example')
+            echo(f'The folder {store.settings.mbplugin_ini_path} must contain a file phones.ini, copy example')
             shutil.copy(store.abspath_join(store.settings.mbplugin_root_path, 'mbplugin', 'standalone', 'phones.ini'),
                         store.abspath_join(store.settings.mbplugin_ini_path, 'phones.ini'))
         ini = store.ini()
@@ -360,7 +367,7 @@ def init(ctx):
         # ini.ini.remove_section('MobileBalance')
         # Если лежит mobilebalance - отрабатываем обычный, а не автономный конфиг
         if not os.path.exists(store.abspath_join(store.settings.mbplugin_ini_path, 'MobileBalance.exe')):
-            # click.echo(f'The folder {STANDALONE_PATH} must not contain a file mobilebalance.exe')
+            # echo(f'The folder {STANDALONE_PATH} must not contain a file mobilebalance.exe')
             # Запись SQLITE, создание report и работу с phone.ini из скриптов точно включаем если рядом нет mobilebalance.exe, иначе это остается на выбор пользователя
             ini.ini['Options']['sqlitestore'] = '1'
             ini.ini['Options']['createhtmlreport'] = '1'
@@ -369,9 +376,9 @@ def init(ctx):
         if not (os.path.abspath(ini.ini['Options']['balance_html']) == os.path.abspath('balance.html') and os.path.exists(ini.ini['Options']['balance_html'])):
             ini.ini['Options']['balance_html'] = 'balance.html'
         ini.write()
-        click.echo(f'OK {name}')
+        echo(f'OK {name}')
     except Exception:
-        click.echo(f'Fail {name}:\n{store.exception_text()}')
+        echo(f'Fail {name}:\n{store.exception_text()}')
 
 
 @cli.command()
@@ -384,7 +391,7 @@ def get_balance(ctx, only_failed, filter):
     import httpserver_mobile
     # breakpoint()
     res = httpserver_mobile.getbalance_standalone(filter=filter, only_failed=only_failed)
-    click.echo(f'OK {name}\n{res}')
+    echo(f'OK {name}\n{res}')
 
 
 @cli.command()
@@ -394,7 +401,7 @@ def refresh_balance_html(ctx):
     name = 'refresh-balance-html'
     import httpserver_mobile
     res = httpserver_mobile.write_report()
-    click.echo(f'OK {name}\n{res}')
+    echo(f'OK {name}\n{res}')
 
 
 @cli.command()
@@ -405,8 +412,18 @@ def copy_all_from_mdb(ctx):
     import dbengine
     store.turn_logging(logginglevel=logging.DEBUG)
     res = dbengine.update_sqlite_from_mdb(deep=10000)
-    click.echo(f'OK {name}\n{res}')
+    echo(f'OK {name}\n{res}')
 
+@cli.command()
+@click.argument('path', type=str)
+@click.pass_context
+def copy_all_from_sqlite(ctx, path):
+    'копировать все данные из sqlite'
+    name = 'copy-all-from-sqlite'
+    import dbengine
+    store.turn_logging(logginglevel=logging.DEBUG)
+    res = dbengine.dbengine().copy_data(path)
+    echo(f'OK {name}\n{res}')
 
 @cli.command()
 @click.option('-r', '--over_requests', is_flag=True, help='Отправка баланса TG чистым requests без использования web сервера')
@@ -417,13 +434,13 @@ def send_tgbalance(ctx, over_requests):
     import httpserver_mobile
     if over_requests:
         httpserver_mobile.send_telegram_over_requests()
-        click.echo(f'OK {name}')
+        echo(f'OK {name}')
     else:
         # Sendtgbalance
         res1 = httpserver_mobile.send_http_signal(cmd='sendtgbalance')
         # Subscription
         res2 = httpserver_mobile.send_http_signal(cmd='sendtgsubscriptions')
-        click.echo(f'OK {name}\nSendtgbalance: {res1}\nSubscription: {res2}')
+        echo(f'OK {name}\nSendtgbalance: {res1}\nSubscription: {res2}')
 
 
 @cli.command()
@@ -435,9 +452,9 @@ def show_chrome(ctx, action):
     import browsercontroller
     if sys.platform == 'win32':
         browsercontroller.hide_chrome(hide=(action == 'hide'))
-        click.echo(f'OK {name}')
+        echo(f'OK {name}')
     else:
-        click.echo(f'{name}:On windows platform only')
+        echo(f'{name}:On windows platform only')
 
 
 @cli.command()
@@ -451,13 +468,13 @@ def check_ini(ctx):
         ini.read()
         if'Telegram' in ini.ini:
             if len([i for i in ini.ini['Telegram'].keys() if i.startswith('subscribtion')]):
-                click.echo(f'Warning {name} mbplugin.ini - subsri_B_tion key found in ini')
-        click.echo(f'OK {name} mbplugin.ini')
+                echo(f'Warning {name} mbplugin.ini - subsri_B_tion key found in ini')
+        echo(f'OK {name} mbplugin.ini')
         ini = store.ini('phones.ini')
         ini.read()
-        click.echo(f'OK {name} phones.ini')
+        echo(f'OK {name} phones.ini')
     except Exception:
-        click.echo(f'Fail {name}:\n{store.exception_text()}')
+        echo(f'Fail {name}:\n{store.exception_text()}')
 
 
 @cli.command()
@@ -470,7 +487,7 @@ def check_plugin(ctx, bpoint, plugin, login, password):
     'Проверка работы плагина по заданному логину и паролю'
     name = 'check-plugin'
     store.turn_logging()
-    click.echo(f'{plugin} {login} {password}')
+    echo(f'{plugin} {login} {password}')
     import httpserver_mobile
     if bpoint:
         import pdb
@@ -488,7 +505,7 @@ def check_plugin(ctx, bpoint, plugin, login, password):
         # breakpoint()
     else:
         res = httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])
-    click.echo(f'{name}:\n{res}')
+    echo(f'{name}:\n{res}')
 
 
 @cli.command()
@@ -500,8 +517,8 @@ def phone_list(ctx):
     phones.read()
     for sec in phones.ini.sections():
         if phones.ini[sec].get('Monitor', 'FALSE') == 'TRUE':
-            print(f'{sec:3} {phones.ini[sec]["Alias"]:20} {phones.ini[sec]["Region"]:20} {phones.ini[sec]["Number"]:20}')
-    click.echo(f'OK {name}')
+            echo(f'{sec:3} {phones.ini[sec]["Alias"]:20} {phones.ini[sec]["Region"]:20} {phones.ini[sec]["Number"]:20}')
+    echo(f'OK {name}')
 
 
 @cli.command()
@@ -517,30 +534,30 @@ def phone_change(ctx, num, delete, plugin, monitor, alias, login, password):
     'Добавить или изменить или удалить номер в phones.ini'
     name = 'phone-change'
     if str(store.options('phone_ini_save')) == '0':
-        click.echo('Work with phone.ini from mbp not allowed (turn phone_ini_save=1 in mbplugin.ini)')
+        echo('Work with phone.ini from mbp not allowed (turn phone_ini_save=1 in mbplugin.ini)')
         return
     cmd = "DELETE" if delete else ("CHANGE" if num > 0 else "CREATE")
-    click.echo(f'{cmd}')
-    click.echo(f'num:{num} alias:{alias}, plugin:{plugin}, monitor:{monitor}, login:{login}, password:{password}')
+    echo(f'{cmd}')
+    echo(f'num:{num} alias:{alias}, plugin:{plugin}, monitor:{monitor}, login:{login}, password:{password}')
     phones = store.ini('phones.ini')
     phones.read()
     if delete:
         if str(num) in phones.ini.sections():
-            click.echo(f'Delete {list(phones.ini[str(num)].items())}')
+            echo(f'Delete {list(phones.ini[str(num)].items())}')
             del phones.ini[str(num)]
         else:
             for sec in phones.ini.sections():
                 if ((phones.ini[sec]['Region'] == plugin or plugin == '') and (phones.ini[sec]['Number'] == login or login == '') and (phones.ini[sec]['Alias'] == alias or alias == '')):
-                    click.echo(f'Delete {list(phones.ini[sec].items())}')
+                    echo(f'Delete {list(phones.ini[sec].items())}')
                     del phones.ini[sec]
     if not delete and num < 0:
         if plugin == '' or login == '' or password == '':
-            click.echo('For new phone plugin login and password must be specified')
+            echo('For new phone plugin login and password must be specified')
             return
         exists = [sec for sec in phones.ini.sections()
                   if phones.ini[sec]['Region'] == plugin and phones.ini[sec]['Number'] == login]
         if len(exists) > 0:
-            click.echo(f'Already exists {exists[0]} {phones.ini[exists[0]]}')
+            echo(f'Already exists {exists[0]} {phones.ini[exists[0]]}')
             return
         sec = str(max([int(i) for i in phones.ini.sections()]) + 1)
         phones.ini[sec] = {
@@ -550,7 +567,7 @@ def phone_change(ctx, num, delete, plugin, monitor, alias, login, password):
             'Number': login,
             'Password2': password
         }
-        click.echo(f'Create {list(phones.ini[sec].items())}')
+        echo(f'Create {list(phones.ini[sec].items())}')
     if not delete and str(num) in phones.ini.sections():
         if plugin != '':
             phones.ini[str(num)]['Region'] = plugin
@@ -562,9 +579,9 @@ def phone_change(ctx, num, delete, plugin, monitor, alias, login, password):
             phones.ini[str(num)]['Number'] = login
         if password != '':
             phones.ini[str(num)]['Password2'] = password
-        click.echo(f'Change {list(phones.ini[str(num)].items())}')
+        echo(f'Change {list(phones.ini[str(num)].items())}')
     phones.write()
-    click.echo(f'OK {name} {cmd}')
+    echo(f'OK {name} {cmd}')
 
 
 @cli.command()
@@ -572,27 +589,27 @@ def phone_change(ctx, num, delete, plugin, monitor, alias, login, password):
 @click.pass_context
 def version(ctx, verbose):
     'Текущая установленная версия'
-    click.echo(f'Mbplugin version {store.version()}')
+    echo(f'Mbplugin version {store.version()}')
     if not verbose:
         return
-    click.echo(f'Python {sys.version}')
+    echo(f'Python {sys.version}')
     import playwright._repo_version, playwright.sync_api, requests
-    click.echo(f'Playwright {playwright._repo_version.version}')
+    echo(f'Playwright {playwright._repo_version.version}')
     with playwright.sync_api.sync_playwright() as p:
-        click.echo(f'Chromium path {p.chromium.executable_path}')
+        echo(f'Chromium path {p.chromium.executable_path}')
         # user_data_dir = store.abspath_join(store.options('storefolder'), 'headless', 'clean_profile')
         # browser = p.chromium.launch_persistent_context(user_data_dir=user_data_dir)
         browser = p.chromium.launch()
-        click.echo(f'Chromium {browser.version}')
+        echo(f'Chromium {browser.version}')
         browser.close()
     import updateengine
     updater = updateengine.UpdaterEngine()
     if updater.check_update():
         version, msg_version = updater.latest_version_info()
-        click.echo(f'New version found {version}\n{msg_version}')
+        echo(f'New version found {version}\n{msg_version}')
     else:
         version, msg_version = updater.latest_version_info(short=True)
-        click.echo(f'No new version found on github release, latest version:{version}\n{msg_version}')
+        echo(f'No new version found on github release, latest version:{version}\n{msg_version}')
         return    
 
 
@@ -607,17 +624,17 @@ def obsolete_version_update_git(ctx, force, branch):
     name = 'version-update-git'
     # TODO проверить наличие git в системе
     if os.system('git --version') > 0:
-        click.echo('git not found')
+        echo('git not found')
         return
     if len(branch) > 2:
-        click.echo('Use not more 1 phrases for branch')
+        echo('Use not more 1 phrases for branch')
         return
     branch_name = 'dev_playwright'  # TODO после переключения в master поменять на master и закоммитить последнюю версию с master в ветку dev_playwright
     if len(branch) == 1:
         branch_name = branch[0]
     if re.match(r'\A0\.99.(\d+)\.?\d?\Z', branch_name) and int(re.search(r'\A0\.99.(\d+)\.?\d*\Z', branch_name).groups()[0]) > 32:
         # В старые версии где еще нет mbp переключаться нельзя обратно уже тем же путем будет не вернуться
-        click.echo('Switch to this version broke mbp')
+        echo('Switch to this version broke mbp')
         return
     if os.path.isdir('mbplugin') and not os.path.isdir(os.path.join(ROOT_PATH, 'mbplugin', '.git')):
         os.system(f'git clone --bare https://github.com/artyl/mbplugin.git mbplugin/.git')
@@ -627,13 +644,13 @@ def obsolete_version_update_git(ctx, force, branch):
         os.system(f'git -C mbplugin branch -D dev')
         os.system(f'git -C mbplugin config --local --bool core.bare false')
     if not os.path.isdir(os.path.join(ROOT_PATH, 'mbplugin', '.git')):
-        click.echo(f"{os.path.join(ROOT_PATH, 'mbplugin', '.git')} is not folder")
+        echo(f"{os.path.join(ROOT_PATH, 'mbplugin', '.git')} is not folder")
         return
     os.system(f'git -C mbplugin fetch --all --prune')
     os.system(f'git -C mbplugin stash')
     os.system(f'git -C mbplugin pull')
     os.system(f'git -C mbplugin checkout {"-f" if force else ""} {branch_name}')
-    click.echo(f'OK {name}')
+    echo(f'OK {name}')
 
 
 @cli.command()
@@ -661,28 +678,28 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
         ask_update = str(store.options('ask_update')) == '1'
     skip_download = only_check or only_install or by_current or undo_update and not only_download
     skip_install = only_check or only_download and not only_install and not by_current and not undo_update
-    click.echo(f'Current version {store.version()}')
+    echo(f'Current version {store.version()}')
     res, msg = True, ''
     import updateengine
     updater = updateengine.UpdaterEngine(version=version, prerelease=install_prerelease, verify_ssl=not no_verify_ssl)
     if sum([only_download, only_check, only_install, by_current, undo_update]) > 1:
-        click.echo(f'Only one option can be used')
+        echo(f'Only one option can be used')
         return
     if version == '' and not by_current and not undo_update:
         if updater.check_update():
             version, msg_version = updater.latest_version_info()
-            click.echo(f'New version {version}\n{msg_version}')
+            echo(f'New version {version}\n{msg_version}')
         else:
-            click.echo(f'No new version found on github release')
+            echo(f'No new version found on github release')
             return
     if not skip_download:
         updater.download_version(version=version, force=force, checksign=not no_check_sign)
     if not skip_install:
         if ask_update and not click.confirm('Will we make an update?', default=True):
-            click.echo(f'OK {name} update canceled')
+            echo(f'OK {name} update canceled')
             return
         res, msg = updater.install_update(version=version, force=force, undo_update=undo_update, by_current=by_current)
-    click.echo(f'{"OK" if res else "Fail"} {name}: {msg}')
+    echo(f'{"OK" if res else "Fail"} {name}: {msg}')
 
 
 @cli.command()
@@ -697,11 +714,11 @@ def db_query(ctx, query):
         if len(query) == 0:
             query1 = "SELECT name FROM sqlite_master WHERE type='table'"
             dbdata = db.cur.execute(query1).fetchall()
-            click.echo('Tables:')
+            echo('Tables:')
             for line in dbdata:
                 tbl = line[0]
                 cnt = db.cur.execute(f"select count(*) from {tbl}").fetchall()[0][0]
-                click.echo(f'{tbl} {cnt}')
+                echo(f'{tbl} {cnt}')
             return
         cur = db.cur.execute(' '.join(query))
         if cur.description is not None:
@@ -710,11 +727,11 @@ def db_query(ctx, query):
             dbdata = cur.fetchall()
             res = [list(dbheaders)] + [i for i in dbdata]
             for line in res:
-                print('\t'.join(map(str, line)))
+                echo('\t'.join(map(str, line)))
         if cur.rowcount >= 0:
-            print(f'{cur.rowcount} line affected')
+            echo(f'{cur.rowcount} line affected')
         db.conn.commit()
-    click.echo(f'OK {name}')
+    echo(f'OK {name}')
 
 
 @cli.command()
@@ -726,7 +743,7 @@ def db_query(ctx, query):
 def bugreport(ctx, num, alias, plugin, login):
     'Подготовка данных по запросу баланса для отправки разработчику, задайте либо порядковый номер, либо псевдоним, либо имя плагина и логин'
     name = 'bugreport'
-    print(num, plugin, alias, login)
+    echo(num, plugin, alias, login)
     phones = store.ini('phones.ini')
     phones.read()
     # Делаем словарь телефонов для поиска
@@ -742,7 +759,7 @@ def bugreport(ctx, num, alias, plugin, login):
     elif len(p_plugin_login) == 1:
         line = p_plugin_login[0]
     else:
-        click.echo(f'Fail {name}')
+        echo(f'Fail {name}')
         return
     plugin, login = line['region'], line['number']
     plugin_login = line['region'] + '_' + re.sub(r'\W', '_', line['number'].split('/')[0])
@@ -761,7 +778,7 @@ def bugreport(ctx, num, alias, plugin, login):
             log_flt = [el for el in log_all if f'getbalance_plugin Start {plugin} {login}' in el]
         if len(log_flt)>0:
             zf.writestr('http.log', log_flt[-1].encode('cp1251'))
-    click.echo(f'OK {name}')
+    echo(f'OK {name}')
 
 
 @cli.command()
@@ -774,7 +791,7 @@ def bash(ctx, args):
         os.system(f'cmd {" ".join(args)}')
     else:
         os.system(f'bash {" ".join(args)}')
-    click.echo(f'OK {name}')
+    echo(f'OK {name}')
 
 
 def mbplugin_ini_md_gen():

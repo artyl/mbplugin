@@ -1,10 +1,9 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import typing, os, sys, io, re, time, json, traceback, threading, logging, importlib, queue, argparse, subprocess, glob, base64
+import typing, os, sys, io, re, time, json, threading, logging, importlib, queue, argparse, subprocess, glob, base64
 import wsgiref.simple_server, socketserver, socket, urllib.parse, urllib.request
-import requests, psutil, bs4, uuid, PIL.Image
-import settings, store, dbengine, compile_all_jsmblh  # pylint: disable=import-error
-import schedule
+import requests, psutil, bs4, uuid, PIL.Image, schedule
+import settings, store, dbengine, compile_all_jsmblh, updateengine  # pylint: disable=import-error
 try:
     # TODO не смотря на декларированную кроссплатформенность pystray нормально заработал только на windows
     # на ubuntu он работает странно а на маке вызывает падение уже дальше по коду
@@ -77,7 +76,7 @@ def getbalance_standalone_one(filter:list=[], only_failed:bool=False, feedback:t
                 feedback(f"Receive {val['Alias']}:{val['Region']}_{val['Number']}")
             getbalance_plugin('get', {'plugin': [val['Region']], 'login': [val['Number']], 'password': [val['Password2']], 'date': ['date']})
         except Exception:
-            logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {''.join(traceback.format_exception(*sys.exc_info()))}")
+            logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {store.exception_text()}")
 
 def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=-1, feedback:typing.Callable=None, params=None) -> None:
     ''' Получаем балансы делая несколько проходов по неудачным
@@ -251,55 +250,9 @@ def getreport(param=[]):
         if hover != '':
             el = f'<div class="item">{el}<div class="hoverHistory">{hover}</div></div>'
         return f'<{"th" if he=="NN" else "td"} id="{he}"{mark}>{el}</td>'
-
-    style = '''<style type="text/css">
-    .BackgroundTable, .InfoTable {font-family: Verdana; font-size:85%}
-    .HistoryBgTable, .HistoryTable {font-family: Verdana; font-size:100%}
-    th {background-color: #D1D1D1}
-    td{white-space: nowrap;text-align: right;}
-    tr:hover {background-color: #ffff99;}
-    .hdr  {text-align:left;color:#FFFFFF; font-weight:bold; background-color:#0E3292; padding-left:5}
-    .n    {background-color: #FFFFE1}
-    .e    {background-color: #FFEBEB}
-    .n_us {background-color: #FFFFE1; color: #808080}
-    .e_us {background-color: #FFEBEB; color: #808080}
-    .mark{color:#FF0000}
-    .mark_us{color:#FA6E6E}
-    .summ{background-color: lightgreen; color:black}
-    .p_n{color:#634276}
-    .p_r{color:#006400}
-    .p_b{color:#800000}
-    .hoverHistory {display: none;}
-    .item:hover .hoverHistory {{HoverCss}}
-    #Balance, #SpendBalance {text-align: right; font-weight:bold}
-    #Indication, #Alias, #KreditLimit, #PhoneDescr, #UserName, #PhoneNum, #PhoneNumber, #BalExpired, #LicSchet, #TarifPlan, #BlockStatus, #AnyString, #LastQueryTime{text-align: left}
-    </style>'''
-    template_page = '''
-     <html>
-    <head><title>MobileBalance</title><meta http-equiv="content-type" content="text/html; charset=windows-1251"></head>{style}
-    <body style="font-family: Verdana; cursor:default">
-    <table class="BackgroundTable">
-    <tr><td class="hdr">Информация о балансе телефонов - MobileBalance Mbplugin {title}</td></tr>
-    <tr><td bgcolor="#808080">
-    <table class="InfoTable" border="0" cellpadding="2" cellspacing="1">
-        <tr class="header">{html_header}</tr>
-        {html_table}
-    </table>
-    </td></tr>
-    </table>
-    </body>
-    </html>'''
-    template_history = '''
-    <table class="HistoryBgTable">
-    <tr><td class="hdr">{h_header}</td></tr>
-    <tr><td bgcolor="#808080">
-    <table class="HistoryTable" border="0" cellpadding="2" cellspacing="1">
-        <tr class="header">{html_header}</tr>
-        {html_table}
-    </table>
-    </td></tr>
-    </table>
-    '''
+    template_page = settings.table_template['page']
+    template_history = settings.table_template['history']
+    temlate_style = settings.table_template['style']
     db = dbengine.dbengine()
     flags = dbengine.flags('getall')  # берем все флаги словарем
     responses = dbengine.responses()  # все ответы по запросам
@@ -353,8 +306,8 @@ def getreport(param=[]):
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('queue'):
             classflag = 'n_us'
         html_table.append(f'<tr id="row" class="{classflag}">{"".join(html_line)}</tr>')
-    style = style.replace('{HoverCss}', store.options('HoverCss'))
-    res = template_page.format(style=style, html_header=html_header, html_table='\n'.join(html_table), title=store.version())
+    temlate_style = temlate_style.replace('{HoverCss}', store.options('HoverCss'))
+    res = template_page.format(style=temlate_style, html_header=html_header, html_table='\n'.join(html_table), title=store.version())
     return 'text/html', [res]
 
 
@@ -605,7 +558,10 @@ class Scheduler():
 
     def _forever(self):
         while True:
-            schedule.run_pending()
+            try:
+                schedule.run_pending()
+            except Exception:
+                print('Schedule fail')
             time.sleep(1)
             if not self._scheduler_running:
                 break
@@ -618,19 +574,33 @@ class Scheduler():
         feedback - куда слать сообщения в процессе, если None то закинем как в ini прописано'''
         self._job_running = True
         current_job = [job for job in schedule.jobs if job.should_run][0]
+        if cmd.endswith('_once'):
+            once = True
+            cmd = cmd.replace('_once','')
         try:
-            if cmd == 'check' or cmd == 'checksend':
+            if cmd == 'check' or cmd == 'check_send':
                 getbalance_standalone(**kwargs)
                 baltxt = prepare_balance('FULL', params=kwargs.get('params', {}))
                 feedback: typing.Callable = kwargs.get('feedback', None)
                 if feedback is not None:
                     feedback(baltxt)
                 else:  # Шлем по адресатам прописанным в ini
-                    if TelegramBot.instance is not None and cmd == 'checksend':
+                    if TelegramBot.instance is not None and cmd == 'check_send':
                         TelegramBot.instance.send_balance()
                         TelegramBot.instance.send_subscriptions()
             if cmd == 'get_one':
                 get_full_info_one_number(**kwargs)
+            if cmd == 'check_new_version':
+                if TelegramBot.instance is not None:
+                    ue = updateengine.UpdaterEngine()
+                    if ue.check_update():
+                        msg = f'Найдена новая версия\n'+'\n'.join(ue.latest_version_info(short=True))
+                        TelegramBot.instance.send_message(msg)
+            if cmd == 'ping':
+                if TelegramBot.instance is not None:
+                    msg = ' '.join(kwargs['filter']).strip()
+                    TelegramBot.instance.send_message('ping' if msg == '' else msg)
+
         except Exception:
             logging.info(f'Scheduler: Error while run job {current_job}: {store.exception_text()}')
         self._job_running = False
@@ -879,20 +849,21 @@ class TelegramBot():
         if cmd in ['checkone', 'getone']:
             self.get_one(update, context)
 
-    def send_message(self, text, parse_mode='HTML', ids=None):
+    def send_message(self, text:str, parse_mode='HTML', ids=None):
         'Отправляем сообщение по списку ids, либо по списку auth_id из mbplugin.ini'
         if self.updater is None or text == '':
             return
-        if ids is None:
-            lst = self.auth_id()
-        else:
-            lst = ids
+        lst = self.auth_id() if ids is None else ids
+        text = text if type(text) == str else str(text)
         for id in lst:
             try:
                 self.updater.bot.sendMessage(chat_id=id, text=text, parse_mode=parse_mode)
             except Exception:
-                exception_text = f'Ошибка отправки сообщения {text} для {id} telegram bot {store.exception_text()}'
-                logging.error(exception_text)
+                try:
+                    self.updater.bot.sendMessage(chat_id=id, text=text[:4000], parse_mode=None)
+                except Exception:
+                    exception_text = f'Ошибка отправки сообщения {text} для {id} telegram bot {store.exception_text()}'
+                    logging.error(exception_text)
 
     def send_balance(self):
         'Отправляем баланс'

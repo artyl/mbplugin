@@ -102,7 +102,7 @@ ini = {
         'browser_proxy_': {'descr':'Прокси сервер для работы хром плагинов http://user:pass@12.23.34.56:6789 для socks5 пишем socks5://...', 'type':'text'},
         'browser_proxy': '',
         # Прокси сервер для работы обычных плагинов http://user:pass@12.23.34.56:6789 для socks5 пишем socks5://...
-        'requests_proxy_': {'descr':'''Прокси сервер для работы обычных плагинов в формате json {"http": "http://10.10.1.10:3128", "https": "http://10.10.1.10:1080"}''', 'type':'text'},
+        'requests_proxy_': {'descr':'''Прокси сервер для работы обычных плагинов либо пусто тогда пытается работать как есть, либо auto, тогда пытается подтянуть системные(срабатывает не всегда), либо в формате json {"http": "http://10.10.1.10:3128", "https": "http://10.10.1.10:1080"}''', 'type':'text'},
         'requests_proxy': '',        
         # показывать окно chrome если на странице найдена капча
         'show_captcha_': {'descr':'Показывать окно chrome если на странице найдена капча', 'type':'checkbox'},
@@ -269,7 +269,7 @@ ini = {
     },
 }
 
-main_html=r'''
+main_html = r'''
 <!DOCTYPE html>
 <html>
 <head></head>
@@ -290,7 +290,58 @@ main_html=r'''
 </html>
 '''
 
-editor_html=r'''
+table_template = {
+'page': '''
+    <html>
+<head><title>MobileBalance</title><meta http-equiv="content-type" content="text/html; charset=windows-1251"></head>{style}
+<body style="font-family: Verdana; cursor:default">
+<table class="BackgroundTable">
+<tr><td class="hdr">Информация о балансе телефонов - MobileBalance Mbplugin {title}</td></tr>
+<tr><td bgcolor="#808080">
+<table class="InfoTable" border="0" cellpadding="2" cellspacing="1">
+    <tr class="header">{html_header}</tr>
+    {html_table}
+</table>
+</td></tr>
+</table>
+</body>
+</html>''',
+'style': '''<style type="text/css">
+.BackgroundTable, .InfoTable {font-family: Verdana; font-size:85%}
+.HistoryBgTable, .HistoryTable {font-family: Verdana; font-size:100%}
+th {background-color: #D1D1D1}
+td{white-space: nowrap;text-align: right;}
+tr:hover {background-color: #ffff99;}
+.hdr  {text-align:left;color:#FFFFFF; font-weight:bold; background-color:#0E3292; padding-left:5}
+.n    {background-color: #FFFFE1}
+.e    {background-color: #FFEBEB}
+.n_us {background-color: #FFFFE1; color: #808080}
+.e_us {background-color: #FFEBEB; color: #808080}
+.mark{color:#FF0000}
+.mark_us{color:#FA6E6E}
+.summ{background-color: lightgreen; color:black}
+.p_n{color:#634276}
+.p_r{color:#006400}
+.p_b{color:#800000}
+.hoverHistory {display: none;}
+.item:hover .hoverHistory {{HoverCss}}
+#Balance, #SpendBalance {text-align: right; font-weight:bold}
+#Indication, #Alias, #KreditLimit, #PhoneDescr, #UserName, #PhoneNum, #PhoneNumber, #BalExpired, #LicSchet, #TarifPlan, #BlockStatus, #AnyString, #LastQueryTime{text-align: left}
+</style>''',
+'history': '''
+<table class="HistoryBgTable">
+<tr><td class="hdr">{h_header}</td></tr>
+<tr><td bgcolor="#808080">
+<table class="HistoryTable" border="0" cellpadding="2" cellspacing="1">
+    <tr class="header">{html_header}</tr>
+    {html_table}
+</table>
+</td></tr>
+</table>
+'''
+}
+
+editor_html = r'''
 <!DOCTYPE html>
 <html>
 <head>
@@ -302,7 +353,6 @@ editor_html=r'''
             <input type="hidden" name="cmd" value="logon">
             <input type="submit" value='Logon2'>
         </form>
-
     </div>
     <div id=logout class=hidden>
         <form action='' method='POST'>
@@ -314,8 +364,6 @@ editor_html=r'''
     <p id=buttonBlock class=hidden><Button onclick='show_default()'>Показать умолчания</Button>
         <Button onclick='hide_default()'>Скрыть умолчания</Button></p>
     <div id=formIni class=hidden></div>
-
-
     <style>
         body,p {
          margin: 0; /* Убираем отступы */

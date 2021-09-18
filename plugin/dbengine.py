@@ -9,7 +9,7 @@ https://stackoverflow.com/questions/45362440/32bit-pyodbc-for-32bit-python-3-6-w
 set up some constants
 
 '''
-import time, os, sys, re, logging, traceback, sqlite3, datetime, json, typing
+import time, os, sys, re, logging, sqlite3, datetime, json, typing
 import settings, store
 
 DB_SCHEMA = ['''
@@ -255,7 +255,25 @@ class dbengine():
         for idx in addition_indexes:
             self.cur.execute(f"CREATE INDEX IF NOT EXISTS {idx}")
         self.conn.commit()
-
+    
+    def copy_data(self, path:str):
+        'Копирует данные по запросам из другой БД sqlite, может быть полезно когда нужно объединить данные с нескольких источников'
+        src_conn = sqlite3.connect(self.dbname)
+        src_cur = src_conn.cursor()
+        table = 'Phones'
+        print("Copying %s %s => %s" % ('Phones', path, self.dbname))
+        sc = src_cur.execute('SELECT * FROM %s' % table)
+        ins = None
+        dc = self.cur
+        breakpoint()
+        for row in sc.fetchall():
+            if not ins:
+                cols = tuple([k for k in row.keys() if k != 'id'])
+                ins = 'INSERT OR REPLACE INTO %s %s VALUES (%s)' % (table, cols, ','.join(['?'] * len(cols)))
+                # print 'INSERT stmt = ' + ins
+            c = [row[c] for c in cols]
+            dc.execute(ins, c)
+        self.conn.commit()
 
 class mdbengine():
     def __init__(self, dbname=None):

@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import time, os, sys, re, logging, traceback
+import time, os, sys, re, logging
 import xml.etree.ElementTree as etree
 import dbengine, store, settings, httpserver_mobile
 

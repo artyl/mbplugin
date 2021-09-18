@@ -1,6 +1,8 @@
 @echo OFF
 %~d0 
 cd "%~dp0\.."
+set MBPLUGIN_WRITE_DIAG=YES
+if EXIST mbplugin\log\setup_diag.txt del mbplugin\log\setup_diag.txt 
 
 REM добавляем в sys.path поиск в папке откуда запущен скрипт по умолчанию, в embedded он почему-то выключен
 mbplugin\python\python mbplugin\plugin\util.py fix-embedded-python-path

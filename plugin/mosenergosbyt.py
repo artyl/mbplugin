@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import urllib, logging, traceback, os, sys
+import urllib, logging, os, sys
 import store
 import browsercontroller
 

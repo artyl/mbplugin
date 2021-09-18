@@ -7,6 +7,8 @@ if "%mbpluginpythonpath%"=="" SET mbpluginpythonpath=mbplugin\python
 if EXIST ..\plugin\util.py (
     cd ..\..
     copy mbplugin\standalone\%~nx0 .
+    set MBPLUGIN_WRITE_DIAG=YES
+    if EXIST mbplugin\log\setup_diag.txt del mbplugin\log\setup_diag.txt 
     %mbpluginpythonpath%\python mbplugin\plugin\util.py init
     %mbpluginpythonpath%\python mbplugin\plugin\util.py web-server stop -f
     %mbpluginpythonpath%\python mbplugin\plugin\util.py pip-update -q

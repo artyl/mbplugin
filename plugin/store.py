@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
-import os, sys, time, io, re, json, pickle, requests, configparser, pprint, zipfile, logging, traceback, collections, typing
+import os, sys, time, io, re, json, pickle, requests, urllib.request, configparser, pprint, zipfile, logging, traceback, collections, typing
 from os.path import abspath
 import settings
 
@@ -89,8 +89,14 @@ class Session():
     def tune_session(self, headers=None):
         'Применяем к сессии настройки'
         if options('requests_proxy') != '':
-            proxy = json.loads(options('requests_proxy'))
-            self.session.proxies.update(proxy)
+            if options('requests_proxy') != 'auto':
+                proxy = urllib.request.getproxies()
+                # fix для urllib urllib3 > 1.26.5
+                if 'https' in proxy:
+                    proxy['https'] = proxy['https'].replace('https://', 'http://')
+            else:
+                proxy = json.loads(options('requests_proxy'))
+                self.session.proxies.update(proxy)
         if headers:
             self.headers = headers            
         if self.headers:

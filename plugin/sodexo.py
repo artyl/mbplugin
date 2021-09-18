@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys, re, random, logging, traceback, datetime
+import os, sys, re, random, logging, datetime
 import requests
 import store
 

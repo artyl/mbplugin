@@ -1,4 +1,4 @@
-import os, sys, re, glob, traceback
+import os, sys, re, glob
 import settings, store
 
 
