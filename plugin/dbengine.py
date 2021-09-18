@@ -258,22 +258,34 @@ class Dbengine():
     
     def copy_data(self, path:str):
         'Копирует данные по запросам из другой БД sqlite, может быть полезно когда нужно объединить данные с нескольких источников'
-        src_conn = sqlite3.connect(self.dbname)
-        src_cur = src_conn.cursor()
-        table = 'Phones'
-        print("Copying %s %s => %s" % ('Phones', path, self.dbname))
-        sc = src_cur.execute('SELECT * FROM %s' % table)
-        ins = None
-        dc = self.cur
-        breakpoint()
-        for row in sc.fetchall():
-            if not ins:
-                cols = tuple([k for k in row.keys() if k != 'id'])
-                ins = 'INSERT OR REPLACE INTO %s %s VALUES (%s)' % (table, cols, ','.join(['?'] * len(cols)))
-                # print 'INSERT stmt = ' + ins
-            c = [row[c] for c in cols]
-            dc.execute(ins, c)
-        self.conn.commit()
+        try:
+            src_conn = sqlite3.connect(path)
+            src_conn.row_factory = sqlite3.Row
+            src_cur = src_conn.cursor()
+            table = 'Phones'
+            current_data = set(self.cur.execute('select distinct PhoneNumber,Operator,QueryDateTime from phones').fetchall())
+            print(len(current_data))
+            print("Copying Phones %s => %s" % (path, self.dbname))
+            sc = src_cur.execute('SELECT * FROM %s' % table)
+            ins = None
+            dc = self.cur
+            cnt_write, cnt_skip = 0, 0
+            for row in sc.fetchall():
+                if not ins:
+                    cols = tuple([k for k in row.keys() if k != 'id'])
+                    ins = 'INSERT OR REPLACE INTO Phones %s VALUES (%s)' % (cols, ','.join(['?'] * len(cols)))
+                if (row['PhoneNumber'],row['Operator'],row['QueryDateTime']) in current_data:
+                    cnt_skip += 1
+                else:
+                    c = [row[c] for c in cols]
+                    res = dc.execute(ins, c)
+                    cnt_write += res.rowcount
+            print(f'Update {cnt_write} row, skip {cnt_skip} row')
+            self.conn.commit()
+        except Exception:
+            logging.info(f'Ошибка при копировании данных {store.exception_text()}')
+            return False
+        return True
 
 class Mdbengine():
     def __init__(self, dbname=None):
@@ -311,16 +323,16 @@ class Mdbengine():
         return header, newline
 
 
-def update_sqlite_from_mdb_core(deep=None):
+def update_sqlite_from_mdb_core(dbname=None, deep=None) -> bool:
     'Обновляем данные из mdb в sqlite'
     if store.options('updatefrommdb') != '1':
-        return
+        return False
     logging.info(f'Добавляем данные из mdb')
     if deep is None:
         deep = int(store.options('updatefrommdbdeep'))
     # читаем sqlite БД
     db = Dbengine(fast=True)
-    mdb = Mdbengine()  # BalanceHistory.mdb
+    mdb = Mdbengine(dbname)  # BalanceHistory.mdb
     # Дата согласно указанному deep от которой сверяем данные
     dd = datetime.datetime.now() - datetime.timedelta(days=deep)
     logging.debug(f'Read from sqlite QueryDateTime>{dd}')
@@ -335,7 +347,7 @@ def update_sqlite_from_mdb_core(deep=None):
     logging.debug('calculate')
     # Строим общий список timestamp всех данных
     allt = sorted(set(list(dsqlite) + list(dmdb)))
-    # обрабарываем и составляем пары данных которые затем будем подправлять
+    # обрабатываем и составляем пары данных которые затем будем подправлять
     pairs = []  # mdb timestamp, sqlite timestamp
     while allt:
         # берем одну строчку из общего списка
@@ -343,7 +355,7 @@ def update_sqlite_from_mdb_core(deep=None):
         # Если для этого timestamp есть строчка в обазах добавляем из
         pair = [c if c in dmdb else None, c if c in dsqlite else None]
         if allt == [] or allt[0] in dmdb and pair[0] is not None or allt[0] in dsqlite and pair[1] is not None:
-            # Это следующаяя строка или была последняя
+            # Это следующая строка или была последняя
             pairs.append(pair)
         elif allt[0] in dmdb and pair[0] is None and allt[0] - c < 10:
             # следующий timestamp это пара MDB к записи sqlite ?
@@ -398,13 +410,16 @@ def update_sqlite_from_mdb_core(deep=None):
     logging.debug(f'Only mdb:{len([1 for a,b in pairs if b is None])}')
     logging.debug(f'Only sqlite:{len([1 for a,b in pairs if a is None])}')
     logging.debug(f'Update complete')
+    return True
 
 
-def update_sqlite_from_mdb(deep=None):
+def update_sqlite_from_mdb(dbname=None, deep=None) -> bool:
+    'Обновляем данные из mbd True - success'
     try:
-        update_sqlite_from_mdb_core(deep)
+        return update_sqlite_from_mdb_core(dbname, deep)
     except Exception:
         logging.error(f'Ошибка при переносе данных из mdb в sqlite {store.exception_text()}')
+        return False
 
 
 def write_result_to_db(plugin, login, result):

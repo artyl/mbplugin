@@ -405,25 +405,31 @@ def refresh_balance_html(ctx):
 
 
 @cli.command()
+@click.argument('path', type=str, default='')
 @click.pass_context
-def copy_all_from_mdb(ctx):
-    'копировать все данные из mdb'
-    name = 'copy-all-from-mdb'
+def copy_all_from_other_db(ctx, path):
+    'копировать все данные из бд sqlite или mbd, по дефолту берем базу mdb в той же папке где и база'
+    name = 'copy-all-from-other-db'
     import dbengine
-    store.turn_logging(logginglevel=logging.DEBUG)
-    res = dbengine.update_sqlite_from_mdb(deep=10000)
-    echo(f'OK {name}\n{res}')
-
-@cli.command()
-@click.argument('path', type=str)
-@click.pass_context
-def copy_all_from_sqlite(ctx, path):
-    'копировать все данные из sqlite'
-    name = 'copy-all-from-sqlite'
-    import dbengine
-    store.turn_logging(logginglevel=logging.DEBUG)
-    res = dbengine.Dbengine().copy_data(path)
-    echo(f'OK {name}\n{res}')
+    if path == '':
+        path = store.abspath_join(store.settings.mbplugin_ini_path, 'BalanceHistory.mdb')
+    echo(f'Update from {path} ...')
+    ext = os.path.splitext(path)[1].lower()
+    if ext == '.mdb':  # копировать все данные из mdb
+        if store.options('updatefrommdb') != '1':
+            echo(f'Fail {name}\n:updatefrommdb turn in OFF')
+            return
+        store.turn_logging(logginglevel=logging.DEBUG)
+        if not dbengine.update_sqlite_from_mdb(dbname=path, deep=10000):
+            echo(f'Fail {name} from {path}\nsee log')
+    elif ext == '.sqlite':  # копировать все данные из sqlite
+        store.turn_logging(logginglevel=logging.DEBUG)
+        if not dbengine.Dbengine().copy_data(path):
+            echo(f'Fail {name} from {path}\nsee log')
+    else:
+        echo(f'Fail {name}\nUnknown type {ext}')
+        return
+    echo(f'OK {name}')
 
 @cli.command()
 @click.option('-r', '--over_requests', is_flag=True, help='Отправка баланса TG чистым requests без использования web сервера')
