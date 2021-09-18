@@ -42,7 +42,7 @@ TRAY_MENU = (
 )
 
 
-def getbalance_standalone_one(filter:list=[], only_failed:bool=False, feedback:typing.Callable=None) -> None:
+def getbalance_standalone_one(filter:list=[], only_failed:bool=False) -> None:
     ''' Получаем балансы самостоятельно без mobilebalance ОДИН ПРОХОД
     Если filter пустой то по всем номерам из phones.ini
     Если не пустой - то логин/алиас/оператор или его часть
@@ -51,7 +51,6 @@ def getbalance_standalone_one(filter:list=[], only_failed:bool=False, feedback:t
     для совместного использования с MobileBalance храните пароли password2 и другие специфичные опции
     для Standalone версии в файле phones_add.ini
     only_failed=True - делать запросы только по тем номерам, по которым прошлый запрос был неудачный
-    feedback - если не None - то это функция, которая умеет выдавать статус на экран
     '''
     store.turn_logging(httplog=True)  # Т.к. сюда можем придти извне, то включаем логирование здесь
     logging.info(f'getbalance_standalone: filter={filter}')
@@ -67,18 +66,16 @@ def getbalance_standalone_one(filter:list=[], only_failed:bool=False, feedback:t
                     queue_balance.append(val)
                     logging.info(f'getbalance_standalone queued: {keypair}')
                     dbengine.flags('set', f'{keypair}', 'queue')  # выставляем флаг о постановке в очередь
-    if feedback is not None:
-        feedback(f'Queued {len(queue_balance)} numbers')
+    store.feedback(f'Queued {len(queue_balance)} numbers')
     for val in queue_balance:
         # TODO пока дергаем метод от вебсервера там уже все есть, потом может вынесем отдельно
         try:
-            if feedback is not None:
-                feedback(f"Receive {val['Alias']}:{val['Region']}_{val['Number']}")
+            store.feedback(f"Receive {val['Alias']}:{val['Region']}_{val['Number']}")
             getbalance_plugin('get', {'plugin': [val['Region']], 'login': [val['Number']], 'password': [val['Password2']], 'date': ['date']})
         except Exception:
             logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {store.exception_text()}")
 
-def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=-1, feedback:typing.Callable=None, params=None) -> None:
+def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=-1, params=None) -> None:
     ''' Получаем балансы делая несколько проходов по неудачным
     retry=N количество повторов по неудачным попыткам, после запроса по всем (повторы только при only_failed=False)
     params добавлен чтобы унифицировать вызовы
@@ -86,14 +83,14 @@ def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=-1, 
     if retry == 0:
         retry = store.options('retry_failed')
     if only_failed:
-        getbalance_standalone_one(filter=filter, only_failed=True, feedback=feedback)
+        getbalance_standalone_one(filter=filter, only_failed=True)
     else:
-        getbalance_standalone_one(filter=filter, only_failed=False, feedback=feedback)
+        getbalance_standalone_one(filter=filter, only_failed=False)
         for i in range(retry):
-            getbalance_standalone_one(filter=filter, only_failed=True, feedback=feedback)
+            getbalance_standalone_one(filter=filter, only_failed=True)
 
 
-def get_full_info_one_number(keypair:str, check:bool=False, feedback:typing.Callable=None) -> str:
+def get_full_info_one_number(keypair:str, check:bool=False) -> str:
     '''Получение подробной информации по одному 
     keypair - Region_Number
     check==True - запросить информацию по номеру перед возвратом  
@@ -102,8 +99,7 @@ def get_full_info_one_number(keypair:str, check:bool=False, feedback:typing.Call
         getbalance_standalone(filter=[f'__{keypair}__'])  # приходится добавлять подчеркивания чтобы исключить попадание по части строки
     params = {'include': f'__{keypair}__'}
     baltxt = prepare_balance('FULL', params=params)
-    if feedback is not None:
-        feedback(baltxt)
+    store.feedback(baltxt)
     # Детализация UslugiList по ключу val['Region']}_{val['Number']
     responses = dbengine.responses()
     if keypair in responses:
@@ -123,8 +119,7 @@ def get_full_info_one_number(keypair:str, check:bool=False, feedback:typing.Call
     else:
         logging.info(f'Not found UslugiList in response for {keypair}')
     msgtxt = f"{baltxt}\n{detailed}\n{uslugi}".strip()
-    if feedback is not None:
-        feedback(msgtxt)
+    store.feedback(msgtxt)
     return msgtxt    
 
 
@@ -570,8 +565,7 @@ class Scheduler():
         '''Запускаем задание, именно вызовы _run мы помещаем в очередь
         напрямую вызывать нельзя
         once - удалить задание после выполнения
-        kwargs - передается сюда ИМЕННО как словарь без **
-        feedback - куда слать сообщения в процессе, если None то закинем как в ini прописано'''
+        kwargs - передается сюда ИМЕННО как словарь без **'''
         self._job_running = True
         current_job = [job for job in schedule.jobs if job.should_run][0]
         if cmd.endswith('_once'):
@@ -581,13 +575,11 @@ class Scheduler():
             if cmd == 'check' or cmd == 'check_send':
                 getbalance_standalone(**kwargs)
                 baltxt = prepare_balance('FULL', params=kwargs.get('params', {}))
-                feedback: typing.Callable = kwargs.get('feedback', None)
-                if feedback is not None:
-                    feedback(baltxt)
-                else:  # Шлем по адресатам прописанным в ini
-                    if TelegramBot.instance is not None and cmd == 'check_send':
-                        TelegramBot.instance.send_balance()
-                        TelegramBot.instance.send_subscriptions()
+                store.feedback(baltxt)
+                # Шлем по адресатам прописанным в ini
+                if TelegramBot.instance is not None and cmd == 'check_send':
+                    TelegramBot.instance.send_balance()
+                    TelegramBot.instance.send_subscriptions()
             if cmd == 'get_one':
                 get_full_info_one_number(**kwargs)
             if cmd == 'check_new_version':
@@ -600,7 +592,7 @@ class Scheduler():
                 if TelegramBot.instance is not None:
                     msg = ' '.join(kwargs['filter']).strip()
                     TelegramBot.instance.send_message('ping' if msg == '' else msg)
-
+            store.feedback(close=True)  # После обработки задания 
         except Exception:
             logging.info(f'Scheduler: Error while run job {current_job}: {store.exception_text()}')
         self._job_running = False
@@ -612,7 +604,9 @@ class Scheduler():
 
     def run_once(self, cmd, delay:int=1, kwargs={}) -> bool:
         '''Запланировать команду на однократный запуск, delay - отложить старт на N секунд
-        возвращаем True - если запланировали и False если заняты'''
+        возвращаем True - если запланировали и False если заняты
+        при планировании на раз сразу блокируем возможность запланировать на раз еще что-то 
+        чтобы не запутаться с feedback'''
         if Scheduler.instance is not None and not Scheduler().job_is_running():
             Scheduler.instance._job_running = True  # Сразу выставляем флаг что работаем, чтобы вдогонку не поставить второе
             schedule.every(delay).seconds.do(Scheduler.instance._run, cmd=cmd, once=True, kwargs=kwargs)
@@ -745,7 +739,7 @@ class TelegramBot():
         /receivebalance
         /receivebalancefailed
         """
-        def feedback(txt):
+        def feedback_func(txt):
             'команда для показа прогресса'
             self.put_text(msg.edit_text, txt)
         filtertext = '' if len(context.args) == 0 else f", with filter by {' '.join(context.args)}"
@@ -754,8 +748,10 @@ class TelegramBot():
         # Если запросили все - запрашиваем все, потом два раза только плохие
         only_failed = (update.message.text == "/receivebalancefailed")
         params = {'include': None if context.args == [] else ','.join(context.args)}
-        if not Scheduler().run_once(cmd='check', kwargs={'filter':context.args, 'params':params, 'only_failed':only_failed, 'feedback':feedback}):
-            feedback('Одно из заданий сейчас выполняется, попробуйте позже')
+        if Scheduler().run_once(cmd='check', kwargs={'filter':context.args, 'params':params, 'only_failed':only_failed}):
+            store.feedback(func=feedback_func)  
+        else:
+            self.put_text(msg.edit_text, 'Одно из заданий сейчас выполняется, попробуйте позже')
 
     @auth_decorator
     def get_schedule(self, update, context):
@@ -774,7 +770,7 @@ class TelegramBot():
         """Receive one balance with inline keyboard, only auth user.
         /checkone - получаем баланс
         /getone - показываем"""
-        def feedback(txt):
+        def feedback_func(txt):
             'команда для показа прогресса'
             self.put_text(query.edit_message_text, txt)
         query: typing.Optional[telegram.callbackquery.CallbackQuery] = update.callback_query
@@ -794,8 +790,10 @@ class TelegramBot():
             update.message.reply_text('Please choose:', reply_markup=reply_markup)
         else:  # реагируем на клавиатуру
             cmd, keypair = query.data.split('_', 1)  # До _ команда, далее Region_Number
-            if not Scheduler().run_once(cmd='get_one', kwargs={'keypair': keypair, 'check': cmd == 'checkone', 'feedback': feedback}):
-                feedback('Одно из заданий сейчас выполняется, попробуйте позже')
+            if Scheduler().run_once(cmd='get_one', kwargs={'keypair': keypair, 'check': cmd == 'checkone'}):
+                store.feedback(func=feedback_func)
+            else:
+                self.put_text(query.edit_message_text, 'Одно из заданий сейчас выполняется, попробуйте позже')
 
     @auth_decorator
     def get_log(self, update: telegram.update.Update, context: telegram.ext.callbackcontext.CallbackContext):

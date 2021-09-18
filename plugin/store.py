@@ -6,7 +6,7 @@ import settings
 
 def exception_text():
     return "".join(traceback.format_exception(*sys.exc_info())).encode("cp1251","ignore").decode("cp1251","ignore")
-    
+
 def abspath_join(*argv):
     'собираем в путь все переданные куски, если получившийся не абсолютный, то приделываем к нему путь до корня'
     path = os.path.join(*argv)
@@ -44,6 +44,50 @@ def path_split_all(path):
             res.insert(0, p2)
     return res
 
+
+class Feedback():
+    '''Класс для создания функции обратной связи, создаем его через with, чтобы независимо от факапов он гарантированно закрылся
+    но такая схема с перебрасыванием через очередь не срабатывает он закрывается раньше чем нужно'''
+    def __init__(self, feedback:typing.Callable=None):
+        self.feedback = feedback
+        sys.modules[__name__]._feedback = feedback  # type: ignore
+
+    def __enter__(self):
+        return self.feedback
+
+    def __exit__(self, *args):
+        sys.modules[__name__]._feedback = None
+        print('feedback = None')
+
+
+def feedback(msg: str = '', func: typing.Callable = None, close=False):
+    '''функция обратной связи, используется чтобы откуда угодно кидать сообщения по ходу выполнения процесса например в телегу
+    со стороны получателя сообщений создается with Feedback(func) as f: ...
+    Отправитель шлет сообщения в store.feedback()
+    Такая замена для print
+    close=True - если хотим закрыть feedback 
+    func!= None - если хотим задать новую функцию для feedback
+    '''
+    if close:
+        sys.modules[__name__]._feedback = None  # type: ignore
+        return
+    if func is not None:
+        sys.modules[__name__]._feedback = func  # type: ignore
+        return
+    feedback: typing.Callable[[str],None] = sys.modules[__name__]._feedback  # type: ignore
+    try:
+        if feedback is not None:
+            feedback(msg)
+        else:
+            pass
+            # print(msg)  # TODO можно так или в лог
+    except Exception:
+        print('Fail feedback')
+
+
+_feedback: typing.Optional[typing.Callable[[str],None]] = None
+
+
 class Session():
     '''Класс для сессии с дополнительными фишками для сохранения и проверки и с подтягиванием настроек
     если не указать storename то сессия без сохранения'''
@@ -73,7 +117,7 @@ class Session():
             try:
                 os.remove(abspath_join(self.storefolder, self.storename))
             except Exception:
-                pass            
+                pass
         try:
             with open(abspath_join(self.storefolder, self.storename), 'rb') as f:
                 self.session = pickle.load(f)
@@ -85,7 +129,7 @@ class Session():
     def disable_warnings(self):
         'Запретить insecure warning - приходится включать для кривых сайтов'
         requests.packages.urllib3.disable_warnings()  # pylint: disable=no-member
-    
+
     def tune_session(self, headers=None):
         'Применяем к сессии настройки'
         if options('requests_proxy') != '':
@@ -98,9 +142,9 @@ class Session():
                 proxy = json.loads(options('requests_proxy'))
                 self.session.proxies.update(proxy)
         if headers:
-            self.headers = headers            
+            self.headers = headers
         if self.headers:
-            self.session.headers.update(self.headers)            
+            self.session.headers.update(self.headers)
 
     def save_session(self):
         'Сохраняем сессию в файл'
@@ -134,7 +178,7 @@ class Session():
         response = self.session.get(url, **kwargs)
         self.save_response(url, response)
         return response
-        
+
     def post(self, url, data=None, json=None, **kwargs):
         response = self.session.post(url, data, json, **kwargs)
         self.save_response(url, response)
@@ -167,15 +211,15 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
             res = [v for k,v in options_all_sec[section].items() if k.startswith(param)]
     else:  # Обычный параметр
         if default is None:  # default не задан = возьмем из settings
-            default = settings.ini[section].get(param.lower(), None)        
+            default = settings.ini[section].get(param.lower(), None)
         if param in mainparams:  # х.з. уже не помню зачем делал надо разобраться и задеприкейтить
             res = mainparams[param]
         else:  # Берем обычный параметр, если в ini его нет, то default
             res = options_all_sec.get(section, param, fallback=default)
         if param.lower() in settings.path_param:
             res = abspath_join(res)
-    return phones_options.get(param, res) 
-    
+    return phones_options.get(param, res)
+
 class ini():
     def __init__(self, fn=settings.mbplugin_ini):
         'файл mbplugin.ini ищем в вышележащих папках либо в settings.mbplugin_ini_path если он не пустой'
@@ -184,13 +228,13 @@ class ini():
         self.ini = configparser.ConfigParser()
         self.fn = fn
         self.inipath = abspath_join(settings.mbplugin_ini_path, self.fn)
-            
+
     def find_files_up(self, fn):
         'Ищем файл вверх по дереву путей'
         'Для тестов можно явно указать папку с mbplugin.ini в settings.mbplugin_ini_path '
-        # TODO пока оставили чтобы не ломать тесты, потом уберем 
+        # TODO пока оставили чтобы не ломать тесты, потом уберем
         return abspath_join(settings.mbplugin_ini_path, fn)
-        
+
     def read(self):
         'Читаем ini из файла'
         'phones.ini и phones_add.ini- нечестный ini читать приходится с извратами'
@@ -202,7 +246,7 @@ class ini():
                     prep1 = re.sub(r'(?usi)\[Phone\] #(\d+)', r'[\1]', f_ini.read())
                 # TODO костыль N1, мы подменяем p_pluginLH на p_plugin чтобы при переключении плагина не разъезжались данные
                 prep2 = re.sub(r'(?usi)(Region)(\s*=\s*p_\S+)(LH)', r'\1\2\n\1_orig\2\3', prep1)
-                # TODO костыль N2, у Number то что идет в конце вида <пробел>#<цифры> это не относиться к логину а 
+                # TODO костыль N2, у Number то что идет в конце вида <пробел>#<цифры> это не относиться к логину а
                 # сделано для уникальности логинов - выкидываем, оно нас только сбивает - мы работаем по паре Region_Number
                 # Первоначальное значение сохраняется в Phone_orig и Region_orig
                 prep3 = re.sub(r'(?usi)(Number)(\s*=\s*\S+)( #\d+)', r'\1\2\n\1_orig\2\3', prep2)
@@ -238,7 +282,7 @@ class ini():
         self.ini['HttpServer'] = {'port': settings.ini['HttpServer']['port'],
                              'host': settings.ini['HttpServer']['host'],
                              'table_format': settings.ini['HttpServer']['table_format']
-                             }    
+                             }
 
     def save_bak(self):
         'Сохраняем резервную копию файла в папку с логами в zip'
@@ -283,7 +327,7 @@ class ini():
             t_ini = configparser.ConfigParser()  # Делаем копию ini чтобы не портить загруженный оригинал
             t_ini.read_string(data)
             for sec in t_ini.sections():  # number_orig -> number, region_orig -> region
-                for key in t_ini[sec]: 
+                for key in t_ini[sec]:
                     if key+'_orig' in t_ini[sec]:
                         t_ini[sec][key] = t_ini[sec][key+'_orig']
                         del t_ini[sec][key+'_orig']
@@ -317,7 +361,7 @@ class ini():
                         continue
                     param = settings.ini.get(sec.name, {}).get(key+'_', {})
                     param = {k:v for k,v in param.items() if k not in ['validate']}
-                    line = {'section': sec.name, 'id': key, 'type': 'text', 'descr': f'DESC {sec.name}_{key}', 
+                    line = {'section': sec.name, 'id': key, 'type': 'text', 'descr': f'DESC {sec.name}_{key}',
                             'value': val, 'default': key not in sec, 'default_val': settings.ini.get(sec.name, {}).get(key, None)}
                     line.update(param)
                     if f'{sec.name}_{key}' not in result:
@@ -349,7 +393,7 @@ class ini():
                 data[key]['Password2'] = el.get('Password2','')
                 if secnum in phones_add:
                     try:
-                        # Проблема - configparser возвращает ключи в lowercase - так что приходится перебирать 
+                        # Проблема - configparser возвращает ключи в lowercase - так что приходится перебирать
                         # ключи чтобы не оказалось два одинаковых ключа с разным кейсом
                         for k in data[key].keys():
                             if k in phones_add[secnum]:
@@ -397,7 +441,7 @@ def result_to_html(result):
     if 'Min' in result:
         result['Min'] = int(result['Min'])
     body = json.dumps(result, ensure_ascii=False)
-    return f'<html><meta charset="windows-1251"><p id=response>{body}</p></html>'    
+    return f'<html><meta charset="windows-1251"><p id=response>{body}</p></html>'
 
 
 def logging_restart():

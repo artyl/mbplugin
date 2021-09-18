@@ -522,6 +522,7 @@ class BalanceOverPlaywright():
         Смотрите актуальное описание напротив параметров в коментариях
         Чтобы избежать ошибок - копируйте названия параметров'''
         breakpoint() if os.path.exists('breakpoint_logon') else None
+        store.feedback(f'{self.plugin_name} {self.login_ori} Логинимся')
         selectors = default_logon_selectors.copy()
         if url is None:
             url = self.login_url
@@ -663,6 +664,7 @@ class BalanceOverPlaywright():
             error_msg = f'Not all params have name param: {params}'
             logging.error(error_msg)
             raise RuntimeError(error_msg)
+        store.feedback(f'{self.plugin_name} {self.login_ori} Собираем параметры {",".join([i.get("name","") for i in params])}')            
         if url != '':  # Если указан url то сначала переходим на него
             self.page_goto(url)
             self.page_wait_for(loadstate=True)
@@ -702,6 +704,7 @@ class BalanceOverPlaywright():
             os.system('pgrep Xvfb || Xvfb :99 -screen 0 1920x1080x24 &')            
             os.system('export DISPLAY=:99')  # On linux and headless:False use Xvfb
             os.environ['DISPLAY']=':99'
+        store.feedback(f'{self.plugin_name} {self.login_ori} Запуск браузера')
         with sync_playwright() as self.sync_pw:
             browsertype_text = self.options('browsertype')
             self.browsertype : playwright.sync_api._generated.BrowserType = getattr(self.sync_pw, browsertype_text)

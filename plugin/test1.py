@@ -30,6 +30,7 @@ def get_balance(login, password, storename=None):
             'Internet': 1234,  # double Кол-во оставшегося/потраченного трафика
             # 'ErrorMsg':	'Сообщение об ошибке', # Если оо есть в Reponce то это ошибка
             'UslugiOn': '2/8',
+            'UslugiList': 'Услуга1\t10р\nУслуга2\t20р\nУслуга3\t30р\nУслуга4\t40р' # Это будет показано в hover, если включено
             }
     session.save_session()     
     # В реальном случае мы получаем баланс гораздо больше чем за секунду
