@@ -11,8 +11,7 @@ api_url = f'https://sodexo.gift-cards.ru/api/1/'
 def get_balance(login, password, storename=None):
     result = {}
     cardno = login
-    session = store.Session(storename, headers={})
-    session.update_headers({'X-Requested-With': 'XMLHttpRequest'})
+    session = store.Session(storename, headers={'X-Requested-With': 'XMLHttpRequest'})
     cardtype = 'virtual-cards' if cardno.startswith('+') else 'cards'
     response = session.get(f'{api_url}{cardtype}/{cardno}?limit=100&rid={random.randint(1000000000,9999999999)}')
     data = response.json()['data']

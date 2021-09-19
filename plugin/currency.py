@@ -23,8 +23,7 @@ icon = '789C8D936B2CD5611CC73F6EB15CCA9AADB250C64E8C5C72ACCE4C6ED3668419725FD8B0
 
 def get_balance(login, password, storename=None):
     result = {}
-    session = store.Session(storename)
-    session.headers['User-Agent'] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    session = store.Session(storename, headers={'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"})
     login_ori = login
     login = login.strip().upper().replace('\\','/')
     if re.match(r'^\w\w\w$', login):  # USD - курс цб

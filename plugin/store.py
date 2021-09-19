@@ -84,49 +84,47 @@ feedback = Feedback()
 
 
 class Session():
-    '''Класс для сессии с дополнительными фишками для сохранения и проверки и с подтягиванием настроек
-    если не указать storename то сессия без сохранения'''
-    def __init__(self, storename=None, headers=None):
+    'Класс для сессии с дополнительными фишками для сохранения и проверки и с подтягиванием настроек'
+    
+    def __init__(self, storename=None, headers={}):
+        '''если не указать storename то сессия без сохранения
+        headers - если после создания сессии нужно прописать дополнительные
+        '''
         self.storename = storename
         self.storefolder = options('storefolder')
         self.pagecounter = 1  # Счетчик страниц для сохранения
         self.json_response = {}  # Сохраняем json ответы
-        self.headers = headers
+        self.additional_headers = headers
         self.load_session()
 
+
     def update_headers(self, headers):
-        self.headers.update(headers)
-        self.session.headers.update(self.headers)
+        self._session.headers.update(headers)
 
-    def drop_and_create(self, headers=None):
+    def drop_and_create(self):
         'удаляем сессию и создаем новую'
-        self.load_session(headers=headers, drop=True)
-
-    def load_session(self, headers=None, drop=False):
-        'Загружаем сессии из файла, если файла нет, просто создаем заново, если drop=True то СТРОГО создаем заново'
-        if self.storename is None:
-            self.session = requests.Session()
-            self.tune_session(headers)
-            return self.session
-        if drop:
-            try:
-                os.remove(abspath_join(self.storefolder, self.storename))
-            except Exception:
-                pass
         try:
-            with open(abspath_join(self.storefolder, self.storename), 'rb') as f:
-                self.session = pickle.load(f)
-                self.headers = self.session.headers
+            os.remove(abspath_join(self.storefolder, self.storename))
         except Exception:
-            self.session = requests.Session()
-            self.tune_session(headers)
+            pass        
+        self.load_session()
 
     def disable_warnings(self):
         'Запретить insecure warning - приходится включать для кривых сайтов'
         requests.packages.urllib3.disable_warnings()  # pylint: disable=no-member
 
-    def tune_session(self, headers=None):
-        'Применяем к сессии настройки'
+    def load_session(self, headers=None):
+        'Загружаем сессии из файла, если файла нет, просто создаем заново, если drop=True то СТРОГО создаем заново, затем применяем хедера, прокси и пр.'
+        if self.storename is None:
+            self._session = requests.Session()
+        else:
+            try:
+                with open(abspath_join(self.storefolder, self.storename), 'rb') as f:
+                    self._session = pickle.load(f)
+            except Exception:
+                self._session = requests.Session()
+        self.update_headers(self.additional_headers)
+        # 'Применяем к сессии настройки'
         if options('requests_proxy') != '':
             if options('requests_proxy') != 'auto':
                 proxy = urllib.request.getproxies()
@@ -135,18 +133,14 @@ class Session():
                     proxy['https'] = proxy['https'].replace('https://', 'http://')
             else:
                 proxy = json.loads(options('requests_proxy'))
-                self.session.proxies.update(proxy)
-        if headers:
-            self.headers = headers
-        if self.headers:
-            self.session.headers.update(self.headers)
+                self._session.proxies.update(proxy)
 
     def save_session(self):
         'Сохраняем сессию в файл'
         if self.storename is None:
             return
         with open(abspath_join(self.storefolder, self.storename), 'wb') as f:
-            pickle.dump(self.session, f)
+            pickle.dump(self._session, f)
 
     def save_response(self, url, response):
         'debug save response'
@@ -170,17 +164,17 @@ class Session():
         self.pagecounter += 1
 
     def get(self, url, **kwargs):
-        response = self.session.get(url, **kwargs)
+        response = self._session.get(url, **kwargs)
         self.save_response(url, response)
         return response
 
     def post(self, url, data=None, json=None, **kwargs):
-        response = self.session.post(url, data, json, **kwargs)
+        response = self._session.post(url, data, json, **kwargs)
         self.save_response(url, response)
         return response
 
     def put(self, url, data=None, **kwargs):
-        response = self.session.put(url, data, **kwargs)
+        response = self._session.put(url, data, **kwargs)
         self.save_response(url, response)
         return response
 

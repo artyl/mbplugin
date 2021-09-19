@@ -56,8 +56,7 @@ def get_curs_moex(currenc):
 
 def get_yahoo(market, security, cnt, qu=None):
     url = time.strftime(f'https://query1.finance.yahoo.com/v8/finance/chart/{security}')
-    with store.Session() as session:
-        session.headers['User-Agent'] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    with store.Session(headers={'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}) as session:
         response = session.get(url)
         meta = response.json()['chart']['result'][0]['meta']
     price = meta['regularMarketPrice']
@@ -168,13 +167,14 @@ def get_balance(login, password, storename=None):
     result = {}
     session = store.Session(storename)  # Используем костылем для хранения предыдущих данных 
     # если у нас еще нет переменной для истории - создаем (грязный хак - не делайте так, а если делаете - не пользуйтесь этой сессией для хождения в инет, а только для сохранения):
-    session.session.params['history'] = session.session.params.get('history',[])
+    # TODO перенести хранение в SQLITE
+    session._session.params['history'] = session._session.params.get('history',[])
     data = store.read_stocks(login.lower())
     stocks = data['stocks']
     remain = data['remain']
     currenc = data['currenc']
     res_data = count_all_scocks_multithread(stocks, remain, currenc)
-    session.session.params['history'].append({'timestamp':time.time(),'data':res_data})  # Полученное значение сразу добавляем в хвост истории
+    session._session.params['history'].append({'timestamp':time.time(),'data':res_data})  # Полученное значение сразу добавляем в хвост истории
     if store.options('stock_fulllog'):
         fulllog = '\n'.join(f'{time.strftime("%Y.%m.%d %H:%M:%S",time.localtime())}\t{i["security"]}\t{i["price"]}\t{i["currency"]}\t{i["cnt"]}\t{round(i["value"],2)}\t{round(i["value_priv"],2)}' for i in res_data)
         with open(store.abspath_join(store.options('loggingfolder'),f'stock_{login}.log'),'a') as f_log:
@@ -183,13 +183,13 @@ def get_balance(login, password, storename=None):
     result['Stock'] = '\n'.join([f'{i["security"]+"("+i["currency"]+")":10} : {round(i["value_priv"],2):9.2f} {currenc}' for i in res_data])+'\n'
     result['UslugiOn'] = len(res_data)
     # Берем два последних элемента, а из них берем первый т.е. [1,2,3][-2:][0] -> 2 а [3][-2:][0] -> 3 чтобы не морочаться с проверкой есть ли предпоследний
-    prev_data = session.session.params['history'][-2:][0]['data'] # TODO подумать какой из истории брать для вычисления. Пока беру предыдущий
+    prev_data = session._session.params['history'][-2:][0]['data'] # TODO подумать какой из истории брать для вычисления. Пока беру предыдущий
     hst={i['security']:i['value_priv'] for i in prev_data}
     result['UslugiList'] = '\n'.join([f'{i["security"]:5}({i["currency"]}) {i["value_priv"]-hst.get(i["security"],i["value_priv"]):+.2f}\t{i["value_priv"]:.2f}' for i in res_data])
     # Полная информация подправленная для показа в balance.html
     result['Balance'] = round(sum([i['value_priv'] for i in res_data]), 2)  # Сумма в заданной валюте
     result['Currenc'] = currenc # Валюта
-    session.session.params['history'] = session.session.params['history'][-100:]  # оставляем последние 100 значений чтобы не росло бесконечно
+    session._session.params['history'] = session._session.params['history'][-100:]  # оставляем последние 100 значений чтобы не росло бесконечно
     session.save_session()
     return result
 

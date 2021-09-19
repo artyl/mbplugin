@@ -18,12 +18,11 @@ def get_balance(login, password, storename=None):
             if response1.status_code == 200:
                 logging.info('Old session bearer ok')
                 return session
-        session.drop_and_create(headers = headers) # TODO непонятно как лучше рубить концы или нет
+        session.drop_and_create() # TODO непонятно как лучше рубить концы или нет
         response2 = session.post(f'https://sso.tele2.ru/auth/realms/tele2-b2c/protocol/openid-connect/token?msisdn=7{login}&action=auth&authType=pass', data=data)
         if response2.status_code == 200:
             logging.info('New bearer is ok')
             bearer = response2.json()['access_token']
-            # !!! TODO теперь session.session.headers подумать как лучше 
             session.update_headers({'Authorization': 'Bearer ' + bearer})
             return session
         logging.error(

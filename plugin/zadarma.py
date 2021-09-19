@@ -32,7 +32,7 @@ def get_balance(login, password, storename=None):
         logging.info(f'Already logoned {login}')
     else:
         logging.info(f'Session timeout, relogon {login}')
-        session.drop_and_create(headers=headers)
+        session.drop_and_create()
         response1 = session.get('https://my.zadarma.com/auth/')
         _ = response1
         response2 = session.post('https://my.zadarma.com/auth/login/', data=data)
