@@ -132,6 +132,10 @@ schedule4 = every().day,check_new_version_once
 ```
 После изменения расписания чтобы изменения применились запустите `mbp reload-schedule`
 
+## Обновление версии
+Текущую версию mbplugin можно узнать запустив ```mbp version -v``` из папки mbstandalone
+Для обновления версии запустите ```mbp version-update```
+
 ## Совместное использование standalone версии и MobileBalance, хранение паролей
 Если планируется совместное использование standalone версии и MobileBalance, то при запуске Mobilebalance все чужеродные поля будут стерты из Phones.ini.  
 Для этого был сделан механизм с файлом phones_add.ini.  
@@ -149,7 +153,11 @@ Password2 = 123password
 [Phone] #1
 Password2 = 123password
 ```
-Все параметры прописанные в phones_add.ini будут при подгрузке перекрывать параметры в phones.ini
+Все параметры прописанные в phones_add.ini будут при подгрузке перекрывать параметры в phones.ini  
+
+Не забывайте также про то что результаты запросов сделанных не из Mobilebalance (tray icon, web-server и telegram bot) не попадут в MobileBalance  
+
+Для использования возможностей standalone запустите ```mbplugin\standalone\mbp.bat``` после установки используйте mbp.bat в корневой папке (в папке где находится папка mbplugin)
 
 ## Для инфо
 
