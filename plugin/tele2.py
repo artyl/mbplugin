@@ -13,11 +13,14 @@ def get_balance(login, password, storename=None):
     def check_or_get_bearer():
         '''Проверяем если сессия отдает баланс, то ок, если нет, то логинимся заново'''
         session = store.Session(storename, headers = headers)
-        if 'Authorization' in session.headers:
+        if 'Authorization' in session.get_headers():
             response1 = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/balance')
             if response1.status_code == 200:
                 logging.info('Old session bearer ok')
+                store.feedback.text(f'Старая сессия сохранилась', append=True)
                 return session
+        # Логинимся заново
+        store.feedback.text(f'Старая сессия не сохранилась, логинимся заново', append=True)
         session.drop_and_create() # TODO непонятно как лучше рубить концы или нет
         response2 = session.post(f'https://sso.tele2.ru/auth/realms/tele2-b2c/protocol/openid-connect/token?msisdn=7{login}&action=auth&authType=pass', data=data)
         if response2.status_code == 200:
@@ -43,7 +46,10 @@ def get_balance(login, password, storename=None):
         'password': password,
         'grant_type': 'password', 'client_id': 'android-app', 'password_type': 'password'
     }
+    store.feedback.text(f'Авторизация', append=True)
     session = check_or_get_bearer()
+
+    store.feedback.text(f'Забираем данные из личного кабинета', append=True)
     response_b = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/balance')
     result['Balance'] = get_data(response_b).get('value')  # баланс
     response_t = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/tariff')
@@ -51,7 +57,6 @@ def get_balance(login, password, storename=None):
     response_p = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/profile')
     result['UserName'] = get_data(response_p).get('fullName', '')  # ФИО владельца
     siteId = get_data(response_p).get('siteId','')  # регион 
-
     # список услуг
     response_с = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/{siteId}/services?status=connected')
     # Тарифный план у tele2 за услугу не считается, так что просто прибавляем его цену

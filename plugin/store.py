@@ -96,6 +96,9 @@ class Session():
         self.additional_headers = headers
         self.load_session()
 
+    def get_headers(self):
+        return self._session.headers
+
     def update_headers(self, headers):
         self._session.headers.update(headers)
 
