@@ -15,6 +15,11 @@
 # bash mbplugin/standalone/mbp
 # ./mbp check-plugin
 
+# in macOS realpath is nondefault app
+# realpath() {
+#     [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
+# }
+
 util_path=$(dirname $0)/../../mbplugin/plugin/util.py
 root_path=$(realpath $(dirname $0))
 [ -f $util_path ] && root_path=$(realpath $(dirname $0)/../..)
