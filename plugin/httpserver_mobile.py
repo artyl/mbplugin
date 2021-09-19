@@ -66,11 +66,11 @@ def getbalance_standalone_one(filter:list=[], only_failed:bool=False) -> None:
                     queue_balance.append(val)
                     logging.info(f'getbalance_standalone queued: {keypair}')
                     dbengine.flags('set', f'{keypair}', 'queue')  # выставляем флаг о постановке в очередь
-    store.feedback(f'Queued {len(queue_balance)} numbers')
+    store.feedback.text(f'Queued {len(queue_balance)} numbers')
     for val in queue_balance:
         # TODO пока дергаем метод от вебсервера там уже все есть, потом может вынесем отдельно
         try:
-            store.feedback(f"Receive {val['Alias']}:{val['Region']}_{val['Number']}")
+            store.feedback.text(f"Receive {val['Alias']}:{val['Region']}_{val['Number']}")
             getbalance_plugin('get', {'plugin': [val['Region']], 'login': [val['Number']], 'password': [val['Password2']], 'date': ['date']})
         except Exception:
             logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {store.exception_text()}")
@@ -99,7 +99,7 @@ def get_full_info_one_number(keypair:str, check:bool=False) -> str:
         getbalance_standalone(filter=[f'__{keypair}__'])  # приходится добавлять подчеркивания чтобы исключить попадание по части строки
     params = {'include': f'__{keypair}__'}
     baltxt = prepare_balance('FULL', params=params)
-    store.feedback(baltxt)
+    store.feedback.text(baltxt)
     # Детализация UslugiList по ключу val['Region']}_{val['Number']
     responses = dbengine.responses()
     if keypair in responses:
@@ -119,7 +119,7 @@ def get_full_info_one_number(keypair:str, check:bool=False) -> str:
     else:
         logging.info(f'Not found UslugiList in response for {keypair}')
     msgtxt = f"{baltxt}\n{detailed}\n{uslugi}".strip()
-    store.feedback(msgtxt)
+    store.feedback.text(msgtxt)
     return msgtxt    
 
 
@@ -575,7 +575,7 @@ class Scheduler():
             if cmd == 'check' or cmd == 'check_send':
                 getbalance_standalone(**kwargs)
                 baltxt = prepare_balance('FULL', params=kwargs.get('params', {}))
-                store.feedback(baltxt)
+                store.feedback.text(baltxt)
                 # Шлем по адресатам прописанным в ini
                 if TelegramBot.instance is not None and cmd == 'check_send':
                     TelegramBot.instance.send_balance()
@@ -592,7 +592,7 @@ class Scheduler():
                 if TelegramBot.instance is not None:
                     msg = ' '.join(kwargs['filter']).strip()
                     TelegramBot.instance.send_message('ping' if msg == '' else msg)
-            store.feedback(close=True)  # После обработки задания 
+            store.feedback.unset()  # После обработки задания отменяем 
         except Exception:
             logging.info(f'Scheduler: Error while run job {current_job}: {store.exception_text()}')
         self._job_running = False
@@ -749,7 +749,7 @@ class TelegramBot():
         only_failed = (update.message.text == "/receivebalancefailed")
         params = {'include': None if context.args == [] else ','.join(context.args)}
         if Scheduler().run_once(cmd='check', kwargs={'filter':context.args, 'params':params, 'only_failed':only_failed}):
-            store.feedback(func=feedback_func)  
+            store.feedback.set(feedback_func)  
         else:
             self.put_text(msg.edit_text, 'Одно из заданий сейчас выполняется, попробуйте позже')
 
@@ -791,7 +791,7 @@ class TelegramBot():
         else:  # реагируем на клавиатуру
             cmd, keypair = query.data.split('_', 1)  # До _ команда, далее Region_Number
             if Scheduler().run_once(cmd='get_one', kwargs={'keypair': keypair, 'check': cmd == 'checkone'}):
-                store.feedback(func=feedback_func)
+                store.feedback.set(feedback_func)
             else:
                 self.put_text(query.edit_message_text, 'Одно из заданий сейчас выполняется, попробуйте позже')
 

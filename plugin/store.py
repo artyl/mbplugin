@@ -46,46 +46,41 @@ def path_split_all(path):
 
 
 class Feedback():
-    '''Класс для создания функции обратной связи, создаем его через with, чтобы независимо от факапов он гарантированно закрылся
-    но такая схема с перебрасыванием через очередь не срабатывает он закрывается раньше чем нужно'''
-    def __init__(self, feedback:typing.Callable=None):
-        self.feedback = feedback
-        sys.modules[__name__]._feedback = feedback  # type: ignore
-
-    def __enter__(self):
-        return self.feedback
-
-    def __exit__(self, *args):
-        sys.modules[__name__]._feedback = None
-        print('feedback = None')
-
-
-def feedback(msg: str = '', func: typing.Callable = None, close=False):
-    '''функция обратной связи, используется чтобы откуда угодно кидать сообщения по ходу выполнения процесса например в телегу
-    со стороны получателя сообщений создается with Feedback(func) as f: ...
-    Отправитель шлет сообщения в store.feedback()
+    '''Класс для создания функции обратной связи, используется чтобы откуда угодно кидать сообщения 
+    по ходу выполнения процесса например в телегу 
+    Отправитель шлет сообщения в store.feedback.text()
     Такая замена для print
-    close=True - если хотим закрыть feedback 
-    func!= None - если хотим задать новую функцию для feedback
     '''
-    if close:
-        sys.modules[__name__]._feedback = None  # type: ignore
-        return
-    if func is not None:
-        sys.modules[__name__]._feedback = func  # type: ignore
-        return
-    feedback: typing.Callable[[str],None] = sys.modules[__name__]._feedback  # type: ignore
-    try:
-        if feedback is not None:
-            feedback(msg)
-        else:
-            pass
-            # print(msg)  # TODO можно так или в лог
-    except Exception:
-        print('Fail feedback')
 
+    def __init__(self, feedback:typing.Callable=None):
+        self._feedback:typing.Optional[typing.Callable[[str],None]] = None
+        self.previous = ''
 
-_feedback: typing.Optional[typing.Callable[[str],None]] = None
+    def set(self, func: typing.Callable[[str],None]):
+        'устанавливаем функцию для feedback'
+        self._feedback = func
+
+    def unset(self):
+        'Закрываем возможность feedback'
+        self._feedback = None
+
+    def text(self, msg: str = '', append=False):
+        'Отправляем сообщение'
+        try:
+            if self._feedback is not None:
+                if append and self.previous != '':
+                    msg = self.previous + '\n' + msg
+                self._feedback(msg)
+                self.previous = msg
+            else:
+                pass
+                # print(msg)  # TODO можно так или в лог
+        except Exception:
+            # Независимо от результата мы не должны уйти в exception - это просто принт
+            print('Fail feedback')
+
+# Создаем экземпляр для работы
+feedback = Feedback()
 
 
 class Session():
