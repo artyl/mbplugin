@@ -88,15 +88,13 @@ class Session():
     
     def __init__(self, storename=None, headers={}):
         '''если не указать storename то сессия без сохранения
-        headers - если после создания сессии нужно прописать дополнительные
-        '''
+        headers - если после создания сессии нужно прописать дополнительные'''
         self.storename = storename
         self.storefolder = options('storefolder')
         self.pagecounter = 1  # Счетчик страниц для сохранения
         self.json_response = {}  # Сохраняем json ответы
         self.additional_headers = headers
         self.load_session()
-
 
     def update_headers(self, headers):
         self._session.headers.update(headers)
