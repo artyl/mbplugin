@@ -592,9 +592,15 @@ def phone_change(ctx, num, delete, plugin, monitor, alias, login, password):
 
 @cli.command()
 @click.option('-v', '--verbose', is_flag=True, help='Показать версии пакетов и хрома')
+@click.option('-d', '--download-stat', is_flag=True, help='Показать статистику по загрузкам разных версий')
 @click.pass_context
-def version(ctx, verbose):
+def version(ctx, verbose, download_stat):
     'Текущая установленная версия'
+    if download_stat or verbose:
+        import updateengine
+        updater = updateengine.UpdaterEngine()
+    if download_stat:
+        echo(updater.download_statistics())
     echo(f'Mbplugin version {store.version()}')
     if not verbose:
         return
@@ -608,8 +614,6 @@ def version(ctx, verbose):
         browser = p.chromium.launch()
         echo(f'Chromium {browser.version}')
         browser.close()
-    import updateengine
-    updater = updateengine.UpdaterEngine()
     if updater.check_update():
         version, msg_version = updater.latest_version_info()
         echo(f'New version found {version}\n{msg_version}')
@@ -790,9 +794,12 @@ def bugreport(ctx, num, alias, plugin, login):
 @cli.command()
 @click.argument('args', nargs=-1)
 @click.pass_context
-def bash(ctx, args):
-    'Запуск консоли с окружением для mbplugin - удобно в docker и venv'
-    name = 'bash'
+def console(ctx, args):
+    'Запуск консоли bash/cmd с окружением для mbplugin - удобно в docker и venv'
+    name = 'console'
+    python_path = os.path.split(sys.executable)[0]
+    if python_path not in os.environ['PATH'].split(os.pathsep):
+        os.environ['PATH'] = python_path + os.pathsep + os.environ['PATH']
     if sys.platform == 'win32':
         os.system(f'cmd {" ".join(args)}')
     else:

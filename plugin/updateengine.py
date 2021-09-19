@@ -132,6 +132,19 @@ class UpdaterEngine():
         latest_ver = tuple(map(int, re.findall(r'\d+', release["tag_name"])))
         return current_ver < latest_ver  # Есть новая версия
 
+    def download_statistics(self):
+        'Статистика по загрузкам версий'
+        self.github_release(LATEST)  # Нужен чтобы прогрузились данные с github
+        result = []
+        for release in reversed(self.releases):
+            assets = release['assets']
+            if [1 for a in assets if a['name'].startswith('mbplugin_bare')] == []:
+                continue
+            result.append(f'============ {release["tag_name"]}')
+            for asset in assets:
+                result.append(f"{asset['name']} {asset['download_count']}")
+        return '\n'.join(result)
+
     def download_version(self, version='', force=False, checksign=True) -> None:
         '''Загружаем обновление, force=True независимо от наличия на диске, checksign=False - не проверять подпись 
         возвращаем полный путь к скачанному файлу'''
