@@ -80,8 +80,8 @@ def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=-1, 
     retry=N количество повторов по неудачным попыткам, после запроса по всем (повторы только при only_failed=False)
     params добавлен чтобы унифицировать вызовы
     Результаты сохраняются в базу'''
-    if retry == 0:
-        retry = store.options('retry_failed')
+    if retry == -1:
+        retry = int(store.options('retry_failed'))
     if only_failed:
         getbalance_standalone_one(filter=filter, only_failed=True)
     else:
@@ -835,11 +835,11 @@ class TelegramBot():
         if query is None or query.data is None:
             return
         query.answer()
-        cmd = query.data.split('_', 1)[0]  # До _ команда, далее кнопка, например Region_Number
-        if cmd.startswith('Cancel'):
+        logging.info(f'TG:reply keyboard to {update.effective_chat.id} CHOICE:{query.data}')
+        cmd,val = query.data.split('_', 1)  # До _ команда, далее кнопка, например Region_Number
+        if val.startswith('Cancel'):
             self.put_text(query.edit_message_text, 'Canceled')
             return
-        logging.info(f'TG:reply keyboard to {update.effective_chat.id} CHOICE:{query.data}')
         self.put_text(query.edit_message_text, 'Request received. Wait...')
         # ключом для calback у нас 6 букв
         if cmd == 'getlog':  # /getlog - генерим лог и выходим
