@@ -42,7 +42,7 @@ TRAY_MENU = (
 )
 
 
-def getbalance_standalone_one(filter:list=[], only_failed:bool=False) -> None:
+def getbalance_standalone_one_pass(filter:list=[], only_failed:bool=False) -> None:
     ''' Получаем балансы самостоятельно без mobilebalance ОДИН ПРОХОД
     Если filter пустой то по всем номерам из phones.ini
     Если не пустой - то логин/алиас/оператор или его часть
@@ -83,11 +83,11 @@ def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=-1, 
     if retry == -1:
         retry = int(store.options('retry_failed'))
     if only_failed:
-        getbalance_standalone_one(filter=filter, only_failed=True)
+        getbalance_standalone_one_pass(filter=filter, only_failed=True)
     else:
-        getbalance_standalone_one(filter=filter, only_failed=False)
+        getbalance_standalone_one_pass(filter=filter, only_failed=False)
         for i in range(retry):
-            getbalance_standalone_one(filter=filter, only_failed=True)
+            getbalance_standalone_one_pass(filter=filter, only_failed=True)
 
 
 def get_full_info_one_number(keypair:str, check:bool=False) -> str:
