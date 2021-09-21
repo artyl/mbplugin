@@ -228,13 +228,13 @@ def getreport(param=[]):
         'el - element'
         'pkey - пара (номер,оператор)'
         mark = ''  # class="mark"
-        if he == 'Balance' and el is not None and el < float(phones[pkey]['BalanceLessThen']):
+        if he == 'Balance' and el is not None and el < float(store.options('BalanceLessThen', pkey=pkey)):
             mark = ' class="mark" '  # Красим когда мало денег
-        if he == 'CalcTurnOff' and el is not None and el < int(phones[pkey]['TurnOffLessThen']):
+        if he == 'CalcTurnOff' and el is not None and el < int(store.options('TurnOffLessThen', pkey=pkey)):
             mark = ' class="mark" '  # Красим когда надолго не хватит
-        if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) > int(phones[pkey]['BalanceNotChangedMoreThen']):
+        if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) > int(store.options('BalanceNotChangedMoreThen', pkey=pkey)):
             mark = ' class="mark" '  # Красим когда давно не изменялся
-        if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) < int(phones[pkey]['BalanceChangedLessThen']):
+        if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) < int(store.options('BalanceChangedLessThen', pkey=pkey)):
             mark = ' class="mark" '  # Красим недавно поменялся а не должен был
         if el is None:
             el = ''
@@ -284,7 +284,7 @@ def getreport(param=[]):
                         h_html_table.append(f'<tr id="row" class="n">{h_html_line}</tr>')
                     hover = template_history.format(h_header=f"Список услуг по {line['Alias']}", html_header=h_html_header, html_table='\n'.join(h_html_table))
             if he == 'Balance':  # На баланс вешаем hover с историей
-                history = db.history(line['PhoneNumber'], line['Operator'], int(store.options('RealAverageDays')), int(store.options('ShowOnlyLastPerDay')))
+                history = db.history(line['PhoneNumber'], line['Operator'], days=int(store.options('RealAverageDays', pkey=pkey)), lastonly=int(store.options('ShowOnlyLastPerDay', pkey=pkey)))
                 if history != []:
                     h_html_header = ''.join([f'<th id="h{h}" class="{header_class.get(h, "p_n")}">{dbengine.PhonesHText.get(h, h)}</th>' for h in history[0].keys()])
                     h_html_table = []
@@ -301,7 +301,7 @@ def getreport(param=[]):
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('queue'):
             classflag = 'n_us'
         html_table.append(f'<tr id="row" class="{classflag}">{"".join(html_line)}</tr>')
-    temlate_style = temlate_style.replace('{HoverCss}', store.options('HoverCss'))
+    temlate_style = temlate_style.replace('{HoverCss}', store.options('HoverCss'))  # HoverCss общий на всю страницу, поэтому берем без pkey
     res = template_page.format(style=temlate_style, html_header=html_header, html_table='\n'.join(html_table), title=store.version())
     return 'text/html', [res]
 
@@ -389,14 +389,14 @@ def prepare_balance_sqlite(filter:str='FULL', params:typing.Dict={}):
         pkey = (line['PhoneNumber'], line['Operator'])
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('error'):
             return '<b> ! последняя попытка получить баланс завершилась ошибкой !</b>'
-        if line['Balance'] is not None and line['Balance'] < float(phones[pkey]['BalanceLessThen']):
+        if line['Balance'] is not None and line['Balance'] < float(store.options('BalanceLessThen', pkey=pkey)):
             return '<b> ! достигнут порог баланса !</b>'
-        if line['CalcTurnOff'] is not None and line['CalcTurnOff'] < int(phones[pkey]['TurnOffLessThen']):
-            return '<b> ! возможно скорое отключение !</b>'
-        if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] > int(phones[pkey]['BalanceNotChangedMoreThen']):
-            return f'<b> ! баланс не изменялся более {phones[pkey]["BalanceNotChangedMoreThen"]} дней !</b>'
-        if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] > int(phones[pkey]['BalanceNotChangedMoreThen']):
-            return f'<b> ! баланс изменился менее {phones[pkey]["BalanceChangedLessThen"]} дней назад!</b>'
+        if line['CalcTurnOff'] is not None and line['CalcTurnOff'] < int(store.options('TurnOffLessThen', pkey=pkey)):
+            return "<b> ! возможно скорое отключение - {line['CalcTurnOff']} дней !</b>"
+        if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] > int(store.options('BalanceNotChangedMoreThen', pkey=pkey)):
+            return f"<b> ! баланс не изменялся более {store.options('BalanceNotChangedMoreThen', pkey=pkey)} дней !</b>"
+        if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] < int(store.options('BalanceChangedLessThen', pkey=pkey)):
+            return f"<b> ! баланс изменился менее {store.options('BalanceChangedLessThen', pkey=pkey)} дней назад!</b>"
         return ''
     # table_format = 'Alias,PhoneNumber,Operator,Balance'
     # Если формат задан как перечисление полей через запятую - переделываем под формат

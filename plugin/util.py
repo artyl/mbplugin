@@ -470,15 +470,43 @@ def check_ini(ctx):
     name = 'check-ini'
     # Проверку сделаю позже, пока ее нет
     try:
-        ini = store.ini()
-        ini.read()
-        if'Telegram' in ini.ini:
-            if len([i for i in ini.ini['Telegram'].keys() if i.startswith('subscribtion')]):
-                echo(f'Warning {name} mbplugin.ini - subsri_B_tion key found in ini')
-        echo(f'OK {name} mbplugin.ini')
-        ini = store.ini('phones.ini')
-        ini.read()
-        echo(f'OK {name} phones.ini')
+        mbplugin_ini = store.ini()
+        mbplugin_ini.read()
+        mbplugin_ini_mess = []
+        if'Telegram' in mbplugin_ini.ini:
+            if len([i for i in mbplugin_ini.ini['Telegram'].keys() if i.startswith('subscribtion')]):
+                msg = f'Warning {name} mbplugin.ini - subsri_B_tion key found in ini'
+                mbplugin_ini_mess.append(msg)
+        for sec in store.settings.ini.keys():
+            for key in store.settings.ini[sec]:
+                if not key.endswith('_'):
+                    valid, msg = store.option_validate(key, section=sec)
+                    if not valid:
+                        mbplugin_ini_mess.append(f'Section [{sec}]: ' + msg)
+        if len(mbplugin_ini_mess):
+            echo(f'Fail {name} mbplugin.ini\n'+'\n'.join(mbplugin_ini_mess))
+        else:
+            echo(f'OK {name} mbplugin.ini')
+        phones_ini_mess = []
+        phones_ini = store.ini('phones.ini')
+        phones_ini.read()
+        for nn in phones_ini.ini.keys():
+            if nn == 'DEFAULT':
+                continue
+            if not nn.isdigit():
+                phones_ini_mess.append(f'Invalid section number [{nn}]')
+                continue
+            pkey = (phones_ini.ini[nn]['number'], phones_ini.ini[nn]['region'])
+            for key in phones_ini.ini[nn].keys():
+                valid, msg = store.option_validate(key, pkey=pkey)
+                if not valid:
+                    phones_ini_mess.append(f'Section [Phone] #{nn} ' + msg)
+                if key.lower() not in store.settings.ini['Options'] and key.lower() not in store.settings.PHONE_INI_KEYS_LOWER:
+                    phones_ini_mess.append(f'Section [Phone] #{nn} has unused {key}')
+        if len(phones_ini_mess):
+            echo(f'Fail {name} phones.ini\n'+'\n'.join(phones_ini_mess))
+        else:
+            echo(f'OK {name} phones.ini')
     except Exception:
         echo(f'Fail {name}:\n{store.exception_text()}')
 
@@ -621,46 +649,6 @@ def version(ctx, verbose, download_stat):
         version, msg_version = updater.latest_version_info(short=True)
         echo(f'No new version found on github release, latest version:{version}\n{msg_version}')
         return    
-
-
-# @cli.command()
-# @click.option('-f', '--force', is_flag=True, help='С заменой измененных файлов')
-# @click.argument('branch', nargs=-1)
-# @click.pass_context
-# Данный вариант устарел (хотя и даже не ушел в релиз)
-def obsolete_version_update_git(ctx, force, branch):
-    '''Обновление mbplugin из https://github.com/artyl/mbplugin если репозиторий не установлен устанавливаем
-    При желании можно явно указать коммит/тэг/ветку на которую переключаемся'''
-    name = 'version-update-git'
-    # TODO проверить наличие git в системе
-    if os.system('git --version') > 0:
-        echo('git not found')
-        return
-    if len(branch) > 2:
-        echo('Use not more 1 phrases for branch')
-        return
-    branch_name = 'dev_playwright'  # TODO после переключения в master поменять на master и закоммитить последнюю версию с master в ветку dev_playwright
-    if len(branch) == 1:
-        branch_name = branch[0]
-    if re.match(r'\A0\.99.(\d+)\.?\d?\Z', branch_name) and int(re.search(r'\A0\.99.(\d+)\.?\d*\Z', branch_name).groups()[0]) > 32:
-        # В старые версии где еще нет mbp переключаться нельзя обратно уже тем же путем будет не вернуться
-        echo('Switch to this version broke mbp')
-        return
-    if os.path.isdir('mbplugin') and not os.path.isdir(os.path.join(ROOT_PATH, 'mbplugin', '.git')):
-        os.system(f'git clone --bare https://github.com/artyl/mbplugin.git mbplugin/.git')
-        os.system(f'git -C mbplugin config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*')
-        os.system(f'git -C mbplugin branch -D dev_playwright')
-        os.system(f'git -C mbplugin branch -D master')
-        os.system(f'git -C mbplugin branch -D dev')
-        os.system(f'git -C mbplugin config --local --bool core.bare false')
-    if not os.path.isdir(os.path.join(ROOT_PATH, 'mbplugin', '.git')):
-        echo(f"{os.path.join(ROOT_PATH, 'mbplugin', '.git')} is not folder")
-        return
-    os.system(f'git -C mbplugin fetch --all --prune')
-    os.system(f'git -C mbplugin stash')
-    os.system(f'git -C mbplugin pull')
-    os.system(f'git -C mbplugin checkout {"-f" if force else ""} {branch_name}')
-    echo(f'OK {name}')
 
 
 @cli.command()

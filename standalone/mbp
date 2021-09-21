@@ -100,6 +100,7 @@ fi
 
 # ../plugin/util.py exists go into installation mode
 if [ -f $util_path ]; then 
+    export MBPLUGIN_WRITE_DIAG=YES
     echo "The file $(realpath $util_path) exist";
     cd $root_path
     cp mbplugin/standalone/mbp .

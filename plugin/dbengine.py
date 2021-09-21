@@ -220,8 +220,8 @@ class Dbengine():
             table.append(row)
         return table
     
-    def history(self, phone_number, operator, days=7, lastonly=1):
-        'Генерирует исторические данные по номеру телефона'
+    def history(self, phone_number, operator, days=7, lastonly=1, pkey=None):
+        'Генерирует исторические данные по номеру телефона, pkey нужен чтобы взять индивидуальные настройки, для телефона если они есть'
         if days == 0:
             return []
         historysql = f'''select * from phones where phonenumber=? and operator=? and QueryDateTime>date('now','-'|| ? ||' day') order by QueryDateTime desc'''
@@ -236,14 +236,14 @@ class Dbengine():
         qtimes = [line[qtimes_num] for line in dbdata]  # Список всех времен получения баланса
         qtimes_max = {max([k for k in qtimes if k.startswith(j)]) for j in {i.split()[0] for i in qtimes}}  # Последние даты получения баланса за сутки
         table = []  # результат - каждая строчка словарь элементов
-        fields = store.options('HoverHistoryFormat').split(',')
+        fields = store.options('HoverHistoryFormat', pkey=pkey).split(',')
         # выкидываем неинтересные колонки Там где только нули и None
         fields = [i for i in fields if i in dbheaders and dbdata_sets[dbheaders.index(i)] != set()]
         for line in dbdata:
             row = dict(zip(dbheaders, line))
             if str(lastonly) == '0' or row['QueryDateTime'] in qtimes_max:  # фильруем данные по qtimes_max
                 table.append({k:row[k] for k in fields if k in row})
-        return table[::int(store.options('SkipDay'))+1]
+        return table[::int(store.options('SkipDay', pkey=pkey))+1]
 
     def check_and_add_addition(self):
         'Создаем таблицы, добавляем новые поля, и нужные индексы если их нет'

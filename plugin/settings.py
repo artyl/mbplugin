@@ -3,13 +3,16 @@
 Значения по умолчанию, здесь ничего не меняем, если хотим поменять меняем в mbplugin.ini
 подробное описание см в readme.md
 '''
-import os
+import os, re
 UNIT = {'TB': 1073741824, 'ТБ': 1073741824, 'TByte': 1073741824, 'TBYTE': 1073741824,
         'GB': 1048576, 'ГБ': 1048576, 'GByte': 1048576, 'GBYTE': 1048576,
         'MB': 1024, 'МБ': 1024, 'MByte': 1024, 'MBYTE': 1024,
         'KB': 1, 'КБ': 1, 'KByte': 1, 'KBYTE': 1,
         'DAY': 30, 'DAYLY': 30, 'MONTH':1,
         'day': 30, 'dayly': 30, 'month':1,}
+
+PHONE_INI_KEYS = ['Region', 'Monitor', 'Alias', 'Number', 'Password', 'mdOperation', 'mdConstant', 'PauseBeforeRequest', 'ShowInBallon', 'Password2']
+PHONE_INI_KEYS_LOWER = ['region', 'monitor', 'alias', 'number', 'password', 'mdoperation', 'mdconstant', 'pausebeforerequest', 'showinballon', 'password2']
 
 def find_file_up(folder, filename):
     'Нужен для совместимости со старым подходом, когда папка mbplugin могла находится на несколько уровней вложенности вниз'
@@ -60,10 +63,10 @@ ini = {
         'loggingfolder_': {'descr': 'папка для логов', 'type':'text', 'validate':lambda i:os.path.isdir(i)},
         'loggingfolder': os.path.join('mbplugin','log'), # mbplugin\log
         # лог для ручного запуска и dll плагинов
-        'loggingfilename_': {'descr':'лог для ручного запуска и dll плагинов', 'type':'text'},
+        'loggingfilename_': {'descr':'лог для ручного запуска и dll плагинов', 'type':'text', 'validate':lambda i:os.path.isfile(i)},
         'loggingfilename': os.path.join('mbplugin', 'log', 'mbplugin.log'), # mbplugin\log\mbplugin.log
         # лог http сервера и плагинов из него
-        'logginghttpfilename_': {'descr':'лог http сервера и плагинов из него', 'type':'text'},
+        'logginghttpfilename_': {'descr':'лог http сервера и плагинов из него', 'type':'text', 'validate':lambda i:os.path.isfile(i)},
         'logginghttpfilename': os.path.join('mbplugin', 'log', 'http.log'), # mbplugin\log\http.log
         # Уровень логирования
         'logginglevel_': {'descr':'Уровень логирования', 'type':'select', 'variants':'DEBUG INFO WARNING ERROR CRITICAL'},
@@ -72,7 +75,7 @@ ini = {
         'logconsole_': {'descr':'Вести дополнительное логирование в консоль', 'type':'checkbox'},
         'logconsole': '0',
         # Папка для хранения сессий
-        'storefolder_': {'descr':'Папка для хранения сессий', 'type':'text'},
+        'storefolder_': {'descr':'Папка для хранения сессий', 'type':'text', 'validate':lambda i:os.path.isdir(i)},
         'storefolder': os.path.join('mbplugin','store'), # ..\store
         # Записывать результаты в sqlite БД
         'sqlitestore_': {'descr':'Записывать результаты в sqlite БД', 'type':'checkbox'},
@@ -83,20 +86,23 @@ ini = {
         # Сколько раз повторно опрашивать балансы, которые опросились неудачно
         'retry_failed_': {'descr':'Сколько раз повторно опрашивать балансы, которые опросились неудачно', 'type':'text', 'validate':lambda i:i.isdigit()},
         'retry_failed': '2',
+        # Номер режима работы плагина, если режимов несколько, режим можно выставить индивидуально в phones.ini/phones_add.ini
+        'plugin_mode_': {'descr':'Номер режима работы плагина, если режимов несколько, режим можно выставить индивидуально в phones.ini/phones_add.ini', 'type':'text', 'validate':lambda i:i.isdigit()},
+        'plugin_mode': '0',
         # путь к БД sqlite - TODO не используем, всегда ищем ее в папке с phones.ini
         #'dbfilename_': {'descr':'путь к БД sqlite', 'type':'text', 'size':100},
         #'dbfilename': os.path.join('BalanceHistory.sqlite'), # BalanceHistory.sqlite
         # путь к html файлу, который создается после получения баланса
-        'balance_html_': {'descr':'путь к html файлу, который создается после получения баланса', 'type':'text', 'size':100},
+        'balance_html_': {'descr':'путь к html файлу, который создается после получения баланса', 'type':'text', 'size':100, 'validate':lambda i:os.path.isfile(i)},
         'balance_html': os.path.join('balance.html'), # balance.html
         # Обновлять SQLite базу данными из MDB
         'updatefrommdb_': {'descr':'Обновлять SQLite базу данными из MDB', 'type':'checkbox'},
         'updatefrommdb': 0,
         # Обновлять SQLite базу данными из MDB на сколько дней в глубину
-        'updatefrommdbdeep_': {'descr':'Обновлять SQLite базу данными из MDB на сколько дней в глубину', 'type':'text'},
+        'updatefrommdbdeep_': {'descr':'Обновлять SQLite базу данными из MDB на сколько дней в глубину', 'type':'text', 'validate':lambda i:i.isdigit()},
         'updatefrommdbdeep': 30,
         # показывать иконку web сервера в трее
-        'show_tray_icon_': {'descr':'показывать иконку web сервера в трее', 'type':'text'},
+        'show_tray_icon_': {'descr':'показывать иконку web сервера в трее', 'type':'checkbox'},
         'show_tray_icon': '1',
         # Прокси сервер для работы хром плагинов http://user:pass@12.23.34.56:6789 для socks5 пишем socks5://...
         'browser_proxy_': {'descr':'Прокси сервер для работы хром плагинов http://user:pass@12.23.34.56:6789 для socks5 пишем socks5://...', 'type':'text'},
@@ -178,7 +184,7 @@ ini = {
         # В отчете будут показаны красным, если по номеру были изменения менее чем ... дней
         # Если данный параметр не выставлен индивидуально для номера в phones.ini
         # Полезно когда вы следите за балансом который не должен меняться и вдруг начал меняться
-        'balancechangedlessthen_': {'descr':'Красить номера, баланс по меньше чем', 'type':'text', 'validate':lambda i:i.isdigit()},
+        'balancechangedlessthen_': {'descr':'Красить номера, баланс по которым изменился менее чем .. дней назад', 'type':'text', 'validate':lambda i:i.isdigit()},
         'balancechangedlessthen': '0',
         # показывает в всплывающем окне историю на N дней назад. 0 - не показывает
         'realaveragedays_': {'descr':'Показывать в всплывающем окне историю на N дней назад. 0 - не показывает', 'type':'text', 'validate':lambda i:i.isdigit()},
@@ -191,7 +197,7 @@ ini = {
         'skipday': '0',
         # Формат строк истории, можно выкинуть колонки, которые никогда не хотим видеть в истории
         # Пустые он сам выкинет
-        'hoverhistoryformat_': {'descr':'Формат строк истории', 'type':'text', 'size':200},
+        'hoverhistoryformat_': {'descr':'Формат строк истории', 'type':'text', 'size':200, 'validate':lambda i:re.match(r'^(\w+,)*\w+$', str(i))},
         'hoverhistoryformat': 'QueryDateTime,KreditLimit,Currenc,Balance,BalanceRUB,Balance2,Balance3,SpendBalance,UslugiOn,NoChangeDays,CalcTurnOff,Average,TurnOff,Recomend,SMS,SMS_USD,SMS_RUB,Minutes,USDRate,LicSchet,BalDelta,JeansExpired,ObPlat,BeeExpired,RealAverage,Seconds,MinSonet,MinLocal,MinAverage,MinDelta,MinDeltaQuery,TurnOffStr,SpendMin,PhoneReal,Internet,InternetUSD,InternetRUB,Contract,BalDeltaQuery,AnyString,BlockStatus,TarifPlan',
         # css для hover
         'hovercss_': {'descr':'css для hover (всплывающего окна)', 'type':'text', 'size':200},
@@ -220,7 +226,7 @@ ini = {
         'tg_proxy': '',  # По умолчанию без прокси
         'api_token_': {'descr':'Токен для бота', 'type':'text', 'size':100},
         'api_token': '',  # токен для бота - прописывается в ini
-        'auth_id_': {'descr':'Список id пользователей, которые взаимодействовать с ТГ ботом', 'type':'text'},
+        'auth_id_': {'descr':'Список id пользователей, которые взаимодействовать с ТГ ботом', 'type':'text', 'validate': lambda i:re.match(r'^(\d+,)*(\d)+$', str(i))},
         'auth_id': '',  # список id пользователей, которые авторизованы
         'send_balance_changes_': {'descr':'Отправлять изменения баланса по sendtgbalance', 'type':'checkbox'},
         'send_balance_changes': '1',  # отправлять изменения баланса по sendtgbalance (может приходится если мы не хотим получать полный список а фильтровать по подписке)
@@ -242,7 +248,7 @@ ini = {
     'HttpServer': {  # Раздел mbplugin.ini [HttpServer]
         'start_http_': {'descr':'Стартовать http сервер', 'type':'checkbox'},
         'start_http': 1,  # Стартовать http сервер
-        'port_': {'descr':'Порт http сервера', 'type':'text'},
+        'port_': {'descr':'Порт http сервера', 'type':'text', 'validate':lambda i:i.isdigit()},
         'port': '19777',  # порт http сервера с отчетами
         # host '127.0.0.1' - доступ только локально, '0.0.0.0' - разрешить доступ к по сети
         'host_': {'descr':'127.0.0.1 - доступ только локально, 0.0.0.0 - разрешить доступ к веб-серверу по сети', 'type':'select', 'variants': '127.0.0.1 0.0.0.0'},
@@ -254,7 +260,7 @@ ini = {
         # Также можно сделать несколько альтернативных видов с разными наборами полей 
         # они должны быть вида table_formatNNN где NNN произвольное число, которое не должно повторяться, 
         # зайти на такие альтернативные report можно по ссылке http://localhost:19777/report/NNN
-        'table_format_': {'descr':'Формат вывода по умолчанию, для страницы http://localhost:19777/report', 'type':'text', 'size':200},
+        'table_format_': {'descr':'Формат вывода по умолчанию, для страницы http://localhost:19777/report', 'type':'text', 'size':200, 'validate':lambda i:re.match(r'^(\w+,)*\w+$', str(i))},
         'table_format': 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime',  # ? UserName
         # расписание опросов, строк может быть несколько scheduler= ... scheduler1=... и т.д как сделано с table_format
         # расписание имеет вид:

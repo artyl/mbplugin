@@ -210,6 +210,22 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
             res = abspath_join(res)
     return phones_options.get(param, res)
 
+
+def option_validate(param, section='Options', pkey=None) -> typing.Tuple[bool, str]:
+    'Проверка корректности опции'
+    val = options(param, section=section, pkey=pkey)
+    prop: typing.Dict = settings.ini[section].get(param + '_', None)  # type: ignore
+    err_mess = ''
+    if prop is not None:
+        if prop['type'] == 'checkbox' and str(val) not in ['0', '1']:
+            err_mess = f'Error {param}={val}, must be 0 or 1'
+        if prop['type'] == 'select' and str(val) not in prop['variants'].split():
+            err_mess = f'Error {param}={val}, must be {prop["variants"]}'
+        if 'validate' in prop and not prop['validate'](str(val)):
+            err_mess = f'Error {param}="{val}", invalid (not check validation)'
+    return (err_mess == ''), err_mess
+
+
 class ini():
     def __init__(self, fn=settings.mbplugin_ini):
         'файл mbplugin.ini ищем в вышележащих папках либо в settings.mbplugin_ini_path если он не пустой'
@@ -322,7 +338,7 @@ class ini():
                         t_ini[sec][key] = t_ini[sec][key+'_orig']
                         del t_ini[sec][key+'_orig']
             data = re.sub(r'(?m)^\[(\d+)\]$', r'[Phone] #\1', ini_write_to_string(t_ini))  # [36] -> [Phone] #36
-            for key in 'Region,Monitor,Alias,Number,Password,mdOperation,mdConstant,PauseBeforeRequest,ShowInBallon,BalanceNotChangedMoreThen,BalanceChangedLessThen,BalanceLessThen,TurnOffLessThen,Password2'.split(','):
+            for key in settings.PHONE_INI_KEYS:
                 data = data.replace(f'{key.lower()} =', f'{key:20} =')
             #print(data)
             #return
@@ -368,7 +384,7 @@ class ini():
         data = {}
         for secnum,el in self.read().items():
             if secnum.isnumeric() and 'Monitor' in el:
-                key = (re.sub(r' #\d+','',el['Number']),el['Region'])
+                key = (re.sub(r' #\d+','',el['Number']),el['Region']) # (1234567#1, mts) -> (1234567, mts)
                 data[key] = dict(el)
                 data[key]['NN'] = int(secnum)
                 data[key]['Alias'] = el.get('Alias','')
@@ -376,10 +392,6 @@ class ini():
                 data[key]['Number'] = el.get('Number','')
                 data[key]['PhoneDescription'] = el.get('PhoneDescription','')
                 data[key]['Monitor'] = el.get('Monitor','')
-                data[key]['BalanceLessThen'] = float(el.get('BalanceLessThen', options('BalanceLessThen')))
-                data[key]['TurnOffLessThen'] = int(el.get('TurnOffLessThen', options('TurnOffLessThen')))
-                data[key]['BalanceNotChangedMoreThen'] = int(el.get('BalanceNotChangedMoreThen', options('BalanceNotChangedMoreThen')))
-                data[key]['BalanceChangedLessThen'] = int(el.get('BalanceChangedLessThen', options('BalanceChangedLessThen')))
                 data[key]['Password2'] = el.get('Password2','')
                 if secnum in phones_add:
                     try:
