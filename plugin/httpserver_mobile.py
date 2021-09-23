@@ -81,7 +81,7 @@ def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=-1, 
     params добавлен чтобы унифицировать вызовы
     Результаты сохраняются в базу'''
     if retry == -1:
-        retry = int(store.options('retry_failed'))
+        retry = int(store.options('retry_failed', flush=True))
     if only_failed:
         getbalance_standalone_one_pass(filter=filter, only_failed=True)
     else:
@@ -146,6 +146,7 @@ def getbalance_plugin(method, param_source):
     else:
         logging.error(f'Unknown method {method}')
     pkey = (param['login'], param['fplugin'])
+    store.options('logginglevel', flush=True)  # Запускаем, чтобы сбросить кэш и перечитать ini
     phone_items = store.ini('phones.ini').phones().get(pkey, {}).items()
     individual = ','.join([f'{k}={v}' for k,v in phone_items if k.lower() in store.settings.ini['Options'].keys()])
     unused = ','.join([f'{k}={v}' for k,v in phone_items if k.lower() not in store.settings.ini['Options'].keys() and k.lower() not in store.settings.PHONE_INI_KEYS_LOWER

@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
-import os, sys, time, io, re, json, pickle, requests, urllib.request, configparser, pprint, zipfile, logging, traceback, collections, typing, functools 
+import os, sys, time, io, re, json, pickle, requests, urllib.request, configparser, pprint, zipfile, logging, traceback, collections, typing
 from os.path import abspath
 import settings
 
@@ -180,33 +180,38 @@ class Session():
         return response
 
 
-@functools.lru_cache
-def options(param, default=None, section='Options', listparam=False, mainparams={}, pkey=None):
+def options(param, default=None, section='Options', listparam=False, mainparams={}, pkey=None, flush=False):
     '''Читаем параметр из mbplugin.ini либо дефолт из settings
     Если listparam=True, то читаем список из всех, что начинается на param
     mainparams - перекрывает любые другие варианты, если в нем присутствует - берем его
     Если результат путь (settings.path_param) - то вычисляем для него абсолютный путь
     Если указан pkey (number, plugin) и секция Options то пытаемся прочитать индивидуальные параметры для этого телефона из phones.ini/phones_add.ini 
+    если указан flush - кэш очищается
     '''
-    options_all_sec = ini().read()
+    if not hasattr(options, 'mbplugin_ini') or flush:
+        options.mbplugin_ini = None
+        options.phones = None
+    if options.mbplugin_ini is None:
+        options.mbplugin_ini = ini().read()
     phones_options = {}
     # Параметры из phones.ini/phones_add.ini
     if pkey is not None and section == 'Options':
-        phones = ini('phones.ini').phones()
-        if pkey in phones:
-            phones_options = phones[pkey]
+        if options.phones is None:
+            options.phones = ini('phones.ini').phones()
+        if pkey in options.phones:
+            phones_options = options.phones[pkey]
     # Параметр список, например subscriptionNNN
     if listparam:
         res = []
-        if section in options_all_sec:
-            res = [v for k,v in options_all_sec[section].items() if k.startswith(param)]
+        if section in options.mbplugin_ini:
+            res = [v for k,v in options.mbplugin_ini[section].items() if k.startswith(param)]
     else:  # Обычный параметр
         if default is None:  # default не задан = возьмем из settings
             default = settings.ini[section].get(param.lower(), None)
         if param in mainparams:  # х.з. уже не помню зачем делал надо разобраться и задеприкейтить
             res = mainparams[param]
         else:  # Берем обычный параметр, если в ini его нет, то default
-            res = options_all_sec.get(section, param, fallback=default)
+            res = options.mbplugin_ini.get(section, param, fallback=default)
         if param.lower() in settings.path_param:
             res = abspath_join(res)
     return phones_options.get(param, res)
