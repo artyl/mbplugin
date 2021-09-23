@@ -145,8 +145,15 @@ def getbalance_plugin(method, param_source):
         param['fplugin'] = param['plugin']  # наш параметр plugin на самом деле fplugin
     else:
         logging.error(f'Unknown method {method}')
+    pkey = (param['login'], param['fplugin'])
+    phone_items = store.ini('phones.ini').phones().get(pkey, {}).items()
+    individual = ','.join([f'{k}={v}' for k,v in phone_items if k.lower() in store.settings.ini['Options'].keys()])
+    unused = ','.join([f'{k}={v}' for k,v in phone_items if k.lower() not in store.settings.ini['Options'].keys() and k.lower() not in store.settings.PHONE_INI_KEYS_LOWER
+                    and k.lower() != 'nn' and not k.lower().endswith('_orig')])
+    individual = '' if individual == '' else f' Individual setup:{individual}'
+    unused = '' if unused == '' else f' Unused param:{unused}'
     logging.info(f'Webserver thread_count={len(threading.enumerate())}')
-    logging.info(f"Start {param['fplugin']} {param['login']}")
+    logging.info(f"Start {param['fplugin']} {param['login']} {individual}{unused}")
     # Это плагин от python ?
     if param['fplugin'].startswith(f'{lang}_'):
         # get balance
@@ -602,16 +609,24 @@ class Scheduler():
     def job_is_running(self):
         return Scheduler.instance._job_running
 
-    def run_once(self, cmd, delay:int=1, kwargs={}) -> bool:
-        '''Запланировать команду на однократный запуск, delay - отложить старт на N секунд
+    def run_once(self, cmd, delay:int=1, feedback_func: typing.Callable=None,  kwargs={}) -> bool:
+        '''Запланировать команду на однократный запуск, 
+        cmd - команда для _run (check, check_send, get_one, check_new_version, ping и т.п.)
+        delay - отложить старт на N секунд
+        feedback - функция для отписки статуса, если смогли - вешаем на feedback, не смогли пишем в нее что не смогли
+        kwargs - аргументы для cmd словарем, а не **
         возвращаем True - если запланировали и False если заняты
-        при планировании на раз сразу блокируем возможность запланировать на раз еще что-то 
+        при планировании once сразу блокируем возможность запланировать на раз еще что-то 
         чтобы не запутаться с feedback'''
         if Scheduler.instance is not None and not Scheduler().job_is_running():
             Scheduler.instance._job_running = True  # Сразу выставляем флаг что работаем, чтобы вдогонку не поставить второе
             schedule.every(delay).seconds.do(Scheduler.instance._run, cmd=cmd, once=True, kwargs=kwargs)
+            if feedback_func is not None:
+                store.feedback.set(feedback_func)
             return True
         else:
+            if feedback_func is not None:
+                feedback_func('Одно из заданий сейчас выполняется, попробуйте позже')
             return False
 
     def validate(self, sched) -> schedule.Job:
@@ -671,15 +686,70 @@ def auth_decorator(func):  # pylint: disable=no-self-argument
     def wrapper(self, update, context):
         # update.message.chat_id отсутствует у CallbackQueryHandler пробуем через update.effective_chat.id:
         if update.effective_chat.id in self.auth_id():
+            if update is not None and update.effective_message is not None:
+                logging.info(f'TG auth:{update.effective_chat.id} {update.effective_message.text}')            
             res = func(self, update, context)  # pylint: disable=not-callable
             return res
         else:
-            logging.info(f'TG:{update.message.chat_id} unauthorized get /balance')
+            logging.info(f'TG:{update.effective_chat.id} unauthorized {update.effective_message.text}')
     return wrapper
 
 class TelegramBot():
 
     instance = None  # когда создадим класс сюда запишем ссылку на созданный экземпляр
+
+    def __init__(self):
+        if 'telegram' not in sys.modules:
+            return  # Нет модуля TG - просто выходим
+        api_token = store.options('api_token', section='Telegram').strip()
+        request_kwargs = {}
+        tg_proxy = store.options('tg_proxy', section='Telegram').strip()
+        if tg_proxy.lower() == 'auto':
+            request_kwargs['proxy_url'] = urllib.request.getproxies().get('https', '')
+        elif tg_proxy != '' and tg_proxy.lower() != 'auto':
+            request_kwargs['proxy_url'] = tg_proxy
+            # ??? Надо или не надо ?
+            # request_kwargs['urllib3_proxy_kwargs'] = {'assert_hostname': 'False', 'cert_reqs': 'CERT_NONE'}
+        self.updater = None
+        if api_token != '' and str(store.options('start_tgbot', section='Telegram')) == '1' and 'telegram' in sys.modules:
+            try:
+                logging.info(f'Module telegram starting for id={self.auth_id()}')
+                self.updater = Updater(api_token, use_context=True, request_kwargs=request_kwargs)
+                logging.info(f'{self.updater}')
+                dp = self.updater.dispatcher
+                dp.add_handler(CommandHandler("help", self.get_help))
+                dp.add_handler(CommandHandler("id", self.get_id))
+                dp.add_handler(CommandHandler("balance", self.get_balancetext))
+                dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
+                dp.add_handler(CommandHandler("receivebalance", self.receivebalance))
+                dp.add_handler(CommandHandler("receivebalancefailed", self.receivebalance))
+                dp.add_handler(CommandHandler("restart", self.restartservice))
+                dp.add_handler(CommandHandler("getone", self.get_one))
+                dp.add_handler(CommandHandler("checkone", self.get_one))
+                dp.add_handler(CommandHandler("schedule", self.get_schedule))
+                dp.add_handler(CommandHandler("schedulereload", self.get_schedule))
+                dp.add_handler(CommandHandler("getlog", self.get_log))
+                dp.add_handler(CallbackQueryHandler(self.button))
+                dp.add_handler(MessageHandler(Filters.all, self.handle_catch_all))
+                self.updater.start_polling()  # Start the Bot
+                logging.info('Telegram bot started')
+                if str(store.options('send_empty', section='Telegram')) == '1':
+                    self.send_message(text='Hey there!')
+                TelegramBot.instance = self  # Запустили бота - прописываем инстанс
+            except Exception:
+                exception_text = f'Ошибка запуска telegram bot {store.exception_text()}'
+                logging.error(exception_text)
+        elif 'telegram' not in sys.modules:
+            logging.info('Module telegram not found')
+        elif api_token == '':
+            logging.info('Telegtam api_token not found')
+        elif str(store.options('start_tgbot', section='Telegram')) != '1':
+            logging.info('Telegtam bot start is disabled in mbplugin.ini (start_tgbot=0)')
+
+    def handle_catch_all(self, update, context):
+        'catch-all handler - логируем все что не попало в фильтры'
+        if update is not None and update.effective_message is not None:
+            logging.info(f'TG catch-all:{update.effective_chat.id} {update.effective_message.text}') 
 
     def auth_id(self):
         auth_id = store.options('auth_id', section='Telegram').strip()
@@ -689,8 +759,8 @@ class TelegramBot():
 
     def get_id(self, update, context):
         """Echo chat id."""
-        logging.info(f'TG:{update.message.chat_id} /id')
-        self.put_text(update.message.reply_text, update.message.chat_id)
+        logging.info(f'TG:{update.effective_message.chat_id} /id')
+        self.put_text(update.effective_message.reply_text, update.effective_chat.id)
 
     def put_text(self, func: typing.Callable, text: str, parse_mode: str=telegram.ParseMode.HTML) -> typing.Optional[typing.Callable]:
         '''Вызываем функцию для размещения текста'''
@@ -709,20 +779,18 @@ class TelegramBot():
     def get_help(self, update, context):
         """Send help."""
         help_text = '''/help\n/id\n/balance\n/balancefile\n/receivebalance\n/receivebalancefailed\n/restart\n/getone\n/checkone\n/schedule\n/schedulereload\n/getlog'''
-        logging.info(f'TG:{update.message.chat_id} /help')
-        self.put_text(update.message.reply_text, help_text)
+        logging.info(f'TG:{update.effective_message.chat_id} /help')
+        self.put_text(update.effective_message.reply_text, help_text)
 
     @auth_decorator
     def get_balancetext(self, update, context):
         """Send balance only auth user."""
-        logging.info(f'TG:{update.message.chat_id} /balance')
         baltxt = prepare_balance('FULL')
-        self.put_text(update.message.reply_text, baltxt)
+        self.put_text(update.effective_message.reply_text, baltxt)
 
     @auth_decorator
     def get_balancefile(self, update, context):
         """Send balance html file only auth user."""
-        logging.info(f'TG:{update.message.chat_id} /balancefile')
         _, res = getreport()
         for id in self.auth_id():
             self.updater.bot.send_document(chat_id=id, filename='balance.htm', document=io.BytesIO('\n'.join(res).strip().encode('cp1251')))
@@ -730,8 +798,8 @@ class TelegramBot():
     @auth_decorator
     def restartservice(self, update, context):
         """Hard reset service"""
-        self.put_text(update.message.reply_text, 'Service will be restarted')
-        restart_program(reason=f'TG:{update.message.chat_id} /restart {context.args}')
+        self.put_text(update.effective_message.reply_text, 'Service will be restarted')
+        restart_program(reason=f'TG:{update.effective_message.chat_id} /restart {context.args}')
 
     @auth_decorator
     def receivebalance(self, update, context):
@@ -740,18 +808,14 @@ class TelegramBot():
         /receivebalancefailed
         """
         def feedback_func(txt):
-            'команда для показа прогресса'
             self.put_text(msg.edit_text, txt)
         filtertext = '' if len(context.args) == 0 else f", with filter by {' '.join(context.args)}"
-        msg = self.put_text(update.message.reply_text, f'Request all number{filtertext}. Wait...')
+        msg = self.put_text(update.effective_message.reply_text, f'Request all number{filtertext}. Wait...')
         # Если запросили плохие - то просто запрашиваем плохие
         # Если запросили все - запрашиваем все, потом два раза только плохие
-        only_failed = (update.message.text == "/receivebalancefailed")
+        only_failed = (update.effective_message.text == "/receivebalancefailed")
         params = {'include': None if context.args == [] else ','.join(context.args)}
-        if Scheduler().run_once(cmd='check', kwargs={'filter':context.args, 'params':params, 'only_failed':only_failed}):
-            store.feedback.set(feedback_func)  
-        else:
-            self.put_text(msg.edit_text, 'Одно из заданий сейчас выполняется, попробуйте позже')
+        Scheduler().run_once(cmd='check', feedback_func=feedback_func, kwargs={'filter':context.args, 'params':params, 'only_failed':only_failed})
 
     @auth_decorator
     def get_schedule(self, update, context):
@@ -759,73 +823,98 @@ class TelegramBot():
         /schedule
         /schedulereload
         """
-        logging.info(f'TG:{update.message.chat_id} {update.message.text}')
-        if update.message.text == "/schedulereload":
+        if update.effective_message.text == "/schedulereload":
             Scheduler().reload()
         text = Scheduler().view_txt()
-        self.put_text(update.message.reply_text, text if text.strip() != '' else 'Empty')
+        self.put_text(update.effective_message.reply_text, text if text.strip() != '' else 'Empty')
 
     @auth_decorator
-    def get_one(self, update, context):
-        """Receive one balance with inline keyboard, only auth user.
+    def get_one(self, update, context: telegram.ext.callbackcontext.CallbackContext):
+        """Receive one balance with inline keyboard/args, only auth user.
         /checkone - получаем баланс
         /getone - показываем"""
-        def feedback_func(txt):
-            'команда для показа прогресса'
-            self.put_text(query.edit_message_text, txt)
+        # Заданы агрументы? Тогда спросим по ним.
+        args = ' '.join(context.args if context.args is not None else []).lower()
+        if args != '' and update is not None:  # context.args
+            cmd = (update.effective_message.text[1:]).split(' ')[0]
+            filtered = [v for k,v in store.ini('phones.ini').phones().items() if v['number'].lower()==args or v['alias'].lower()==args]
+            message = self.put_text(update.effective_message.reply_text, f'You have chosen {args}')
+            if len(filtered) > 0:
+                val = filtered[0]
+                callback_data=f"{cmd}_{val['Region']}_{val['Number']}"
+                cmd, keypair = callback_data.split('_', 1)  # До _ команда, далее Region_Number
+            else:
+                self.put_text(message.edit_text, f'Not found {args}')  # type: ignore
+                return
+            feedback_func = lambda txt:self.put_text(message.edit_text, txt)  # type: ignore
+            Scheduler().run_once(cmd='get_one', feedback_func=feedback_func, kwargs={'keypair': keypair, 'check': cmd == 'checkone'})
+            return
         query: typing.Optional[telegram.callbackquery.CallbackQuery] = update.callback_query
         if query is None:  # Создаем клавиатуру
-            logging.info(f'TG:{update.message.chat_id} {update.message.text}')
             phones = store.ini('phones.ini').phones()
-            keyboard = []
-            cmd = update.message.text[1:]  # checkone или getone
+            keyboard: typing.List = []
+            cmd = (update.effective_message.text[1:]).split(' ')[0]  # checkone или getone
             for val in list(phones.values()) + [{'Alias': 'Cancel', 'Region': 'Cancel', 'Number': 'Cancel'}]:
-                # ключом для calback у нас <6 букв команды>_Region_Number
+                # ключом для calback у нас команда_Region_Number
                 btn = InlineKeyboardButton(val['Alias'], callback_data=f"{cmd}_{val['Region']}_{val['Number']}")
                 if len(keyboard) == 0 or len(keyboard[-1]) == 3:
                     keyboard.append([btn])
                 else:
                     keyboard[-1].append(btn)
             reply_markup = InlineKeyboardMarkup(keyboard)
-            update.message.reply_text('Please choose:', reply_markup=reply_markup)
+            update.effective_message.reply_text('Please choose:', reply_markup=reply_markup)
         else:  # реагируем на клавиатуру
+            if query.data is None:
+                return
             cmd, keypair = query.data.split('_', 1)  # До _ команда, далее Region_Number
-            if Scheduler().run_once(cmd='get_one', kwargs={'keypair': keypair, 'check': cmd == 'checkone'}):
-                store.feedback.set(feedback_func)
-            else:
-                self.put_text(query.edit_message_text, 'Одно из заданий сейчас выполняется, попробуйте позже')
+            feedback_func = lambda txt:self.put_text(query.edit_message_text, txt)  # type: ignore
+            Scheduler().run_once(cmd='get_one', feedback_func=feedback_func, kwargs={'keypair': keypair, 'check': cmd == 'checkone'})
 
     @auth_decorator
     def get_log(self, update: telegram.update.Update, context: telegram.ext.callbackcontext.CallbackContext):
-        """Receive one log with inline keyboard, only auth user.
+        """Receive one log with inline keyboard/param, only auth user.
         /getlog - лог по последнему запросу
         сюда приходим ДВА раза сначала чтобы создать клавиатуру(query=None), 
         а потом чтобы отреагировать на нее
         """
+        # reply(query.edit_message_text, query.message.reply_document, query.data)
+        def reply(edit_text, message, keypair):
+            self.put_text(edit_text, 'This is log')
+            res = prepare_log_personal(keypair)
+            message.reply_document(filename=f'{keypair}_log.htm', document=io.BytesIO(res.strip().encode('cp1251')))
+        # Заданы агрументы? Тогда спросим по ним.
+        args = ' '.join(context.args if context.args is not None else []).lower()
+        # запрашиваем по заданному аргументу
+        if args != '' and update is not None:  # context.args
+            logs = prepare_loglist_personal()
+            filtered = [i for i in logs if args.lower() in i.lower()]
+            new_msg: telegram.message.Message = self.put_text(update.effective_message.reply_text, f'Info for {args}')  # type: ignore
+            if len(filtered)>0 and new_msg is not None:
+                val = filtered[0]
+                reply(new_msg.edit_text, update.effective_message, val)
+            else:
+                self.put_text(new_msg.edit_text, f'Not found {args}')
+            return
         query: typing.Optional[telegram.callbackquery.CallbackQuery] = update.callback_query
         if query is None:  # Создаем клавиатуру
-            if update.message is None:
+            if update.effective_message is None:
                 return
-            logging.info(f'TG:{update.message.chat_id} {update.message.text}')
             keyboard: typing.List[typing.List[InlineKeyboardButton]] = []
             logs = prepare_loglist_personal()
             for val in logs + ['Cancel']:
-                # ключом для calback у нас <6 букв команды>_Region_Number
+                # ключом для calback у нас команда_Region_Number
                 btn = InlineKeyboardButton(val, callback_data=f"getlog_{val}")
                 if len(keyboard) == 0 or len(keyboard[-1]) == 3:
                     keyboard.append([btn])
                 else:
                     keyboard[-1].append(btn)
             reply_markup = InlineKeyboardMarkup(keyboard)
-            update.message.reply_text('Please choose:', reply_markup=reply_markup)
+            update.effective_message.reply_text('Please choose:', reply_markup=reply_markup)
         else:  # реагируем на клавиатуру
             # ...
             if query.message is None or query.data is None:
                 return
-            self.put_text(query.edit_message_text, 'This is log')
-            cmd, keypair = query.data.split('_', 1)
-            res = prepare_log_personal(keypair)
-            query.message.reply_document(filename=f'{keypair}_log.htm', document=io.BytesIO(res.strip().encode('cp1251')))
+            reply(query.edit_message_text, query.message, query.data.split('_', 1)[1])
 
     @auth_decorator
     def button(self, update, context) -> None:
@@ -847,7 +936,7 @@ class TelegramBot():
         if cmd in ['checkone', 'getone']:
             self.get_one(update, context)
 
-    def send_message(self, text:str, parse_mode='HTML', ids=None):
+    def send_message(self, text:str, parse_mode=telegram.ParseMode.HTML, ids=None):
         'Отправляем сообщение по списку ids, либо по списку auth_id из mbplugin.ini'
         if self.updater is None or text == '':
             return
@@ -887,53 +976,6 @@ class TelegramBot():
         '''Stop bot'''
         if self.updater is not None:
             self.updater.stop()
-
-    def __init__(self):
-        if 'telegram' not in sys.modules:
-            return  # Нет модуля TG - просто выходим
-        api_token = store.options('api_token', section='Telegram').strip()
-        request_kwargs = {}
-        tg_proxy = store.options('tg_proxy', section='Telegram').strip()
-        if tg_proxy.lower() == 'auto':
-            request_kwargs['proxy_url'] = urllib.request.getproxies().get('https', '')
-        elif tg_proxy != '' and tg_proxy.lower() != 'auto':
-            request_kwargs['proxy_url'] = tg_proxy
-            # ??? Надо или не надо ?
-            # request_kwargs['urllib3_proxy_kwargs'] = {'assert_hostname': 'False', 'cert_reqs': 'CERT_NONE'}
-        self.updater = None
-        if api_token != '' and str(store.options('start_tgbot', section='Telegram')) == '1' and 'telegram' in sys.modules:
-            try:
-                logging.info(f'Module telegram starting for id={self.auth_id()}')
-                self.updater = Updater(api_token, use_context=True, request_kwargs=request_kwargs)
-                logging.info(f'{self.updater}')
-                dp = self.updater.dispatcher
-                dp.add_handler(CommandHandler("help", self.get_help))
-                dp.add_handler(CommandHandler("id", self.get_id))
-                dp.add_handler(CommandHandler("balance", self.get_balancetext))
-                dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
-                dp.add_handler(CommandHandler("receivebalance", self.receivebalance))
-                dp.add_handler(CommandHandler("receivebalancefailed", self.receivebalance))
-                dp.add_handler(CommandHandler("restart", self.restartservice))
-                dp.add_handler(CommandHandler("getone", self.get_one))
-                dp.add_handler(CommandHandler("checkone", self.get_one))
-                dp.add_handler(CommandHandler("schedule", self.get_schedule))
-                dp.add_handler(CommandHandler("schedulereload", self.get_schedule))
-                dp.add_handler(CommandHandler("getlog", self.get_log))
-                dp.add_handler(CallbackQueryHandler(self.button))
-                self.updater.start_polling()  # Start the Bot
-                logging.info('Telegram bot started')
-                if str(store.options('send_empty', section='Telegram')) == '1':
-                    self.send_message(text='Hey there!')
-                TelegramBot.instance = self  # Запустили бота - прописываем инстанс
-            except Exception:
-                exception_text = f'Ошибка запуска telegram bot {store.exception_text()}'
-                logging.error(exception_text)
-        elif 'telegram' not in sys.modules:
-            logging.info('Module telegram not found')
-        elif api_token == '':
-            logging.info('Telegtam api_token not found')
-        elif str(store.options('start_tgbot', section='Telegram')) != '1':
-            logging.info('Telegtam bot start is disabled in mbplugin.ini (start_tgbot=0)')
 
 
 class Handler(wsgiref.simple_server.WSGIRequestHandler):
