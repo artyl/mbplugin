@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
-import os, sys, time, io, re, json, pickle, requests, urllib.request, configparser, pprint, zipfile, logging, traceback, collections, typing
+import os, sys, time, io, re, json, pickle, requests, urllib.request, configparser, pprint, zipfile, logging, traceback, collections, typing, functools 
 from os.path import abspath
 import settings
 
@@ -180,6 +180,7 @@ class Session():
         return response
 
 
+@functools.lru_cache
 def options(param, default=None, section='Options', listparam=False, mainparams={}, pkey=None):
     '''Читаем параметр из mbplugin.ini либо дефолт из settings
     Если listparam=True, то читаем список из всех, что начинается на param

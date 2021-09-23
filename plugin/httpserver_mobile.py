@@ -317,9 +317,9 @@ def write_report():
     'сохраняем отчет balance_html если в ini createhtmlreport=1'
     try:
         if str(store.options('createhtmlreport')) == '1':
-            _, res = getreport()
             balance_html = store.options('balance_html')
             logging.info(f'Создаем {balance_html}')
+            _, res = getreport()
             open(balance_html, encoding='cp1251', mode='w').write('\n'.join(res))
     except Exception:
         logging.error(f'Ошибка генерации balance_html {store.exception_text()}')
