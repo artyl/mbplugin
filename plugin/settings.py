@@ -80,6 +80,9 @@ ini = {
         # Записывать результаты в sqlite БД
         'sqlitestore_': {'descr':'Записывать результаты в sqlite БД', 'type':'checkbox'},
         'sqlitestore': '0',
+        # Размер кэша для sqlite движка, если база большая - есть смысл увеличить
+        'sqlite_cache_size_': {'descr':'Размер кэша для sqlite движка, 0 - оставить системное значение, если база большая - есть смысл увеличить, подробности https://www.sqlite.org/pragma.html#pragma_cache_size', 'type':'text', 'validate':lambda i:re.match(r'^-?\d+$', str(i))},
+        'sqlite_cache_size': '0',
         # Создавать файлик html отчета, после получения данных
         'createhtmlreport_': {'descr':'Создавать файлик html отчета, после получения данных', 'type':'checkbox'},
         'createhtmlreport': '0',
@@ -87,8 +90,8 @@ ini = {
         'retry_failed_': {'descr':'Сколько раз повторно опрашивать балансы, которые опросились неудачно', 'type':'text', 'validate':lambda i:i.isdigit()},
         'retry_failed': '2',
         # Номер режима работы плагина, если режимов несколько, режим можно выставить индивидуально в phones.ini/phones_add.ini
-        'plugin_mode_': {'descr':'Номер режима работы плагина, если режимов несколько, режим можно выставить индивидуально в phones.ini/phones_add.ini', 'type':'text', 'validate':lambda i:i.isdigit()},
-        'plugin_mode': '0',
+        'plugin_mode_': {'descr':'Номер режима работы плагина, если режимов несколько, режим можно выставить индивидуально в phones.ini/phones_add.ini', 'type':'text'},
+        'plugin_mode': 'DEFAULT',
         # путь к БД sqlite - TODO не используем, всегда ищем ее в папке с phones.ini
         #'dbfilename_': {'descr':'путь к БД sqlite', 'type':'text', 'size':100},
         #'dbfilename': os.path.join('BalanceHistory.sqlite'), # BalanceHistory.sqlite

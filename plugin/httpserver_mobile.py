@@ -316,6 +316,7 @@ def getreport(param=[]):
 
 def write_report():
     'сохраняем отчет balance_html если в ini createhtmlreport=1'
+    store.turn_logging(httplog=True)  # Т.к. сюда можем придти извне, то включаем логирование здесь
     try:
         if str(store.options('createhtmlreport')) == '1':
             balance_html = store.options('balance_html')

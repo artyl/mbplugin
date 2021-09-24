@@ -142,13 +142,24 @@ class Dbengine():
         self.dbname = dbname
         self.conn = sqlite3.connect(self.dbname)  # detect_types=sqlite3.PARSE_DECLTYPES
         self.cur = self.conn.cursor()
+        cache_size = int(store.options('sqlite_cache_size'))
+        if cache_size !=0:
+            self.cur.execute(f'PRAGMA cache_size = {cache_size};')
         if fast:
-            self.cur.execute('PRAGMA synchronous = OFF')
+            self.cur.execute('PRAGMA synchronous = OFF;')
             self.conn.commit()
         if updatescheme:
             self.check_and_add_addition()
         rows = self.cur.execute('SELECT * FROM phones limit 1;')
         self.phoneheader = list(zip(*rows.description))[0]
+
+    def cur_execute(self, query, *args, **kwargs):
+        'Обертка для cur.execute c логированием и таймингом'
+        t_start = time.process_time()
+        res = self.cur.execute(query, *args, **kwargs)
+        logging.debug(f'{query} {args} {kwargs}')
+        logging.debug(f'Execution time {time.process_time()-t_start:.6f}')
+        return res
 
     def write_result(self, plugin, login, result, commit=True):
         'Записывает результат в базу'
@@ -171,7 +182,7 @@ class Dbengine():
         line['QueryDateTime'] = datetime.datetime.now().replace(microsecond=0)  # no microsecond
         self.cur.execute(f"select cast(julianday('now')-julianday(max(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' and abs(balance-({result['Balance']}))>0.02")
         line['NoChangeDays'] = self.cur.fetchall()[0][0]  # Дней без изм.
-        try:        
+        try:
             options_ini = store.ini('Options.ini').read()
             average_days = int(options_ini['Additional']['AverageDays'])
         except Exception:
@@ -198,8 +209,8 @@ class Dbengine():
 
     def report(self):
         ''' Генерирует отчет по последнему состоянию телефонов'''
-        reportsql = f'''select * from phones where QueryDateTime in (SELECT max(QueryDateTime) FROM Phones GROUP BY PhoneNumber,Operator order by Operator,PhoneNumber)'''
-        cur = self.cur.execute(reportsql)
+        reportsql = f'''select * from phones where NN in (select NN from (SELECT NN,max(QueryDateTime) FROM Phones GROUP BY PhoneNumber,Operator)) order by PhoneNumber,Operator'''
+        cur = self.cur_execute(reportsql)
         dbheaders = list(zip(*cur.description))[0]
         dbdata = cur.fetchall()
         phones = store.ini('phones.ini').phones()
@@ -219,13 +230,13 @@ class Dbengine():
                 row['PhoneNumberFormat2'] = row['PhoneNumberFormat1'].replace(' ', '')
             table.append(row)
         return table
-    
+
     def history(self, phone_number, operator, days=7, lastonly=1, pkey=None):
         'Генерирует исторические данные по номеру телефона, pkey нужен чтобы взять индивидуальные настройки, для телефона если они есть'
         if days == 0:
             return []
         historysql = f'''select * from phones where phonenumber=? and operator=? and QueryDateTime>date('now','-'|| ? ||' day') order by QueryDateTime desc'''
-        cur = self.cur.execute(historysql, [phone_number, operator, days])
+        cur = self.cur_execute(historysql, [phone_number, operator, days])
         dbheaders = list(zip(*cur.description))[0]
         dbdata = cur.fetchall()
         dbdata_sets = [set(l) for l in zip(*dbdata)]  # составляем список уникальных значений по каждой колонке
@@ -255,7 +266,7 @@ class Dbengine():
         for idx in addition_indexes:
             self.cur.execute(f"CREATE INDEX IF NOT EXISTS {idx}")
         self.conn.commit()
-    
+
     def copy_data(self, path:str):
         'Копирует данные по запросам из другой БД sqlite, может быть полезно когда нужно объединить данные с нескольких источников'
         try:
