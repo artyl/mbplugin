@@ -48,7 +48,7 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'Expired', 'jsformula': "document.all.DEN==null?'':document.all.DEN.innerText", 'wait': False},
             ])
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     return browserengine(login, password, storename, plugin_name=__name__).main()
 

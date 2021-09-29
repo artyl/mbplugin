@@ -14,7 +14,7 @@ icon = '789C85936B48D35118C69F4904164E2552E84B5953D40F5AA4F3830A2A28CB1CE42D2572
 login_url = 'https://my.zadarma.com/auth/'
 login_checkers = ['<input[^>]*name="email"[^>]*', '<input[^>]*name="password"[^>]*', '<button[^>]*type="submit"[^>]*']
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     logging.info(f'start get_balance {login}')
     result = {}
     headers = {

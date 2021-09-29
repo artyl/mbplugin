@@ -24,7 +24,7 @@ def find_by_regexp(text, param, regexp):
         logging.info(f'Not found {param}')    
         return {}
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     logging.info(f'start get_balance {login}')
     result = {}
     session = store.Session(storename)

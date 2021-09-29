@@ -85,7 +85,7 @@ class browserengine(browsercontroller.BrowserController):
         
             
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     return browserengine(login, password, storename, wait_loop=5, wait_and_reload=-1, plugin_name=__name__).main()
 

@@ -8,7 +8,7 @@ icon = '789CAD532DA8C250143E0F5E31080B83D581618F056141EBE00583F0C06235D986553089
 
 api_url = 'https://api.tele2.ru/api/subscribers/'
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     def check_or_get_bearer():
         '''Проверяем если сессия отдает баланс, то ок, если нет, то логинимся заново'''

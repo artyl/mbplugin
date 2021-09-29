@@ -49,7 +49,8 @@ def main():
     dbengine.flags('set',f'{lang}_{plugin}_{login}','start')  # выставляем флаг о начале запроса
     try:
         storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
-        result = module.get_balance(login, password, storename)
+        pkey = (login, f'{lang}_{plugin}')  # Пара (номер, оператор)
+        result = module.get_balance(login, password, storename, pkey=pkey)
         if 'Balance' not in result:
             raise RuntimeError(f'В result отсутствует баланс')
     except Exception:

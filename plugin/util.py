@@ -720,7 +720,6 @@ def db_query(ctx, query):
             return
         cur = db.cur.execute(' '.join(query))
         if cur.description is not None:
-            description = cur.description
             dbheaders = list(zip(*cur.description))[0]
             dbdata = cur.fetchall()
             res = [list(dbheaders)] + [i for i in dbdata]

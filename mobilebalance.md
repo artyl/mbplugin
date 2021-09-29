@@ -136,7 +136,7 @@ jsmblh plugin мы подключаем из папки mbplugin\jsmblhplugin dl
 
 ## Как написать свой плагин
 
-Если на python, то это файл с функцией get_balance(login, password, storename)
+Если на python, то это файл с функцией get_balance(login, password, storename, **kwargs)
 storename это строка, используемая как ключ для хранения сессии. Формируется как имя плагина + login
 Функция возвращает результат в виде словаря.
 Можно посмотреть как сделаны другие плагины, также есть простые тестовые.

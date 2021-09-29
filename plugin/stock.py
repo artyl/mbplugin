@@ -163,7 +163,7 @@ def count_all_scocks_multithread(stocks, remain, currenc):
         data.append({'security': '_'+val, 'price': round(k[val], 2), 'value': round(k[val], 2), 'cnt': cnt, 'currency': val, 'value_priv': round(k[val]*cnt, 2)})
     return data
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     result = {}
     session = store.Session(storename)  # Используем костылем для хранения предыдущих данных 
     # если у нас еще нет переменной для истории - создаем (грязный хак - не делайте так, а если делаете - не пользуйтесь этой сессией для хождения в инет, а только для сохранения):

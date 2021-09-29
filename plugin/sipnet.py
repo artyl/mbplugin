@@ -15,7 +15,7 @@ re_balance = r'(?usi)Баланс.*?>.*?>.*?>(.*?) '
 re_tariff = r'(?usi)status-work.*?>.*?>.*?>(.*?)<'  
 re_sipid = r'(?usi)SIP ID.*?>.*?>(.*?)<'  # SIP ID (лицевой счет)
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     logging.info(f'start get_balance {login}')
     result = {}
     session = store.Session(storename)

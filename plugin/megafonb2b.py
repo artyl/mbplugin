@@ -21,7 +21,7 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'TarifPlan', 'url_tag': ['widget/subscribers'], 'jsformula': "data.data.tariffs[0].name"},
             ])
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     return browserengine(login, password, storename, plugin_name=__name__).main()
 

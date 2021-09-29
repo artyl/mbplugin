@@ -16,7 +16,7 @@ def get_card_info(cardnum):
     return response2.json()
 
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     result = {}
     card_info = get_card_info(login)
     result['Balance'] = card_info['balance']/100.

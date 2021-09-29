@@ -33,7 +33,7 @@ class browserengine(browsercontroller.BrowserController):
         logging.debug(f'Data ready {self.result.keys()}')
         # Обратите внимание, что возвращать результат нужно сохранив его в self.result
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     return browserengine(login, password, storename, plugin_name=__name__).main()
 

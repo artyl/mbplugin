@@ -4,7 +4,7 @@ import os, sys, re, logging, random, time
 import requests
 import store
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     result = {}
     session = store.Session(storename)

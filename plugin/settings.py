@@ -126,7 +126,6 @@ ini = {
         'show_chrome': '0',
         # Режим Headless Прятать окна Chrome (при logginglevel=DEBUG всегда показывает)
         # Честный headless chrome режим, из этого режима вернуть окно в видимое нельзя
-        # TODO Похоже с headless как то не гладко все - пока по дефолту поставил нормальное окно
         'headless_chrome_': {'descr':'Headless режим работы chrome', 'type':'checkbox'},
         'headless_chrome': '1',
         # Если в linux не установлен GUI или в докере чтобы запустить браузер не в headless может потребоваться включить xvfb 

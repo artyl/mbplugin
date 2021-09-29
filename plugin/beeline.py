@@ -28,11 +28,11 @@ class browserengine(browsercontroller.BrowserController):
             #{'name': 'BlockStatus', 'url_tag': ['api/user/info'], 'jsformula': "data.status"},
             ])          
 
-def get_balance_browser(login, password, storename=None):
+def get_balance_browser(login, password, storename=None, **kwargs):
     ''' Работаем через Browser На вход логин и пароль, на выходе словарь с результатами '''
     return browserengine(login, password, storename, plugin_name=__name__).main()
 
-def get_balance_api(login, password, storename=None):
+def get_balance_api(login, password, storename=None, **kwargs):
     ''' Работаем через API На вход логин и пароль, на выходе словарь с результатами '''
     def beeline_api(session, token, login, item):
         apiURL = 'https://my.beeline.ru/api/1.0/' + item + '?ctn=' + login + '&token=' + token
@@ -126,9 +126,14 @@ def get_balance_api(login, password, storename=None):
     session.save_session()
     return result
 
-def get_balance(login, password, storename=None):
-    #return get_balance_api(login, password, storename)
-    return get_balance_browser(login, password, storename)
+
+def get_balance(login, password, storename=None, **kwargs):
+    lang = 'p'
+    breakpoint()
+    if store.options('plugin_mode', pkey=kwargs.get('pkey','')).upper() == 'WEB':
+        return get_balance_browser(login, password, storename)        
+    return get_balance_api(login, password, storename)
+
 
 if __name__ == '__main__':
     print('This is module beeline')

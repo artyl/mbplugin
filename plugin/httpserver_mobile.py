@@ -164,7 +164,7 @@ def getbalance_plugin(method, param_source):
         storename = re.sub(r'\W', '_', f"{lang}_{plugin}_{param['login']}")
         dbengine.flags('set', f"{lang}_{plugin}_{param['login']}", 'start')  # выставляем флаг о начале запроса
         try:
-            result = module.get_balance(param['login'], param['password'], storename)
+            result = module.get_balance(param['login'], param['password'], storename, pkey=pkey)
             if type(result) != dict or 'Balance' not in result:
                 raise RuntimeError(f'В result отсутствует баланс')
             text = store.result_to_html(result)

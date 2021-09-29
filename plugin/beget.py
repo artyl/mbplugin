@@ -6,7 +6,7 @@
 import os, sys, re, logging
 import store
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     logging.info(f'start get_balance {login}')
     result = {}
     url = 'https://api.beget.com/api/user/getAccountInfo?login=' + login + '&passwd=' + password + '&output_format=json'

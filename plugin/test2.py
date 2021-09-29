@@ -25,7 +25,7 @@ def get_human_captcha(buffer):
     return get_human_captcha.res
 
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     # Demo captcha
     session = store.Session()

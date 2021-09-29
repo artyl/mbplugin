@@ -9,7 +9,7 @@ icon = '789C9593CB2B44511CC7BF1E49918429C98285A2C9D6C64E91CD142B0B0BB3B555FC0962
 login_url = 'https://my.yota.ru/selfcare/devices'
 
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     def response_worker(response):
         if response.status == 200 and 'finance/getBalance' in response.url:

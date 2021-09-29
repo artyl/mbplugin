@@ -10,7 +10,7 @@ icon = '789C73F235636100033320D600620128666450804840E591C1FFFFFFB1E237DF1F32CCBF
 login_url = 'https://lk.megafon.ru/login/'
 login_checkers = ['<input[^>]*name="CSRF"[^>]*', '<input[^>]*name="j_username"[^>]*', '<input[^>]*name="j_password"[^>]*', '<input[^>]*type="submit"[^>]*']
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     result = {}
     session = store.Session(storename)
     response3 = session.get('https://lk.megafon.ru/api/lk/main/atourexpense')

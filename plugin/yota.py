@@ -19,7 +19,7 @@ class browserengine(browsercontroller.BrowserController):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         self.wait_params(params=[{'name': 'Balance', 'url_tag': ['finance/getBalance'], 'jsformula': "parseFloat(data.amount).toFixed(2)"},])
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     return browserengine(login, password, storename, plugin_name=__name__).main()
 

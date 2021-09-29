@@ -51,7 +51,7 @@ class browserengine(browsercontroller.BrowserController):
             'jsformula': 'data.balance',            
         }])
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     return browserengine(login, password, storename, headless=browsercontroller.NOT_IN_CHROME, plugin_name=__name__).main()  # ростелеком в headless не работает
 

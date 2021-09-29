@@ -178,7 +178,7 @@ class browserengine(browsercontroller.BrowserController):
                     self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных'}
                 
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     be = browserengine(login, password, storename)
     if str(store.options('show_captcha')) == '1':
