@@ -414,8 +414,8 @@ class BalanceOverPlaywright():
                     if 'Execution context was destroyed' not in exception_text:
                         logging.info(exception_text)
                     if 'Target page, context or browser has been closed' in exception_text:
-                        raise RuntimeError(f'Browser has been closed') # браузера уже нет
-                if res:
+                        raise RuntimeError(f'Browser has been closed on {cnt} try') # браузера уже нет
+                if res is not None:
                     break
                 self.sleep(1)
         if response_url != None and response_url != '':
@@ -603,7 +603,7 @@ class BalanceOverPlaywright():
             self.sleep(1)
         self.page_screenshot()
 
-    def calculate_param(self, url_tag=[], jsformula='', pformula=''):
+    def calculate_param(self, url_tag: list =[], jsformula: str ='', pformula: str =''):
         'Вычисляет js выражение jsformula над json co страницы с url_tag, !!! url_tag - список тэгов'
         # TODO self.page.evaluate(f"(data) => {jsformula}", json_data)
         #return self.page_evaluate(f"()=>{{data={json.dumps(json_data,ensure_ascii=False)};return {jsformula};}}")
@@ -670,7 +670,7 @@ class BalanceOverPlaywright():
             self.sleep(1)
             breakpoint() if os.path.exists('breakpoint_wait') else None
             for param in params:
-                res = self.calculate_param(param.get('url_tag',''), param.get('jsformula',''), param.get('pformula',''))
+                res = self.calculate_param(param.get('url_tag',[]), param.get('jsformula',''), param.get('pformula',''))
                 if res is not None:
                     result[param['name']] = res
             # Если все обязательные уже получили
