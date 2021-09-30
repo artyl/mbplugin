@@ -191,6 +191,8 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     if not hasattr(options, 'mbplugin_ini') or flush:
         options.mbplugin_ini = None
         options.phones = None
+    if flush == True:
+        logging.info(f'Flush options ini cache')
     if options.mbplugin_ini is None:
         options.mbplugin_ini = ini().read()
     phones_options = {}
