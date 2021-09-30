@@ -129,7 +129,6 @@ def get_balance_api(login, password, storename=None, **kwargs):
 
 def get_balance(login, password, storename=None, **kwargs):
     lang = 'p'
-    breakpoint()
     if store.options('plugin_mode', pkey=kwargs.get('pkey','')).upper() == 'WEB':
         return get_balance_browser(login, password, storename)        
     return get_balance_api(login, password, storename)
