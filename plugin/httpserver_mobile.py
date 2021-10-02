@@ -397,11 +397,11 @@ def prepare_balance_sqlite(filter:str='FULL', params:typing.Dict={}):
     def alert_suffix(line):
         pkey = (line['PhoneNumber'], line['Operator'])
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('error'):
-            return '<b> ! последняя попытка получить баланс завершилась ошибкой !</b>'
+            return f'<b> ! последняя попытка получить баланс завершилась ошибкой !</b>'
         if line['Balance'] is not None and line['Balance'] < float(store.options('BalanceLessThen', pkey=pkey)):
-            return '<b> ! достигнут порог баланса !</b>'
+            return f'<b> ! достигнут порог баланса !</b>'
         if line['CalcTurnOff'] is not None and line['CalcTurnOff'] < int(store.options('TurnOffLessThen', pkey=pkey)):
-            return "<b> ! возможно скорое отключение - {line['CalcTurnOff']} дней !</b>"
+            return f"<b> ! возможно скорое отключение - {line['CalcTurnOff']} дней !</b>"
         if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] > int(store.options('BalanceNotChangedMoreThen', pkey=pkey)):
             return f"<b> ! баланс не изменялся более {store.options('BalanceNotChangedMoreThen', pkey=pkey)} дней !</b>"
         if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] < int(store.options('BalanceChangedLessThen', pkey=pkey)):
