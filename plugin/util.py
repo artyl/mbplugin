@@ -11,15 +11,14 @@ import click
 PLUGIN_PATH = os.path.abspath(os.path.split(__file__)[0])
 # Папка корня standalone версии на 2 уровня вверх (оно же settings.mbplugin_root_path)
 ROOT_PATH = os.path.abspath(os.path.join(PLUGIN_PATH, '..', '..'))
+# Для пути с симлинками в unix-like системах приходится идти на трюки (см коментарий к блоку в settings):
+if sys.platform != 'win32' and 'PWD' in os.environ:
+    if os.path.exists(os.path.abspath(os.path.join(os.environ['PWD'], 'mbplugin', 'plugin', 'util.py'))):
+        ROOT_PATH = os.environ['PWD']
 STANDALONE_PATH = ROOT_PATH
 # папка где embedded python (только в windows)
 EMB_PYTHON_PATH = os.path.abspath(os.path.join(PLUGIN_PATH, os.path.join('..', 'python')))
 SYS_PATH_ORIGIN = sys.path[:]  # Оригинальное значение sys.path
-# TODO пробуем не фиксировать путь и не переходить по папкам
-# Fix sys.argv[0]
-# sys.argv[0] = os.path.abspath(sys.argv[0])
-# Т.к. все остальные ожидают что мы находимся в папке plugin переходим в нее
-# os.chdir(PLUGIN_PATH)
 try:
     import store
 except ModuleNotFoundError:

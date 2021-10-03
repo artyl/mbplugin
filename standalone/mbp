@@ -15,14 +15,11 @@
 # bash mbplugin/standalone/mbp
 # ./mbp check-plugin
 
-# in macOS realpath is nondefault app
-# realpath() {
-#     [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
-# }
-
+# universal realpath with symlink :-) (linux and macOS) - $(cd "$(dirname "$0")"; pwd)
 util_path=$(dirname $0)/../../mbplugin/plugin/util.py
-root_path=$(realpath $(dirname $0))
-[ -f $util_path ] && root_path=$(realpath $(dirname $0)/../..)
+root_path=$(cd "$(dirname "$0")"; pwd)
+[ -f $util_path ] && root_path=$(cd "$(dirname "$0")/../.."; pwd)
+
 echo "root_path is $root_path"
 
 ### SETUP mode
@@ -101,7 +98,7 @@ fi
 # ../plugin/util.py exists go into installation mode
 if [ -f $util_path ]; then 
     export MBPLUGIN_WRITE_DIAG=YES
-    echo "The file $(realpath $util_path) exist";
+    echo "The file $(cd "$(dirname "$util_path")"; pwd) exist";
     cd $root_path
     cp mbplugin/standalone/mbp .
     chmod +x mbp

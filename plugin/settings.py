@@ -3,7 +3,7 @@
 Значения по умолчанию, здесь ничего не меняем, если хотим поменять меняем в mbplugin.ini
 подробное описание см в readme.md
 '''
-import os, re
+import os, sys, re
 UNIT = {'TB': 1073741824, 'ТБ': 1073741824, 'TByte': 1073741824, 'TBYTE': 1073741824,
         'GB': 1048576, 'ГБ': 1048576, 'GByte': 1048576, 'GBYTE': 1048576,
         'MB': 1024, 'МБ': 1024, 'MByte': 1024, 'MBYTE': 1024,
@@ -30,6 +30,12 @@ mbplugin_ini = 'mbplugin.ini'
 # По умолчанию вычисляем эту папку как папку на 2 уровня выше папки с этим скриптом
 # Этот путь используем когда обращаемся к подпапкам папки mbplugin
 mbplugin_root_path = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', '..'))
+# Для пути с симлинками в unix-like системах приходится идти на трюки:
+# Исходим из того что скрипт mbp привет нас в правильный корень
+# https://stackoverflow.com/questions/54665065/python-getcwd-and-pwd-if-directory-is-a-symbolic-link-give-different-results
+if sys.platform != 'win32' and 'PWD' in os.environ:
+    if os.path.exists(os.path.abspath(os.path.join(os.environ['PWD'], 'mbplugin', 'plugin', 'util.py'))):
+        mbplugin_root_path = os.environ['PWD']
 # Папка в которой по умолчанию находится mbplugin.ini, phones.ini, база 
 # т.к. раньше допускалось что папка mbplugin может находится на несколько уровней вложенности вниз ищем вверх phones.ini
 mbplugin_ini_path = find_file_up(mbplugin_root_path, 'phones.ini')
