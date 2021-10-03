@@ -415,7 +415,7 @@ class BalanceOverPlaywright():
                         logging.info(exception_text)
                     if 'Target page, context or browser has been closed' in exception_text:
                         raise RuntimeError(f'Browser has been closed on {cnt} try') # браузера уже нет
-                if res is not None:
+                if res is not None and res == True:
                     break
                 self.sleep(1)
         if response_url != None and response_url != '':
