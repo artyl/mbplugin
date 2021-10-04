@@ -12,7 +12,7 @@ cryptography==3.4.8
 greenlet==1.1.1
 idna==2.10
 Pillow==8.3.2
-playwright==1.14.1
+playwright==1.15.2
 psutil==5.8.0
 pycparser==2.20
 pyee==8.2.2

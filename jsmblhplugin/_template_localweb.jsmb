@@ -37,7 +37,7 @@ function main(){
     //external.sleep(2000);
     if(document.getElementById("response")!=null){
         response = json(document.getElementById("response").innerText);
-		response.pages = [external.source];
+        response.pages = [external.source];
     }
     
 };
