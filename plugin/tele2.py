@@ -56,9 +56,11 @@ def get_balance(login, password, storename=None, **kwargs):
     result['TarifPlan'] = get_data(response_t).get('frontName', '')  # тариф
     response_p = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/profile')
     result['UserName'] = get_data(response_p).get('fullName', '')  # ФИО владельца
-    siteId = get_data(response_p).get('siteId','')  # регион 
+    siteId = get_data(response_p).get('siteId','')  # регион
     # список услуг
     response_с = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/{siteId}/services?status=connected')
+    # подписки (мошенники из Теле2 стыдливо прячут их и стараются не показывать) прибавим их как услуги
+    response_s = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/subscription')
     # Тарифный план у tele2 за услугу не считается, так что просто прибавляем его цену
     tarif_fee = get_data(response_t).get('currentAbonentFee', {}).get('amount', 0)
     tarif_period = get_data(response_t).get('period')
@@ -71,6 +73,12 @@ def get_balance(login, password, storename=None, **kwargs):
         fee = 0 if fee is None else fee
         kperiod = settings.UNIT.get(abonentFee.get('period', ''), 1)
         services.append((name, fee*kperiod))
+    for el in get_data(response_s):
+        name = el.get('name', '') + ' ' + el.get('description', '')
+        cost = el.get('cost', None)
+        cost = 0 if cost is None else float(str(cost).replace(',', '.'))
+        kperiod = settings.UNIT.get(el.get('period', ''), 1)
+        services.append((name, cost*kperiod))
     free = len([a for a, b in services if b == 0])  # бесплатные
     paid = len([a for a, b in services if b != 0])  # платные
     paid_sum = paid_tarif+round(sum([b for a, b in services if b != 0]), 2)
