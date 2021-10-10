@@ -87,10 +87,10 @@ class browserengine(browsercontroller.BrowserController):
 
 def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    return browserengine(login, password, storename, wait_loop=5, wait_and_reload=-1, plugin_name=__name__).main()
+    return browserengine(login, password, storename, plugin_name=__name__, wait_loop=5, wait_and_reload=-1).main()
 
 
 if __name__ == '__main__':
     print(store.options('mosenergosbyt_nm_indication_variants'))
-    print(dict([map(str.strip,i.split(':')) for i in store.options('mosenergosbyt_nm_indication_variants').strip().split(',')]))
+    print(dict([map(str.strip,i.split(':', 1)) for i in store.options('mosenergosbyt_nm_indication_variants').strip().split(',')]))
     print('This is module mosenergosbyt on browser')

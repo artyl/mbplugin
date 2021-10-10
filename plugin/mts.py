@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import logging, os, sys, re
+import logging, os, sys, re, time
 import store, settings
 import browsercontroller
 
@@ -33,7 +33,7 @@ user_selectors = {
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
-        mts_usedbyme = store.options('mts_usedbyme')
+        mts_usedbyme = self.options('mts_usedbyme')
         self.do_logon(url=login_url, user_selectors=user_selectors)
 
         # TODO close banner # document.querySelectorAll('div[class=popup__close]').forEach(s=>s.click())
@@ -99,7 +99,7 @@ class browserengine(browsercontroller.BrowserController):
             internet = [i for i in counters if i['packageType'] == 'Internet']
             if internet != []:
                 unitMult = settings.UNIT.get(internet[0]['unitType'], 1)
-                unitDiv = settings.UNIT.get(store.options('interUnit'), 1)
+                unitDiv = settings.UNIT.get(self.options('interUnit'), 1)
                 nonused = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'NonUsed']
                 usedbyme = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'UsedByMe']
                 if (mts_usedbyme == '0' or self.login not in mts_usedbyme.split(',')) and nonused != []:
@@ -108,8 +108,10 @@ class browserengine(browsercontroller.BrowserController):
                     self.result['Internet'] = round(usedbyme[0]*unitMult/unitDiv, 2)
                             
         self.page_goto('https://lk.mts.ru/uslugi/podklyuchennye')
-        res2 = self.wait_params(params=[
-            {'name': '#services', 'url_tag': ['for=api/services/list/active$'], 'jsformula': "data.data.services.map(s=>[s.name,!!s.subscriptionFee.value?s.subscriptionFee.value:0])"}])
+        res2 = self.wait_params(params=[{
+            'name': '#services', 'url_tag': ['for=api/services/list/active$'], 
+            'jsformula': "data.data.services.map(s=>[s.name,!!s.subscriptionFee.value?s.subscriptionFee.value*(s.subscriptionFee.unitOfMeasureRaw=='DAY'?30:1):0])"
+            }])
         try:
             services = sorted(res2['#services'], key=lambda i:(-i[1],i[0]))
             free = len([a for a,b in services if b==0 and (a,b)!=('Ежемесячная плата за тариф', 0)])
@@ -176,15 +178,206 @@ class browserengine(browsercontroller.BrowserController):
                 logging.info(f'Ошибка при получении obshchiy_paket {store.exception_text()}')
                 if self.acc_num.lower().startswith('common'): 
                     self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных'}
-                
+
+
+# Метод взят с https://github.com/svetlyak40wt/mobile-balance
+def get_balance_api(login, password, storename, fast_api=False):
+
+    def get_tokens(response):
+        csrf_token = re.search(r'name="csrf.sign" value="(.*?)"', response.text)
+        csrf_ts_token = re.search(r'name="csrf.ts" value="(.*?)"', response.text)
+        if csrf_token is None:
+            raise_msg = f'{method} to {url} resulted in {result_code} status code instead of {expected_code}'
+            logging.error(raise_msg)            
+            raise RuntimeError("CSRF token not found", response)
+        return csrf_token.group(1), csrf_ts_token.group(1)
+
+    def check_status_code(response, expected_code):
+        result_code = response.status_code
+        if result_code != expected_code:
+            raise_msg = f'{response.request.method} to {response.url} resulted in {result_code} status code instead of {expected_code}'
+            logging.error(raise_msg)
+            raise RuntimeError(raise_msg, response)
+
+    def do_login():
+        url = "http://login.mts.ru/amserver/UI/Login"    
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:81.0) Gecko/20100101 Firefox/81.0",}
+        session = store.Session(storename, headers = headers)
+        response = session.get(url, headers=headers)
+        check_status_code(response, 200)
+
+        csrf_token, csrf_ts_token = get_tokens(response)
+        headers["Referer"] = url
+        response = session.post(url, 
+            data={"IDToken1": login, "IDButton": "Submit", "encoded": "false", "loginURL": "?service=default", "csrf.sign": csrf_token, "csrf.ts": csrf_ts_token,}, 
+            headers=headers,
+        )
+        check_status_code(response, 200)
+
+        csrf_token, csrf_ts_token = get_tokens(response)
+        response = session.post(url,
+            data={"IDToken1": login, "IDToken2": password, "IDButton": "Check", "encoded": "false", "loginURL": "?service=default", "csrf.sign": csrf_token, "csrf.ts": csrf_ts_token, },
+            headers=headers,
+            allow_redirects=False,
+        )
+        check_status_code(response, 200)
+
+        csrf_token, csrf_ts_token = get_tokens(response)
+        response = session.post(url,
+            data={"IDButton": "Login", "encoded": "false", "csrf.sign": csrf_token, "csrf.ts": csrf_ts_token, },
+            headers=headers,
+            allow_redirects=False,
+        )
+        check_status_code(response, 302)
+        return session
+
+    def get_api_json(api, longtask=False):
+        '''у МТС некоторые операции делаются в два приема (longtask==True), сначала берется одноразовый токен, 
+        а затем с этим токеном выдается страничка, иногда если слишком быстро попросить ответ  вместо нужного json
+        возвращает json {'loginStatus':'InProgress'}  '''
+        url = f'https://lk.mts.ru/{api}'
+        if api.startswith('amserver/api'):
+            longtask = False
+            url = f'https://login.mts.ru/{api}'
+        if longtask:
+            logging.info(url)
+            response1 = session.get(url + '?overwriteCache=false')
+            logging.info(f'{response1.status_code}')
+            token = response1.json()
+            url = f'https://lk.mts.ru/api/longtask/check/{token}?for={api}'
+        for l in range(10):  # 10 попыток TODO вынести в settings
+            if longtask or l > 0:  # для не longtask запросов на первой итерации не ждем
+                logging.info(f'Wait longtask')
+                time.sleep(2)
+            logging.info(f'{url}')
+            response2 = session.get(url)
+            logging.info(f'{response2.status_code}')
+            if response2.status_code >= 400:
+                return {}  # Вернули ошибку, продолжать нет смысла
+            if response2.status_code == 204:  #  No Content - wait
+                continue
+            if response2.status_code != 200:
+                continue  # Надо чуть подождать (бывает что и 6 секунд можно прождать)
+            if 'json' in response2.headers.get('content-type'):
+                # если у json есть 'loginStatus'=='InProgress' уходим на дополнительный круг
+                if response2.json().get('loginStatus', '') != 'InProgress':
+                    return response2.json()  # результат есть выходим из цикла
+            else:
+                logging.info(f"Not json:{response2.headers.get('content-type')}")
+                # ответ есть и это не json - выходим
+                return {}
+        else:
+            logging.info(f'Limit retry for {url}')
+        return {}
+    
+    def options(param):
+        ''' Обертка вокруг store.options чтобы передать в нее пару (номер, плагин) для вытаскивания индивидуальных параметров'''
+        pkey = store.get_pkey(login, plugin_name=__name__)
+        return store.options(param, pkey=pkey)
+
+    mts_usedbyme = options('mts_usedbyme')    
+    session = store.Session(storename)
+    user_info = get_api_json('api/login/userInfo', longtask=False)
+    # Залогинены - если нет логинимся
+    if 'userProfile' not in user_info:
+        logging.info('userInfo not return json try relogin')
+        session.drop_and_create()
+        session = do_login()    
+        user_info = get_api_json('api/login/userInfo', longtask=False)
+    result = {}
+
+    # p_response = session.get("https://login.mts.ru/amserver/api/profile")
+    profile = get_api_json('amserver/api/profile', longtask=False)
+    result['Balance'] = round(float(profile.get("mobile:balance", 0)), 2)
+    result['TarifPlan'] = profile.get('mobile:tariff', '')
+    result['UserName'] = profile.get('profile:name', '')
+    if fast_api:
+        session.save_session()
+        return result    
+
+    aib = get_api_json('api/accountInfo/mscpBalance', longtask=True)
+    sla = get_api_json('api/services/list/active', longtask=True)
+    sc = get_api_json('api/sharing/counters', longtask=True)
+    cb = get_api_json('api/cashback/account', longtask=True)
+
+    if 'amount' in aib:
+        result['Balance'] = round(float(aib.get('data',{}).get('amount',0)), 2)
+    else:
+        logging.info(f'не смогли взять баланс с api/accountInfo/mscpBalance')
+    result['Balance2'] = cb.get('data',{}).get('balance', 0)
+    # Услуги
+    sla_services = sla.get('data',{}).get('services', [])
+    # services = [(i['name'], i.get('subscriptionFee', {}).get('value', 0)) for i in sla_services]
+    # [(i['name'], i.get('subscriptionFee', {}).get('value', 0)*settings.UNIT.get(i.get('subscriptionFee', {}).get('unitOfMeasureRaw', 0), 1)) for i in sla_services]
+    services = []
+    for el in sla_services:
+        name = el['name']
+        subscription_fee = el.get('subscriptionFee', {})
+        fee = subscription_fee.get('value', 0)
+        unit = settings.UNIT.get(subscription_fee.get('unitOfMeasureRaw', 0),1)
+        services.append([name, fee*unit])
+    free = len([a for a,b in services if b==0 and (a,b)!=('Ежемесячная плата за тариф', 0)])
+    paid = len([a for a,b in services if b!=0])
+    paid_sum = round(sum([b for a,b in services if b!=0]),2)
+    services.sort(key=lambda i:(-i[1],i[0]))
+    result['UslugiOn']=f'{free}/{paid}({paid_sum})'
+    result['UslugiList']='\n'.join([f'{a}\t{b}' for a,b in services])
+    # Counters
+    sc_counters = sc.get('data',{}).get('counters', [])
+    # Минуты
+    calling = [i for i in sc_counters if i['packageType'] == 'Calling']
+    if calling != []:
+        unit = {'Second': 60, 'Minute': 1}.get(calling[0]['unitType'], 1)
+        nonused = [i['amount'] for i in calling[0] ['parts'] if i['partType'] == 'NonUsed']
+        usedbyme = [i['amount'] for i in calling[0] ['parts'] if i['partType'] == 'UsedByMe']
+        if nonused != []:
+            result['Min'] = int(nonused[0]/unit)
+        if usedbyme != []:
+            result['SpendMin'] = int(usedbyme[0]/unit)
+    # SMS
+    messaging = [i for i in sc_counters if i['packageType'] == 'Messaging']
+    if messaging != []:
+        nonused = [i['amount'] for i in messaging[0] ['parts'] if i['partType'] == 'NonUsed']
+        usedbyme = [i['amount'] for i in messaging[0] ['parts'] if i['partType'] == 'UsedByMe']
+        if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
+            result['SMS'] = int(nonused[0])
+        if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
+            result['SMS'] = int(usedbyme[0])
+    # Интернет
+    internet = [i for i in sc_counters if i['packageType'] == 'Internet']
+    if internet != []:
+        unitMult = settings.UNIT.get(internet[0]['unitType'], 1)
+        unitDiv = settings.UNIT.get(options('interUnit'), 1)        
+        nonused = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'NonUsed']
+        usedbyme = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'UsedByMe']
+        if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
+            result['Internet'] = round(nonused[0]*unitMult/unitDiv, 2)
+        if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
+            result['Internet'] = round(usedbyme[0]*unitMult/unitDiv, 2)
+
+    session.save_session()
+    return result
+
 
 def get_balance(login, password, storename=None, **kwargs):
-    ''' На вход логин и пароль, на выходе словарь с результатами '''
-    be = browserengine(login, password, storename)
-    if str(store.options('show_captcha')) == '1':
-        # если включен показ браузера в случае капчи то отключаем headless chrome - в нем видимость браузера не вернуть
-        be.launch_config['headless'] = False
-    return be.main()
+    ''' На вход логин и пароль, на выходе словарь с результатами 
+    есть три режима работы (задается параметром plugin_mode):
+    WEB - работа через браузер, забираем все возможные параметры (по умолчанию)
+    API - работа через API забираем все возможные параметры
+    FASTAPI - работа через API забираем только баланс
+    '''
+    pkey=store.get_pkey(login, plugin_name=__name__)
+    plugin_mode = store.options('plugin_mode', pkey=pkey).upper()
+    if plugin_mode in ('API', 'FASTAPI'):
+        fast_api = (plugin_mode == 'FASTAPI')
+        return get_balance_api(login, password, storename, fast_api=fast_api)
+    else:
+        be = browserengine(login, password, storename, plugin_name=__name__)
+        if str(store.options('show_captcha', pkey=pkey)) == '1':
+            # если включен показ браузера в случае капчи то отключаем headless chrome - в нем видимость браузера не вернуть
+            be.launch_config['headless'] = False
+        return be.main()
+
 
 if __name__ == '__main__':
     print('This is module mts on browser (mts)')

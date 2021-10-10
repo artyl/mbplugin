@@ -32,7 +32,7 @@ class browserengine(browsercontroller.BrowserController):
 
 def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    return browserengine(login, password, storename, headless=browsercontroller.NOT_IN_CHROME, plugin_name=__name__).main()  # parking.mos.py в headless не работает
+    return browserengine(login, password, storename, plugin_name=__name__, headless=browsercontroller.NOT_IN_CHROME).main()  # parking.mos.py в headless не работает
 
 
 if __name__ == '__main__':

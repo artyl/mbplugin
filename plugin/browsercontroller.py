@@ -208,8 +208,8 @@ class BalanceOverPlaywright():
 
     def options(self, param):
         ''' Обертка вокруг store.options чтобы передать в нее пару (номер, плагин) для вытаскивания индивидуальных параметров'''
-        lang = 'p'
-        return store.options(param, pkey=(self.login, f'{lang}_{self.plugin_name}'))
+        pkey = store.get_pkey(self.login, plugin_name = self.plugin_name)
+        return store.options(param, pkey=pkey)
 
     def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, max_timeout=15, login_url=None, user_selectors=None, headless=None, force=1, plugin_name=''):
         '''Передаем стандартно login, password, storename'

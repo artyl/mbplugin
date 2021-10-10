@@ -89,6 +89,7 @@ class Session():
     def __init__(self, storename=None, headers={}):
         '''если не указать storename то сессия без сохранения
         headers - если после создания сессии нужно прописать дополнительные'''
+        self._session: requests.Session = None
         self.storename = storename
         self.storefolder = options('storefolder')
         self.pagecounter = 1  # Счетчик страниц для сохранения
@@ -164,21 +165,25 @@ class Session():
                 pass
         self.pagecounter += 1
 
-    def get(self, url, **kwargs):
-        response = self._session.get(url, **kwargs)
+    def get(self, url, **kwargs) -> requests.Response:
+        response: requests.Response = self._session.get(url, **kwargs)
         self.save_response(url, response)
         return response
 
-    def post(self, url, data=None, json=None, **kwargs):
-        response = self._session.post(url, data, json, **kwargs)
+    def post(self, url, data=None, json=None, **kwargs) -> requests.Response:
+        response: requests.Response = self._session.post(url, data, json, **kwargs)
         self.save_response(url, response)
         return response
 
-    def put(self, url, data=None, **kwargs):
-        response = self._session.put(url, data, **kwargs)
+    def put(self, url, data=None, **kwargs) -> requests.Response:
+        response: requests.Response = self._session.put(url, data, **kwargs)
         self.save_response(url, response)
         return response
 
+def get_pkey(login, plugin_name):
+    'Все взятия pkey через эту функцию, чтобы в случае чего нестыковки исправить здесь '
+    lang = 'p'
+    return (login, f'{lang}_{plugin_name}')
 
 def options(param, default=None, section='Options', listparam=False, mainparams={}, pkey=None, flush=False):
     '''Читаем параметр из mbplugin.ini либо дефолт из settings

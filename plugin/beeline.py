@@ -128,8 +128,8 @@ def get_balance_api(login, password, storename=None, **kwargs):
 
 
 def get_balance(login, password, storename=None, **kwargs):
-    lang = 'p'
-    if store.options('plugin_mode', pkey=kwargs.get('pkey','')).upper() == 'WEB':
+    pkey = store.get_pkey(login, plugin_name=__name__)
+    if store.options('plugin_mode', pkey=pkey).upper() == 'WEB':
         return get_balance_browser(login, password, storename)        
     return get_balance_api(login, password, storename)
 
