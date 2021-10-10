@@ -36,6 +36,10 @@ mbplugin_root_path = os.path.abspath(os.path.join(os.path.split(__file__)[0], '.
 if sys.platform != 'win32' and 'PWD' in os.environ:
     if os.path.exists(os.path.abspath(os.path.join(os.environ['PWD'], 'mbplugin', 'plugin', 'util.py'))):
         mbplugin_root_path = os.environ['PWD']
+    if os.path.exists(os.path.abspath(os.path.join(os.environ['PWD'], '..' ,'mbplugin', 'plugin', 'util.py'))):
+        mbplugin_root_path = os.path.abspath(os.path.join(os.environ['PWD'], '..'))
+    if os.path.exists(os.path.abspath(os.path.join(os.environ['PWD'], '..', '..','mbplugin', 'plugin', 'util.py'))):
+        mbplugin_root_path = os.path.abspath(os.path.join(os.environ['PWD'], '..', '..'))
 # Папка в которой по умолчанию находится mbplugin.ini, phones.ini, база 
 # т.к. раньше допускалось что папка mbplugin может находится на несколько уровней вложенности вниз ищем вверх phones.ini
 mbplugin_ini_path = find_file_up(mbplugin_root_path, 'phones.ini')
