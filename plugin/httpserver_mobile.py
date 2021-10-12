@@ -20,6 +20,8 @@ except ModuleNotFoundError:
 
 lang = 'p'  # Для плагинов на python префикс lang всегда 'p'
 
+cmdqueue: queue.Queue = queue.Queue()  # Диспетчер комманд - нужен для передачи сигналов между трэдами, в т.к. для завершения в докере - kill для pid=1 не работает
+
 HTML_NO_REPORT = '''Для того чтобы были доступны отчеты необходимо в mbplugin.ini включить запись результатов в sqlite базу<br>
 sqlitestore = 1<br>Также можно настроить импорт из базы BalanceHistory.mdb включив <br>
 createhtmlreport = 1<br>
@@ -478,6 +480,7 @@ def restart_program(reason='', exit_only=False, delay=0):
     if not exit_only:
         subprocess.Popen(cmd)  # Crossplatform run process
     psutil.Process().kill()
+    cmdqueue.put('exit')  # Если kill не сработал (для pid=1 не сработает) - шлем сигнал
 
 
 def send_http_signal(cmd, force=True):
@@ -1000,7 +1003,6 @@ class ThreadingWSGIServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSG
 
 class WebServer():
     def __init__(self):
-        self.cmdqueue = queue.Queue()
         self.filename_pid = store.abspath_join(store.options('storefolder'), 'web-server.pid')
         store.turn_logging(httplog=True)
         self.port = int(store.options('port', section='HttpServer'))
@@ -1029,7 +1031,7 @@ class WebServer():
             if 'schedule' in sys.modules:  # Scheduler (он сам все запустит в threading)
                 self.scheduler = Scheduler()
             # Запустили все остальное демонами и ждем, когда они пришлют сигнал
-            self.cmdqueue.get()
+            cmdqueue.get()
 
     def shutdown(self):
         self.telegram_bot.stop()
