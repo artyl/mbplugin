@@ -489,6 +489,7 @@ def ini_by_expression(expression):
 
 def turn_logging(httplog=False, logginglevel=None):
     'Включение логирования'
+    # logging.getLogger().handlers[0].stream.name
     file_log = logging.FileHandler(abspath_join(options('logginghttpfilename' if httplog else 'loggingfilename')))
     if logginglevel is None:
         logginglevel = options('logginglevel')

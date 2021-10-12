@@ -27,11 +27,11 @@ echo "root_path is $root_path"
 if [ -f $util_path ]; then
     # if $1 - empty, use previous mode docker/python, if no dockervarfile - use python
     [ -f $util_path ] && [ "$1" = "" ] && [ ! -f dockervarfile ] && pythonvar=python
-    [ -f $util_path ] && [ "$1" = "" ] && [ -f dockervarfile ] && dockervarvar=docker
+    [ -f $util_path ] && [ "$1" = "" ] && [ -f dockervarfile ] && dockervar=docker
     
     # explicitly specified $1 python or docker 
     [ -f $util_path ] && [ "$1" == "python" ] && pythonvar=python
-    [ -f $util_path ] && [ "$1" == "docker" ] && dockervarvar=docker
+    [ -f $util_path ] && [ "$1" == "docker" ] && dockervar=docker
 
     # if use python (pythonvar)
     if [ -f $util_path ] && [ -n "$pythonvar" ]; then
@@ -46,24 +46,33 @@ if [ -f $util_path ]; then
     fi
 
     # if use docker (dockervar)
-    if [ -f $util_path ] && [ -n "$dockervarvar" ]; then
+    if [ -f $util_path ] && [ -n "$dockervar" ]; then
         if [ ! -x "$(command -v docker)" ]; then
             echo "Install docker. See https://docs.docker.com/engine/install"
             exit 1
         fi
-        echo 'DOCKER="docker run --rm -it -v $PWD:/mbstandalone mbplugin "' > dockervarfile
-        echo 'DOCKER_STD="docker run --rm -it -v $PWD:/mbstandalone mbplugin "' >> dockervarfile
-        echo 'DOCKER_WEB="docker run --name mbplugin -d -v $PWD:/mbstandalone -p 127.0.0.1:19777:19777 mbplugin "' >> dockervarfile
+
+        # Stop and remove container if running
+        docker ps    --format '{{.Names}}' | grep -w mbplugin &> /dev/null && docker stop mbplugin
+        docker ps -a --format '{{.Names}}' | grep -w mbplugin &> /dev/null && docker rm   mbplugin
+        
+        tag=`sed -n -e 's/## mbplugin v\([1-9]\.[^ ]*\).*/\1/p' mbplugin/changelist.md | tail -n 1`
+        # Build image for playwright if not exists
+        [ -z "$(docker images -q mbplugin:$tag)" ] && docker build --tag mbplugin:$tag mbplugin/docker
+        # -p 127.0.0.1:19777:19777
+
+        echo '# dockervarfile' > dockervarfile
+        # fix for mbplugin symlink
+        [ -L "mbplugin" ] && [ -d "mbplugin" ] && mbplugin_vol="-v `cd mbplugin;pwd -P`:/mbstandalone/mbplugin"
+        echo 'DOCKER="docker run --rm -it -v '$PWD':/mbstandalone '$mbplugin_vol' mbplugin:'$tag' "' >> dockervarfile
+        echo 'DOCKER_STD="docker run --rm -it -v '$PWD':/mbstandalone '$mbplugin_vol' mbplugin:'$tag' "' >> dockervarfile
+        echo 'DOCKER_WEB="docker run --name mbplugin -d -v '$PWD':/mbstandalone '$mbplugin_vol' -p 127.0.0.1:19777:19777 mbplugin:'$tag' "' >> dockervarfile
         echo 'DOCKER_EXEC="docker exec -it mbplugin "' >> dockervarfile
         # if ! docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null; then ... ; fi
         # docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && echo "RUN"
-
-        # Build image for playwright
-        docker build --tag mbplugin mbplugin/docker
-        # -p 127.0.0.1:19777:19777
     fi
 
-    if [ -z "pythonvar" ] && [ -z "dockervarvar" ]; then 
+    if [ -z "$pythonvar" ] && [ -z "$dockervar" ]; then 
         echo "Unknown command $1"
         exit 1
     fi
@@ -95,6 +104,7 @@ if [ ! -f dockervarfile ] ; then
     fi
 fi
 
+### SETUP mode continue
 # ../plugin/util.py exists go into installation mode
 if [ -f $util_path ]; then 
     export MBPLUGIN_WRITE_DIAG=YES
@@ -104,9 +114,10 @@ if [ -f $util_path ]; then
     chmod +x mbp
     [ -f dockervarfile ] && echo $DOCKER 
     $DOCKER_STD python mbplugin/plugin/util.py init
-    $DOCKER_STD python mbplugin/plugin/util.py web-server stop -f
-    $DOCKER_STD python mbplugin/plugin/util.py pip-update
-    $DOCKER_STD python mbplugin/plugin/util.py install-chromium
+    # Run only NOT docker
+    [ ! -f dockervarfile ] && python mbplugin/plugin/util.py web-server stop -f
+    [ ! -f dockervarfile ] && python mbplugin/plugin/util.py pip-update
+    [ ! -f dockervarfile ] && python mbplugin/plugin/util.py install-chromium
     $DOCKER_STD python mbplugin/plugin/util.py check-import
     $DOCKER_STD python mbplugin/plugin/util.py check-ini
     $DOCKER_STD python mbplugin/plugin/util.py clear-browser-cache

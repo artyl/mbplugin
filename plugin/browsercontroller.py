@@ -453,13 +453,15 @@ class BalanceOverPlaywright():
             'args': self.launch_config_args,
             })
         if self.options('use_builtin_browser').strip() == '0':
-            self.chrome_executable_path = self.options('chrome_executable_path')
-            if not os.path.exists(self.chrome_executable_path):
+            self.chrome_executable_path = self.options('chrome_executable_path').strip()
+            if self.chrome_executable_path == '':
                 chrome_paths = [p for p in settings.chrome_executable_path_alternate if os.path.exists(p)]
-                if len(chrome_paths) == 0:
-                    logging.error('Chrome.exe not found')
-                    raise RuntimeError(f'Chrome.exe not found')
-                self.chrome_executable_path = chrome_paths[0]
+                if len(chrome_paths) >0:
+                    self.chrome_executable_path = chrome_paths[0] 
+            if self.chrome_executable_path == '' or not os.path.exists(self.chrome_executable_path):
+                error_msg = f'Chrome.exe not found {self.chrome_executable_path}'
+                logging.error(error_msg)
+                raise RuntimeError(error_msg)
             self.launch_config.update({'executable_path': self.chrome_executable_path,})
         else:
             self.chrome_executable_path = self.browsertype.executable_path

@@ -52,8 +52,6 @@ def getbalance_standalone_one_pass(filter:list=[], only_failed:bool=False) -> No
     для Standalone версии в файле phones_add.ini
     only_failed=True - делать запросы только по тем номерам, по которым прошлый запрос был неудачный
     '''
-    store.turn_logging(httplog=True)  # Т.к. сюда можем придти извне, то включаем логирование здесь
-    logging.info(f'getbalance_standalone: filter={filter}')
     phones = store.ini('phones.ini').phones()
     queue_balance = []  # Очередь телефонов на получение баланса
     for val in phones.values():
@@ -80,6 +78,8 @@ def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=-1, 
     retry=N количество повторов по неудачным попыткам, после запроса по всем (повторы только при only_failed=False)
     params добавлен чтобы унифицировать вызовы
     Результаты сохраняются в базу'''
+    store.turn_logging(httplog=True)  # Т.к. сюда можем придти извне, то включаем логирование здесь
+    logging.info(f'getbalance_standalone: filter={filter}')
     if retry == -1:
         retry = int(store.options('retry_failed', flush=True))
     if only_failed:
@@ -1007,8 +1007,8 @@ class WebServer():
         self.host = store.options('host', section='HttpServer')
         with socket.socket() as sock:
             sock.settimeout(0.2)  # this prevents a 2 second lag when starting the server
-            if sock.connect_ex((self.host, self.port)) == 0:
-                logging.info(f"Port {self.host}:{self.port} already in use, try restart.")
+            if sock.connect_ex(('127.0.0.1', self.port)) == 0:
+                logging.info(f"Port 127.0.0.1:{self.port} already in use, try restart.")
                 try:
                     send_http_signal(cmd='exit')
                 except Exception:

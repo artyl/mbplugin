@@ -92,5 +92,5 @@ def get_balance(login, password, storename=None, **kwargs):
 
 if __name__ == '__main__':
     print(store.options('mosenergosbyt_nm_indication_variants'))
-    print(dict([map(str.strip,i.split(':', 1)) for i in store.options('mosenergosbyt_nm_indication_variants').strip().split(',')]))
+    print(dict([map(str.strip,i.split(':', 1)) for i in store.options('mosenergosbyt_nm_indication_variants').strip().split(',')]))  # type: ignore
     print('This is module mosenergosbyt on browser')

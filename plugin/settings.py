@@ -33,13 +33,15 @@ mbplugin_root_path = os.path.abspath(os.path.join(os.path.split(__file__)[0], '.
 # Для пути с симлинками в unix-like системах приходится идти на трюки:
 # Исходим из того что скрипт mbp привет нас в правильный корень
 # https://stackoverflow.com/questions/54665065/python-getcwd-and-pwd-if-directory-is-a-symbolic-link-give-different-results
-if sys.platform != 'win32' and 'PWD' in os.environ:
-    if os.path.exists(os.path.abspath(os.path.join(os.environ['PWD'], 'mbplugin', 'plugin', 'util.py'))):
-        mbplugin_root_path = os.environ['PWD']
-    if os.path.exists(os.path.abspath(os.path.join(os.environ['PWD'], '..' ,'mbplugin', 'plugin', 'util.py'))):
-        mbplugin_root_path = os.path.abspath(os.path.join(os.environ['PWD'], '..'))
-    if os.path.exists(os.path.abspath(os.path.join(os.environ['PWD'], '..', '..','mbplugin', 'plugin', 'util.py'))):
-        mbplugin_root_path = os.path.abspath(os.path.join(os.environ['PWD'], '..', '..'))
+if sys.platform != 'win32':
+    # В докере с симлинком другая проблема - нет $PWD, но зато os.getcwd() ведет нас в /mbstandalone
+    pwd = os.environ.get('PWD', os.getcwd())
+    if os.path.exists(os.path.abspath(os.path.join(pwd, 'mbplugin', 'plugin', 'util.py'))):
+        mbplugin_root_path = pwd
+    elif os.path.exists(os.path.abspath(os.path.join(pwd, '..' ,'mbplugin', 'plugin', 'util.py'))):
+        mbplugin_root_path = os.path.abspath(os.path.join(pwd, '..'))
+    elif os.path.exists(os.path.abspath(os.path.join(pwd, '..', '..','mbplugin', 'plugin', 'util.py'))):
+        mbplugin_root_path = os.path.abspath(os.path.join(pwd, '..', '..'))
 # Папка в которой по умолчанию находится mbplugin.ini, phones.ini, база 
 # т.к. раньше допускалось что папка mbplugin может находится на несколько уровней вложенности вниз ищем вверх phones.ini
 mbplugin_ini_path = find_file_up(mbplugin_root_path, 'phones.ini')
@@ -149,8 +151,8 @@ ini = {
         'browsertype_': {'descr': 'Какой браузерный движок используется для запросов', 'type': 'select', 'variants': 'chromium firefox'},
         'browsertype':'chromium', 
         # Путь к хрому - можно прописать явно в ini, иначе поищет из вариантов chrome_executable_path_alternate
-        'chrome_executable_path_': {'descr':'Путь к хрому', 'type':'text', 'size':100, 'validate':lambda i:os.path.exists(i)},
-        'chrome_executable_path': 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        'chrome_executable_path_': {'descr':'Путь к хрому', 'type':'text', 'size':100, 'validate':lambda i:(i == '' or os.path.exists(i))},
+        'chrome_executable_path': '',
         # Для плагинов через хром сохранять в папке логов полученные responses и скриншоты
         'log_responses_': {'descr':'Сохранять в папке логов полученные данные за последний запрос', 'type':'checkbox'},
         'log_responses': '1',
@@ -238,7 +240,7 @@ ini = {
         'tg_proxy': '',  # По умолчанию без прокси
         'api_token_': {'descr':'Токен для бота', 'type':'text', 'size':100},
         'api_token': '',  # токен для бота - прописывается в ini
-        'auth_id_': {'descr':'Список id пользователей, которые взаимодействовать с ТГ ботом', 'type':'text', 'validate': lambda i:re.match(r'^(\d+,)*(\d)+$', str(i))},
+        'auth_id_': {'descr':'Список id пользователей, которые взаимодействовать с ТГ ботом', 'type':'text', 'validate': lambda i:re.match(r'^((\d+,)*(\d)+)?$', str(i))},
         'auth_id': '',  # список id пользователей, которые авторизованы
         'send_balance_changes_': {'descr':'Отправлять изменения баланса по sendtgbalance', 'type':'checkbox'},
         'send_balance_changes': '1',  # отправлять изменения баланса по sendtgbalance (может приходится если мы не хотим получать полный список а фильтровать по подписке)

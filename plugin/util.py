@@ -389,8 +389,8 @@ def get_balance(ctx, only_failed, filter):
     name = 'get-balance'
     import httpserver_mobile
     # breakpoint()
-    res = httpserver_mobile.getbalance_standalone(filter=filter, only_failed=only_failed)
-    echo(f'OK {name}\n{res}')
+    httpserver_mobile.getbalance_standalone(filter=filter, only_failed=only_failed)
+    echo(f'OK {name}')
 
 
 @cli.command()
@@ -815,9 +815,24 @@ def mbplugin_ini_md_gen():
     with open(fn_md, 'w', encoding='utf8') as f:
         f.write('\n'.join(data))
 
+def mbplugin_dockerfile_version():
+    'Корректирует версию в dockerfile по серсии playwright прописанной в requirements.txt'
+    fn_docker = store.abspath_join('mbplugin', 'docker', 'Dockerfile')
+    fn_req = store.abspath_join('mbplugin', 'docker', 'requirements.txt')
+    with open(fn_req) as f:
+        pl_ver_req = re.findall(r'playwright==(\d+\.\d+\.\d+)', f.read())[0]
+    with open(fn_docker) as f:
+        dockerfile = f.read()
+        pl_ver_docker = re.findall(r'mcr.microsoft.com/playwright:v(\d+\.\d+\.\d+)', dockerfile)[0]
+    print(pl_ver_req, '->', pl_ver_docker)
+    if pl_ver_req != pl_ver_docker:
+        with open(fn_docker, 'w') as f:
+            dockerfile = re.sub(r'mcr.microsoft.com/playwright:v((\d+\.\d+\.\d+))', f'mcr.microsoft.com/playwright:v{pl_ver_req}' , dockerfile)
+            f.write(dockerfile)
 
 if __name__ == '__main__':
     cli(obj={})
 
 # ..\python\python -c "import updateengine;updateengine.create_signature()"
 # ..\python\python -c "import util;util.mbplugin_ini_md_gen()"
+# ..\python\python -c "import util;util.mbplugin_dockerfile_version()"
