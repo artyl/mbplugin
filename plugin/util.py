@@ -717,7 +717,8 @@ def db_query(ctx, query):
                 cnt = db.cur.execute(f"select count(*) from {tbl}").fetchall()[0][0]
                 echo(f'{tbl} {cnt}')
             return
-        cur = db.cur.execute(' '.join(query))
+        query2 = ' '.join(query).replace('select all ','select * ')
+        cur = db.cur.execute(query2)
         if cur.description is not None:
             dbheaders = list(zip(*cur.description))[0]
             dbdata = cur.fetchall()

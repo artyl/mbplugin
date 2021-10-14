@@ -164,7 +164,7 @@ def getbalance_plugin(method, param_source):
         module = __import__(plugin, globals(), locals(), [], 0)
         importlib.reload(module)  # обновляем модуль, на случай если он менялся
         storename = re.sub(r'\W', '_', f"{lang}_{plugin}_{param['login']}")
-        dbengine.flags('set', f"{lang}_{plugin}_{param['login']}", 'start')  # выставляем флаг о начале запроса
+        dbengine.flags('setunic', f"{lang}_{plugin}_{param['login']}", 'start')  # выставляем флаг о начале запроса
         try:
             result = module.get_balance(param['login'], param['password'], storename, pkey=pkey)
             if type(result) != dict or 'Balance' not in result:

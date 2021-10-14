@@ -46,7 +46,7 @@ def main():
     
     # Запуск плагина
     logging.info(f'Start {lang} {plugin} {login}')
-    dbengine.flags('set',f'{lang}_{plugin}_{login}','start')  # выставляем флаг о начале запроса
+    dbengine.flags('setunic',f'{lang}_{plugin}_{login}','start')  # выставляем флаг о начале запроса
     try:
         storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
         pkey = (login, f'{lang}_{plugin}')  # Пара (номер, оператор)

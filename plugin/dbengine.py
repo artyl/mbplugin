@@ -448,12 +448,23 @@ def write_result_to_db(plugin, login, result):
 
 
 def flags(cmd, key=None, value=None):
-    'Работаем с флагами (таблица Flags) если в ini установлен sqlitestore=1, если нет просто вернем None'
+    '''Работаем с флагами (таблица Flags) если в ini установлен sqlitestore=1, если нет просто вернем None
+    cmd: set/setunic/get/delete/getall/deleteall
+    value:
+    start - запрос стартовал (start уникальный - больше одного быть не может)
+    queue - запрос в очереди
+    error - по запросу прошла ошибка
+    '''
     try:
         if store.options('sqlitestore') == '1':
             logging.debug(f'Flag:{cmd}')
             db = Dbengine()
             if cmd.lower() == 'set':
+                db.cur.execute('REPLACE INTO flags(key,value) VALUES(?,?)', [key, value])
+                db.conn.commit()
+            if cmd.lower() == 'setunic':
+                db.cur.execute('delete from flags where value=?', [value])
+                db.conn.commit()
                 db.cur.execute('REPLACE INTO flags(key,value) VALUES(?,?)', [key, value])
                 db.conn.commit()
             elif cmd.lower() == 'get':
