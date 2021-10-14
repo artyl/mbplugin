@@ -232,7 +232,7 @@ def prepare_log_personal(prefix):
 
 def getreport(param=[]):
     'Делает html отчет balance.html'
-    def pp_field(pkey, he, el, hover):
+    def pp_field(pkey, he, el, hover, usligi=''):
         'форматирует поле, красит, выкидывает None и нули в полях баланса - возвращает готовый тэг th или tr'
         'he - header'
         'el - element'
@@ -246,6 +246,8 @@ def getreport(param=[]):
             mark = ' class="mark" '  # Красим когда давно не изменялся
         if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) < int(store.options('BalanceChangedLessThen', pkey=pkey)):
             mark = ' class="mark" '  # Красим недавно поменялся а не должен был
+        if he == 'UslugiOn' and el is not None and len([1 for kw in store.options('subscribtion_keyword', pkey=pkey).split(',') if kw.strip() in uslugi])>0:
+            mark = ' class="mark" '  # Красим если в списке есть нежелательные услуги
         if el is None:
             el = ''
         if he != 'Balance' and (el == 0.0 or el == 0) and mark == '':
@@ -278,12 +280,12 @@ def getreport(param=[]):
     for line in table:
         html_line = []
         pkey = (line['PhoneNumber'], line['Operator'])
+        uslugi = json.loads(responses.get(f"{line['Operator']}_{line['PhoneNumber']}", '{}')).get('UslugiList', '')
         for he in header:
             if he not in line:
                 continue
             hover = ''
             if he == 'UslugiOn':  # На услуги вешаем hover со списком услуг
-                uslugi = json.loads(responses.get(f"{line['Operator']}_{line['PhoneNumber']}", '{}')).get('UslugiList', '')
                 if uslugi != '':
                     h_html_header = f'<th id="hUsluga" class="p_n">Услуга</th><th id="hPrice" class="p_n">р/мес</th>'
                     h_html_table = []
@@ -302,7 +304,7 @@ def getreport(param=[]):
                         h_html_line = ''.join([pp_field(pkey, h, v, '') for h, v in h_line.items()])
                         h_html_table.append(f'<tr id="row" class="n">{h_html_line}</tr>')
                     hover = template_history.format(h_header=f"История запросов по {line['Alias']}", html_header=h_html_header, html_table='\n'.join(h_html_table))
-            html_line.append(pp_field(pkey, he, line[he], hover))  # append <td>...</td>
+            html_line.append(pp_field(pkey, he, line[he], hover, uslugi))  # append <td>...</td>
         classflag = 'n'  # красим строки - с ошибкой красным, еще в очереди - серым и т.д.
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('error'):
             classflag = 'e_us'
@@ -391,13 +393,9 @@ def prepare_balance_mobilebalance(filter:str='FULL', params:typing.Dict={}):
 
 def prepare_balance_sqlite(filter:str='FULL', params:typing.Dict={}):
     'Готовим данные для отчета из sqlite базы'
-    db = dbengine.Dbengine()
-    table_format = store.options('tg_format', section='Telegram').replace('\\t', '\t').replace('\\n', '\n')
-    phones = store.ini('phones.ini').phones()
-    flags = dbengine.flags('getall')
-
     def alert_suffix(line):
         pkey = (line['PhoneNumber'], line['Operator'])
+        uslugi = json.loads(responses.get(f"{line['Operator']}_{line['PhoneNumber']}", '{}')).get('UslugiList', '')
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('error'):
             return f'<b> ! последняя попытка получить баланс завершилась ошибкой !</b>'
         if line['Balance'] is not None and line['Balance'] < float(store.options('BalanceLessThen', pkey=pkey)):
@@ -408,12 +406,23 @@ def prepare_balance_sqlite(filter:str='FULL', params:typing.Dict={}):
             return f"<b> ! баланс не изменялся более {store.options('BalanceNotChangedMoreThen', pkey=pkey)} дней !</b>"
         if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] < int(store.options('BalanceChangedLessThen', pkey=pkey)):
             return f"<b> ! баланс изменился менее {store.options('BalanceChangedLessThen', pkey=pkey)} дней назад!</b>"
+        if line['UslugiOn'] is not None:
+            unwanted_kw = [kw for kw in store.options('subscribtion_keyword', pkey=pkey).split(',') if kw.strip() in uslugi]
+            if len(unwanted_kw)>0:
+                unwanted = '\n'.join([line for line in uslugi.split('\n') if unwanted_kw])
+                return f"<b> ! В списке услуг присутствуют нежелательные!</b>"
         return ''
+
+    db = dbengine.Dbengine()
+    table_format = store.options('tg_format', section='Telegram').replace('\\t', '\t').replace('\\n', '\n')
+    phones = store.ini('phones.ini').phones()
+    flags = dbengine.flags('getall')
+    responses = dbengine.responses()
+    table = db.report()
     # table_format = 'Alias,PhoneNumber,Operator,Balance'
     # Если формат задан как перечисление полей через запятую - переделываем под формат
     if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
         table_format = ' '.join([f'{{{i}}}' for i in table_format.strip().split(',')])
-    table = db.report()
     table = [i for i in table if i['Alias'] != 'Unknown']  # filter Unknown
     table.sort(key=lambda i: [i['NN'], i['Alias']])  # sort by NN, after by Alias
     table = filter_balance(table, filter, params)
