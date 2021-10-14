@@ -407,9 +407,9 @@ def prepare_balance_sqlite(filter:str='FULL', params:typing.Dict={}):
         if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] < int(store.options('BalanceChangedLessThen', pkey=pkey)):
             return f"<b> ! баланс изменился менее {store.options('BalanceChangedLessThen', pkey=pkey)} дней назад!</b>"
         if line['UslugiOn'] is not None:
-            unwanted_kw = [kw for kw in store.options('subscribtion_keyword', pkey=pkey).split(',') if kw.strip() in uslugi]
+            unwanted_kw = [kw.strip() for kw in store.options('subscribtion_keyword', pkey=pkey).split(',') if kw.strip() in uslugi]
             if len(unwanted_kw)>0:
-                unwanted = '\n'.join([line for line in uslugi.split('\n') if unwanted_kw])
+                unwanted = '\n'.join([line for line in uslugi.split('\n') if len([kw for kw in unwanted_kw if kw in line])>0])
                 return f"<b> ! В списке услуг присутствуют нежелательные!</b>"
         return ''
 
