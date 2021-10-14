@@ -232,7 +232,7 @@ def prepare_log_personal(prefix):
 
 def getreport(param=[]):
     'Делает html отчет balance.html'
-    def pp_field(pkey, he, el, hover, usligi=''):
+    def pp_field(pkey, he, el, hover, unwanted=False):
         'форматирует поле, красит, выкидывает None и нули в полях баланса - возвращает готовый тэг th или tr'
         'he - header'
         'el - element'
@@ -246,7 +246,7 @@ def getreport(param=[]):
             mark = ' class="mark" '  # Красим когда давно не изменялся
         if he == 'NoChangeDays' and el is not None and pkey in phones and int(el) < int(store.options('BalanceChangedLessThen', pkey=pkey)):
             mark = ' class="mark" '  # Красим недавно поменялся а не должен был
-        if he == 'UslugiOn' and el is not None and len([1 for kw in store.options('subscribtion_keyword', pkey=pkey).split(',') if kw.strip() in uslugi])>0:
+        if he == 'UslugiOn' and el is not None and unwanted:
             mark = ' class="mark" '  # Красим если в списке есть нежелательные услуги
         if el is None:
             el = ''
@@ -281,6 +281,8 @@ def getreport(param=[]):
         html_line = []
         pkey = (line['PhoneNumber'], line['Operator'])
         uslugi = json.loads(responses.get(f"{line['Operator']}_{line['PhoneNumber']}", '{}')).get('UslugiList', '')
+        subscribtion_keyword = [i.strip() for i in store.options('subscribtion_keyword', pkey=pkey).lower().split(',')]
+        unwanted_kw = [kw for kw in subscribtion_keyword if kw in uslugi.lower()]  # встретившиеся нежелательные
         for he in header:
             if he not in line:
                 continue
@@ -293,7 +295,10 @@ def getreport(param=[]):
                         txt = h_line[0].replace("  ", " &nbsp;")
                         bal = f'{float(h_line[1]):.2f}' if re.match(r'^ *-?\d+(?:\.\d+)? *$', h_line[1]) else h_line[1]
                         h_html_line = f'<td id="Alias">{txt}</td><td id="Balance">{bal}</td>'
-                        h_html_table.append(f'<tr id="row" class="n">{h_html_line}</tr>')
+                        u_classflag = 'n'
+                        if len(unwanted_kw)>0 and len([kw for kw in unwanted_kw if kw in h_line[0].lower()])>0:
+                            u_classflag = 'e_us'
+                        h_html_table.append(f'<tr id="row" class="{u_classflag}">{h_html_line}</tr>')
                     hover = template_history.format(h_header=f"Список услуг по {line['Alias']}", html_header=h_html_header, html_table='\n'.join(h_html_table))
             if he == 'Balance':  # На баланс вешаем hover с историей
                 history = db.history(line['PhoneNumber'], line['Operator'], days=int(store.options('RealAverageDays', pkey=pkey)), lastonly=int(store.options('ShowOnlyLastPerDay', pkey=pkey)))
@@ -304,12 +309,12 @@ def getreport(param=[]):
                         h_html_line = ''.join([pp_field(pkey, h, v, '') for h, v in h_line.items()])
                         h_html_table.append(f'<tr id="row" class="n">{h_html_line}</tr>')
                     hover = template_history.format(h_header=f"История запросов по {line['Alias']}", html_header=h_html_header, html_table='\n'.join(h_html_table))
-            html_line.append(pp_field(pkey, he, line[he], hover, uslugi))  # append <td>...</td>
-        classflag = 'n'  # красим строки - с ошибкой красным, еще в очереди - серым и т.д.
+            html_line.append(pp_field(pkey, he, line[he], hover, unwanted=(len(unwanted_kw)>0)))  # append <td>...</td>
+        classflag = 'n'  # красим строки - с ошибкой красным, текущий - зеленым, еще в очереди - серым и т.д.
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('error'):
             classflag = 'e_us'
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('start'):
-            classflag = 'n_us'
+            classflag = 's_us'
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('queue'):
             classflag = 'n_us'
         html_table.append(f'<tr id="row" class="{classflag}">{"".join(html_line)}</tr>')
@@ -410,7 +415,7 @@ def prepare_balance_sqlite(filter:str='FULL', params:typing.Dict={}):
             unwanted_kw = [kw.strip() for kw in store.options('subscribtion_keyword', pkey=pkey).split(',') if kw.strip() in uslugi]
             if len(unwanted_kw)>0:
                 unwanted = '\n'.join([line for line in uslugi.split('\n') if len([kw for kw in unwanted_kw if kw in line])>0])
-                return f"<b> ! В списке услуг присутствуют нежелательные!</b>"
+                return f"<b> ! В списке услуг присутствуют нежелательные: {unwanted}!</b>"
         return ''
 
     db = dbengine.Dbengine()

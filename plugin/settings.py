@@ -338,8 +338,9 @@ tr:hover {background-color: #ffff99;}
 .hdr  {text-align:left;color:#FFFFFF; font-weight:bold; background-color:#0E3292; padding-left:5}
 .n    {background-color: #FFFFE1}
 .e    {background-color: #FFEBEB}
+.e_us {background-color: #FFEBEB; color: #FF0000}
 .n_us {background-color: #FFFFE1; color: #808080}
-.e_us {background-color: #FFEBEB; color: #808080}
+.s_us {background-color: lightgreen; color: #808080}
 .mark{color:#FF0000}
 .mark_us{color:#FA6E6E}
 .summ{background-color: lightgreen; color:black}
