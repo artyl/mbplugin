@@ -65,9 +65,9 @@ if [ -f $util_path ]; then
         echo '# dockervarfile' > dockervarfile
         # fix for mbplugin symlink
         [ -L "mbplugin" ] && [ -d "mbplugin" ] && mbplugin_vol="-v `cd mbplugin;pwd -P`:/mbstandalone/mbplugin"
-        echo 'DOCKER="docker run -u $(id -u) -it --rm -v '$PWD':/mbstandalone '$mbplugin_vol' mbplugin:'$tag' "' >> dockervarfile
-        echo 'DOCKER_STD="docker run -u $(id -u) -it --rm -v '$PWD':/mbstandalone '$mbplugin_vol' mbplugin:'$tag' "' >> dockervarfile
-        echo 'DOCKER_WEB="docker run -u $(id -u) -d --name mbplugin -v '$PWD':/mbstandalone '$mbplugin_vol' -p 127.0.0.1:19777:19777 mbplugin:'$tag' "' >> dockervarfile
+        echo 'DOCKER="docker run -u $(id -u) -it --init --rm -v '$PWD':/mbstandalone '$mbplugin_vol' mbplugin:'$tag' "' >> dockervarfile
+        echo 'DOCKER_STD="docker run -u $(id -u) -it --init --rm -v '$PWD':/mbstandalone '$mbplugin_vol' mbplugin:'$tag' "' >> dockervarfile
+        echo 'DOCKER_WEB="docker run -u $(id -u) -d --init --name mbplugin -v '$PWD':/mbstandalone '$mbplugin_vol' -p 127.0.0.1:19777:19777 mbplugin:'$tag' "' >> dockervarfile
         echo 'DOCKER_EXEC="docker exec -u $(id -u) -it mbplugin "' >> dockervarfile
         # if ! docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null; then ... ; fi
         # docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && echo "RUN"
