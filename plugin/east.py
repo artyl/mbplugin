@@ -17,7 +17,7 @@ class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.balance"},
+            {'name': 'Balance', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.balance.toFixed(2)"},
             {'name': 'TarifPlan', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.tariff[0].cTariffName + data.data.tariff[0].cTariffCost"},
             {'name': 'LicSchet', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.login"},
             {'name': 'UserName', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.FullName"},
