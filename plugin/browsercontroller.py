@@ -289,7 +289,7 @@ class BalanceOverPlaywright():
             try:
                 post = ''
                 if response.request.method == 'POST' and response.request.post_data is not None:
-                    post = response.request.post_data
+                    post = response.request.post_data.replace('\n', '_').replace('\r', '_')
                 self.responses[f'{response.request.method}:{post} URL:{response.request.url}$'] = data
                 # TODO Сделать какой-нибудь механизм для поиска по загруженным страницам
                 # txt = response.text()
