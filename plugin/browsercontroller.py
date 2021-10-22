@@ -141,7 +141,7 @@ def fix_crash_banner(storefolder, storename):
 @safe_run_decorator
 def clear_cache(storefolder, storename):
     'Очищаем папку с кэшем профиля чтобы не разрастался'
-    #return  # С такой очисткой оказывается связаны наши проблемы с загрузкой
+    # return  # С такой очисткой оказывается связаны наши проблемы с загрузкой
     profilepath = store.abspath_join(storefolder, 'headless', storename)
     shutil.rmtree(store.abspath_join(profilepath, 'BrowserMetrics'), ignore_errors=True)
     shutil.rmtree(store.abspath_join(profilepath, 'cache2'), ignore_errors=True)

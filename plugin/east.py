@@ -21,7 +21,7 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'TarifPlan', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.tariff[0].cTariffName + data.data.tariff[0].cTariffCost"},
             {'name': 'LicSchet', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.login"},
             {'name': 'UserName', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.FullName"},
-            {'name': 'BlockStatus', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.blocked"},
+            {'name': 'BlockStatus', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.blocked==0?'Active':'Blocked'"},
             {'name': 'TurnOff', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.dremain"},
             ])
 
