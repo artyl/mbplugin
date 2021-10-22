@@ -22,7 +22,7 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'LicSchet', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.login"},
             {'name': 'UserName', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.FullName"},
             {'name': 'BlockStatus', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.blocked"},
-            {'name': 'Expired', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.dremain"},
+            {'name': 'TurnOff', 'url_tag': ['State', 'index.pl'], 'jsformula': "data.data.user.dremain"},
             ])
 
 

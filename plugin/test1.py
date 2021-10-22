@@ -20,6 +20,7 @@ def get_balance(login, password, storename=None, **kwargs):
             'KreditLimit': 23,  # double Кредитный лимит
             'Currenc': 'Валюта',
             'Average': 5,  # double Средний расход в день
+            'TurnOff': 20, # дней до отключения
             'TurnOffStr': 'Ожидаемая дата отключения',
             'Recomend':	54,  # double Рекомендовано оплатить
             'SMS': 43,  # !!! integer Кол-во оставшихся/потраченных СМС
