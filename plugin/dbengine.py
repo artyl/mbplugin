@@ -182,7 +182,11 @@ class Dbengine():
         line['QueryDateTime'] = datetime.datetime.now().replace(microsecond=0)  # no microsecond
         self.cur.execute(f"select cast(julianday('now')-julianday(max(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' and abs(balance-({result['Balance']}))>0.02")
         line['NoChangeDays'] = self.cur.fetchall()[0][0]  # Дней без изм.
-        line['NoChangeDays'] = line['NoChangeDays'] if line['NoChangeDays'] != None else 999
+        if line['NoChangeDays'] == None:
+            # Если баланс не менялся ни разу - то ориентируемся на самый первый запрос баланса
+            self.cur.execute(f"select cast(julianday('now')-julianday(min(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' ")
+        # Если записей по этому номеру совсем нет (первый запрос), тогда просто ставим 0
+        line['NoChangeDays'] = line['NoChangeDays'] if line['NoChangeDays'] != None else 0
         try:
             options_ini = store.ini('Options.ini').read()
             average_days = int(options_ini['Additional']['AverageDays'])
