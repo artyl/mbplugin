@@ -57,6 +57,8 @@ def getbalance_standalone_one_pass(filter:list=[], only_failed:bool=False) -> No
     phones = store.ini('phones.ini').phones()
     queue_balance = []  # Очередь телефонов на получение баланса
     for val in phones.values():
+        if val['monitor'].upper() != 'TRUE':
+            continue  # только те у кого включен мониторинг
         keypair = f"{val['Region']}_{val['Number']}"
         # Проверяем все у кого задан плагин, логин и пароль пароль
         if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':

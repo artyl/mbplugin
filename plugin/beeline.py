@@ -20,17 +20,21 @@ class browserengine(browsercontroller.BrowserController):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "parseFloat(data.balance.data.balance).toFixed(2)"},
-            #{'name': 'Internet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "parseFloat(data.balance.data.balance).toFixed(2)"},
-            #{'name': 'UserName', 'url_tag': ['api/user/info'], 'jsformula': "data.data.company"},
-            #{'name': 'TurnOff', 'url_tag': ['api/user/info'], 'jsformula': "data.data.days_to_off"},
-            #{'name': 'LicSchet', 'url_tag': ['api/user/info'], 'jsformula': "data.data.login"},
-            #{'name': 'TarifPlan', 'url_tag': ['api/user/info'], 'jsformula': "data.data.tariff_name"},
-            #{'name': 'BlockStatus', 'url_tag': ['api/user/info'], 'jsformula': "data.status"},
-            ])          
+            {'name': 'TarifPlan', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.profileSummary.data.tariffName"},
+            {'name': 'Internet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='KBYTE'?el.rest:0)).reduce((s,el) => s+el.rest)"},
+            {'name': 'Min', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='SECONDS'?el.rest:0)).reduce((s,el) => (s+el.rest)/60).toFixed(0)"},
+            {'name': 'SMS', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='SMS'?el.rest:0)).reduce((s,el) => s+el.rest)"},
+            {'name': 'BlockStatus', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.status.data.status"},
+            {'name': 'LicSchet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.profileSummary.data.ctn"},            
+            ])
+        self.result['Internet'] = self.result.get('Internet', 0) * (settings.UNIT['KB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
+
+
 
 def get_balance_browser(login, password, storename=None, **kwargs):
     ''' Работаем через Browser На вход логин и пароль, на выходе словарь с результатами '''
     return browserengine(login, password, storename, plugin_name=__name__).main()
+
 
 def get_balance_api(login, password, storename=None, **kwargs):
     ''' Работаем через API На вход логин и пароль, на выходе словарь с результатами '''
