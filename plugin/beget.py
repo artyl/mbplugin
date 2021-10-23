@@ -1,8 +1,9 @@
-#проверка баланса хостинг-провайдера BEGET
-#https://beget.com/ru
-#https://beget.com/ru/kb/api/beget-api
 # -*- coding: utf8 -*-
 ''' Автор d1mas '''
+''' проверка баланса хостинг-провайдера BEGET
+https://beget.com/ru
+https://beget.com/ru/kb/api/beget-api '''
+
 import os, sys, re, logging
 import store
 
@@ -15,7 +16,7 @@ def get_balance(login, password, storename=None, **kwargs):
     if response.status_code != 200:
         raise RuntimeError(f'Login error: status_code {response.status_code}!=200')
     # Не отдают они content-type=json в заголовках
-    #if 'json' not in response.headers.get('content-type'):
+    # if 'json' not in response.headers.get('content-type'):
     #    raise RuntimeError(f'Login error: {response.text}')
 
     # Разбираем полученный json
