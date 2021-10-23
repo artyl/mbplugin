@@ -813,7 +813,7 @@ def mbplugin_ini_md_gen():
                 if p_attr['type'] == 'select':
                     data.append(f'Варианты значения {param}: {p_attr["variants"]}  ')
 
-    with open(fn_md, 'w', encoding='utf8') as f:
+    with open(fn_md, mode='w', encoding='utf8', newline='\n') as f:
         f.write('\n'.join(data))
 
 def mbplugin_dockerfile_version():
@@ -827,7 +827,7 @@ def mbplugin_dockerfile_version():
         pl_ver_docker = re.findall(r'mcr.microsoft.com/playwright:v(\d+\.\d+\.\d+)', dockerfile)[0]
     print(pl_ver_req, '->', pl_ver_docker)
     if pl_ver_req != pl_ver_docker:
-        with open(fn_docker, 'w') as f:
+        with open(fn_docker, mode='w', newline='\n') as f:
             dockerfile = re.sub(r'mcr.microsoft.com/playwright:v((\d+\.\d+\.\d+))', f'mcr.microsoft.com/playwright:v{pl_ver_req}' , dockerfile)
             f.write(dockerfile)
 

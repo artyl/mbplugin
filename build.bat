@@ -67,6 +67,15 @@ if NOT EXIST mbp.bat (
     GOTO :EOF
 )
 
+cd "%~dp0\..\mbplugin\plugin"
+..\python\python -c "import util;util.mbplugin_ini_md_gen()"
+..\python\python -c "import util;util.mbplugin_dockerfile_version()"
+call git diff --exit-code
+if NOT "%errorlevel%"=="0" (
+    ECHO Not all change will be commited
+    GOTO :EOF
+)
+
 cd "%~dp0\.."
 call mbplugin\setup_and_check.bat
 cd "%~dp0\.."

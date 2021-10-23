@@ -12,13 +12,13 @@
 Значение по умолчанию: [%(asctime)s] %(levelname)s %(funcName)s %(message)s  
 ## __loggingfolder__
 Описание: папка для логов  
-Значение по умолчанию: mbplugin\log  
+Значение по умолчанию: mbplugin/log  
 ## __loggingfilename__
 Описание: лог для ручного запуска и dll плагинов  
-Значение по умолчанию: mbplugin\log\mbplugin.log  
+Значение по умолчанию: mbplugin/log/mbplugin.log  
 ## __logginghttpfilename__
 Описание: лог http сервера и плагинов из него  
-Значение по умолчанию: mbplugin\log\http.log  
+Значение по умолчанию: mbplugin/log/http.log  
 ## __logginglevel__
 Описание: Уровень логирования  
 Значение по умолчанию: INFO  
@@ -29,13 +29,13 @@
 Варианты значения logconsole: 0 - выключено или 1 - включено  
 ## __storefolder__
 Описание: Папка для хранения сессий  
-Значение по умолчанию: mbplugin\store  
+Значение по умолчанию: mbplugin/store  
 ## __sqlitestore__
 Описание: Записывать результаты в sqlite БД  
 Значение по умолчанию: 0  
 Варианты значения sqlitestore: 0 - выключено или 1 - включено  
 ## __sqlite_cache_size__
-Описание: Размер кэша для sqlite движка, 0 - оставить системное значение, если база большая - есть смысл увеличить, подробности https:\\www.sqlite.org\pragma.html#pragma_cache_size  
+Описание: Размер кэша для sqlite движка, 0 - оставить системное значение, если база большая - есть смысл увеличить, подробности https://www.sqlite.org/pragma.html#pragma_cache_size  
 Значение по умолчанию: 0  
 ## __createhtmlreport__
 Описание: Создавать файлик html отчета, после получения данных  
