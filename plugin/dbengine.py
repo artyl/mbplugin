@@ -185,6 +185,7 @@ class Dbengine():
         if line['NoChangeDays'] == None:
             # Если баланс не менялся ни разу - то ориентируемся на самый первый запрос баланса
             self.cur.execute(f"select cast(julianday('now')-julianday(min(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' ")
+            line['NoChangeDays'] = self.cur.fetchall()[0][0]
         # Если записей по этому номеру совсем нет (первый запрос), тогда просто ставим 0
         line['NoChangeDays'] = line['NoChangeDays'] if line['NoChangeDays'] != None else 0
         try:
