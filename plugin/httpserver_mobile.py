@@ -345,6 +345,7 @@ def filter_balance(table:typing.List[typing.Dict], filter:str='FULL', params:typ
     params['exclude'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для исключения из результата'''
     flags = dbengine.flags('getall')
     # фильтр по filter_include - оставляем только строчки попавшие в фильтр
+    # from send_subscriptions params like {'id':'123456', 'include':'1111,2222'}
     if params.get('include', None) is not None:
         filter_include = [re.sub(r'\W', '', el).lower() for el in params['include'].split(',')]
         table = [line for line in table if len([1 for i in filter_include if i in re.sub(r'\W', '', ('_'.join(map(str, line.values())) + '__' + line.get('Operator', '') + '_' + line.get('PhoneNumber', '') + '__').lower())]) > 0]
@@ -469,7 +470,7 @@ def send_telegram_over_requests(text=None, auth_id=None, filter:str='FULL', para
         text = prepare_balance(filter, params)
     api_token = store.options('api_token', section='Telegram', mainparams=params).strip()
     if len(api_token) == 0:
-        logging.info('Telegtam api_token not found')
+        logging.info('Telegram api_token not found')
         return
     if auth_id is None:
         auth_id = list(map(int, store.options('auth_id', section='Telegram', mainparams=params).strip().split(',')))

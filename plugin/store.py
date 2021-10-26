@@ -211,17 +211,17 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     if listparam:
         res = []
         if section in options.mbplugin_ini:
-            res = [v for k,v in options.mbplugin_ini[section].items() if k.startswith(param)]
+            res = [v for k,v in options.mbplugin_ini[section].items() if k.startswith(param.lower())]
     else:  # Обычный параметр
         if default is None:  # default не задан = возьмем из settings
             default = settings.ini[section].get(param.lower(), None)
-        if param in mainparams:  # х.з. уже не помню зачем делал надо разобраться и задеприкейтить
-            res = mainparams[param]
+        if param.lower() in mainparams:  # х.з. уже не помню зачем делал, всегда приходит пустой словарь, надо разобраться и задеприкейтить
+            res = mainparams[param.lower()]  # Deprecate
         else:  # Берем обычный параметр, если в ini его нет, то default
-            res = options.mbplugin_ini.get(section, param, fallback=default)
+            res = options.mbplugin_ini.get(section, param.lower(), fallback=default)
         if param.lower() in settings.path_param:
             res = abspath_join(res)
-    return phones_options.get(param, res)
+    return phones_options.get(param.lower(), res)
 
 
 def option_validate(param, section='Options', pkey=None) -> typing.Tuple[bool, str]:
@@ -378,8 +378,8 @@ class ini():
                 for key,val in list(sec.items()) + list(settings.ini.get(sec.name, {}).items()):
                     if key.endswith('_'):
                         continue
-                    param = settings.ini.get(sec.name, {}).get(key+'_', {})
-                    param = {k:v for k,v in param.items() if k not in ['validate']}
+                    params = settings.ini.get(sec.name, {}).get(key+'_', {})
+                    param = {k:v for k,v in params.items() if k not in ['validate']}
                     line = {'section': sec.name, 'id': key, 'type': 'text', 'descr': f'DESC {sec.name}_{key}',
                             'value': val, 'default': key not in sec, 'default_val': settings.ini.get(sec.name, {}).get(key, None)}
                     line.update(param)
