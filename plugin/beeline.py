@@ -55,20 +55,20 @@ def get_balance_api(login, password, storename=None, **kwargs):
     if response1.status_code != 200:
         raise RuntimeError(f'Login error: status_code {response1.status_code}!=200')
 
-    if 'json' not in response1.headers.get('content-type') or response1.json()['meta']['status'] != 'OK':
+    if 'json' not in response1.headers.get('content-type') or response1.json().get('meta', {}).get('status', '') != 'OK':
         raise RuntimeError(f'Login error: .meta.status!=OK {response1.text}')
     token = response1.json()['token']
 
     jsonBalance = beeline_api(session, token, login, 'info/prepaidBalance')
-    if jsonBalance['meta']['status'] == 'ERROR' and jsonBalance['meta']['code'] == 49999:
+    if jsonBalance.get('meta', {}).get('status', '') == 'ERROR' and jsonBalance.get('meta', {}).get('code', 0) == 49999:
         jsonBalance = beeline_api(session, token, login, 'info/postpaidBalance')
-    if jsonBalance['meta']['status'] == 'OK':
+    if jsonBalance.get('meta', {}).get('status', '') == 'OK':
         result['Balance'] = round(jsonBalance['balance'], 2)
     else:
         raise RuntimeError(f'Balance not found in {jsonBalance}')
 
     jsonTariff = beeline_api(session, token, login, 'info/pricePlan')
-    if jsonTariff['meta']['status'] == 'OK':
+    if jsonTariff.get('meta', {}).get('status', '') == 'OK':
         result['TarifPlan'] = jsonTariff['pricePlanInfo']['entityName']
 
     # список услуг
@@ -96,11 +96,11 @@ def get_balance_api(login, password, storename=None, **kwargs):
     result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
 
     jsonStatus = beeline_api(session, token, login, 'info/status')
-    if jsonStatus['meta']['status'] == 'OK':
+    if jsonStatus.get('meta', {}).get('status', '') == 'OK':
         result['BlockStatus'] = jsonStatus['status']
     
     jsonRests = beeline_api(session, token, login, 'info/rests')
-    if jsonRests['meta']['status'] == 'OK' and 'rests' in jsonRests:
+    if jsonRests.get('meta', {}).get('status', '') == 'OK' and 'rests' in jsonRests:
         result['Min'] = 0
         result['Internet'] = 0
         result['SMS'] = 0
@@ -115,17 +115,17 @@ def get_balance_api(login, password, storename=None, **kwargs):
     # похоже теперь у билайна не rests а accumulators, данных мало так что пробуем так
     # и не понятно как определить про что аккумулятор, так что пока ориентируемся на поле unit, у интернета он 'unit': 'KBYTE'
     jsonAcc = beeline_api(session, token, login, 'info/accumulators')
-    if jsonAcc['meta']['status'] == 'OK' and 'accumulators' in jsonAcc:
+    if jsonAcc.get('meta', {}).get('status', '') == 'OK' and 'accumulators' in jsonAcc:
         result['Min'] = result.get('Min', 0)
         result['Internet'] = result.get('Internet', 0)
         result['SMS'] = result.get('SMS', 0)
         for elem in jsonAcc['accumulators']:
-            if elem['unit'] == 'SECONDS':
-                result['Min'] += elem['rest']//60
-            if elem['unit'] == 'KBYTE':
-                result['Internet'] += elem['rest']*(settings.UNIT['KB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
-            if elem['unit'] == 'SMS':
-                result['SMS'] += elem['rest']
+            if elem.get('unit','') == 'SECONDS':
+                result['Min'] += elem.get('rest', 0)//60
+            if elem.get('unit','') == 'KBYTE':
+                result['Internet'] += elem.get('rest', 0)*(settings.UNIT['KB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
+            if elem.get('unit','') == 'SMS':
+                result['SMS'] += elem.get('rest', 0)
 
     session.save_session()
     return result

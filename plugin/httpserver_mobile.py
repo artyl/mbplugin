@@ -259,6 +259,7 @@ def getreport(param=[]):
         if hover != '':
             el = f'<div class="item">{el}<div class="hoverHistory">{hover}</div></div>'
         return f'<{"th" if he=="NN" else "td"} id="{he}"{mark}>{el}</td>'
+    store.options('logginglevel', flush=True)  # Запускаем, чтобы сбросить кэш и перечитать ini        
     template_page = settings.table_template['page']
     template_history = settings.table_template['history']
     temlate_style = settings.table_template['style']
@@ -671,7 +672,7 @@ class Scheduler():
     def _reload(self):
         'метод который отрабатывает в инстансе в котором работает _forever'
         schedule.clear()
-        schedules = store.options('schedule', section='HttpServer', listparam=True)
+        schedules = store.options('schedule', section='HttpServer', listparam=True, flush=True)
         for schedule_str in schedules:
             if len(schedule_str.split(','))<2:
                 logging.info(f'Bad schedule "{schedule_str}", cmd not found skipped')
@@ -1083,7 +1084,7 @@ class WebServer():
         # если еще не открывали редактируемый ini открываем
         if not hasattr(self, 'editini'):
             self.editini = store.ini()
-        print(cookies, f"auth in authcookies={cookies.get('auth', 'None') in authcookies}", f'autorized={autorized}')
+        # print(cookies, f"auth in authcookies={cookies.get('auth', 'None') in authcookies}", f'autorized={autorized}')
         if environ['REQUEST_METHOD'] == 'POST':
             try:
                 request_size = int(environ['CONTENT_LENGTH'])
@@ -1098,7 +1099,7 @@ class WebServer():
                     request = {k: v[0] for k, v, in request.items()}
                 except Exception:
                     request = {'cmd': 'error'}
-            print(f'request={request}')
+            # print(f'request={request}')
             if autorized and request['cmd'] == 'update':
                 params = settings.ini[request['sec']].get(request['id'] + '_', {})
                 # Если для параметра указана функция валидации - вызываем ее
@@ -1118,22 +1119,25 @@ class WebServer():
                 passwd_from_ini = store.options('httpconfigeditpassword').strip()
                 passwd_from_user = request.get('password', 'None').strip()
                 if passwd_from_user == passwd_from_ini and passwd_from_ini != '':
+                    logging.info('Authorized')
                     auth_token = uuid.uuid4().hex  # auth cookie
                     authcookies.append(auth_token)
                     with open(cookie_store_name, 'w') as f:
                         f.write('\n'.join(authcookies))
                     add_headers = [
+                        ('Location', '/editcfg'),
                         ('Set-Cookie', f'auth={auth_token}'),
                         ('Set-Cookie', 'wrongpassword=deleted; expires=Thu, 01 Jan 1970 00:00:00 GMT')]
                 else:
-                    add_headers = [('Set-Cookie', 'wrongpassword=true')]
+                    logging.info('Wrong password')
+                    add_headers = [('Location', '/editcfg'), ('Set-Cookie', 'wrongpassword=true')]
                 return 'text/html', 'redirect', status, add_headers
             elif request['cmd'] == 'logout':
                 # выкидываем куку
                 with open(cookie_store_name, 'w') as f:
                     f.write('\n'.join([i for i in authcookies if i != cookies.get('auth', 'None')]))
                 status = '303 See Other'
-                add_headers = [('Set-Cookie', 'auth=deleted; expires=Thu, 01 Jan 1970 00:00:00 GMT')]
+                add_headers = [('Location', '/main'), ('Set-Cookie', 'auth=deleted; expires=Thu, 01 Jan 1970 00:00:00 GMT')]
                 return 'text/html', 'redirect', status, add_headers
             elif request['cmd'] == 'error':
                 return 'text/plain', 'Error', status, add_headers
@@ -1157,6 +1161,7 @@ class WebServer():
     def web_app(self, environ, start_response):
         try:
             logging.debug('web_app start')
+            store.options('logginglevel', flush=True)  # Запускаем, чтобы сбросить кэш и перечитать ini
             status = '200 OK'
             add_headers = []
             ct, text = 'text/html', []
@@ -1226,7 +1231,7 @@ class WebServer():
             if status.startswith('200'):
                 headers = [('Content-type', ct)]
             if status.startswith('303'):
-                headers = [('Location', '')] + add_headers
+                headers = add_headers
             start_response(status, headers)
             logging.debug('web_app done')
             if 'png' in ct:

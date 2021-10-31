@@ -43,9 +43,12 @@ default_logon_selectors = {
             'pause_press_submit': '1',  # Пауза перед нажатием submit не меньше 1
 }
 
-# Константы для отключения headless mode в хроме (не на всех сайтах работает), если в опциях персонально не поменяно - просто отключаем
+# Константы 
+# для отключения headless mode в хроме (не на всех сайтах работает), если в опциях персонально не поменяно - просто отключаем
 NOT_IN_CHROME = 'NOT_IN_CHROME'
-
+CHECK_PLAYWRIGHT = 'check_playwright'
+NORMAL = 'normal'
+CHECK_LOGON = 'check_logon'
 
 def safe_run_decorator(func):
     def wrapper(*args, **kwargs):
@@ -62,7 +65,9 @@ def safe_run_decorator(func):
             logging.info(f'{log_string} OK')
             return res
         except Exception:
-            logging.info(f'{log_string} fail: {store.exception_text()}')
+            exception_text = store.exception_text()
+            logging.info(f'{log_string} fail: {exception_text}')
+            wrapper.__exception_text__ = exception_text
             return default
     wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
     return wrapper
@@ -698,7 +703,8 @@ class BalanceOverPlaywright():
         pass
 
     @safe_run_decorator
-    def main(self, run='normal'):
+    def main(self, run=NORMAL) -> dict:
+        'Возвращает словарь с результатами'
         logging.info(f"browserengine=Playwright")
         if sys.platform != 'win32' and not self.launch_config.get('headless', True) and str(self.options('xvfb')) == '1':
             os.system('pgrep Xvfb || Xvfb :99 -screen 0 1920x1080x24 &')            
@@ -708,12 +714,19 @@ class BalanceOverPlaywright():
         with sync_playwright() as self.sync_pw:
             browsertype_text = self.options('browsertype')
             self.browsertype : playwright.sync_api._generated.BrowserType = getattr(self.sync_pw, browsertype_text)
-            self.launch_browser(self.browsertype.launch_persistent_context)  # self.sync_pw.chromium.launch_persistent_context
-            if run == 'normal':
+            self.launch_browser(launch_func=self.browsertype.launch_persistent_context)  # self.sync_pw.chromium.launch_persistent_context
+            if run == NORMAL:
                 self.data_collector()
-            elif run == 'check_logon':
+            elif run == CHECK_LOGON:
                 self.check_logon_selectors_prepare()
                 self.check_logon_selectors()
+            elif run == CHECK_PLAYWRIGHT:
+                self.page = self.browser.new_page()
+                self.page.goto("https://wikipedia.org/")
+                if len(self.page.content()):
+                    self.result['Balance'] = len(self.page.content())
+                    # browser.version есть только у класса Browser а у нас BrowserContext - приходится извращаться
+                    self.result['Version'] = f'{browsertype_text} {self.page.evaluate("navigator.userAgent")}'
             logging.debug(f'Data ready {self.result.keys()}')
             if str(self.options('log_responses')) == '1' or self.options('logginglevel') == 'DEBUG':
                 import pprint

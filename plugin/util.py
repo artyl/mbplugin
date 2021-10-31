@@ -53,6 +53,7 @@ def set(ctx, expression):
     для установки     set ini/HttpServer/start_http=1
     или для сброса \b set ini/HttpServer/start_http=default
     '''
+    import settings
     expression_prep = '='.join(expression)
     mbplugin_ini = store.ini()
     mbplugin_ini.read()
@@ -61,6 +62,10 @@ def set(ctx, expression):
         return
     path, value = expression_prep.split('=')
     _, section, key = path.split('/')
+    if section not in settings.ini:
+        echo(f'Warning: Non-existent section {section}')
+    if key not in settings.ini.get(section, {}):
+        echo(f'Warning: Non-existent key {key} in section {section}')
     if value.lower() == 'default' and key in mbplugin_ini.ini[section]:
         del mbplugin_ini.ini[section][key]
     else:
@@ -334,17 +339,17 @@ def check_dll(ctx):
 def check_playwright(ctx):
     'Проверяем что playwright работает'
     name = 'check-playwright'
-    try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            page = browser.new_page()
-            page.goto("https://wikipedia.org/")
-            if len(page.content()):
-                echo(f'OK {name} {len(page.content())}')
-            browser.close()
-    except Exception:
-        echo(f'Fail {name}:\n{store.exception_text()}')
+    import browsercontroller
+    browser = browsercontroller.BrowserController(login='', password='', storename='test', plugin_name=__name__)
+    result = browser.main(run=browsercontroller.CHECK_PLAYWRIGHT)
+    if hasattr(browser.main,'__exception_text__'):
+        echo(f'Fail {name}:\n{browser.main.__exception_text__}')
+    elif 'Balance' not in result:
+        echo(f'Fail {name}:\nno result')
+    elif result['Balance'] > 0:
+        echo(f'OK {name} {result["Balance"]}')
+    else:
+        echo(f'Fail {name}:\nresult=0')
 
 
 @cli.command()
@@ -634,13 +639,10 @@ def version(ctx, verbose, download_stat):
     echo(f'Python {sys.version}')
     import playwright._repo_version, playwright.sync_api, requests
     echo(f'Playwright {playwright._repo_version.version}')
-    with playwright.sync_api.sync_playwright() as p:
-        echo(f'Chromium path {p.chromium.executable_path}')
-        # user_data_dir = store.abspath_join(store.options('storefolder'), 'headless', 'clean_profile')
-        # browser = p.chromium.launch_persistent_context(user_data_dir=user_data_dir)
-        browser = p.chromium.launch()
-        echo(f'Chromium {browser.version}')
-        browser.close()
+    import browsercontroller
+    browser = browsercontroller.BrowserController(login='', password='', storename='test', plugin_name=__name__)
+    result = browser.main(run=browsercontroller.CHECK_PLAYWRIGHT)
+    echo(result.get('Version'))  # chromium Mozilla/5.0 ...
     if updater.check_update():
         version, msg_version = updater.latest_version_info()
         echo(f'New version found {version}\n{msg_version}')
