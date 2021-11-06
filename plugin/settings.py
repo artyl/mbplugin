@@ -295,7 +295,7 @@ ini = {
 main_html = r'''
 <!DOCTYPE html>
 <html>
-<head></head>
+<head><link rel="shortcut icon" href="/favicon.png" type="image/png"></head>
 <body>
 %(info)s
 <a href=/report>View report</a><br>

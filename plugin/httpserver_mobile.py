@@ -20,6 +20,14 @@ except ModuleNotFoundError:
 
 lang = 'p'  # Для плагинов на python префикс lang всегда 'p'
 
+# Scheduler commands constants
+CMD_CHECK = 'check'
+CMD_CHECK_SEND = 'check_send'
+CMD_CHECK_NEW_VERSION = 'check_new_version'
+CMD_PING = 'ping'
+CMD_GET_ONE = 'get_one'
+SCHED_CMDS = (CMD_CHECK, CMD_CHECK_NEW_VERSION, CMD_CHECK_SEND, CMD_GET_ONE, CMD_PING)
+
 cmdqueue: queue.Queue = queue.Queue()  # Диспетчер комманд - нужен для передачи сигналов между трэдами, в т.к. для завершения в докере - kill для pid=1 не работает
 
 HTML_NO_REPORT = '''Для того чтобы были доступны отчеты необходимо в mbplugin.ini включить запись результатов в sqlite базу<br>
@@ -602,26 +610,28 @@ class Scheduler():
             once = True
             cmd = cmd.replace('_once','')
         try:
-            if cmd == 'check' or cmd == 'check_send':
+            if cmd == CMD_CHECK or cmd == CMD_CHECK_SEND:
                 getbalance_standalone(**kwargs)
                 baltxt = prepare_balance('FULL', params=kwargs.get('params', {}))
                 store.feedback.text(baltxt)
                 # Шлем по адресатам прописанным в ini
-                if TelegramBot.instance is not None and cmd == 'check_send':
+                if TelegramBot.instance is not None and cmd == CMD_CHECK_SEND:
                     TelegramBot.instance.send_balance()
                     TelegramBot.instance.send_subscriptions()
-            if cmd == 'get_one':
+            elif cmd == CMD_GET_ONE:
                 get_full_info_one_number(**kwargs)
-            if cmd == 'check_new_version':
+            elif cmd == CMD_CHECK_NEW_VERSION:
                 if TelegramBot.instance is not None:
                     ue = updateengine.UpdaterEngine()
                     if ue.check_update():
                         msg = f'Найдена новая версия\n'+'\n'.join(ue.latest_version_info(short=True))
                         TelegramBot.instance.send_message(msg)
-            if cmd == 'ping':
+            elif cmd == CMD_PING:
                 if TelegramBot.instance is not None:
                     msg = ' '.join(kwargs['filter']).strip()
                     TelegramBot.instance.send_message('ping' if msg == '' else msg)
+            else:
+                logging.error(f'Scheduler: Unknown command {cmd}: {store.exception_text()}')
             store.feedback.unset()  # После обработки задания отменяем 
         except Exception:
             logging.info(f'Scheduler: Error while run job {current_job}: {store.exception_text()}')
@@ -674,17 +684,22 @@ class Scheduler():
         schedule.clear()
         schedules = store.options('schedule', section='HttpServer', listparam=True, flush=True)
         for schedule_str in schedules:
-            if len(schedule_str.split(','))<2:
+            if len(schedule_str.split(',')) < 2:
                 logging.info(f'Bad schedule "{schedule_str}", cmd not found skipped')
                 continue
             sched = schedule_str.split(',')[0].strip()
             cmd = schedule_str.split(',')[1].strip().lower()
             filter = [i.strip() for i in schedule_str.split(',')[2:]]
             job = self.validate(sched)
+            job_has_errors = False
             if job is None:
                 logging.info(f'Bad schedule "{schedule_str}", error parse job, skipped')
-                continue
-            job.do(self._run, cmd=cmd, kwargs={'filter':filter})
+                job_has_errors = True
+            if cmd not in SCHED_CMDS and cmd.replace('_once', '') not in SCHED_CMDS:
+                logging.info(f'Bad cmd {cmd} in schedule "{schedule_str}", skipped')
+                job_has_errors = True
+            if not job_has_errors:
+                job.do(self._run, cmd=cmd, kwargs={'filter': filter})
         logging.info('Schedule was reloaded')
         return 'OK'
 
@@ -1011,7 +1026,7 @@ class Handler(wsgiref.simple_server.WSGIRequestHandler):
         args = re.sub('(/.*?/.*?/.*?/)(.*?)(/.*)', r'\1xxxxxxx\3', args[0]), *args[1:]
         args = re.sub('(&password=)(.*?)(&)', r'\1xxxxxxx\3', args[0]), *args[1:]
         # а если это показ лога вообще в лог не пишем, а то фигня получается
-        if 'GET /log' not in args[0] and 'GET /favicon.ico' not in args[0]:
+        if 'GET /log' not in args[0] and 'GET /favicon.ico' and 'GET /favicon.png' not in args[0]:
             logging.info(f"{self.client_address[0]} - - [self.log_date_time_string()] {format % args}\n")
 
 
@@ -1168,7 +1183,13 @@ class WebServer():
             fn = environ.get('PATH_INFO', None)
             _, cmd, *param = fn.split('/')
             print(f'{cmd}, {param}')
-            if cmd.lower() == 'getbalance':  # старый вариант оставлен пока для совместимости
+            if environ.get('PATH_INFO', None) == '/favicon.ico':
+                start_response('200 OK', [('Content-type', 'image/x-icon')])
+                return [open(store.abspath_join('mbplugin', 'plugin', 'httpserver.ico'), 'rb').read()]
+            if environ.get('PATH_INFO', None) == '/favicon.png':
+                start_response('200 OK', [('Content-type', 'image/png')])
+                return [open(store.abspath_join('mbplugin', 'plugin', 'httpserver.png'), 'rb').read()]
+            elif cmd.lower() == 'getbalance':  # старый вариант оставлен пока для совместимости
                 ct, text = getbalance_plugin('url', param)  # TODO !!! Но правильно все-таки через POST
             elif cmd.lower() == 'sendtgbalance':
                 self.telegram_bot.send_balance()

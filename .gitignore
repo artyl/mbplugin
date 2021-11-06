@@ -6,6 +6,8 @@ pack/*
 webdriver/*
 */__pycache__
 .vscode/*
+.idea/*
+venv/*
 tests/data/mbplugin/*
 BalanceHistory.sqlite
 balance.html
