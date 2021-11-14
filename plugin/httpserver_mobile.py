@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import typing, os, sys, io, re, time, json, threading, logging, importlib, queue, argparse, subprocess, glob, base64
+import typing, os, sys, io, re, time, json, threading, logging, importlib, queue, argparse, subprocess, glob, base64, collections
 import wsgiref.simple_server, socketserver, socket, urllib.parse, urllib.request
 import requests, psutil, bs4, uuid, PIL.Image, schedule
 import settings, store, dbengine, compile_all_jsmblh, updateengine  # pylint: disable=import-error
@@ -662,7 +662,7 @@ class Scheduler():
                 feedback_func('Одно из заданий сейчас выполняется, попробуйте позже')
             return False
 
-    def validate(self, sched) -> schedule.Job:
+    def _validate_sched(self, sched) -> schedule.Job:
         'Проверяет одно расписание на валидность и возвращает в виде job'
         # every(4).day.at("10:30")
         m = re.match(r'^every\((?P<every>\d*)\)\.(?P<interval>\w*)(\.at\("(?P<at>.*)"\))?$', sched.strip())
@@ -679,27 +679,43 @@ class Scheduler():
         except Exception:
             logging.error(f'Error parse {sched}')
 
+    def _read(self) -> list:
+        'Чтение шедулера с диагностикой'
+        schedules = store.options('schedule', section='HttpServer', listparam=True, flush=True)
+        Job = collections.namedtuple('Job' , 'job_str job_sched cmd filter err_msg')
+        jobs = []
+        for schedule_str in schedules:
+            err_msg = []
+            job_has_errors = False
+            cmd, filter = None, None
+            if len(schedule_str.split(',')) < 2:
+                err_msg.append(f'Bad schedule "{schedule_str}", cmd not found skipped')
+                job_has_errors = True
+            if not job_has_errors:
+                sched = schedule_str.split(',')[0].strip()
+                cmd = schedule_str.split(',')[1].strip().lower()
+                filter = [i.strip() for i in schedule_str.split(',')[2:]]
+                job_sched = self._validate_sched(sched)
+                if job_sched is None:
+                    err_msg.append(f'Bad schedule "{schedule_str}", error parse job, skipped')
+                    job_has_errors = True
+                if cmd not in SCHED_CMDS and cmd.replace('_once', '') not in SCHED_CMDS:
+                    err_msg.append(f'Bad cmd {cmd} in schedule "{schedule_str}", skipped')
+                    job_has_errors = True
+            if job_has_errors:
+                job_sched = None
+            jobs.append(Job(job_str=schedule_str, job_sched=job_sched, cmd=cmd, filter=filter, err_msg=', '.join(err_msg)))
+        return jobs
+
     def _reload(self):
         'метод который отрабатывает в инстансе в котором работает _forever'
         schedule.clear()
-        schedules = store.options('schedule', section='HttpServer', listparam=True, flush=True)
-        for schedule_str in schedules:
-            if len(schedule_str.split(',')) < 2:
-                logging.info(f'Bad schedule "{schedule_str}", cmd not found skipped')
-                continue
-            sched = schedule_str.split(',')[0].strip()
-            cmd = schedule_str.split(',')[1].strip().lower()
-            filter = [i.strip() for i in schedule_str.split(',')[2:]]
-            job = self.validate(sched)
-            job_has_errors = False
-            if job is None:
-                logging.info(f'Bad schedule "{schedule_str}", error parse job, skipped')
-                job_has_errors = True
-            if cmd not in SCHED_CMDS and cmd.replace('_once', '') not in SCHED_CMDS:
-                logging.info(f'Bad cmd {cmd} in schedule "{schedule_str}", skipped')
-                job_has_errors = True
-            if not job_has_errors:
-                job.do(self._run, cmd=cmd, kwargs={'filter': filter})
+        jobs = self._read()
+        for job in jobs:
+            if job.job_sched is not None:
+                job.do(self._run, cmd=job.cmd, kwargs={'filter': job.filter})
+            else:
+                logging.info(job.err_msg)
         logging.info('Schedule was reloaded')
         return 'OK'
 
@@ -709,6 +725,8 @@ class Scheduler():
 
     def view_html(self) -> typing.Tuple[str, typing.List[str]]:
         'все задания html страницей'
+        jobs = self._read()
+        # TODO !!! нужно сопоставить расписания (то что в jons[n].job_sched у которого нет repr) и задания schedule.jobs
         res = ['\n'.join(map(repr, schedule.jobs))]
         return 'text/html; charset=cp1251', ['<html><head></head><body><pre>'] + res + ['</pre></body></html>']
 
