@@ -49,10 +49,13 @@ def cli(ctx, debug, verbose):
 @click.pass_context
 def set(ctx, expression):
     '''Установка/сброс опции, для флагов используйте 1/0
+    Включить показ хрома при работе:
+    mbp set ini/Options/show_chrome=1 \b
     если в качестве значения указан default происходит сброс к установкам по умолчанию
-    для установки     set ini/HttpServer/start_http=1
-    или для сброса \b set ini/HttpServer/start_http=default
+    для установки  \b mbp set ini/HttpServer/start_http=1
+    или для сброса \b mbp set ini/HttpServer/start_http=default
     '''
+    name = 'set'
     import settings
     expression_prep = '='.join(expression)
     mbplugin_ini = store.ini()
@@ -339,6 +342,7 @@ def check_dll(ctx):
 def check_playwright(ctx):
     'Проверяем что playwright работает'
     name = 'check-playwright'
+    store.turn_logging()
     import browsercontroller
     browser = browsercontroller.BrowserController(login='', password='', storename='test', plugin_name=__name__)
     result = browser.main(run=browsercontroller.CHECK_PLAYWRIGHT)
@@ -472,13 +476,13 @@ def show_chrome(ctx, action):
 def check_ini(ctx):
     'Проверка INI на корректность'
     name = 'check-ini'
-    # Проверку сделаю позже, пока ее нет
     try:
+        import httpserver_mobile
         mbplugin_ini = store.ini()
         mbplugin_ini.read()
         mbplugin_ini_mess = []
         if'Telegram' in mbplugin_ini.ini:
-            if len([i for i in mbplugin_ini.ini['Telegram'].keys() if i.startswith('subscribtion')]):
+            if len([i for i in mbplugin_ini.ini['Telegram'].keys() if i.startswith('subscrib'+'tion')]):
                 msg = f'Warning {name} mbplugin.ini - subsri_B_tion key found in ini'
                 mbplugin_ini_mess.append(msg)
         for sec in store.settings.ini.keys():
@@ -487,6 +491,8 @@ def check_ini(ctx):
                     valid, msg = store.option_validate(key, section=sec)
                     if not valid:
                         mbplugin_ini_mess.append(f'Section [{sec}]: ' + msg)
+        jobs = httpserver_mobile.Scheduler(check_only=True).read_from_ini()
+        mbplugin_ini_mess.extend([f'{job.err_msg}\n{job.job_str}' for job in jobs if job.err_msg != ''])
         if len(mbplugin_ini_mess):
             echo(f'Fail {name} mbplugin.ini\n'+'\n'.join(mbplugin_ini_mess))
         else:
@@ -649,7 +655,7 @@ def version(ctx, verbose, download_stat):
     else:
         version, msg_version = updater.latest_version_info(short=True)
         echo(f'No new version found on github release, latest version:{version}\n{msg_version}')
-        return    
+        return
 
 
 @cli.command()
@@ -771,7 +777,7 @@ def bugreport(ctx, num, alias, plugin, login):
                 continue
             #breakpoint()
             zf.write(fn, os.path.split(fn)[-1])
-        with open(logname, encoding='cp1251', errors='ignore') as lf: 
+        with open(logname, encoding='cp1251', errors='ignore') as lf:
             # getbalance_plugin Start {plugin} {login}
             log_all = lf.read().split('\n\n')
             log_flt = [el for el in log_all if f'getbalance_plugin Start {plugin} {login}' in el]

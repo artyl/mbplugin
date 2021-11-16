@@ -166,8 +166,8 @@ ini = {
         'interunit_': {'descr': 'В каких единицах идет выдача по интернету', 'type': 'select', 'variants': 'TB GB MB KB'},
         'interunit':'GB',
         # Слова, которые встречаются в названиях тарифов, про которые нужно выдать предупреждение и красить номер
-        'subscribtion_keyword_': {'descr': 'Признаки подписок, через запятую', 'type': 'text'},
-        'subscribtion_keyword': '90 дней,TV Club,Услуга4',
+        'subscription_keyword_': {'descr': 'Признаки подписок, через запятую', 'type': 'text'},
+        'subscription_keyword': '90 дней,TV Club,Услуга4',
         # спецвариант по просьбе Mr. Silver в котором возвращаются не остаток интернета, а использованный
         # 1 - показывать использованный трафик (usedByMe) по всем  или 0 - показывать оставшийся трафик (NonUsed) по всем
         # список тел, через запятую - показать использованный только для этого списка телефонов
@@ -300,7 +300,7 @@ main_html = r'''
 %(info)s
 <a href=/report>View report</a><br>
 <a href=/schedule>View schedule</a><br>
-<a href=/editcfg>Edit config</a><br>
+<div id=call_editor><a href=/editcfg>Edit config</a><br></div>
 <a href=/log?lines=40>View log</a><br>
 <a href=/log/list>View screenshot log</a><br>
 <button onclick="fetch('/getbalance_standalone').then(function(response) {return response})">Get balance request</button><br>
@@ -310,6 +310,9 @@ main_html = r'''
 <button onclick="fetch('/restart').then(function(response) {return response})">Restart web server</button><br>
 <button onclick="fetch('/exit').then(function(response) {return response})">Exit web server</button><br>
 </body>
+<script>
+%(script)s
+</script>
 </html>
 '''
 

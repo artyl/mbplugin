@@ -28,6 +28,8 @@ CMD_PING = 'ping'
 CMD_GET_ONE = 'get_one'
 SCHED_CMDS = (CMD_CHECK, CMD_CHECK_NEW_VERSION, CMD_CHECK_SEND, CMD_GET_ONE, CMD_PING)
 
+Job = collections.namedtuple('Job' , 'job_str job_sched cmd filter err_msg')
+
 cmdqueue: queue.Queue = queue.Queue()  # Диспетчер комманд - нужен для передачи сигналов между трэдами, в т.к. для завершения в докере - kill для pid=1 не работает
 
 HTML_NO_REPORT = '''Для того чтобы были доступны отчеты необходимо в mbplugin.ini включить запись результатов в sqlite базу<br>
@@ -292,8 +294,8 @@ def getreport(param=[]):
         html_line = []
         pkey = (line['PhoneNumber'], line['Operator'])
         uslugi = json.loads(responses.get(f"{line['Operator']}_{line['PhoneNumber']}", '{}')).get('UslugiList', '')
-        subscribtion_keyword = [i.strip() for i in store.options('subscribtion_keyword', pkey=pkey).lower().split(',')]
-        unwanted_kw = [kw for kw in subscribtion_keyword if kw in uslugi.lower()]  # встретившиеся нежелательные
+        subscription_keyword = [i.strip() for i in store.options('subscription_keyword', pkey=pkey).lower().split(',')]
+        unwanted_kw = [kw for kw in subscription_keyword if kw in uslugi.lower()]  # встретившиеся нежелательные
         for he in header:
             if he not in line:
                 continue
@@ -424,7 +426,7 @@ def prepare_balance_sqlite(filter:str='FULL', params:typing.Dict={}):
         if line['NoChangeDays'] is not None and pkey in phones and line['NoChangeDays'] < int(store.options('BalanceChangedLessThen', pkey=pkey)):
             return f"<b> ! баланс изменился менее {store.options('BalanceChangedLessThen', pkey=pkey)} дней назад!</b>"
         if line['UslugiOn'] is not None:
-            unwanted_kw = [kw.strip() for kw in store.options('subscribtion_keyword', pkey=pkey).split(',') if kw.strip() in uslugi]
+            unwanted_kw = [kw.strip() for kw in store.options('subscription_keyword', pkey=pkey).split(',') if kw.strip() in uslugi]
             if len(unwanted_kw)>0:
                 unwanted = '\n'.join([line for line in uslugi.split('\n') if len([kw for kw in unwanted_kw if kw in line])>0])
                 return f"<b> ! В списке услуг присутствуют нежелательные: {unwanted}!</b>"
@@ -468,7 +470,7 @@ def prepare_balance(filter:str='FULL', params:typing.Dict={}):
 
 
 def send_telegram_over_requests(text=None, auth_id=None, filter:str='FULL', params:typing.Dict={}):
-    """Отправка сообщения в телеграм через requests без задействия python-telegram-bot
+    """Отправка сообщения в телеграм через requests без использования python-telegram-bot
     Может пригодится при каких-то проблемах с ботом или в ситуации когда на одной машине у нас крутится бот,
     а с другой в этого бота мы еще хотим засылать инфу
     text - сообщение, если не указано, то это баланс для телефонов у которых он изменился
@@ -572,15 +574,16 @@ class TrayIcon:
 
 
 class Scheduler():
-    '''Класс для работы с расписанием'''
+    '''Класс для работы с расписанием
+    check_only - если не хотим чтобы шедулер стартовал при первом вызове'''
     instance = None
     # Форматы расписаний см https://schedule.readthedocs.io
     # schedule2 = every().day.at("10:30"),megafon
     # строк с заданиями может быть несколько и их можно пихать в ini как
     # scheduler= ... scheduler1=... и т.д как сделано с table_format
 
-    def __init__(self) -> None:
-        if Scheduler.instance is None:
+    def __init__(self, check_only=False) -> None:
+        if Scheduler.instance is None and not check_only:
             self._scheduler_running = True  # Флаг, что шедулер работает
             self._job_running = False  # Флаг что в текущий момент задание выполняется
             self.thread = threading.Thread(target=self._forever, name='Scheduler', daemon=True)
@@ -679,10 +682,9 @@ class Scheduler():
         except Exception:
             logging.error(f'Error parse {sched}')
 
-    def _read(self) -> list:
+    def read_from_ini(self) -> typing.List[Job]:
         'Чтение шедулера с диагностикой'
         schedules = store.options('schedule', section='HttpServer', listparam=True, flush=True)
-        Job = collections.namedtuple('Job' , 'job_str job_sched cmd filter err_msg')
         jobs = []
         for schedule_str in schedules:
             err_msg = []
@@ -710,10 +712,10 @@ class Scheduler():
     def _reload(self):
         'метод который отрабатывает в инстансе в котором работает _forever'
         schedule.clear()
-        jobs = self._read()
+        jobs = self.read_from_ini()
         for job in jobs:
             if job.job_sched is not None:
-                job.do(self._run, cmd=job.cmd, kwargs={'filter': job.filter})
+                job.job_sched.do(self._run, cmd=job.cmd, kwargs={'filter': job.filter})
             else:
                 logging.info(job.err_msg)
         logging.info('Schedule was reloaded')
@@ -725,14 +727,15 @@ class Scheduler():
 
     def view_html(self) -> typing.Tuple[str, typing.List[str]]:
         'все задания html страницей'
-        jobs = self._read()
-        # TODO !!! нужно сопоставить расписания (то что в jons[n].job_sched у которого нет repr) и задания schedule.jobs
-        res = ['\n'.join(map(repr, schedule.jobs))]
-        return 'text/html; charset=cp1251', ['<html><head></head><body><pre>'] + res + ['</pre></body></html>']
+        return 'text/html; charset=cp1251', ['<html><head></head><body><pre>', self.view_txt(), '</pre></body></html>']
 
     def view_txt(self) -> str:
         'Все задания текстом'
-        return '\n'.join(map(repr, schedule.jobs))+' '
+        jobs = self.read_from_ini()
+        err_jobs = [f'{job.err_msg}\n{job.job_str}' for job in jobs if job.err_msg!='']        
+        # TODO !!! нужно сопоставить расписания (то что в jobs[n].job_sched у которого нет repr) и задания schedule.jobs
+        res = '\n'.join(err_jobs) + ('\n\n' if err_jobs != [] else '') + '\n'.join(map(repr, schedule.jobs))
+        return res + ' '
 
     def stop(self):
         'Останавливаем шедулер'
@@ -1095,7 +1098,7 @@ class WebServer():
         возвращаем Content-type, text, status, add_headers'''
         # print(environ)
         # т.к. возвращаем разные статусы и куки, готовим переменные под них
-        autorized = False  # Изначально считаем что пользователь не авторизован
+        authorized = False  # Изначально считаем что пользователь не авторизован
         # breakpoint() if os.path.exists('breakpoint') else None
         status = '200 OK'
         add_headers = []
@@ -1109,15 +1112,15 @@ class WebServer():
         # Получаем переданные куки из заголовка
         cookies = {k: v[0] for k, v in urllib.parse.parse_qs(environ.get('HTTP_COOKIE', '{}')).items()}
         # Авторизованы если переданная кука в списке сохраненных
-        autorized = cookies.get('auth', 'None') in authcookies
-        # Если пришли с localhost и разрешено локалхосту без авторизации
-        local_autorized = environ.get('REMOTE_ADDR', 'None') == '127.0.0.1' and str(store.options('httpconfigeditnolocalauth')) == '1'
-        if local_autorized:
-            autorized = True
+        authorized = cookies.get('auth', 'None') in authcookies
+        # Если пришли с localhost и разрешено localhost без авторизации
+        local_authorized = environ.get('REMOTE_ADDR', 'None') == '127.0.0.1' and str(store.options('httpconfigeditnolocalauth')) == '1'
+        if local_authorized:
+            authorized = True
         # если еще не открывали редактируемый ini открываем
         if not hasattr(self, 'editini'):
             self.editini = store.ini()
-        # print(cookies, f"auth in authcookies={cookies.get('auth', 'None') in authcookies}", f'autorized={autorized}')
+        # print(cookies, f"auth in authcookies={cookies.get('auth', 'None') in authcookies}", f'authorized={authorized}')
         if environ['REQUEST_METHOD'] == 'POST':
             try:
                 request_size = int(environ['CONTENT_LENGTH'])
@@ -1133,7 +1136,7 @@ class WebServer():
                 except Exception:
                     request = {'cmd': 'error'}
             # print(f'request={request}')
-            if autorized and request['cmd'] == 'update':
+            if authorized and request['cmd'] == 'update':
                 params = settings.ini[request['sec']].get(request['id'] + '_', {})
                 # Если для параметра указана функция валидации - вызываем ее
                 if not params.get('validate', lambda i: True)(request['value']):
@@ -1142,7 +1145,7 @@ class WebServer():
                 self.editini.ini[request['sec']][request['id']] = request['value']
                 self.editini.write()
                 # print('\n'.join([f'{k}={v}' for k, v in self.editini.ini[request['sec']].items()]))
-            elif autorized and request['cmd'] == 'delete':
+            elif authorized and request['cmd'] == 'delete':
                 logging.info(f"ini delete key [{request['sec']}] {request['id']} {self.editini.ini[request['sec']].get(request['id'], 'default')}")
                 self.editini.ini[request['sec']].pop(request['id'], None)
                 self.editini.write()
@@ -1184,10 +1187,10 @@ class WebServer():
             # editor_html = open('editor.html', encoding='cp1251').read()
             editor_html = settings.editor_html
             inidata = '{}'
-            if autorized:
+            if authorized:
                 inidata = self.editini.ini_to_json().replace('\\', '\\\\')
             editor_html = editor_html.replace("inifile = JSON.parse('')", f"inifile = JSON.parse('{inidata}')")
-            if local_autorized:
+            if local_authorized:
                 editor_html = editor_html.replace('localAuthorized = false // init', f'localAuthorized = true // init')
             return 'text/html', editor_html, status, add_headers
 
@@ -1245,8 +1248,18 @@ class WebServer():
                     ct, text = getreport(param)
                 else:
                     ct, text = 'text/html', HTML_NO_REPORT
+            elif cmd == 'fastreport':  # report from balance.html
+                if str(store.options('sqlitestore')) == '1' and os.path.exists(store.options('balance_html')):
+                    ct, text = 'text/html', open(store.options('balance_html')).read()
+                else:
+                    ct, text = 'text/html', HTML_NO_REPORT                    
             elif cmd.lower() == 'main':  # главная страница
-                ct, text = 'text/html; charset=cp1251', [settings.main_html % {'info': f'Mbplugin {store.version()}<br>'}]
+                port = store.options('port', section='HttpServer')
+                info = f'Mbplugin {store.version()} run on {socket.gethostname()}:{port} from {os.path.split(store.abspath(sys.argv[0]))[0]}<br>'
+                script = ''
+                if str(store.options('HttpConfigEdit')) == '0':
+                    script = 'document.getElementById("call_editor").style="display:none"'
+                ct, text = 'text/html; charset=cp1251', [settings.main_html % {'info': info, 'script': script}]
             elif cmd.lower() == 'editcfg':  # вариант через get запрос
                 if str(store.options('HttpConfigEdit')) == '1':
                     ct, text, status, add_headers = self.editor(environ)
