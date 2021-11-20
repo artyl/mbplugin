@@ -40,7 +40,10 @@ def get_balance(login, password, storename=None):
     if response4.status_code == 200 and 'json' in response4.headers.get('content-type'):
         result['UserName'] = response4.json()['name'].replace('"','').replace("'",'').replace('&quot;','')
 
+    response5_new = session.get('https://lk.megafon.ru/api/tariff/2019-3/current')
     response5 = session.get('https://lk.megafon.ru/api/tariff/current')
+    if response5.status_code != 200:
+        response5 = response5_new
     if response5.status_code == 200 and 'json' in response5.headers.get('content-type'):
         result['TarifPlan'] = response5.json().get('name', '').replace('&nbsp;',' ').replace('&mdash;','-')
 
