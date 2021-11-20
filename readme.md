@@ -21,28 +21,33 @@
 
 (Источником информации послужили как собственное изучение так и существующие плагины, так что, пользуясь случаем, хочу выразить благодарность всем авторам:
 leha3d, Pasha, comprech, y-greek и другим, кто тратил свои силы и время на реверс сайтов операторов и разработку)  
-mts - МТС (сотовая связь)  
-beeline - Билайн (сотовая связь)  
-megafon - Мегафон (сотовая связь)  
-megafonb2b - Мегафон b2b (сотовая связь)  
-tele2 - ТЕЛЕ2 (сотовая связь)  
-yota - Yota (сотовая связь)  
-a1by - A1(velcom) Беларусь (сотовая связь)  
-rostelecom - Ростелеком (телефония и интернет)  
-smile-net - Infoline/smile-net/Virgin connect (Интернет провайдер)  
+mts - mts.ru МТС (сотовая связь)  
+beeline - beeline.ru Билайн (сотовая связь)  
+beeline_uz - beeline.uz Билайн Узбекистан (сотовая связь)  
+megafon - megafon.ru Мегафон (сотовая связь)  
+megafonb2b - b2blk.megafon.ru Мегафон b2b (сотовая связь)  
+tele2 - tele2.ru (сотовая связь)  
+yota - yota.ru (сотовая связь)  
+a1by - a1.by A1(velcom) Беларусь (сотовая связь) (автор Exemok)  
+rostelecom - lk.rt.ru Ростелеком (телефония и интернет)  
+smile-net - smile-net.ru Infoline/smile-net/Virgin connect (Интернет провайдер)  
 onlime - onlime.ru (Интернет провайдер)  
 lovit - lovit.ru (Интернет провайдер)  
+east - east.ru (East Telecom internet provider)  
+uminet - uminet.ru (Интернет провайдер)  
 zadarma - Zadarma.com (IP телефония)  
-cardtel - Cardtel (IP телефония)  
-sipnet - Sipnet (IP телефония)  
-strelka - Баланс карты стрелка  
-sodexo - Получение баланса карты Sodexo (подарочные карты)  
+cardtel - cardtel.ru (IP телефония)  
+sipnet - Sipnet.ru (IP телефония)  
+strelka - strelka.ru Баланс карты стрелка  
+sodexo - sodexo.com Получение баланса карты Sodexo (подарочные карты)  
 currency - Курсы валют USD, EUR, с ЦБ и с MOEX, курсы акций с MOEX и yahoo finance (заменил плагины eur, usd, moex и yahoo)
 stock - Расчет цены портфеля ценных бумаг  
-avtodor-tr - Автодор транспондер  
+avtodor-tr - avtodor-tr.ru Автодор транспондер  
 parking_mos - parking.mos.ru оплата парковки (Вход через логин/пароль на login.mos.ru)  
-mosenergosbyt - Сайт мосэнергосбыт (ЖКХ)  
-vscale - Облачные серверы для разработчиков  
+mosenergosbyt - mosenergosbyt.ru Сайт мосэнергосбыт (ЖКХ) 
+chailand - chailand.ru Карта парка атракционов
+vscale - vscale.ru Облачные серверы для разработчиков  
+beget - beget.ru (хостинг-провайдера BEGET) (автор d1mas)  
 Для плагинов rostelecom и mosenergosbyt можно указывать конкретный лицевой счет если их несколько в формате ```login/лицевой_счет```  
 
 ### Тестовые плагины
