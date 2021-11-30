@@ -488,7 +488,12 @@ def ini_by_expression(expression):
 
 
 def turn_logging(httplog=False, logginglevel=None):
-    'Включение логирования'
+    'Включение логирования и дополнительные инициализации'
+    # Выставляем переменные, если они заданы в настройках
+    if options('node_tls_reject_unauthorized') != '':
+        os.environ['NODE_TLS_REJECT_UNAUTHORIZED'] = options('node_tls_reject_unauthorized')
+    if options('playwright_browsers_path') != '':
+        os.environ['PLAYWRIGHT_BROWSERS_PATH'] = options('playwright_browsers_path')    
     # logging.getLogger().handlers[0].stream.name
     file_log = logging.FileHandler(abspath_join(options('logginghttpfilename' if httplog else 'loggingfilename')))
     if logginglevel is None:

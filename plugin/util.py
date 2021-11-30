@@ -102,8 +102,9 @@ def fix_embedded_python_path(ctx):
 @click.argument('browsers', nargs=-1)
 @click.pass_context
 def install_chromium(ctx, browsers):
-    '''Устанавливаем движок chromium, только если включена опция use_builtin_browser, по умолчанию ставим только тот движoк, который прописан в ini'''
-    name = 'install_chromium'
+    '''Устанавливаем движок chromium, только если включена опция use_builtin_browser, по умолчанию ставим только тот движок, который прописан в ini'''
+    name = 'install-chromium'
+    store.turn_logging()
     if str(store.options('use_builtin_browser')) != '1':
         echo(f'Not needed {name}')
         return
@@ -396,6 +397,7 @@ def init(ctx):
 def get_balance(ctx, only_failed, filter):
     'Получение балансов, можно указать only_failed, тогда будут запрошены только те где последняя попытка была неудачной'
     name = 'get-balance'
+    store.turn_logging()
     import httpserver_mobile
     # breakpoint()
     httpserver_mobile.getbalance_standalone(filter=filter, only_failed=only_failed)
@@ -407,6 +409,7 @@ def get_balance(ctx, only_failed, filter):
 def refresh_balance_html(ctx):
     'Обновить balance.html'
     name = 'refresh-balance-html'
+    store.turn_logging()
     import httpserver_mobile
     res = httpserver_mobile.write_report()
     echo(f'OK {name}\n{res}')
@@ -463,6 +466,7 @@ def send_tgbalance(ctx, over_requests):
 def show_chrome(ctx, action):
     'Показывает спрятанный chrome. Работает только на windows, и только при headless_chrome = 0, если chrome запущен в режиме headless то его показать нельзя'
     name = 'show-chrome'
+    store.turn_logging()
     import browsercontroller
     if sys.platform == 'win32':
         browsercontroller.hide_chrome(hide=(action == 'hide'))
@@ -577,6 +581,7 @@ def phone_list(ctx):
 def phone_change(ctx, num, delete, plugin, monitor, alias, login, password):
     'Добавить или изменить или удалить номер в phones.ini'
     name = 'phone-change'
+    store.turn_logging()
     if str(store.options('phone_ini_save')) == '0':
         echo('Work with phone.ini from mbp not allowed (turn phone_ini_save=1 in mbplugin.ini)')
         return
@@ -634,6 +639,8 @@ def phone_change(ctx, num, delete, plugin, monitor, alias, login, password):
 @click.pass_context
 def version(ctx, verbose, download_stat):
     'Текущая установленная версия'
+    name = 'version'
+    store.turn_logging()
     if download_stat or verbose:
         import updateengine
         updater = updateengine.UpdaterEngine()
@@ -792,6 +799,7 @@ def bugreport(ctx, num, alias, plugin, login):
 def console(ctx, args):
     'Запуск консоли bash/cmd с окружением для mbplugin - удобно в docker и venv'
     name = 'console'
+    store.turn_logging()
     python_path = os.path.split(sys.executable)[0]
     if python_path not in os.environ['PATH'].split(os.pathsep):
         os.environ['PATH'] = python_path + os.pathsep + os.environ['PATH']
