@@ -553,6 +553,8 @@ class TrayIcon:
             self.icon = TrayIcon.icon
 
     def _create(self):
+        if sys.platform != 'win32':
+            return
         icon_fn = store.abspath_join('mbplugin', 'plugin', 'httpserver.ico')
         self.image = PIL.Image.open(icon_fn)
         items = []
@@ -562,7 +564,7 @@ class TrayIcon:
         self.menu = pystray.Menu(*items)
         host = store.options('host', section='HttpServer')
         port = int(store.options('port', section='HttpServer'))
-        self.icon = pystray.Icon('mbplugin', icon=self.image, title=f"Mbbplugin {store.version()} ({host}:{port})", menu=self.menu)
+        self.icon = pystray.Icon('mbplugin', icon=self.image, title=f"Mbplugin {store.version()} ({host}:{port})", menu=self.menu)
         TrayIcon.icon = self.icon
         self.icon.run()
 
@@ -1075,7 +1077,7 @@ class WebServer():
         with wsgiref.simple_server.make_server(self.host, self.port, self.web_app, server_class=ThreadingWSGIServer, handler_class=Handler) as self.httpd:
             with open(self.filename_pid, 'w') as f:
                 f.write(f'{os.getpid()}')
-            logging.info(f'Starting web server from {os.path.abspath(__file__)}')
+            logging.info(f'Starting web server {store.version()} from {os.path.abspath(__file__)}')
             logging.info(f'Listening pid={os.getpid()} {self.host}:{self.port}....')
             threading.Thread(target=self.httpd.serve_forever, name='httpd', daemon=True).start()
             if 'pystray' in sys.modules:  # Иконка в трее
