@@ -9,8 +9,8 @@ login_url = 'https://my.beeline.ru'
 user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=password][role=textbox]') == null",
                 'chk_login_page_js': "document.querySelector('form input[type=password][role=textbox]') !== null",
                 'login_clear_js': "document.querySelector('form input[type=text]').value=''",
-                'login_selector': 'form input[type=text]', 
-                'password_clear_js': "document.querySelector('form input[type=password][role=textbox]').value=''",  
+                'login_selector': 'form input[type=text]',
+                'password_clear_js': "document.querySelector('form input[type=password][role=textbox]').value=''",
                 'password_selector': 'form input[type=password][role=textbox]',
                 'submit_js': "document.querySelector('form [type=button]').click()",
                 }
@@ -25,7 +25,7 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'Min', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='SECONDS'?el.rest:0)).reduce((s,el) => (s+el.rest)/60).toFixed(0)"},
             {'name': 'SMS', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='SMS'?el.rest:0)).reduce((s,el) => s+el.rest)"},
             {'name': 'BlockStatus', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.status.data.status"},
-            {'name': 'LicSchet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.profileSummary.data.ctn"},            
+            {'name': 'LicSchet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.profileSummary.data.ctn"},
             ])
         self.result['Internet'] = self.result.get('Internet', 0) * (settings.UNIT['KB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
 
@@ -98,7 +98,7 @@ def get_balance_api(login, password, storename=None, **kwargs):
     jsonStatus = beeline_api(session, token, login, 'info/status')
     if jsonStatus.get('meta', {}).get('status', '') == 'OK':
         result['BlockStatus'] = jsonStatus['status']
-    
+
     jsonRests = beeline_api(session, token, login, 'info/rests')
     if jsonRests.get('meta', {}).get('status', '') == 'OK' and 'rests' in jsonRests:
         result['Min'] = 0
@@ -134,7 +134,7 @@ def get_balance_api(login, password, storename=None, **kwargs):
 def get_balance(login, password, storename=None, **kwargs):
     pkey = store.get_pkey(login, plugin_name=__name__)
     if store.options('plugin_mode', pkey=pkey).upper() == 'WEB':
-        return get_balance_browser(login, password, storename)        
+        return get_balance_browser(login, password, storename)
     return get_balance_api(login, password, storename)
 
 

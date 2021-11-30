@@ -181,15 +181,16 @@ class browserengine(browsercontroller.BrowserController):
 
 
 # Метод взят с https://github.com/svetlyak40wt/mobile-balance
-def get_balance_api(login, password, storename, fast_api=False):
+def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=False):
+    'plugin_name нужен для корректного доставания параметров из phones.ini, т.к. можем придти сюда из другого плагина mts2, fast_api=True - balance only'
 
     def get_tokens(response):
         csrf_token = re.search(r'name="csrf.sign" value="(.*?)"', response.text)
         csrf_ts_token = re.search(r'name="csrf.ts" value="(.*?)"', response.text)
         if csrf_token is None:
-            raise_msg = f'{method} to {url} resulted in {result_code} status code instead of {expected_code}'
-            logging.error(raise_msg)            
-            raise RuntimeError("CSRF token not found", response)
+            raise_msg = "CSRF token not found"
+            logging.error(raise_msg)
+            raise RuntimeError(raise_msg, response)
         return csrf_token.group(1), csrf_ts_token.group(1)
 
     def check_status_code(response, expected_code):
@@ -272,7 +273,7 @@ def get_balance_api(login, password, storename, fast_api=False):
     
     def options(param):
         ''' Обертка вокруг store.options чтобы передать в нее пару (номер, плагин) для вытаскивания индивидуальных параметров'''
-        pkey = store.get_pkey(login, plugin_name=__name__)
+        pkey = store.get_pkey(login, plugin_name)
         return store.options(param, pkey=pkey)
 
     mts_usedbyme = options('mts_usedbyme')    
@@ -366,13 +367,15 @@ def get_balance(login, password, storename=None, **kwargs):
     API - работа через API забираем все возможные параметры
     FASTAPI - работа через API забираем только баланс
     '''
-    pkey=store.get_pkey(login, plugin_name=__name__)
+    # т.к. для совместимости остался приходящий сюда плагин mts2 пришлось пойти на трюк
+    plugin_name = kwargs.get('plugin_name', __name__)
+    pkey=store.get_pkey(login, plugin_name=plugin_name)
     plugin_mode = store.options('plugin_mode', pkey=pkey).upper()
     if plugin_mode in ('API', 'FASTAPI'):
         fast_api = (plugin_mode == 'FASTAPI')
-        return get_balance_api(login, password, storename, fast_api=fast_api)
+        return get_balance_api(login, password, storename, plugin_name=plugin_name, fast_api=fast_api)
     else:
-        be = browserengine(login, password, storename, plugin_name=__name__)
+        be = browserengine(login, password, storename, plugin_name=plugin_name)
         if str(store.options('show_captcha', pkey=pkey)) == '1':
             # если включен показ браузера в случае капчи то отключаем headless chrome - в нем видимость браузера не вернуть
             be.launch_config['headless'] = False

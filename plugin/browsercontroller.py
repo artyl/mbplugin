@@ -16,9 +16,9 @@ import store, settings
 [logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict]  # type: ignore
 
 # Селекторы и скрипты по умолчанию для формы логона
-# Проверять попадание в ЛК по отсутствию поля пароля - универсальный, простой, но ненадежный путь - 
+# Проверять попадание в ЛК по отсутствию поля пароля - универсальный, простой, но ненадежный путь -
 # в процессе загрузки страницы логона поля не будет, но это не означает что мы на нужной странице
-# Ходовые варианты проверки 
+# Ходовые варианты проверки
 # по url: window.location.href=="https://...."
 # по селектору: document.querySelector('span[id=balance]') !== null
 default_logon_selectors = {
@@ -43,7 +43,7 @@ default_logon_selectors = {
             'pause_press_submit': '1',  # Пауза перед нажатием submit не меньше 1
 }
 
-# Константы 
+# Константы
 # для отключения headless mode в хроме (не на всех сайтах работает), если в опциях персонально не поменяно - просто отключаем
 NOT_IN_CHROME = 'NOT_IN_CHROME'
 CHECK_PLAYWRIGHT = 'check_playwright'
@@ -66,7 +66,8 @@ def safe_run_decorator(func):
             return res
         except Exception:
             exception_text = store.exception_text()
-            logging.info(f'{log_string} fail: {exception_text}')
+            if 'Операция успешно завершена:' not in exception_text:  # бывает exception с таким текстом :-)
+                logging.info(f'{log_string} fail: {exception_text}')
             wrapper.__exception_text__ = exception_text
             return default
     wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
@@ -81,10 +82,14 @@ def safe_run(func, *args, **kwargs):
         log_string = f'{func.__name__}({", ".join(map(repr,args))}, {", ".join([f"{k}={repr(v)}" for k,v in kwargs.items()])})'
         logging.info(f'call {log_string} fail: {store.exception_text()}')
 
+
 @safe_run_decorator
 def hide_chrome(hide=True, foreground=False):
     'Прячем или показываем окно хрома, только в windows в linux и macOS не умеем'
-    # TODO 
+    # TODO
+    if sys.platform != 'win32':
+        return
+
     def enumWindowFunc(hwnd, windowList):
         """ win32gui.EnumWindows() callback """
         text = win32gui.GetWindowText(hwnd).lower()
@@ -98,6 +103,7 @@ def hide_chrome(hide=True, foreground=False):
                 logging.debug(f'enumWindowFunc:text={text}, className={className}')
         except Exception:
             pass
+
     if 'win32gui' not in sys.modules:
         logging.info(f"No win32 modules, can't hide chrome windows")
         return
@@ -108,11 +114,12 @@ def hide_chrome(hide=True, foreground=False):
         _, _ = text, className  # dummy pylint
         win32gui.ShowWindow(hwnd, not hide)  # True-Show, False-Hide
         if hide:
-            safe_run(win32gui.MoveWindow, hwnd, -1000, -1000, -100, -200, True) # У скрытого окна бывают доп окна которые вылезают на экран
+            safe_run(win32gui.MoveWindow, hwnd, -1000, -1000, -100, -200, True)  # У скрытого окна бывают доп окна которые вылезают на экран
         else:
-            safe_run(win32gui.MoveWindow, hwnd, 80, 80, 980, 880, True) # Возвращаем нормальные координаты
+            safe_run(win32gui.MoveWindow, hwnd, 80, 80, 980, 880, True)  # Возвращаем нормальные координаты
             if foreground:
                 safe_run(win32gui.SetForegroundWindow, hwnd)
+
 
 @safe_run_decorator
 def kill_chrome():
@@ -126,7 +133,7 @@ def kill_chrome():
     for p in psutil.process_iter():
         try:
             if p.name().lower().startswith(pname) and 'remote-debugging-port' in ''.join(p.cmdline()):
-                p.kill()    
+                p.kill()
         except Exception:
             pass
 
@@ -141,7 +148,7 @@ def fix_crash_banner(storefolder, storename):
     data1 = data.replace('"exit_type":"Crashed"','"exit_type":"Normal"').replace('"exited_cleanly":false','"exited_cleanly":true')
     if data != data1:
         logging.info(f'Fix chrome crash banner')
-        open(fn_pref, encoding='utf8', mode='w').write(data1)        
+        open(fn_pref, encoding='utf8', mode='w').write(data1)
 
 @safe_run_decorator
 def clear_cache(storefolder, storename):
@@ -187,7 +194,7 @@ def safe_run_with_log_decorator(func):  # pylint: disable=no-self-argument
         default: возвращаемое в случае ошибки значение'''
         default = kwargs.pop('default', None)
         if len(args) > 0 and (args[0] == '' or args[0] == None):
-            return default            
+            return default
         # Готовим строку для лога
         log_string = f'call: {getattr(func,"__name__","")}({", ".join(map(repr,args))}, {", ".join([f"{k}={repr(v)}" for k,v in kwargs.items()])})'
         if str(self.options('log_full_eval_string')) == '0':
@@ -213,7 +220,8 @@ class BalanceOverPlaywright():
 
     def options(self, param):
         ''' Обертка вокруг store.options чтобы передать в нее пару (номер, плагин) для вытаскивания индивидуальных параметров'''
-        pkey = store.get_pkey(self.login, plugin_name = self.plugin_name)
+        # Брать нужно оригинальный логин (с дописками, т.к. по нему мы будем искать совпадение в phones.ini
+        pkey = store.get_pkey(self.login_ori, plugin_name = self.plugin_name)
         return store.options(param, pkey=pkey)
 
     def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, max_timeout=15, login_url=None, user_selectors=None, headless=None, force=1, plugin_name=''):
@@ -280,7 +288,7 @@ class BalanceOverPlaywright():
         self.launch_config = {
             'headless': self.headless,
         }
-        fix_crash_banner(self.storefolder, self.storename)            
+        fix_crash_banner(self.storefolder, self.storename)
 
     def response_worker(self, response):
         'Response Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)'
@@ -320,7 +328,7 @@ class BalanceOverPlaywright():
             try:
                 route.continue_()
             except Exception:
-                print('NO CONTINUE')  
+                print('NO CONTINUE')
 
     def disconnected_worker(self):
         'disconnected_worker вызывается когда закрыли браузер'
@@ -433,23 +441,23 @@ class BalanceOverPlaywright():
     @safe_run_with_log_decorator
     def page_type(self, selector, text, *args, **kwargs):
         ''' переносим вызов type в класс для того чтобы каждый раз не указывать page'''
-        if selector != '' and text != '': 
+        if selector != '' and text != '':
             return self.page.type(selector, text, *args, **kwargs)
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
     def page_fill(self, selector, text, *args, **kwargs):
         ''' переносим вызов type в класс для того чтобы каждый раз не указывать page'''
-        if selector != '' and text != '': 
+        if selector != '' and text != '':
             return self.page.fill(selector, text, *args, **kwargs)
 
     @check_browser_opened_decorator
-    @safe_run_with_log_decorator    
+    @safe_run_with_log_decorator
     def page_click(self, selector, *args, **kwargs):
         ''' переносим вызов click в класс для того чтобы каждый раз не указывать page
         Кликаем только если элемент есть'''
         if selector != '' and self.page.query_selector(selector):
-            return self.page.click(selector, *args, **kwargs)            
+            return self.page.click(selector, *args, **kwargs)
 
     def launch_browser(self, launch_func):
         self.launch_config.update({
@@ -462,7 +470,7 @@ class BalanceOverPlaywright():
             if self.chrome_executable_path == '':
                 chrome_paths = [p for p in settings.chrome_executable_path_alternate if os.path.exists(p)]
                 if len(chrome_paths) >0:
-                    self.chrome_executable_path = chrome_paths[0] 
+                    self.chrome_executable_path = chrome_paths[0]
             if self.chrome_executable_path == '' or not os.path.exists(self.chrome_executable_path):
                 error_msg = f'Chrome.exe not found {self.chrome_executable_path}'
                 logging.error(error_msg)
@@ -472,7 +480,7 @@ class BalanceOverPlaywright():
             self.chrome_executable_path = self.browsertype.executable_path
         logging.info(f'Launch chrome from {self.chrome_executable_path}')
         if self.options('browser_proxy').strip() != '':
-            self.launch_config['args'].append(f'--proxy-server={self.options("browser_proxy").strip()}') 
+            self.launch_config['args'].append(f'--proxy-server={self.options("browser_proxy").strip()}')
         # playwright: launch_func = self.sync_pw.chromium.launch_persistent_context
         self.browser = launch_func(**self.launch_config) # sync_pw.chromium.launch_persistent_context
         if self.hide_chrome_flag:
@@ -480,9 +488,9 @@ class BalanceOverPlaywright():
         self.page = self.browser.pages[0]
         [p.close() for p in self.browser.pages[1:]]
         self.page.on("response", self.response_worker)
-        if str(self.options('intercept_request')) == '1' and str(self.options('show_captcha')) == '0':            
+        if str(self.options('intercept_request')) == '1' and str(self.options('show_captcha')) == '0':
             # Если включено показывать капчу - то придется грузить все чтобы загрузить картинки
-            self.page.route("*", self.on_route_worker)        
+            self.page.route("*", self.on_route_worker)
         self.browser.on("disconnected", self.disconnected_worker) # вешаем обработчик закрытие браузера
 
     def browser_close(self):
@@ -545,7 +553,7 @@ class BalanceOverPlaywright():
             self.sleep(1*self.force if not is_bad_chk_lk_page_js else 5)
             self.page_wait_for(loadstate=True)
         self.page_screenshot()
-        for countdown in range(self.wait_loop): 
+        for countdown in range(self.wait_loop):
             if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_url(selectors['lk_page_url']):
                 logging.info(f'Already login')
                 break # ВЫХОДИМ ИЗ ЦИКЛА - уже залогинины
@@ -592,11 +600,11 @@ class BalanceOverPlaywright():
                             self.sleep(1)
                         else:  # Капчу так никто и не ввел
                             self.page_screenshot(suffix='captcha')
-                            logging.error(f'Show captcha timeout. A captcha appeared, but no one entered it')        
+                            logging.error(f'Show captcha timeout. A captcha appeared, but no one entered it')
                             raise RuntimeError(f'A captcha appeared, but no one entered it')
                     else:  # Показ капчи не зададан выдаем ошибку и завершаем
                         logging.error(f'Captcha appeared')
-                        self.page_screenshot(suffix='captcha')       
+                        self.page_screenshot(suffix='captcha')
                         raise RuntimeError(f'Captcha appeared')
                 else:
                     # Никуда не попали и это не капча
@@ -606,7 +614,7 @@ class BalanceOverPlaywright():
                 break  # ВЫХОДИМ ИЗ ЦИКЛА
             if countdown == self.wait_and_reload:
                 # так и не дождались - пробуем перезагрузить и еще подождать
-                self.page_reload('Unknown page try reload') 
+                self.page_reload('Unknown page try reload')
             self.sleep(1)
         self.page_screenshot()
 
@@ -620,7 +628,7 @@ class BalanceOverPlaywright():
                 response_result = response_result_[-1]  # если ответов несколько - берем последний, так правильнее
                 if pformula != '':
                     logging.info(f'pformula on {url_tag}:{pformula}')
-                    # Для скрипта на python делаем 
+                    # Для скрипта на python делаем
                     try:
                         res = eval(pformula, {'data':response_result})
                         return res
@@ -629,7 +637,7 @@ class BalanceOverPlaywright():
                         logging.info(exception_text)
                 if jsformula != '':
                     logging.info(f'jsformula on {url_tag}:{jsformula}')
-                    # !!! TODO Было: 
+                    # !!! TODO Было:
                     res = self.page_evaluate(f"()=>{{data={json.dumps(response_result,ensure_ascii=False)};return {jsformula};}}")
                     # Стало: в playwright автоматом подставится переменная response_result из кода, теперь можно так:
                     # TODO как-то не стало :-) надо разобраться
@@ -669,7 +677,7 @@ class BalanceOverPlaywright():
             error_msg = f'Not all params have name param: {params}'
             logging.error(error_msg)
             raise RuntimeError(error_msg)
-        store.feedback.text(f'Собираем параметры {",".join([i.get("name","") for i in params])}', append=True)            
+        store.feedback.text(f'Собираем параметры {",".join([i.get("name","") for i in params])}', append=True)
         if url != '':  # Если указан url то сначала переходим на него
             self.page_goto(url)
             self.page_wait_for(loadstate=True)
@@ -685,8 +693,8 @@ class BalanceOverPlaywright():
                 break  # выходим если все получили
             if countdown == self.wait_and_reload:
                 # так и не дождались - пробуем перезагрузить и еще подождать
-                self.page_reload('Data not received')        
-        else:  # время вышло а получено не все - больше не ждем 
+                self.page_reload('Data not received')
+        else:  # время вышло а получено не все - больше не ждем
             no_received_keys = {i['name'] for i in params} - set(result)
             logging.error(f'Not found all param on {url}: {",".join(no_received_keys)}')
         if save_to_result:
@@ -707,7 +715,7 @@ class BalanceOverPlaywright():
         'Возвращает словарь с результатами'
         logging.info(f"browserengine=Playwright")
         if sys.platform != 'win32' and not self.launch_config.get('headless', True) and str(self.options('xvfb')) == '1':
-            os.system('pgrep Xvfb || Xvfb :99 -screen 0 1920x1080x24 &')            
+            os.system('pgrep Xvfb || Xvfb :99 -screen 0 1920x1080x24 &')
             os.system('export DISPLAY=:99')  # On linux and headless:False use Xvfb
             os.environ['DISPLAY']=':99'
         store.feedback.text(f'Запуск браузера', append=True)
@@ -738,8 +746,7 @@ class BalanceOverPlaywright():
         kill_chrome()  # Добиваем все наши незакрытые хромы, чтобы не появлялось кучи зависших
         clear_cache(self.storefolder, self.storename)
         time.sleep(2)  # Даем время закрыться
-        return self.result   
+        return self.result
 
 class BrowserController(BalanceOverPlaywright):
     pass
-
