@@ -125,6 +125,8 @@ class Session():
                     self._session = pickle.load(f)
             except Exception:
                 self._session = requests.Session()
+        if options('node_tls_reject_unauthorized').strip() == '0':
+            self._session.verify = False
         self.update_headers(self.additional_headers)
         # 'Применяем к сессии настройки'
         if options('requests_proxy') != '':
