@@ -41,7 +41,7 @@ def get_balance(login, password, storename=None, **kwargs):
             raise RuntimeError(f'POST Login page {login_url} error: status_code {response.status_code}')
 
     result['Balance'] = re.search(re_balance, response.text).group(1).replace(',', '.').strip()
-    result.update(find_by_regexp(response.text, 'Expired', re_expired))
+    result.update(find_by_regexp(response.text, 'TurnOffStr', re_expired))
     result.update(find_by_regexp(response.text, 'UserName', re_userName))
     result.update(find_by_regexp(response.text, 'licSchet', re_licSchet))
     result.update(find_by_regexp(response.text, 'TarifPlan', re_tarifPlan))
