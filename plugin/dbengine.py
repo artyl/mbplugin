@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS Phones (
     [BalDelta] [real] NULL ,
     [JeansExpired] [smallint] NULL ,
     [ObPlat] [real] NULL ,
-    [BeeExpired] [nchar] (20), -- COLLATE Cyrillic_General_CI_AS NULL ,
+    [BeeExpired] [nchar] (20), -- COLLATE Cyrillic_General_CI_AS NULL , -- BalExpired Expired
     [RealAverage] [real] NULL ,
     [Seconds] [smallint] NULL ,
     [TarifPlan] [nchar] (50), -- COLLATE Cyrillic_General_CI_AS NULL ,
@@ -174,6 +174,8 @@ class Dbengine():
             result2['Minutes'] = result2['Min']
         if 'BalExpired' in result2:  # BalExpired -> BeeExpired
             result2['BeeExpired'] = result2['BalExpired']
+        if 'Expired' in result2:  # Expired -> BeeExpired
+            result2['BeeExpired'] = result2['Expired']
         # Фильтруем только те поля, которые есть в таблице phone
         line = {k: v for k, v in result2.items() if k in self.phoneheader}
         # Добавляем расчетные поля и т.п.

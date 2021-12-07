@@ -26,7 +26,7 @@ def get_balance(login, password, storename=None, **kwargs):
             'SMS': 43,  # !!! integer Кол-во оставшихся/потраченных СМС
             'Min': 222,  # !!! integer Кол-во оставшихся минут
             'SpendMin': 32,  # double Кол-во потраченных минут (с секундами)
-            'Expired': 'Дата истечения баланса/платежа',
+            'Expired': 'Дата истечения баланса/платежа', # BalExpired->BeeExpired, Expired->BeeExpired
             'ObPlat':	14,   # double Сумма обещанного платежа
             'Internet': 1234,  # double Кол-во оставшегося/потраченного трафика
             # 'ErrorMsg':	'Сообщение об ошибке', # Если оо есть в Reponce то это ошибка
