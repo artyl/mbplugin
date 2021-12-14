@@ -190,11 +190,18 @@ class browserengine(browsercontroller.BrowserController):
                         logging.info(f'mts_usedbyme: Common for donor')
                         for el in res3_alt.get('#checktask',{}).get('data',{}).get('counters',[]):  # data.counters. ...
                             if el.get('packageType', '') == 'Calling':
-                                self.result['SpendMin'] = int((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 60)
-                            if el.get('packageType', '') == 'Messaging':
-                                self.result['SMS'] = el.get('totalAmount', 0) - el.get('usedAmount', 0)
+                                self.result['Min'] = int((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 60)  # осталось минут
+                                self.result['SpendMin'] = int((el.get('totalAmount', 0)) / 60)  # Потрачено минут
+                            if el.get('packageType', '') == 'Messaging':  
+                                if 'rest' in self.acc_num:  # common_rest - общие остатки      
+                                    self.result['SMS'] = el.get('totalAmount', 0) - el.get('usedAmount', 0)
+                                else:                       # потрачено
+                                    self.result['SMS'] = el.get('totalAmount', 0)
                             if el.get('packageType', '') == 'Internet':
-                                self.result['Internet'] = round((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 1024 / 1024, 3) 
+                                if 'rest' in self.acc_num:  # common_rest - общие остатки      
+                                    self.result['Internet'] = round((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 1024 / 1024, 3) 
+                                else:                       # потрачено
+                                    self.result['Internet'] = round(el.get('totalAmount', 0) / 1024 / 1024, 3) 
                     # TODO отключить в будущем старый вариант
                     # Обработка по старому варианту страницы api/Widgets/GetUserClaims
                     elif 'RoleDonor' in str(res3):
