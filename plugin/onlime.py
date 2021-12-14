@@ -24,6 +24,7 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'LicSchet', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.accountInfo.AccountID"},
             {'name': 'TurnOff', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.accountInfo.daysToLock"},
             {'name': 'TurnOffStr', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.accountInfo.dateToLock"},
+            {'name': 'Expired', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.accountInfo.dateToLock"},
             {'name': 'AnyString', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.bonusAccount.tier"},
             ])
 

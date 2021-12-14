@@ -22,13 +22,13 @@ user_selectors = {
                           if(b2!==null && i2!==null){i2.value='Ignore';b2.submit.click();}
                         """,
     'login_clear_js': "document.querySelector('form input[id^=phone]').value=''",
-    'login_selector': 'form input[id^=phone]', 
+    'login_selector': 'form input[id^=phone]',
     # проверка нужен ли submit после логина (если поле пароля уже есть то не нужен, иначе нужен)
-    'chk_submit_after_login_js': "document.querySelector('form input[id=phoneInput]')!=null || document.querySelector('form input[id=password]')==null",  
+    'chk_submit_after_login_js': "document.querySelector('form input[id=phoneInput]')!=null || document.querySelector('form input[id=password]')==null",
     'remember_checker': "document.querySelector('form input[name=rememberme]')!=null && document.querySelector('form input[name=rememberme]').checked==false",  # Проверка что флаг remember me не выставлен
     'remember_js': "document.querySelector('form input[name=rememberme]').click()",  # js для выставления remember me
     'captcha_checker': "document.querySelector('div[id=captcha-wrapper]')!=null",
-    'captcha_focus': "document.getElementById('password').focus()", 
+    'captcha_focus': "document.getElementById('password').focus()",
     }
 
 class browserengine(browsercontroller.BrowserController):
@@ -37,11 +37,11 @@ class browserengine(browsercontroller.BrowserController):
         self.do_logon(url=login_url, user_selectors=user_selectors)
 
         # TODO close banner # document.querySelectorAll('div[class=popup__close]').forEach(s=>s.click())
-        if self.login_ori != self.login and self.acc_num.isdigit():  # это финт для захода через другой номер 
+        if self.login_ori != self.login and self.acc_num.isdigit():  # это финт для захода через другой номер
             # если заход через другой номер то переключаемся на нужный номер
             # TODO возможно с прошлого раза может сохраниться переключенный но вроде работает и так
             self.page_wait_for(selector="[id=ng-header__account-phone_desktop]")
-            self.responses = {}  # Сбрасываем все загруженные данные - там данные по материнскому телефону            
+            self.responses = {}  # Сбрасываем все загруженные данные - там данные по материнскому телефону
             # Так больше не работает
             # url_redirect = f'https://login.mts.ru/amserver/UI/Login?service=idp2idp&IDButton=switch&IDToken1=id={self.acc_num},ou=user,o=users,ou=services,dc=amroot&org=/users&ForceAuth=true&goto=https://lk.mts.ru'
             # Теперь добываем url так
@@ -57,7 +57,7 @@ class browserengine(browsercontroller.BrowserController):
                 return  # номера на странице так и нет - уходим
             logging.info(f'PHONE {numb}')
             if re.sub(r'(?:\+7|\D)', '', numb) != self.acc_num:
-                return  # Если номер не наш - уходим            
+                return  # Если номер не наш - уходим
 
         # Для начала только баланс быстрым способом (может запаздывать)
         self.wait_params(params=[
@@ -106,10 +106,10 @@ class browserengine(browsercontroller.BrowserController):
                     self.result['Internet'] = round(nonused[0]*unitMult/unitDiv, 2)
                 if (mts_usedbyme == '1' or self.login in mts_usedbyme.split(',')) and usedbyme != []:
                     self.result['Internet'] = round(usedbyme[0]*unitMult/unitDiv, 2)
-                            
+
         self.page_goto('https://lk.mts.ru/uslugi/podklyuchennye')
         res2 = self.wait_params(params=[{
-            'name': '#services', 'url_tag': ['for=api/services/list/active$'], 
+            'name': '#services', 'url_tag': ['for=api/services/list/active$'],
             'jsformula': "data.data.services.map(s=>[s.name,!!s.subscriptionFee.value?s.subscriptionFee.value*(s.subscriptionFee.unitOfMeasureRaw=='DAY'?30:1):0])"
             }])
         try:
@@ -121,16 +121,21 @@ class browserengine(browsercontroller.BrowserController):
             self.result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
         except Exception:
             logging.info(f'Ошибка при получении списка услуг {store.exception_text()}')
-        
+
         # Идем и пытаемся взять инфу со страницы https://lk.mts.ru/obshchiy_paket
         # Но только если телефон в списке в поле mts_usedbyme или для всех телефонов если там 1
         if mts_usedbyme == '1' or self.login in mts_usedbyme.split(',') or self.acc_num.lower().startswith('common'):
             self.page_goto('https://lk.mts.ru/obshchiy_paket')
             # 24.08.2021 иногда возвращается легальная страница, но вместо информации там сообщение об ошибке - тогда перегружаем и повторяем
             for i in range(3):
+                res3 = {}
+                res3_alt = self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/sharing/counters', '/longtask/'], 'jsformula': "data"}])
+                if 'Donor' in str(res3_alt) or 'Acceptor' in str(res3_alt):
+                    break  # Новый вариант аккумуляторов
+                # TODO отключить в будущем
                 res3 = self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/Widgets/GetUserClaims', '/longtask/'], 'jsformula': "data.result"}])
                 if 'claim_error' not in str(res3):
-                    break
+                    break # Старый вариант аккумуляторов (если он уже не срабатывает приходит пустой без ошибки)
                 logging.info(f'mts_usedbyme: GetUserClaims вернул claim_error - reload')
                 self.page_reload()
                 self.sleep(5)
@@ -139,6 +144,27 @@ class browserengine(browsercontroller.BrowserController):
                 self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных (claim_error)'}
                 return
             try:
+                # Обработка по новому варианту страницы api/sharing/counters
+                if res3_alt.get('#checktask',{}).get('data',{}).get('subscriberType','')=='Donor':
+                    logging.info(f'mts_usedbyme: Donor')
+                    for el in res3_alt.get('#checktask',{}).get('data',{}).get('counters',[]):  # data.counters. ...
+                        if el.get('packageType', '') == 'Calling':
+                            self.result['SpendMin'] = int((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) / 60)
+                        if el.get('packageType', '') == 'Messaging':
+                            self.result['SMS'] = el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)
+                        if el.get('packageType', '') == 'Internet':
+                            self.result['Internet'] = round((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) / 1024 / 1024, 3)
+                if res3_alt.get('#checktask',{}).get('data',{}).get('subscriberType','')=='Acceptor':
+                    logging.info(f'mts_usedbyme: Acceptor')
+                    for el in res3_alt.get('#checktask',{}).get('data',{}).get('counters',[]):  # data.counters. ...
+                        if el.get('packageType', '') == 'Calling':
+                            self.result['SpendMin'] = int(el.get('usedAmount', 0) / 60)
+                        if el.get('packageType', '') == 'Messaging':
+                            self.result['SMS'] = el.get('usedAmount', 0)
+                        if el.get('packageType', '') == 'Internet':
+                            self.result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)                    
+                # TODO отключить в будущем
+                # Обработка по старому варианту страницы api/Widgets/GetUserClaims
                 if 'RoleDonor' in str(res3):  # Просто ищем подстроку во всем json вдруг что-то изменится
                     logging.info(f'mts_usedbyme: RoleDonor')
                     res4 = self.wait_params(params=[{'name': '#donor', 'url_tag': ['for=api/Widgets/AvailableCountersDonor$', '/longtask/'], 'jsformula': "data.result"}])
@@ -158,8 +184,20 @@ class browserengine(browsercontroller.BrowserController):
                     if 'GBYTE' in data:
                         self.result['Internet'] = data["GBYTE"]
                 # Спецверсия для общего пакета, работает только для Donor
-                if self.acc_num.lower().startswith('common'): 
-                    if 'RoleDonor' in str(res3):
+                if self.acc_num.lower().startswith('common'):
+                    # Обработка по новому варианту страницы api/sharing/counters
+                    if res3_alt.get('#checktask',{}).get('data',{}).get('subscriberType','')=='Donor':
+                        logging.info(f'mts_usedbyme: Common for donor')
+                        for el in res3_alt.get('#checktask',{}).get('data',{}).get('counters',[]):  # data.counters. ...
+                            if el.get('packageType', '') == 'Calling':
+                                self.result['SpendMin'] = int(el.get('usedAmount', 0) / 60)
+                            if el.get('packageType', '') == 'Messaging':
+                                self.result['SMS'] = el.get('usedAmount', 0)
+                            if el.get('packageType', '') == 'Internet':
+                                self.result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3) 
+                    # TODO отключить в будущем старый вариант
+                    # Обработка по старому варианту страницы api/Widgets/GetUserClaims
+                    elif 'RoleDonor' in str(res3):
                         # потребление и остаток
                         cdata_charge = {i['counterViewUnit']:i['groupConsumption'] for i in res4['#donor']}
                         сdata_rest = {i['counterViewUnit']:i['counterLimit']-i['groupConsumption'] for i in res4['#donor']}
@@ -176,7 +214,7 @@ class browserengine(browsercontroller.BrowserController):
                         raise RuntimeError(f'Страница общего пакета не возвращает данных')
             except Exception:
                 logging.info(f'Ошибка при получении obshchiy_paket {store.exception_text()}')
-                if self.acc_num.lower().startswith('common'): 
+                if self.acc_num.lower().startswith('common'):
                     self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных'}
 
 
@@ -201,7 +239,7 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
             raise RuntimeError(raise_msg, response)
 
     def do_login():
-        url = "http://login.mts.ru/amserver/UI/Login"    
+        url = "http://login.mts.ru/amserver/UI/Login"
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:81.0) Gecko/20100101 Firefox/81.0",}
         session = store.Session(storename, headers = headers)
         response = session.get(url, headers=headers)
@@ -209,8 +247,8 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
 
         csrf_token, csrf_ts_token = get_tokens(response)
         headers["Referer"] = url
-        response = session.post(url, 
-            data={"IDToken1": login, "IDButton": "Submit", "encoded": "false", "loginURL": "?service=default", "csrf.sign": csrf_token, "csrf.ts": csrf_ts_token,}, 
+        response = session.post(url,
+            data={"IDToken1": login, "IDButton": "Submit", "encoded": "false", "loginURL": "?service=default", "csrf.sign": csrf_token, "csrf.ts": csrf_ts_token,},
             headers=headers,
         )
         check_status_code(response, 200)
@@ -270,20 +308,20 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
         else:
             logging.info(f'Limit retry for {url}')
         return {}
-    
+
     def options(param):
         ''' Обертка вокруг store.options чтобы передать в нее пару (номер, плагин) для вытаскивания индивидуальных параметров'''
         pkey = store.get_pkey(login, plugin_name)
         return store.options(param, pkey=pkey)
 
-    mts_usedbyme = options('mts_usedbyme')    
+    mts_usedbyme = options('mts_usedbyme')
     session = store.Session(storename)
     user_info = get_api_json('api/login/userInfo', longtask=False)
     # Залогинены - если нет логинимся
     if 'userProfile' not in user_info:
         logging.info('userInfo not return json try relogin')
         session.drop_and_create()
-        session = do_login()    
+        session = do_login()
         user_info = get_api_json('api/login/userInfo', longtask=False)
     result = {}
 
@@ -294,7 +332,7 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
     result['UserName'] = profile.get('profile:name', '')
     if fast_api:
         session.save_session()
-        return result    
+        return result
 
     aib = get_api_json('api/accountInfo/mscpBalance', longtask=True)
     sla = get_api_json('api/services/list/active', longtask=True)
@@ -348,7 +386,7 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
     internet = [i for i in sc_counters if i['packageType'] == 'Internet']
     if internet != []:
         unitMult = settings.UNIT.get(internet[0]['unitType'], 1)
-        unitDiv = settings.UNIT.get(options('interUnit'), 1)        
+        unitDiv = settings.UNIT.get(options('interUnit'), 1)
         nonused = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'NonUsed']
         usedbyme = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'UsedByMe']
         if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
