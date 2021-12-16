@@ -260,7 +260,7 @@ class Dbengine():
         fields = [i for i in fields if i in dbheaders and dbdata_sets[dbheaders.index(i)] != set()]
         for line in dbdata:
             row = dict(zip(dbheaders, line))
-            if str(lastonly) == '0' or row['QueryDateTime'] in qtimes_max:  # фильруем данные по qtimes_max
+            if str(lastonly) == '0' or row['QueryDateTime'] in qtimes_max:  # фильтруем данные по qtimes_max
                 table.append({k:row[k] for k in fields if k in row})
         return table[::int(store.options('SkipDay', pkey=pkey))+1]
 
