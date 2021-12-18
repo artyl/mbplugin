@@ -294,3 +294,6 @@ FIX: В onlime перекинул информацию о днях до откл
 FIX: В smile-net перекинул информацию о днях до отключения из Expired в TurnOff  
 FIX: Добавил конвертацию поля Expired в BeeExpired, так же как было для BalExpired (Expired похоже просто терялось, уже не смог вспомнить детали почему так было сделано)  
 FIX: МТС поменял выдачу по общему пакету, поменял пересчет  
+
+## mbplugin v1.00.08 (17.12.21) Return old expired fields onlime
+FIX: В onlime вернул как было, оказывается в MobileBalance это ломает показ  
