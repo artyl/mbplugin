@@ -17,6 +17,10 @@
 ## Инструкцию по настройке в режиме мега-плагина для программы MobileBalance смотрите в mobilebalance.md 
 [Инструкция по варианту использования mobilebalance](https://github.com/artyl/mbplugin/blob/master/mobilebalance.md)
 
+## Дополнительная информация
+[История изменения (в ней часть информации не попавшая в документацию)](https://github.com/artyl/mbplugin/blob/master/changelist.md)
+[Описание параметров mbplugin.ini (почти все параметры из секции Options из mbplugin.ini могут быть прописаны индивидуально в секцию к телефону)](https://github.com/artyl/mbplugin/blob/master/mobilebalance.md)
+
 ## На данный момент реализованы плагины
 
 (Источником информации послужили как собственное изучение так и существующие плагины, так что, пользуясь случаем, хочу выразить благодарность всем авторам:
