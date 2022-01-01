@@ -315,6 +315,11 @@ main_html = r'''
 <button onclick="fetch('/recompile').then(function(response) {return response})">Recompile jsmblh plugin</button><br>
 <button onclick="fetch('/restart').then(function(response) {return response})">Restart web server</button><br>
 <button onclick="fetch('/exit').then(function(response) {return response})">Exit web server</button><br>
+<br>
+<b>Обратная связь.</b><br>
+Оптимальный способ обратной связи - <a href=https://github.com/artyl/mbplugin/issues>оставить issue на github</a> (для создания issue нужно зарегистрироваться)<br>
+Также обсуждение работы проходит в <a href=https://4pda.to/forum/index.php?showtopic=985296>форуме 4pda посвященном программе MobileBalance</a><br>
+Или <a href=https://t.me/mbplugin>в канале телеграмм</a><br>  
 </body>
 <script>
 %(script)s
