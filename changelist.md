@@ -297,3 +297,4 @@ FIX: МТС поменял выдачу по общему пакету, поме
 
 ## mbplugin v1.00.09 (??.??.21) Return old expired fields onlime
 FIX: В onlime вернул как было, оказывается в MobileBalance это ломает показ  
+FIX: beget plugin from Dimas  

@@ -5,27 +5,33 @@ https://beget.com/ru
 https://beget.com/ru/kb/api/beget-api '''
 
 import os, sys, re, logging
-import store
+import store, json
+
+def is_json(myjson):
+  try:
+    json.loads(myjson)
+  except ValueError as e:
+    return False
+  return True
 
 def get_balance(login, password, storename=None, **kwargs):
     logging.info(f'start get_balance {login}')
-    result = {}
+    baseurl = 'https://api.beget.com'
     url = 'https://api.beget.com/api/user/getAccountInfo?login=' + login + '&passwd=' + password + '&output_format=json'
+    cookies = dict(beget='begetok')
     session = store.Session(storename)
-    response = session.get(url)
+    session.disable_warnings()
+    response = session.get(url, cookies=cookies,headers={'Referer': baseurl + '/'}, verify=False)
     if response.status_code != 200:
         raise RuntimeError(f'Login error: status_code {response.status_code}!=200')
-    # Не отдают они content-type=json в заголовках
-    # if 'json' not in response.headers.get('content-type'):
-    #    raise RuntimeError(f'Login error: {response.text}')
-
-    # Разбираем полученный json
+    if not is_json(response.text):
+        raise RuntimeError(f'No JSON in reply: {response.text}')
     if response.json()['status'] != 'success':
         raise RuntimeError(f'Login error: reply {response.text}')
     logging.info(f'Parsing data')
+    result = {}
     data = response.json()['answer']['result']
     result['Balance'] = data['user_balance']
-
     try:
         result['TarifPlan'] =  data['plan_name']
     except Exception:
@@ -37,7 +43,6 @@ def get_balance(login, password, storename=None, **kwargs):
 
     session.save_session()
     return result
-
 
 if __name__ == '__main__':
     print('This is module beget')
