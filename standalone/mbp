@@ -28,8 +28,8 @@ if [ -f $util_path ]; then
     # if $1 - empty, use previous mode docker/python, if no dockervarfile - use python
     [ -f $util_path ] && [ "$1" = "" ] && [ ! -f dockervarfile ] && pythonvar=python
     [ -f $util_path ] && [ "$1" = "" ] && [ -f dockervarfile ] && dockervar=docker
-    
-    # explicitly specified $1 python or docker 
+
+    # explicitly specified $1 python or docker
     [ -f $util_path ] && [ "$1" == "python" ] && pythonvar=python
     [ -f $util_path ] && [ "$1" == "docker" ] && dockervar=docker
 
@@ -37,7 +37,7 @@ if [ -f $util_path ]; then
     if [ -f $util_path ] && [ -n "$pythonvar" ]; then
         # if do not use docker (use python) - remove dockervarfile
         [ -f dockervarfile ] && rm dockervarfile
-        # if no env/bin/activate 
+        # if no env/bin/activate
         if [ ! -f env/bin/activate ]; then
             echo "Not found env/bin/activate (see the readme how to install):"
             exit 1
@@ -55,10 +55,15 @@ if [ -f $util_path ]; then
         # Stop and remove container if running
         docker ps    --format '{{.Names}}' | grep -w mbplugin &> /dev/null && docker stop mbplugin
         docker ps -a --format '{{.Names}}' | grep -w mbplugin &> /dev/null && docker rm   mbplugin
-        
+
         tag=`sed -n -e 's/## mbplugin v\([1-9]\.[^ ]*\).*/\1/p' mbplugin/changelist.md | tail -n 1`
+        # Use separate Dockerfile for arm platform
+        dfparam=""
+        if [ $(uname -p) == "aarch64" ]; then
+            dfparam="-f mbplugin/docker/Dockerfile_arm"
+        fi
         # Build image for playwright if not exists
-        [ -z "$(docker images -q mbplugin:$tag)" ] && docker build --tag mbplugin:$tag mbplugin/docker --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg UNAME=$(whoami) 
+        [ -z "$(docker images -q mbplugin:$tag)" ] && docker build --tag mbplugin:$tag $dfparam mbplugin/docker --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg UNAME=$(whoami) 
         # docker build --tag mbplugin:$tag mbplugin/docker
         # -p 127.0.0.1:19777:19777
 
@@ -66,24 +71,25 @@ if [ -f $util_path ]; then
         # fix for mbplugin symlink
         [ -L "mbplugin" ] && [ -d "mbplugin" ] && mbplugin_vol="-v `cd mbplugin;pwd -P`:/mbstandalone/mbplugin"
         TZ='Europe/Moscow'
-        echo 'DOCKER="docker run -u $(id -u) -it --init --rm -e TZ='$TZ' -v '$PWD':/mbstandalone '$mbplugin_vol' mbplugin:'$tag' "' >> dockervarfile
-        echo 'DOCKER_STD="docker run -u $(id -u) -it --init --rm -e TZ='$TZ' -v '$PWD':/mbstandalone '$mbplugin_vol' mbplugin:'$tag' "' >> dockervarfile
-        echo 'DOCKER_WEB="docker run -u $(id -u) -d --init --name mbplugin -e TZ='$TZ' -v '$PWD':/mbstandalone '$mbplugin_vol' -p 127.0.0.1:19777:19777 mbplugin:'$tag' "' >> dockervarfile
+        echo 'DOCKER="docker run -u $(id -u) -it --init --rm -e TZ='$TZ' -v '$PWD':/mbstandalone '$mbplugin_vol' --ipc=host --security-opt seccomp=mbplugin/docker/seccomp_profile.json mbplugin:'$tag' "' >> dockervarfile
+        echo 'DOCKER_STD="docker run -u $(id -u) -it --init --rm -e TZ='$TZ' -v '$PWD':/mbstandalone '$mbplugin_vol' --ipc=host --security-opt seccomp=mbplugin/docker/seccomp_profile.json mbplugin:'$tag' "' >> dockervarfile
+        echo 'DOCKER_WEB="docker run -u $(id -u) -d --init --name mbplugin -e TZ='$TZ' -v '$PWD':/mbstandalone '$mbplugin_vol' --ipc=host --security-opt seccomp=mbplugin/docker/seccomp_profile.json -p 127.0.0.1:19777:19777 mbplugin:'$tag' "' >> dockervarfile
         echo 'DOCKER_EXEC="docker exec -u $(id -u) -it mbplugin "' >> dockervarfile
         # if ! docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null; then ... ; fi
         # docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && echo "RUN"
     fi
 
-    if [ -z "$pythonvar" ] && [ -z "$dockervar" ]; then 
+    if [ -z "$pythonvar" ] && [ -z "$dockervar" ]; then
         echo "Unknown command $1"
         exit 1
     fi
 
 fi
 
+cd $root_path
 # if exist dockervarfile - set DOCKER variables
-[ -f dockervarfile ] && . ./dockervarfile 
-# if mbplugin container is running use docker exec instead docker run 
+[ -f dockervarfile ] && . ./dockervarfile
+# if mbplugin container is running use docker exec instead docker run
 [ -f dockervarfile ] && docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && DOCKER=$DOCKER_EXEC
 
 # port mapping for docker only for web-server start
@@ -114,7 +120,7 @@ if [ -f $util_path ]; then
     cd $root_path
     cp mbplugin/standalone/mbp .
     chmod +x mbp
-    [ -f dockervarfile ] && echo $DOCKER 
+    [ -f dockervarfile ] && echo $DOCKER
     $DOCKER_STD python mbplugin/plugin/util.py init
     # Run only NOT docker
     [ ! -f dockervarfile ] && python mbplugin/plugin/util.py web-server stop -f

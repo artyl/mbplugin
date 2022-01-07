@@ -261,7 +261,7 @@ FIX: При работе в unix-like системах, если путь с sym
 FIX: Найдена проблема приводящая к преждевременному выходу в момент логона не дожидаясь попадания в личный кабинет (page_wait_for expression)  
 FIX: Docker build, чтобы при сборке docker контейнера не обновлялся находящийся в контейнере хром необходимо чтобы версии контейнера и playwright соответствовали.  
 CHANGE: Docker отрабатывает под uid текущего пользователя  
-FIX: Решена проблема Zombie при запуске mbplugin в docker контейнере  
+FIX: Решена проблема Zombie при запуске mbplugin в docker контейнере (параметр --init для docker run)  
 ADD: tele2 mbplugin и классический плагин в расчет по услугам добавляются подписки  
 ADD: API и FASTAPI режим получения данных по МТС, работает значительно быстрее, но труднее в сопровождении, и недоступен блок данных по общему пакету  
 ADD: WEB режим получения баланса через браузер для beeline  
@@ -297,4 +297,5 @@ FIX: МТС поменял выдачу по общему пакету, поме
 
 ## mbplugin v1.00.09 (??.??.21) Return old expired fields onlime
 FIX: В onlime вернул как было, оказывается в MobileBalance это ломает показ  
-FIX: beget plugin from Dimas  
+FIX: beget plugin from d1mas  
+FIX: Dockerfile for arm (raspbery pi) from d1mas  
