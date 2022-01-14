@@ -63,11 +63,11 @@ CREATE TABLE IF NOT EXISTS Phones (
     [CalcTurnOff] [int] NULL
 );''','''
 CREATE TABLE IF NOT EXISTS Flags (
-    [key] [nvarchar] (150) PRIMARY KEY, 
+    [key] [nvarchar] (150) PRIMARY KEY,
     [value] [nvarchar] (150) NULL
 );''','''
 CREATE TABLE IF NOT EXISTS Responses (
-    [key] [nvarchar] (150) PRIMARY KEY, 
+    [key] [nvarchar] (150) PRIMARY KEY,
     [value] [nvarchar] (10000) NULL
 )
 -- CREATE INDEX idx_PhoneNumber_Operator ON Phones (PhoneNumber,Operator);

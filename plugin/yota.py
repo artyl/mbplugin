@@ -11,7 +11,7 @@ user_selectors={
                 'chk_lk_page_js': "window.location.href=='https://my.yota.ru/devices'",
                 'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",
                 'login_clear_js': "document.querySelector('form input[formcontrolname=username]').value=''",
-                'login_selector': 'form input[formcontrolname=username]', 
+                'login_selector': 'form input[formcontrolname=username]',
                 }
 
 class browserengine(browsercontroller.BrowserController):

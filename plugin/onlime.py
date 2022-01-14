@@ -17,7 +17,7 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('div.lk-login input[
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
-        # Здесь мы берем данные с загружаемой страницы 
+        # Здесь мы берем данные с загружаемой страницы
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.accountInfo.balance"},
             {'name': 'Balance2', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.bonusAccount.points"},

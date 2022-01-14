@@ -9,7 +9,7 @@ get_icon.py путь_к_иконке
 get_icon.py https://vscale.io/fav.png
 или
 get_icon.py https://my.mosenergosbyt.ru/favicon.ico
-или 
+или
 get_icon.py имя_файла_на_диске.ico
 '''
 import zlib,requests,io,sys,os

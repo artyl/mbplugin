@@ -15,13 +15,13 @@ class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берем данные с загружаемой страницы api.vscale.io/v1/billing/balance (то что мы видем в отладчике на странице Network)
-        # {"balance":123, "unpaid":0,"user_id":12345} 
+        # {"balance":123, "unpaid":0,"user_id":12345}
         # данные страницы json представленные в переменной data соответственно формула получения data.balance
         self.wait_params(params=[{
             'name': 'Balance',
-            'url_tag': ['api.vscale.io/v1/billing/balance'], 
+            'url_tag': ['api.vscale.io/v1/billing/balance'],
             'jsformula': 'data.balance',
-        },], 
+        },],
         url='https://vscale.io/panel/scalets/')
 
 def get_balance(login, password, storename=None, **kwargs):

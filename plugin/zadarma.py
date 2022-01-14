@@ -38,7 +38,7 @@ def get_balance(login, password, storename=None, **kwargs):
         response2 = session.post('https://my.zadarma.com/auth/login/', data=data)
         _ = response2
         response3 = session.get('https://my.zadarma.com/')
-    
+
     result['Balance'] = re.search(re_balance, response3.text).group(1).replace(',', '.')
     try:
         result['TarifPlan'] = re.search(re_tariff, response3.text).group(1).replace('&nbsp;', '').replace('Текущий тарифный план -', '').strip()

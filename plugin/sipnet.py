@@ -12,7 +12,7 @@ login_checkers = ['<input[^>]*name="Email"[^>]*', '<input[^>]*name="Name"[^>]*',
 # Строка для поиска баланса на странице
 re_balance = r'(?usi)Баланс.*?>.*?>.*?>(.*?) '
 # Строка для поиска тарифа
-re_tariff = r'(?usi)status-work.*?>.*?>.*?>(.*?)<'  
+re_tariff = r'(?usi)status-work.*?>.*?>.*?>(.*?)<'
 re_sipid = r'(?usi)SIP ID.*?>.*?>(.*?)<'  # SIP ID (лицевой счет)
 
 def get_balance(login, password, storename=None, **kwargs):
@@ -40,7 +40,7 @@ def get_balance(login, password, storename=None, **kwargs):
         result['licSchet'] =  re.search(re_sipid, response1.text).group(1).replace('&nbsp;', '').strip()
     except Exception:
         logging.info(f'Not found licSchet')
-    
+
     session.save_session()
     return result
 

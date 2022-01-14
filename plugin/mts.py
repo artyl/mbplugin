@@ -162,7 +162,7 @@ class browserengine(browsercontroller.BrowserController):
                         if el.get('packageType', '') == 'Messaging':
                             self.result['SMS'] = el.get('usedAmount', 0)
                         if el.get('packageType', '') == 'Internet':
-                            self.result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)                    
+                            self.result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)
                 # TODO отключить в будущем
                 # Обработка по старому варианту страницы api/Widgets/GetUserClaims
                 if 'RoleDonor' in str(res3):  # Просто ищем подстроку во всем json вдруг что-то изменится
@@ -192,16 +192,16 @@ class browserengine(browsercontroller.BrowserController):
                             if el.get('packageType', '') == 'Calling':
                                 self.result['Min'] = int((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 60)  # осталось минут
                                 self.result['SpendMin'] = int((el.get('usedAmount', 0)) / 60)  # Потрачено минут
-                            if el.get('packageType', '') == 'Messaging':  
-                                if 'rest' in self.acc_num:  # common_rest - общие остатки      
+                            if el.get('packageType', '') == 'Messaging':
+                                if 'rest' in self.acc_num:  # common_rest - общие остатки
                                     self.result['SMS'] = el.get('totalAmount', 0) - el.get('usedAmount', 0)
                                 else:                       # потрачено
                                     self.result['SMS'] = el.get('usedAmount', 0)
                             if el.get('packageType', '') == 'Internet':
-                                if 'rest' in self.acc_num:  # common_rest - общие остатки      
-                                    self.result['Internet'] = round((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 1024 / 1024, 3) 
+                                if 'rest' in self.acc_num:  # common_rest - общие остатки
+                                    self.result['Internet'] = round((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 1024 / 1024, 3)
                                 else:                       # потрачено
-                                    self.result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3) 
+                                    self.result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)
                     # TODO отключить в будущем старый вариант
                     # Обработка по старому варианту страницы api/Widgets/GetUserClaims
                     elif 'RoleDonor' in str(res3):
@@ -278,7 +278,7 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
         return session
 
     def get_api_json(api, longtask=False):
-        '''у МТС некоторые операции делаются в два приема (longtask==True), сначала берется одноразовый токен, 
+        '''у МТС некоторые операции делаются в два приема (longtask==True), сначала берется одноразовый токен,
         а затем с этим токеном выдается страничка, иногда если слишком быстро попросить ответ  вместо нужного json
         возвращает json {'loginStatus':'InProgress'}  '''
         url = f'https://lk.mts.ru/{api}'
@@ -406,7 +406,7 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
 
 
 def get_balance(login, password, storename=None, **kwargs):
-    ''' На вход логин и пароль, на выходе словарь с результатами 
+    ''' На вход логин и пароль, на выходе словарь с результатами
     есть три режима работы (задается параметром plugin_mode):
     WEB - работа через браузер, забираем все возможные параметры (по умолчанию)
     API - работа через API забираем все возможные параметры

@@ -55,14 +55,14 @@ def get_balance(login, password, storename=None, **kwargs):
     response6 = session.get('https://lk.megafon.ru/api/options/list/current')
     if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
         oList = response6.json()
-        services = [(i['optionName'],i['monthRate']*(1 if i['monthly'] else 30)) for i in oList.get('paid',[])] 
-        services += [(i['optionName'],i['monthRate']*(1 if i['monthly'] else 30)) for i in oList.get('free',[])] 
+        services = [(i['optionName'],i['monthRate']*(1 if i['monthly'] else 30)) for i in oList.get('paid',[])]
+        services += [(i['optionName'],i['monthRate']*(1 if i['monthly'] else 30)) for i in oList.get('free',[])]
         services.sort(key=lambda i:(-i[1],i[0]))
         free = len([a for a, b in services if b == 0])  # бесплатные
         paid = len([a for a, b in services if b != 0])  # платные
         paid_sum = round(sum([b for a, b in services]), 2)
         result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
-        result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])    
+        result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
 
     response7 = session.get('https://lk.megafon.ru/api/options/remaindersMini')
     if response7.status_code == 200 and 'json' in response7.headers.get('content-type'):

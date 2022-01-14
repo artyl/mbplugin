@@ -15,14 +15,14 @@ class browserengine(browsercontroller.BrowserController):
         self.page_fill('input.cardnumber', self.login)
         self.page_click('button.checkbalance')
         # Здесь мы берем данные с загружаемой страницы api.vscale.io/v1/billing/balance (то что мы видем в отладчике на странице Network)
-        # {"balance":123, "unpaid":0,"user_id":12345} 
+        # {"balance":123, "unpaid":0,"user_id":12345}
         # данные страницы json представленные в переменной data соответственно формула получения data.balance
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['chailand/getbalance'], 'jsformula': 'data.success.Cash_Balance+data.success.Cash_Bonus_Balance',},
             {'name': 'Balance2', 'url_tag': ['chailand/getbalance'], 'jsformula': 'data.success.Token_Balance',},
             {'name': 'TarifPlan', 'url_tag': ['chailand/getbalance'], 'jsformula': '"Карта "+data.success.Account+" Баланс "+data.success.Cash_Balance+" Бонус "+data.success.Cash_Bonus_Balance+" Жетоны "+(data.success.Token_Balance+data.success.Token_Bonus_Balance)',},
             {'name': 'UslugiOn', 'url_tag': ['chailand/getbalance'], 'jsformula': '""+(data.success.Cash_Balance+data.success.Cash_Bonus_Balance)+"/"+(data.success.Token_Balance+data.success.Token_Bonus_Balance)',},
-            
+
             ],)
 
 def get_balance(login, password, storename=None, **kwargs):

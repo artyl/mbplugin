@@ -22,11 +22,11 @@ class browserengine(browsercontroller.BrowserController):
                     _ = cnt2
                     if self.page_evaluate(js_check_balance_str, default=False):
                         break
-                    self.sleep(1)                
+                    self.sleep(1)
         self.wait_params(params=[{
             'name': 'Balance',
             'jsformula': r"parseFloat(document.querySelector('div[class=balance-widget__amount]').innerText.replace(/[^\d\.,-]/g,'').replace(',','.'))",
-        },], 
+        },],
         url='https://yoomoney.ru/actions')
 
 def get_balance(login, password, storename=None, **kwargs):

@@ -112,7 +112,7 @@ class UpdaterEngine():
         if version not in [r['tag_name'] for r in self.releases]:
             raise RuntimeError('Release with version "{version}" not found on github release')
         release = [r for r in self.releases if r['tag_name']  == version][0]
-        return release      
+        return release
 
     def latest_version_info(self, short=False) -> typing.Tuple[str, str]:
         'Возвращает инфо о последней версии парой, short - без подробного описания -> (версия, описание)'
@@ -146,7 +146,7 @@ class UpdaterEngine():
         return '\n'.join(result)
 
     def download_version(self, version='', force=False, checksign=True) -> None:
-        '''Загружаем обновление, force=True независимо от наличия на диске, checksign=False - не проверять подпись 
+        '''Загружаем обновление, force=True независимо от наличия на диске, checksign=False - не проверять подпись
         возвращаем полный путь к скачанному файлу'''
         release = self.github_release(version)
         name, url = [(a['name'], a['browser_download_url']) for a in release['assets'] if '_bare' in a['name']][0]
@@ -223,7 +223,7 @@ class UpdaterEngine():
                 if 'PLUGIN' in os.environ.get('DEBUG_UPDATE',''):
                     # Для отладки обновлений
                     # В debug режиме не обновляю папку plugin
-                    if 'plugin' in store.path_split_all(zi.filename) or '.ico' in zi.filename: 
+                    if 'plugin' in store.path_split_all(zi.filename) or '.ico' in zi.filename:
                         continue
                 if not zi.is_dir():
                     res[fn] = ZipRecord(

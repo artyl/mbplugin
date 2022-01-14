@@ -21,7 +21,7 @@ def find_by_regexp(text, param, regexp):
     try:
         return {param: re.search(regexp, text).group(1).strip()}
     except Exception:
-        logging.info(f'Not found {param}')    
+        logging.info(f'Not found {param}')
         return {}
 
 def get_balance(login, password, storename=None, **kwargs):
@@ -46,7 +46,7 @@ def get_balance(login, password, storename=None, **kwargs):
     result.update(find_by_regexp(response.text, 'licSchet', re_licSchet))
     result.update(find_by_regexp(response.text, 'TarifPlan', re_tarifPlan))
     result.update(find_by_regexp(response.text, 'BlockStatus', re_BlockStatus))
-   
+
     session.save_session()
     return result
 

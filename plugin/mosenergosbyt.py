@@ -67,7 +67,7 @@ class browserengine(browsercontroller.BrowserController):
                 'url_tag': ['gate_lkcomu?action=sql&query=bytProxy&', 'proxyquery=Indications', urllib.parse.quote(vl_provider)],
                 'jsformula': f'Math.max(...data.data.filter(s=>s.nm_indication_take=="{nm_indication_take}"||"{nm_indication_take}"=="").map(s=>s.vl_t1))', 'wait':True,  # FIXME пока поставил обязательное ожидание, посмотрим будет ли получать. у некоторых этого параметра может и не быть
             },{
-                'name': 'UserName',  # Username 
+                'name': 'UserName',  # Username
                 'url_tag': ['gate_lkcomu?action=sql&query=GetProfileAttributesValues&'],
                 'jsformula': f'data.data[0].attributes[0].vl_attribute+" "+data.data[0].attributes[1].vl_attribute+" "+data.data[0].attributes[2].vl_attribute',
             }], url=f'https://my.mosenergosbyt.ru/accounts/{id_service}',  # Соберем после захода на эту страницу
@@ -82,8 +82,8 @@ class browserengine(browsercontroller.BrowserController):
         #import pprint
         #text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k,v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
         #open('..\\log\\mosenergosbyt.log','w').write(text)
-        
-            
+
+
 
 def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''

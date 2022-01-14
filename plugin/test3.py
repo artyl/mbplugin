@@ -15,7 +15,7 @@ class browserengine(browsercontroller.BrowserController):
         # Здесь мы берем данные непосредственно с отрендеренной страницы, поэтому url_tag не указан
         self.wait_params(params=[{
             'name': 'Balance',
-            'url_tag': ['object/meters'], 
+            'url_tag': ['object/meters'],
             'jsformula': "data.data.sensors[0].meters.length",
             #'jsformula': r"parseFloat(document.querySelector('div.card-body div.counter__row').innerText.replace(/[^\d,.-]/g, '').replace(',','.'))",
         }])

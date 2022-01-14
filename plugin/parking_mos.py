@@ -11,10 +11,10 @@ user_selectors = {
     'chk_lk_page_js': "document.querySelector('span[id=balance]') !== null",
     'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",
     'login_clear_js': "document.querySelector('form input[name=login]').value=''",
-    'login_selector': 'form input[name=login]', 
+    'login_selector': 'form input[name=login]',
     'submit_js': "document.querySelector('form button[id=bind]').click()",
     'captcha_checker': "document.querySelector('form [id=sms-code]')!=null",
-    'captcha_focus': "document.getElementById('sms-code').focus()", 
+    'captcha_focus': "document.getElementById('sms-code').focus()",
     }
 
 class browserengine(browsercontroller.BrowserController):
@@ -23,7 +23,7 @@ class browserengine(browsercontroller.BrowserController):
         self.page_goto('https://lk.parking.mos.ru/auth/login')
         self.page_evaluate("window.location = '/auth/social/sudir?returnTo=/../cabinet'")
         self.do_logon(url=login_url, user_selectors=user_selectors)
-        # Здесь мы берем данные с загружаемой страницы 
+        # Здесь мы берем данные с загружаемой страницы
         self.wait_params(params=[{
             'name': 'Balance',
             #'url_tag': ['accounts/getbalance'], 'jsformula': "parseFloat(data.balance/100).toFixed(2)"

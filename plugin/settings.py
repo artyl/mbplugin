@@ -1,5 +1,5 @@
 # -*- coding: utf8 -*-
-''' Файл с общими установками, распространяется с дистрибутивом 
+''' Файл с общими установками, распространяется с дистрибутивом
 Значения по умолчанию, здесь ничего не меняем, если хотим поменять меняем в mbplugin.ini
 подробное описание см в readme.md
 '''
@@ -18,7 +18,7 @@ def find_file_up(folder, filename):
     'Нужен для совместимости со старым подходом, когда папка mbplugin могла находится на несколько уровней вложенности вниз'
     folder = os.path.abspath(folder)
     if os.path.exists(os.path.join(folder, filename)):
-            return folder    
+        return folder
     levels = [os.sep.join(folder.split(os.sep)[:i]) for i in range(len(folder.split(os.sep)), 1, -1)]
     for path in levels:
         if os.path.exists(os.path.join(path, filename)):
@@ -42,7 +42,7 @@ if sys.platform != 'win32':
         mbplugin_root_path = os.path.abspath(os.path.join(pwd, '..'))
     elif os.path.exists(os.path.abspath(os.path.join(pwd, '..', '..','mbplugin', 'plugin', 'util.py'))):
         mbplugin_root_path = os.path.abspath(os.path.join(pwd, '..', '..'))
-# Папка в которой по умолчанию находится mbplugin.ini, phones.ini, база 
+# Папка в которой по умолчанию находится mbplugin.ini, phones.ini, база
 # т.к. раньше допускалось что папка mbplugin может находится на несколько уровней вложенности вниз ищем вверх phones.ini
 mbplugin_ini_path = find_file_up(mbplugin_root_path, 'phones.ini')
 # В нормальном случае mbplugin_root_path и mbplugin_ini_path - одна и та же папка
@@ -66,7 +66,7 @@ ini = {
         'autoupdate_': {'descr':'Проверять и предлагать устанавливать новые версии', 'type':'checkbox'},
         'autoupdate': '0',
         'ask_update_': {'descr':'При обновлении не задавать вопрос', 'type':'checkbox'},
-        'ask_update': '1',        
+        'ask_update': '1',
         # logging
         # Формат лога
         'loggingformat_': {'descr':'Формат лога', 'type':'text', 'size':100},
@@ -83,7 +83,7 @@ ini = {
         # Уровень логирования
         'logginglevel_': {'descr':'Уровень логирования', 'type':'select', 'variants':'DEBUG INFO WARNING ERROR CRITICAL'},
         'logginglevel': 'INFO',
-        # Кидать логи в консоль, удобно для докера (чтобы работал docker log), при использовании с MobileBalance должно быть выключено 
+        # Кидать логи в консоль, удобно для докера (чтобы работал docker log), при использовании с MobileBalance должно быть выключено
         'logconsole_': {'descr':'Вести дополнительное логирование в консоль', 'type':'checkbox'},
         'logconsole': '0',
         # Папка для хранения сессий
@@ -127,7 +127,7 @@ ini = {
         'browser_proxy': '',
         # Прокси сервер для работы обычных плагинов http://user:pass@12.23.34.56:6789 для socks5 пишем socks5://...
         'requests_proxy_': {'descr':'''Прокси сервер для работы обычных плагинов либо пусто тогда пытается работать как есть, либо auto, тогда пытается подтянуть системные(срабатывает не всегда), либо в формате json {"http": "http://10.10.1.10:3128", "https": "http://10.10.1.10:1080"}''', 'type':'text'},
-        'requests_proxy': '',        
+        'requests_proxy': '',
         # показывать окно chrome если на странице найдена капча
         'show_captcha_': {'descr':'Показывать окно chrome если на странице найдена капча', 'type':'checkbox'},
         'show_captcha': '0',
@@ -143,14 +143,14 @@ ini = {
         # Честный headless chrome режим, из этого режима вернуть окно в видимое нельзя
         'headless_chrome_': {'descr':'Headless режим работы chrome', 'type':'checkbox'},
         'headless_chrome': '1',
-        # Если в linux не установлен GUI или в докере чтобы запустить браузер не в headless может потребоваться включить xvfb 
+        # Если в linux не установлен GUI или в докере чтобы запустить браузер не в headless может потребоваться включить xvfb
         # В докере он уже установлен из коробки
         'xvfb_': {'descr':'Включить xvfb', 'type':'checkbox'},
         'xvfb': '0',
         # NODE_TLS_REJECT_UNAUTHORIZED=0 отключить проверку сертификатов при загрузке движков
         'node_tls_reject_unauthorized_': {'descr': 'Отключение проверки сертификатов при загрузке браузерных движков, не меняйте этот параметр без крайней необходимости', 'type':'text'},
         'node_tls_reject_unauthorized': '',
-        # PLAYWRIGHT_BROWSERS_PATH 
+        # PLAYWRIGHT_BROWSERS_PATH
         'playwright_browsers_path_': {'descr': 'Путь по которому находится папка с движками браузеров, по умолчанию в LOCALAPPDATA\ms-playwright, не меняйте этот путь без крайней необходимости', 'type':'text'},
         'playwright_browsers_path': '',
         # Использовать браузер встроенный в движок playwright, если отключен, то движки не скачиваются
@@ -158,7 +158,7 @@ ini = {
         'use_builtin_browser': '1',
         # Какой браузерный движок используется для запросов
         'browsertype_': {'descr': 'Какой браузерный движок используется для запросов', 'type': 'select', 'variants': 'chromium firefox'},
-        'browsertype':'chromium', 
+        'browsertype':'chromium',
         # Путь к хрому - можно прописать явно в ini, иначе поищет из вариантов chrome_executable_path_alternate
         'chrome_executable_path_': {'descr':'Путь к хрому', 'type':'text', 'size':100, 'validate':lambda i:(i == '' or os.path.exists(i))},
         'chrome_executable_path': '',
@@ -246,7 +246,7 @@ ini = {
     'Telegram': {  # Раздел mbplugin.ini [Telegram]
         'start_tgbot_': {'descr':'Стартовать telegram bot вместе с http', 'type':'checkbox'},
         'start_tgbot': 1,  # Стартовать telegram bot вместе с http
-        # Прокси сервер для работы телеграм пустая строка - без прокси, auto - брать из настроек браузера, 
+        # Прокси сервер для работы телеграм пустая строка - без прокси, auto - брать из настроек браузера,
         # Либо адрес https://user:pass@host:port либо socks5://user:pass@host:port
         'tg_proxy_': {'descr':'Прокси сервер для работы телеграм пустая строка - без прокси, auto - брать из настроек браузера, либо адрес https://user:pass@host:port либо socks5://user:pass@host:port, по умолчанию без прокси', 'type':'text'},
         'tg_proxy': '',  # По умолчанию без прокси
@@ -280,11 +280,11 @@ ini = {
         'host_': {'descr':'127.0.0.1 - доступ только локально, 0.0.0.0 - разрешить доступ к веб-серверу по сети', 'type':'select', 'variants': '127.0.0.1 0.0.0.0'},
         'host': '127.0.0.1',
         # формат вывода по умолчанию, для страницы http://localhost:19777/report
-        # для форматирования номеров телефонов можно вместо PhoneNumber использовать 
-        # PhoneNumberFormat1 - (916) 111-2234 или 
+        # для форматирования номеров телефонов можно вместо PhoneNumber использовать
+        # PhoneNumberFormat1 - (916) 111-2234 или
         # PhoneNumberFormat2 - (916)111-2234
-        # Также можно сделать несколько альтернативных видов с разными наборами полей 
-        # они должны быть вида table_formatNNN где NNN произвольное число, которое не должно повторяться, 
+        # Также можно сделать несколько альтернативных видов с разными наборами полей
+        # они должны быть вида table_formatNNN где NNN произвольное число, которое не должно повторяться,
         # зайти на такие альтернативные report можно по ссылке http://localhost:19777/report/NNN
         'table_format_': {'descr':'Формат вывода по умолчанию, для страницы http://localhost:19777/report', 'type':'text', 'size':200, 'validate':lambda i:re.match(r'^(\w+,)*\w+$', str(i))},
         'table_format': 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime',  # ? UserName
@@ -330,7 +330,7 @@ main_html = r'''
 <b>Обратная связь.</b><br>
 Оптимальный способ обратной связи - <a href=https://github.com/artyl/mbplugin/issues>оставить issue на github</a> (для создания issue нужно зарегистрироваться)<br>
 Также обсуждение работы проходит в <a href=https://4pda.to/forum/index.php?showtopic=985296>форуме 4pda посвященном программе MobileBalance</a><br>
-Или <a href=https://t.me/mbplugin>в канале телеграмм</a><br>  
+Или <a href=https://t.me/mbplugin>в канале телеграмм</a><br>
 </body>
 <script>
 %(script)s
@@ -508,7 +508,7 @@ editor_html = r'''
                     document.getElementById("logout").classList.remove('hidden')
                 }
                 document.getElementById("buttonBlock").classList.remove('hidden')
-                document.getElementById("formIni").classList.remove('hidden')                
+                document.getElementById("formIni").classList.remove('hidden')
             }
             if(getCookie('wrongpassword')!=undefined){
                 document.getElementById("wrongPassword").classList.remove('hidden')

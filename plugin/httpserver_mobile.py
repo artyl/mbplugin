@@ -105,9 +105,9 @@ def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=-1, 
 
 
 def get_full_info_one_number(keypair:str, check:bool=False) -> str:
-    '''Получение подробной информации по одному 
+    '''Получение подробной информации по одному
     keypair - Region_Number
-    check==True - запросить информацию по номеру перед возвратом  
+    check==True - запросить информацию по номеру перед возвратом
     '''
     if check:  # /checkone - получаем баланс /getone - только показываем
         getbalance_standalone(filter=[f'__{keypair}__'])  # приходится добавлять подчеркивания чтобы исключить попадание по части строки
@@ -134,7 +134,7 @@ def get_full_info_one_number(keypair:str, check:bool=False) -> str:
         logging.info(f'Not found UslugiList in response for {keypair}')
     msgtxt = f"{baltxt}\n{detailed}\n{uslugi}".strip()
     store.feedback.text(msgtxt)
-    return msgtxt    
+    return msgtxt
 
 
 def getbalance_plugin(method, param_source):
@@ -269,7 +269,7 @@ def getreport(param=[]):
         if hover != '':
             el = f'<div class="item">{el}<div class="hoverHistory">{hover}</div></div>'
         return f'<{"th" if he=="NN" else "td"} id="{he}"{mark}>{el}</td>'
-    store.options('logginglevel', flush=True)  # Запускаем, чтобы сбросить кэш и перечитать ini        
+    store.options('logginglevel', flush=True)  # Запускаем, чтобы сбросить кэш и перечитать ini
     template_page = settings.table_template['page']
     template_history = settings.table_template['history']
     temlate_style = settings.table_template['style']
@@ -637,7 +637,7 @@ class Scheduler():
                     TelegramBot.instance.send_message('ping' if msg == '' else msg)
             else:
                 logging.error(f'Scheduler: Unknown command {cmd}: {store.exception_text()}')
-            store.feedback.unset()  # После обработки задания отменяем 
+            store.feedback.unset()  # После обработки задания отменяем
         except Exception:
             logging.info(f'Scheduler: Error while run job {current_job}: {store.exception_text()}')
         self._job_running = False
@@ -648,13 +648,13 @@ class Scheduler():
         return Scheduler.instance._job_running
 
     def run_once(self, cmd, delay:int=1, feedback_func: typing.Callable=None,  kwargs={}) -> bool:
-        '''Запланировать команду на однократный запуск, 
+        '''Запланировать команду на однократный запуск,
         cmd - команда для _run (check, check_send, get_one, check_new_version, ping и т.п.)
         delay - отложить старт на N секунд
         feedback - функция для отписки статуса, если смогли - вешаем на feedback, не смогли пишем в нее что не смогли
         kwargs - аргументы для cmd словарем, а не **
         возвращаем True - если запланировали и False если заняты
-        при планировании once сразу блокируем возможность запланировать на раз еще что-то 
+        при планировании once сразу блокируем возможность запланировать на раз еще что-то
         чтобы не запутаться с feedback'''
         if Scheduler.instance is not None and not Scheduler().job_is_running():
             Scheduler.instance._job_running = True  # Сразу выставляем флаг что работаем, чтобы вдогонку не поставить второе
@@ -734,7 +734,7 @@ class Scheduler():
     def view_txt(self) -> str:
         'Все задания текстом'
         jobs = self.read_from_ini()
-        err_jobs = [f'{job.err_msg}\n{job.job_str}' for job in jobs if job.err_msg!='']        
+        err_jobs = [f'{job.err_msg}\n{job.job_str}' for job in jobs if job.err_msg!='']
         # TODO !!! нужно сопоставить расписания (то что в jobs[n].job_sched у которого нет repr) и задания schedule.jobs
         res = '\n'.join(err_jobs) + ('\n\n' if err_jobs != [] else '') + '\n'.join(map(repr, schedule.jobs))
         return res + ' '
@@ -748,7 +748,7 @@ def auth_decorator(func):  # pylint: disable=no-self-argument
         # update.message.chat_id отсутствует у CallbackQueryHandler пробуем через update.effective_chat.id:
         if update.effective_chat.id in self.auth_id():
             if update is not None and update.effective_message is not None:
-                logging.info(f'TG auth:{update.effective_chat.id} {update.effective_message.text}')            
+                logging.info(f'TG auth:{update.effective_chat.id} {update.effective_message.text}')
             res = func(self, update, context)  # pylint: disable=not-callable
             return res
         else:
@@ -810,7 +810,7 @@ class TelegramBot():
     def handle_catch_all(self, update, context):
         'catch-all handler - логируем все что не попало в фильтры'
         if update is not None and update.effective_message is not None:
-            logging.info(f'TG catch-all:{update.effective_chat.id} {update.effective_message.text}') 
+            logging.info(f'TG catch-all:{update.effective_chat.id} {update.effective_message.text}')
 
     def auth_id(self):
         auth_id = store.options('auth_id', section='Telegram').strip()
@@ -833,7 +833,7 @@ class TelegramBot():
             except Exception:
                 exception_text = store.exception_text()
                 if 'Message is not modified' not in exception_text:
-                    logging.info(f'Unsuccess tg send:{text} {exception_text}') 
+                    logging.info(f'Unsuccess tg send:{text} {exception_text}')
                 return None
 
     @auth_decorator
@@ -935,7 +935,7 @@ class TelegramBot():
     def get_log(self, update: telegram.update.Update, context: telegram.ext.callbackcontext.CallbackContext):
         """Receive one log with inline keyboard/param, only auth user.
         /getlog - лог по последнему запросу
-        сюда приходим ДВА раза сначала чтобы создать клавиатуру(query=None), 
+        сюда приходим ДВА раза сначала чтобы создать клавиатуру(query=None),
         а потом чтобы отреагировать на нее
         """
         # reply(query.edit_message_text, query.message.reply_document, query.data)
@@ -1257,7 +1257,7 @@ class WebServer():
                 if str(store.options('sqlitestore')) == '1' and os.path.exists(store.options('balance_html')):
                     ct, text = 'text/html', open(store.options('balance_html')).read()
                 else:
-                    ct, text = 'text/html', HTML_NO_REPORT                    
+                    ct, text = 'text/html', HTML_NO_REPORT
             elif cmd.lower() == 'main':  # главная страница
                 port = store.options('port', section='HttpServer')
                 info = f'Mbplugin {store.version()} run on {socket.gethostname()}:{port} from {os.path.split(store.abspath(sys.argv[0]))[0]}<br>'

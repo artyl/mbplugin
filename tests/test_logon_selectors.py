@@ -54,7 +54,7 @@ class TestUM:
         self.user_data_dir = store.abspath_join(store.options('storefolder'), 'headless', 'test')
         self.browser = self.sync_pw.firefox.launch_persistent_context(
             user_data_dir=self.user_data_dir,
-            # Если нужно показать браузер 
+            # Если нужно показать браузер
             # SET HEADLESS_CHROME=False
             headless=os.environ.get('HEADLESS_CHROME','True').lower()=='true',
         )
@@ -68,13 +68,13 @@ class TestUM:
 
     def setup_method(self, method):
         self.page.goto('about:blank')
-    
+
     def teardown_method(self, method):
         self.page.goto('about:blank')
 
     def do_test_plugin(self, plugin):
         module = __import__(plugin, globals(), locals(), [], 0)
-        importlib.reload(module)  # обновляем модуль, на случай если он менялся            
+        importlib.reload(module)  # обновляем модуль, на случай если он менялся
         print(f'plugin={plugin}, login_url={module.login_url}')
         check_logon_selectors(self.page, login_url=module.login_url, user_selectors=module.user_selectors)
 
@@ -131,4 +131,3 @@ class TestUM:
     def test_yota(self):
         plugin = 'yota'
         self.do_test_plugin(plugin)
-

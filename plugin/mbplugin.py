@@ -31,7 +31,7 @@ def main():
     if len(sys.argv) == 4: # plugin login password
         login = sys.argv[2]
         password = sys.argv[3]
-    else: # request указан в переменной RequestVariable ?        
+    else: # request указан в переменной RequestVariable ?
         try:
             RequestVariable = os.environ['RequestVariable'].strip(' "')
             root = etree.fromstring(RequestVariable)
@@ -43,7 +43,7 @@ def main():
             sys.stdout.write(exception_text)
             return -1
         logging.debug(f'request = {RequestVariable}')
-    
+
     # Запуск плагина
     logging.info(f'Start {lang} {plugin} {login}')
     dbengine.flags('setunic',f'{lang}_{plugin}_{login}','start')  # выставляем флаг о начале запроса
@@ -69,20 +69,20 @@ def main():
         dbengine.flags('set',f'{lang}_{plugin}_{login}','error result')  # выставляем флаг о плохом результате]
         return -1
     dbengine.flags('delete',f'{lang}_{plugin}_{login}','start')  # запрос завершился успешно - сбрасываем флаг
-    try:    
+    try:
         # пишем в базу
         dbengine.write_result_to_db(f'{lang}_{plugin}', login, result)
         # обновляем данные из mdb
         dbengine.update_sqlite_from_mdb()
-    except Exception:    
+    except Exception:
         exception_text = f'Ошибка при подготовке работе с БД: {store.exception_text()}'
-        logging.error(exception_text)        
+        logging.error(exception_text)
     try:
         # генерируем balance_html
         httpserver_mobile.write_report()
-    except Exception:    
+    except Exception:
         exception_text = f'Ошибка при подготовке report: {store.exception_text()}'
-        logging.error(exception_text)        
+        logging.error(exception_text)
     logging.debug(f'result = {result}')
     logging.info(f'Complete {lang} {plugin} {login}\n')
     return 0

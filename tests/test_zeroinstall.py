@@ -8,7 +8,7 @@ def do_test_zeroinstall():
     os.makedirs(os.path.join(settings.mbplugin_root_path, 'mbplugin', 'store'))
     os.makedirs(os.path.join(settings.mbplugin_root_path, 'mbplugin', 'log'))
     os.makedirs(os.path.join(settings.mbplugin_root_path, 'mbplugin', 'db'))
-    shutil.copy(os.path.join(conftest.data_path, 'phones.ini'), os.path.join(settings.mbplugin_ini_path, 'phones.ini'))    
+    shutil.copy(os.path.join(conftest.data_path, 'phones.ini'), os.path.join(settings.mbplugin_ini_path, 'phones.ini'))
     ini = store.ini()
     print(f'Zeroinstall ini={os.path.abspath(ini.inipath)}')
     print(f'Zeroinstall ini exists={os.path.exists(os.path.abspath(ini.inipath))}')

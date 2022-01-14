@@ -8,10 +8,10 @@ login_url = 'https://beeline.uz/ru/signin'
 user_selectors = {'chk_lk_page_js': "document.querySelector('.content-wrapper .auth-content form input[type=password]') == null",
                 'chk_login_page_js': "document.querySelector('.content-wrapper .auth-content form input[type=password]') !== null",
                 'login_clear_js': "document.querySelector('.content-wrapper .auth-content form input[type=text]').value=''",
-                'login_selector': '.content-wrapper .auth-content form input[type=text]', 
-                'password_clear_js': "document.querySelector('.content-wrapper .auth-content form input[type=password]').value=''",  
+                'login_selector': '.content-wrapper .auth-content form input[type=text]',
+                'password_clear_js': "document.querySelector('.content-wrapper .auth-content form input[type=password]').value=''",
                 'password_selector': '.content-wrapper .auth-content form input[type=password]',
-                'remember_checker': "document.querySelector('.content-wrapper .auth-content form input[type=checkbox]').checked==false",  
+                'remember_checker': "document.querySelector('.content-wrapper .auth-content form input[type=checkbox]').checked==false",
                 'remember_js': "document.querySelector('.content-wrapper .auth-content form input[type=checkbox]').click()",
                 'submit_js': "document.querySelector('.content-wrapper .auth-content form button').click()",
                 }

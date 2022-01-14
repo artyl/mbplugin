@@ -11,7 +11,7 @@ user_selectors={
     'lk_page_url': 'client-api/getAccounts', # не считаем что зашли в ЛК пока не прогрузим этот url
     'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",  # true если мы в окне логина
     'login_clear_js': "document.querySelector('form input[id=username]').value=''",  # Уточняем поле для логина чтобы не промахнуться
-    'login_selector': 'form input[id=username]', 
+    'login_selector': 'form input[id=username]',
     'remember_checker': "document.querySelector('form input[name=rememberMe]').checked==false",  # Галка rememberMe почему-то нажимается только через js
     'remember_js': "document.querySelector('form input[name=rememberMe]').click()",
     }
@@ -22,7 +22,7 @@ class browserengine(browsercontroller.BrowserController):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         accountId = 0
         # Если в логине указан лицевой счет, то нам нужно узнать accountId чтобы запросить баланс по конкретному ЛС
-        if self.acc_num != '':                
+        if self.acc_num != '':
             # Сначала из файла client-api/getAccounts получаем accountId по номеру лицевого счета
             res1 = self.wait_params(params=[{
                 'name': '#accountId',  # Помечаем решеткой, потому что не берем в результат
@@ -48,7 +48,7 @@ class browserengine(browsercontroller.BrowserController):
             # и со страницы client-api/getFplStatus соберем в Balance2 бонусы (для него не нужен accountId)
             'name': 'Balance2',
             'url_tag': ['client-api/getFplStatus'],
-            'jsformula': 'data.balance',            
+            'jsformula': 'data.balance',
         }])
 
 def get_balance(login, password, storename=None, **kwargs):

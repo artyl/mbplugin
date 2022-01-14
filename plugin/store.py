@@ -46,8 +46,8 @@ def path_split_all(path):
 
 
 class Feedback():
-    '''Класс для создания функции обратной связи, используется чтобы откуда угодно кидать сообщения 
-    по ходу выполнения процесса например в телегу 
+    '''Класс для создания функции обратной связи, используется чтобы откуда угодно кидать сообщения
+    по ходу выполнения процесса например в телегу
     Отправитель шлет сообщения в store.feedback.text()
     Такая замена для print
     '''
@@ -85,7 +85,7 @@ feedback = Feedback()
 
 class Session():
     'Класс для сессии с дополнительными фишками для сохранения и проверки и с подтягиванием настроек'
-    
+
     def __init__(self, storename=None, headers={}):
         '''если не указать storename то сессия без сохранения
         headers - если после создания сессии нужно прописать дополнительные'''
@@ -108,7 +108,7 @@ class Session():
         try:
             os.remove(abspath_join(self.storefolder, self.storename))
         except Exception:
-            pass        
+            pass
         self.load_session()
 
     def disable_warnings(self):
@@ -192,7 +192,7 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     Если listparam=True, то читаем список из всех, что начинается на param
     mainparams - перекрывает любые другие варианты, если в нем присутствует - берем его
     Если результат путь (settings.path_param) - то вычисляем для него абсолютный путь
-    Если указан pkey (number, plugin) и секция Options то пытаемся прочитать индивидуальные параметры для этого телефона из phones.ini/phones_add.ini 
+    Если указан pkey (number, plugin) и секция Options то пытаемся прочитать индивидуальные параметры для этого телефона из phones.ini/phones_add.ini
     если указан flush - кэш очищается
     '''
     if not hasattr(options, 'mbplugin_ini') or flush:
@@ -335,7 +335,7 @@ class ini():
 
     def write(self):
         '''Сохраняем только mbplugin.ini и phones.ini для остальных - игнорируем
-        phones.ini всегда сохраняем в phones.ini, без phones_add.ini, если есть phones_add.ini не работаем 
+        phones.ini всегда сохраняем в phones.ini, без phones_add.ini, если есть phones_add.ini не работаем
         '''
         def ini_write_to_string(ini: configparser.ConfigParser) -> str:
             sf = io.StringIO()
@@ -495,7 +495,7 @@ def turn_logging(httplog=False, logginglevel=None):
     if options('node_tls_reject_unauthorized') != '':
         os.environ['NODE_TLS_REJECT_UNAUTHORIZED'] = options('node_tls_reject_unauthorized')
     if options('playwright_browsers_path') != '':
-        os.environ['PLAYWRIGHT_BROWSERS_PATH'] = options('playwright_browsers_path')    
+        os.environ['PLAYWRIGHT_BROWSERS_PATH'] = options('playwright_browsers_path')
     # logging.getLogger().handlers[0].stream.name
     file_log = logging.FileHandler(abspath_join(options('logginghttpfilename' if httplog else 'loggingfilename')))
     if logginglevel is None:

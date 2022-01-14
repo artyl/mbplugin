@@ -6,7 +6,7 @@ import browsercontroller
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
-        # Нажмите кнопку "Демо-доступ" или введите логин demo@saures.ru и пароль demo вручную. 
+        # Нажмите кнопку "Демо-доступ" или введите логин demo@saures.ru и пароль demo вручную.
         self.page_goto('https://lk.saures.ru/dashboard')
         self.page_wait_for(expression="document.getElementById('main-wrapper')!=null || document.querySelector('form button[type=submit]')!=null")
         if self.page_evaluate("document.getElementById('main-wrapper')!=null"):

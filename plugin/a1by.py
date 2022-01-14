@@ -9,7 +9,7 @@ user_selectors = {'chk_lk_page_js': "document.getElementById('ext-gen2') != null
                 'before_login_js': 'document.querySelector("#pwd_choose").click()',
                 'chk_login_page_js': "document.querySelector('form input[type=password]') != null",
                 'login_clear_js': "document.querySelector('form input[id=itelephone_new]').value=''",
-                'login_selector': 'form input[id=itelephone_new]', 
+                'login_selector': 'form input[id=itelephone_new]',
                 'remember_checker': '',
                 }
 

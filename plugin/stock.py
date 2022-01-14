@@ -1,11 +1,11 @@
 # -*- coding: utf8 -*-
-''' 
+'''
 Сумма по всем стокам
 Стоки прописаны в mbplugin.ini в виде:
 
 [stocks_broker_ru]
-stock1 = AAPL, 1, Y 
-stock2 = TATNP, 16, M 
+stock1 = AAPL, 1, Y
+stock2 = TATNP, 16, M
 stock3 = FXIT, 1, F
 remain1 = USD, 5
 remain2 = RUB, 536
@@ -18,8 +18,8 @@ NN должны быть различными
 currenc - в какой валюте считать итог
 Проверить что код стока корректный можно подставив в ссылку:
 https://finance.yahoo.com/quote/AAPL
-https://query1.finance.yahoo.com/v8/finance/chart/AAPL 
-https://iss.moex.com/iss/engines/stock/markets/shares/securities/TATNP 
+https://query1.finance.yahoo.com/v8/finance/chart/AAPL
+https://iss.moex.com/iss/engines/stock/markets/shares/securities/TATNP
 https://iss.moex.com/iss/securities/TATNP.xml
 Для moex можно указать рынок в виде M_TQBR M_TQTF M_TQTD  если не указывать - то M_TQBR
 Акции
@@ -115,7 +115,7 @@ def get_moex(market, security, cnt, qu=None):
 
 def thread_call_market(market,security,cnt,qu):
     logging.debug(f'Collect {market}:{security}')
-    try:    
+    try:
         if market.upper().startswith('Y'):
             return get_yahoo(market,security,cnt,qu)
         elif market.upper().startswith('M'):
@@ -126,17 +126,17 @@ def thread_call_market(market,security,cnt,qu):
             raise RuntimeError(f'Unknown market marker {market} for {security}')
     except Exception:
         exception_text = f'Error {market},{security}:{store.exception_text()}'
-        logging.error(exception_text)    
+        logging.error(exception_text)
 
-    
+
 def count_all_scocks_multithread(stocks, remain, currenc):
     '''
     Возвращает инфу по стокам в виде списка словарей:
-    'security' - код бумаги, 
-    'price' - цена бумаги, 
-    'value' - цена всех бумаг в валюте бумаги, 
-    'cnt' - количество , 
-    'currency' - валюта, 
+    'security' - код бумаги,
+    'price' - цена бумаги,
+    'value' - цена всех бумаг в валюте бумаги,
+    'cnt' - количество ,
+    'currency' - валюта,
     'value_priv' - цена всего вакета в приведенной к результату валюте
     '''
     k = get_curs_moex(currenc)  # Коэффициенты для приведения к одной валюте
@@ -165,7 +165,7 @@ def count_all_scocks_multithread(stocks, remain, currenc):
 
 def get_balance(login, password, storename=None, **kwargs):
     result = {}
-    session = store.Session(storename)  # Используем костылем для хранения предыдущих данных 
+    session = store.Session(storename)  # Используем костылем для хранения предыдущих данных
     # если у нас еще нет переменной для истории - создаем (грязный хак - не делайте так, а если делаете - не пользуйтесь этой сессией для хождения в инет, а только для сохранения):
     # TODO перенести хранение в SQLITE
     session._session.params['history'] = session._session.params.get('history',[])

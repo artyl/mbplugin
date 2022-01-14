@@ -96,7 +96,7 @@ def hide_chrome(hide=True, foreground=False):
         className = win32gui.GetClassName(hwnd).lower()
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
         try:  #  ??? text.lower().find('chrome')>=0  remote-debugging-port or remote-debugging-pipe
-            if (text != '' and 
+            if (text != '' and
             ('remote-debugging-p' in ''.join(psutil.Process(pid).cmdline()) or 'ms-playwright\\firefox' in ''.join(psutil.Process(pid).cmdline()))
             and not text.startswith('msct') and not text.startswith('default') and 'восстановить' not in text):
                 windowList.append((hwnd, text, className))
@@ -401,7 +401,7 @@ class BalanceOverPlaywright():
     def page_wait_for(self, expression=None, selector=None, loadstate=None, response_url=None, location_href_url=None, **kwargs):
         ''' Ожидаем одно или несколько событий:
         наступления eval(expression)==True
-        появления selector 
+        появления selector
         loadstate=True - окончания загрузки страницы (в playwright нужно осторожно, его поведение не всегда предсказуемо)
         location_href_url - ожидание url в адресной строке (glob, regex or predicate)
         response_url - появления в self.responses указанного url
@@ -655,20 +655,20 @@ class BalanceOverPlaywright():
         ''' Переходим по url и ждем параметры
         ---
         url если url пустой то не переходим а просто производим действия на текущей странице
-        --- 
-        params - список словарей вида 
+        ---
+        params - список словарей вида
         {'name':'text', 'url_tag':['text1','text2'], 'pformula':'text'} - ожидается приход json с url содержащим все строки из  url_tag из этого json через python eval возьмем tag_pformula
-        либо 
+        либо
         {'name':'text', 'url_tag':['text'], 'jsformula':'text'} - ожидается приход json с url содержащим url_tag из этого json через js eval возьмем tag_jsformula
         либо
         {'name':'text', 'url_tag':[], 'jsformula':'text'} - url_tag - пустой список или не указан, на странице выполняется js из jsformula
         Если нужно указать что в url_tag url заканчивается этим текстом, то поставьте после него знак $
         результат во всех случаях записывается с именем name в результирующий словарь
         Если параметр необязательный (т.е. его может и не быть) то чтобы его не ждать можно добавить в словарь по данному параметру 'wait':False
-        #param если параметр не нужен а просто нужно выполнить действие, то в начале такого параметра ставим # 
+        #param если параметр не нужен а просто нужно выполнить действие, то в начале такого параметра ставим #
         ---
-        save_to_result=True то записываем их в итоговый словарь результатов (все, которые не начинаются с решетки) (self.result) 
-        и также результаты возвращаем в словаре (return result) 
+        save_to_result=True то записываем их в итоговый словарь результатов (все, которые не начинаются с решетки) (self.result)
+        и также результаты возвращаем в словаре (return result)
         ВАЖНО
         Из того что уже вылезло - если возникают проблемы со сложным eval надо завернуть его в ()=>{...;return ...}
         '''

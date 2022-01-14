@@ -5,11 +5,11 @@
     MOEX Получение курсов с сайта ЦБ в логин наименование курса как на сайте например USD/RUB или MOEX_USD/RUB
     https://iss.moex.com/iss/statistics/engines/futures/markets/indicativerates/securities
     Получение котировок с moex.com в логин MOEX_ и код ценной бумаги например MOEX_TATNP
-    https://iss.moex.com/iss/engines/stock/markets/shares/securities/TATNP 
+    https://iss.moex.com/iss/engines/stock/markets/shares/securities/TATNP
     https://iss.moex.com/iss/securities/TATNP.xml
     Получение котировок с finance.yahoo.com в логин YAHOO_ и код ценной бумаги, напрмер YAHOO_AAPL
     https://finance.yahoo.com/quote/AAPL
-    https://query1.finance.yahoo.com/v8/finance/chart/AAPL 
+    https://query1.finance.yahoo.com/v8/finance/chart/AAPL
     Получение котировок ETF c Finex-etf
     https://finex-etf.ru/products/FXIT
 '''
