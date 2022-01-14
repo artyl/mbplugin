@@ -40,7 +40,7 @@ createhtmlreport = 1<br>
 
 # TODO в командах для traymeny используется os.system(f'start ... это будет работать только в windows, но пока пофигу, т.к. сам pystrayработает только в windows
 TRAY_MENU = (
-    {'text': "Main page", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/main'), 'show': True, 'default': True},
+    {'text': "Main page", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/main'), 'show': True},
     {'text': "View report", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/report'), 'show': True},
     {'text': "Edit config", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/editcfg'), 'show': str(store.options('HttpConfigEdit')) == '1'},
     {'text': "View log", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log?lines=40'), 'show': True},
@@ -560,7 +560,7 @@ class TrayIcon:
         items = []
         for item in TRAY_MENU:
             if item['show']:
-                items.append(pystray.MenuItem(item['text'], item['cmd'], default=item.get('default', False)))
+                items.append(pystray.MenuItem(item['text'], item['cmd'], default=(len(items) + 1 == int(store.options('tray_default')))))
         self.menu = pystray.Menu(*items)
         host = store.options('host', section='HttpServer')
         port = int(store.options('port', section='HttpServer'))
@@ -1224,13 +1224,14 @@ class WebServer():
             elif cmd.lower() == 'log':  # просмотр лога /log/....
                 if len(param) > 0 and param[0] == 'list':  # /log/list
                     allgroups = prepare_loglist_personal()
-                    text = [f'<a href=/log/{g}>{g}<a/><br>' for g in allgroups]
+                    text = [settings.header_html] + [f'<a href=/log/{g}>{g}<a/><br>' for g in allgroups]
                 elif len(param) > 0 and re.match(r'^\w*$', param[0]):  # /log/p_plugin_number
                     # text = [f'<img src=/screenshot/{os.path.split(fn)[-1]}/><br>' for fn in ss]
-                    text = [prepare_log_personal(param[0])]
+                    text = [settings.header_html] + [prepare_log_personal(param[0])]
                 else:  # /log
                     qs = urllib.parse.parse_qs(environ['QUERY_STRING'])
                     ct, text = view_log(qs)
+                    text = [settings.header_html] + text
             elif cmd.lower() == 'screenshot':  # скриншоты
                 if len(param) == 0 or not re.match(r'^\w*\.png$', param[0]):
                     return
@@ -1239,9 +1240,11 @@ class WebServer():
                 ct = 'image/png'
             elif cmd.lower() == 'schedule':  # просмотр расписания
                 ct, text = Scheduler().view_html()
+                text = [settings.header_html] + text
             elif cmd.lower() == 'reload_schedule':  # обновление расписания
                 Scheduler().reload()
                 ct, text = Scheduler().view_html()
+                text = [settings.header_html] + text
             elif cmd == 'logging_restart':  # logging_restart
                 store.logging_restart()
                 ct, text = 'text/html', 'OK'

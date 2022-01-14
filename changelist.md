@@ -295,7 +295,8 @@ FIX: В smile-net перекинул информацию о днях до от�
 FIX: Добавил конвертацию поля Expired в BeeExpired, так же как было для BalExpired (Expired похоже просто терялось, уже не смог вспомнить детали почему так было сделано)  
 FIX: МТС поменял выдачу по общему пакету, поменял пересчет  
 
-## mbplugin v1.00.09 (??.??.21) Return old expired fields onlime
+## mbplugin v1.00.09 (14.01.22) onlime fix again, beget, arm dockerfile, tray_default
 FIX: В onlime вернул как было, оказывается в MobileBalance это ломает показ  
 FIX: beget plugin from d1mas  
-FIX: Dockerfile for arm (raspbery pi) from d1mas  
+FIX: Dockerfile for arm (raspberry pi) from d1mas  
+ADD: Новый параметр tray_default задает пункт меню по умолчанию  

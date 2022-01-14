@@ -119,6 +119,9 @@ ini = {
         # показывать иконку web сервера в трее
         'show_tray_icon_': {'descr':'показывать иконку web сервера в трее', 'type':'checkbox'},
         'show_tray_icon': '1',
+        # Пункт меню по умолчанию
+        'tray_default_': {'descr':'Номер пункта меню по умолчанию (c 1)', 'type':'text', 'validate':lambda i:i.isdigit()},
+        'tray_default': '1',
         # Прокси сервер для работы хром плагинов http://user:pass@12.23.34.56:6789 для socks5 пишем socks5://...
         'browser_proxy_': {'descr':'Прокси сервер для работы хром плагинов http://user:pass@12.23.34.56:6789 для socks5 пишем socks5://...', 'type':'text'},
         'browser_proxy': '',
@@ -298,6 +301,14 @@ ini = {
     },
 }
 
+header_html = '''
+<!DOCTYPE html>
+<html>
+<head><link rel="shortcut icon" href="/favicon.png" type="image/png"></head>
+<body>
+<a class="hdr" href=/main>Перейти на главную</a><br>
+'''
+
 main_html = r'''
 <!DOCTYPE html>
 <html>
@@ -333,7 +344,7 @@ table_template = {
 <head><title>MobileBalance</title><meta http-equiv="content-type" content="text/html; charset=windows-1251"></head>{style}
 <body style="font-family: Verdana; cursor:default">
 <table class="BackgroundTable">
-<tr><td class="hdr">Информация о балансе телефонов - MobileBalance Mbplugin {title}</td></tr>
+<tr><td class="hdr">Информация о балансе телефонов - MobileBalance Mbplugin {title} (<a class="hdr" href=/main>Перейти на главную</a>)</td></tr>
 <tr><td bgcolor="#808080">
 <table class="InfoTable" border="0" cellpadding="2" cellspacing="1">
     <tr class="header">{html_header}</tr>
@@ -350,6 +361,7 @@ th {background-color: #D1D1D1}
 td{white-space: nowrap;text-align: right;}
 tr:hover {background-color: #ffff99;}
 .hdr  {text-align:left;color:#FFFFFF; font-weight:bold; background-color:#0E3292; padding-left:5}
+a.hdr { color: #FFFFFF}
 .n    {background-color: #FFFFE1}
 .e    {background-color: #FFEBEB}
 .e_us {background-color: #FFEBEB; color: #FF0000}
