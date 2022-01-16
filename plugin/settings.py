@@ -327,6 +327,8 @@ main_html = r'''
 <button onclick="fetch('/restart').then(function(response) {return response})">Restart web server</button><br>
 <button onclick="fetch('/exit').then(function(response) {return response})">Exit web server</button><br>
 <br>
+<a href=https://github.com/artyl/mbplugin/blob/master/readme.md>Документация на github</a><br>
+<br>
 <b>Обратная связь.</b><br>
 Оптимальный способ обратной связи - <a href=https://github.com/artyl/mbplugin/issues>оставить issue на github</a> (для создания issue нужно зарегистрироваться)<br>
 Также обсуждение работы проходит в <a href=https://4pda.to/forum/index.php?showtopic=985296>форуме 4pda посвященном программе MobileBalance</a><br>

@@ -300,3 +300,6 @@ FIX: В onlime вернул как было, оказывается в MobileBal
 FIX: beget plugin from d1mas  
 FIX: Dockerfile for arm (raspberry pi) from d1mas  
 ADD: Новый параметр tray_default задает пункт меню по умолчанию  
+
+## mbplugin v1.00.10 (??.01.22) fix starting firefox engine
+FIX: В некоторых случаях firefox не хотел стартовать если не создана папка для профиля  

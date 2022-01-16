@@ -285,6 +285,9 @@ class BalanceOverPlaywright():
         # if self.headless:
         # В Headless chrome не работают профили, в Firefox их вообще нет, так что многопрофильность не используем
         self.user_data_dir = store.abspath_join(self.storefolder, 'headless', self.profile_directory)
+        # Firefox в некоторых версиях не хочет стартовать если не создана папка профиля
+        if not os.path.exists(self.user_data_dir):
+            os.makedirs(self.user_data_dir, exist_ok=True)
         self.launch_config = {
             'headless': self.headless,
         }
