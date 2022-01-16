@@ -18,8 +18,8 @@
 [Инструкция по варианту использования mobilebalance](https://github.com/artyl/mbplugin/blob/master/mobilebalance.md)
 
 ## Дополнительная информация
-[История изменения (в ней часть информации не попавшая в документацию)](https://github.com/artyl/mbplugin/blob/master/changelist.md)
-[Описание параметров mbplugin.ini (почти все параметры из секции Options из mbplugin.ini могут быть прописаны индивидуально в секцию к телефону)](https://github.com/artyl/mbplugin/blob/master/mobilebalance.md)
+[История изменения (в ней часть информации не попавшая в документацию)](https://github.com/artyl/mbplugin/blob/master/changelist.md)  
+[Описание параметров mbplugin.ini (почти все параметры из секции Options из mbplugin.ini могут быть прописаны индивидуально в секцию к телефону)](https://github.com/artyl/mbplugin/blob/master/mbplugin_ini.md)
 
 ## На данный момент реализованы плагины
 
