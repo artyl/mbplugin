@@ -803,9 +803,9 @@ class TelegramBot():
         elif 'telegram' not in sys.modules:
             logging.info('Module telegram not found')
         elif api_token == '':
-            logging.info('Telegtam api_token not found')
+            logging.info('Telegram api_token not found')
         elif str(store.options('start_tgbot', section='Telegram')) != '1':
-            logging.info('Telegtam bot start is disabled in mbplugin.ini (start_tgbot=0)')
+            logging.info('Telegram bot start is disabled in mbplugin.ini (start_tgbot=0)')
 
     def handle_catch_all(self, update, context):
         'catch-all handler - логируем все что не попало в фильтры'
