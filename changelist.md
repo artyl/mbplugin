@@ -301,5 +301,7 @@ FIX: beget plugin from d1mas
 FIX: Dockerfile for arm (raspberry pi) from d1mas  
 ADD: Новый параметр tray_default задает пункт меню по умолчанию  
 
-## mbplugin v1.00.10 (??.01.22) fix starting firefox engine
+## mbplugin v1.00.10 (23.01.22) fix starting firefox engine
 FIX: В некоторых случаях firefox не хотел стартовать если не создана папка для профиля  
+ADD: Добавлен оператор SMS.RU (sms рассылки) Автор плагина Pasha  
+ADD: Добавлен оператор Mango Office (IP телефония) Автор плагина Pasha  

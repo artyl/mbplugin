@@ -42,6 +42,7 @@ uminet - uminet.ru (Интернет провайдер)
 zadarma - Zadarma.com (IP телефония)  
 cardtel - cardtel.ru (IP телефония)  
 sipnet - Sipnet.ru (IP телефония)  
+mangooffice - www.mango-office.ru (IP телефония) (автор Pasha)  
 strelka - strelka.ru Баланс карты стрелка  
 sodexo - sodexo.com Получение баланса карты Sodexo (подарочные карты)  
 currency - Курсы валют USD, EUR, с ЦБ и с MOEX, курсы акций с MOEX и yahoo finance (заменил плагины eur, usd, moex и yahoo)  
@@ -52,6 +53,7 @@ mosenergosbyt - mosenergosbyt.ru Сайт мосэнергосбыт (ЖКХ)
 chailand - chailand.ru Карта парка атракционов
 vscale - vscale.ru Облачные серверы для разработчиков  
 beget - beget.ru (хостинг-провайдера BEGET) (автор d1mas)  
+smsru - sms.ru оператор SMS.RU (sms рассылки) (автор Pasha)  
 Для плагинов rostelecom и mosenergosbyt можно указывать конкретный лицевой счет если их несколько в формате ```login/лицевой_счет```  
 
 ### Тестовые плагины
