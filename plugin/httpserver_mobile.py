@@ -139,7 +139,7 @@ def get_full_info_one_number(keypair:str, check:bool=False) -> str:
 
 def getbalance_plugin(method, param_source):
     ''' Вызов плагинов jsmbLH
-     fplugin, login, password, date
+    fplugin, login, password, date
     date нужен чтобы не кэшировались запросы, туда можно класть что угодно
     В зависимости от method параметры принимаем либо
     url: список [fplugin, login, password, date]
@@ -765,6 +765,7 @@ class TelegramBot():
         api_token = store.options('api_token', section='Telegram').strip()
         request_kwargs = {}
         tg_proxy = store.options('tg_proxy', section='Telegram').strip()
+        self.help_text = ''
         if tg_proxy.lower() == 'auto':
             request_kwargs['proxy_url'] = urllib.request.getproxies().get('https', '')
         elif tg_proxy != '' and tg_proxy.lower() != 'auto':
@@ -778,18 +779,18 @@ class TelegramBot():
                 self.updater = Updater(api_token, use_context=True, request_kwargs=request_kwargs)
                 logging.info(f'{self.updater}')
                 dp = self.updater.dispatcher
-                dp.add_handler(CommandHandler("help", self.get_help))
-                dp.add_handler(CommandHandler("id", self.get_id))
-                dp.add_handler(CommandHandler("balance", self.get_balancetext))
-                dp.add_handler(CommandHandler("balancefile", self.get_balancefile))
-                dp.add_handler(CommandHandler("receivebalance", self.receivebalance))
-                dp.add_handler(CommandHandler("receivebalancefailed", self.receivebalance))
-                dp.add_handler(CommandHandler("restart", self.restartservice))
-                dp.add_handler(CommandHandler("getone", self.get_one))
-                dp.add_handler(CommandHandler("checkone", self.get_one))
-                dp.add_handler(CommandHandler("schedule", self.get_schedule))
-                dp.add_handler(CommandHandler("schedulereload", self.get_schedule))
-                dp.add_handler(CommandHandler("getlog", self.get_log))
+                self.add_command(dp, "help", self.get_help, 'справка')
+                self.add_command(dp, "id", self.get_id, 'узнать id профиля')
+                self.add_command(dp, "balance", self.get_balancetext, 'текущий баланс')
+                self.add_command(dp, "balancefile", self.get_balancefile, 'текущий баланс файлом')
+                self.add_command(dp, "receivebalance", self.receivebalance, 'запросить балансы, аналог команды mbp get-balance (фильтр после пробела)')
+                self.add_command(dp, "receivebalancefailed", self.receivebalance, 'запросить балансы номеров с ошибками')
+                self.add_command(dp, "restart", self.restartservice, 'перезапустить сервер')
+                self.add_command(dp, "getone", self.get_one, 'получить баланс одного номера')
+                self.add_command(dp, "checkone", self.get_one, 'запросить баланс одного номера')
+                self.add_command(dp, "schedule", self.get_schedule, 'текущие задачи в планировщике')
+                self.add_command(dp, "schedulereload", self.get_schedule, 'текущие задачи в планировщике')
+                self.add_command(dp, "getlog", self.get_log, 'отобразить лог')
                 dp.add_handler(CallbackQueryHandler(self.button))
                 dp.add_handler(MessageHandler(Filters.all, self.handle_catch_all))
                 self.updater.start_polling()  # Start the Bot
@@ -806,6 +807,11 @@ class TelegramBot():
             logging.info('Telegram api_token not found')
         elif str(store.options('start_tgbot', section='Telegram')) != '1':
             logging.info('Telegram bot start is disabled in mbplugin.ini (start_tgbot=0)')
+
+    def add_command(self,dispatcher, name, func, description):
+        'Добавляет команду к боту - dispatcher.add_handler(CommandHandler(name, func))'
+        dispatcher.add_handler(CommandHandler(name, func))
+        self.help_text = (f'{self.help_text}\n/{name} - {description}').strip()
 
     def handle_catch_all(self, update, context):
         'catch-all handler - логируем все что не попало в фильтры'
@@ -838,15 +844,14 @@ class TelegramBot():
 
     @auth_decorator
     def get_help(self, update, context):
-        """Send help."""
-        help_text = '''/help\n/id\n/balance\n/balancefile\n/receivebalance\n/receivebalancefailed\n/restart\n/getone\n/checkone\n/schedule\n/schedulereload\n/getlog'''
+        """Send help. Auth only"""
         logging.info(f'TG:{update.effective_message.chat_id} /help')
-        self.put_text(update.effective_message.reply_text, help_text)
+        self.put_text(update.effective_message.reply_text, self.help_text)
 
     @auth_decorator
     def get_balancetext(self, update, context):
         """Send balance only auth user."""
-        baltxt = prepare_balance('FULL')
+        baltxt = prepare_balance('FULL', params={'include': ','.join(context.args)})
         self.put_text(update.effective_message.reply_text, baltxt)
 
     @auth_decorator
