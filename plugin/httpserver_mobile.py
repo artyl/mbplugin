@@ -765,7 +765,7 @@ class TelegramBot():
         api_token = store.options('api_token', section='Telegram').strip()
         request_kwargs = {}
         tg_proxy = store.options('tg_proxy', section='Telegram').strip()
-        self.help_text = ''
+        self.commands = []
         if tg_proxy.lower() == 'auto':
             request_kwargs['proxy_url'] = urllib.request.getproxies().get('https', '')
         elif tg_proxy != '' and tg_proxy.lower() != 'auto':
@@ -791,13 +791,15 @@ class TelegramBot():
                 self.add_command(dp, "schedule", self.get_schedule, 'текущие задачи в планировщике')
                 self.add_command(dp, "schedulereload", self.get_schedule, 'текущие задачи в планировщике')
                 self.add_command(dp, "getlog", self.get_log, 'отобразить лог')
+                # self.add_command(dp, "alias", self.get_alias, 'alias')
                 dp.add_handler(CallbackQueryHandler(self.button))
                 dp.add_handler(MessageHandler(Filters.all, self.handle_catch_all))
+                self.add_menu()
                 self.updater.start_polling()  # Start the Bot
+                TelegramBot.instance = self  # Запустили бота - прописываем инстанс
                 logging.info('Telegram bot started')
                 if str(store.options('send_empty', section='Telegram')) == '1':
                     self.send_message(text='Hey there!')
-                TelegramBot.instance = self  # Запустили бота - прописываем инстанс
             except Exception:
                 exception_text = f'Ошибка запуска telegram bot {store.exception_text()}'
                 logging.error(exception_text)
@@ -810,13 +812,26 @@ class TelegramBot():
 
     def add_command(self,dispatcher, name, func, description):
         'Добавляет команду к боту - dispatcher.add_handler(CommandHandler(name, func))'
+        self.commands.append([name, description])
         dispatcher.add_handler(CommandHandler(name, func))
-        self.help_text = (f'{self.help_text}\n/{name} - {description}').strip()
-
     def handle_catch_all(self, update, context):
         'catch-all handler - логируем все что не попало в фильтры'
         if update is not None and update.effective_message is not None:
             logging.info(f'TG catch-all:{update.effective_chat.id} {update.effective_message.text}')
+
+    def add_menu(self):
+        'Читает алиасы, добавляет их к командам и в справку, создает меню'
+        alias = store.options('alias', section='Telegram', listparam=True)
+        # print(alias)  # ??? пока не понятно как это увязывать с вызовами
+        command_menu_list = store.options('command_menu_list', section='Telegram').strip().split(',')
+        command_menu_list = [i.strip() for i in command_menu_list]
+        commands_dict = {n:telegram.bot.BotCommand(f"/{n}", d) for n, d in self.commands}
+        for id in self.auth_id():
+            self.updater.bot.set_my_commands(
+                [commands_dict[n] for n in command_menu_list if n in commands_dict],
+                scope=telegram.BotCommandScopeChat(id))
+        #cmd = self.updater.bot.get_my_commands(scope=telegram.BotCommandScopeChat(list(self.auth_id())[0]))
+        #print([c.to_json() for c in cmd])
 
     def auth_id(self):
         auth_id = store.options('auth_id', section='Telegram').strip()
@@ -842,11 +857,16 @@ class TelegramBot():
                     logging.info(f'Unsuccess tg send:{text} {exception_text}')
                 return None
 
+    def get_alias(self, update, context):
+        # context.args=['1', '2', '3']
+        self.get_help(update, context)
+
     @auth_decorator
     def get_help(self, update, context):
         """Send help. Auth only"""
+        help_text = '\n'.join([f'/{n} - {d}' for n, d in self.commands]).strip()
         logging.info(f'TG:{update.effective_message.chat_id} /help')
-        self.put_text(update.effective_message.reply_text, self.help_text)
+        self.put_text(update.effective_message.reply_text, help_text)
 
     @auth_decorator
     def get_balancetext(self, update, context):

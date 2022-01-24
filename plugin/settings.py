@@ -270,6 +270,10 @@ ini = {
         'tgmb_format': '<b>{Alias}</b>\t<code>{PhoneNum}</code>\t<b>{Balance}</b>({BalDeltaQuery})',
         'mobilebalance_http_': {'descr':'Адрес web страницы mobilebalance (настройки\\WWW). На конце обязательно слэш', 'type':'text', 'size':100},
         'mobilebalance_http': 'http://localhost:19778/123456/',
+        'command_menu_list': {'descr':'Список комманд, которые отображаются в меню TG', 'type':'text', 'size':200},
+        'command_menu_list': 'help,id,balance',        
+        'alias_': {'descr':'Дополнительные команды для бота', 'type':'text', 'size':200},
+        'alias': '',        
     },
     'HttpServer': {  # Раздел mbplugin.ini [HttpServer]
         'start_http_': {'descr':'Стартовать http сервер', 'type':'checkbox'},
@@ -293,7 +297,7 @@ ini = {
         # every(4).hour либо every().day.at("10:30")
         # при желании после расписания можно указать фильтры (можно несколько) например так
         # schedule = every(4).hour,mts,beeline
-        # если фильтры не указаны, то опрос проводится по всем телефонам, для которых указан passord2 в phones.ini либо в phones_add.ini
+        # если фильтры не указаны, то опрос проводится по всем телефонам, для которых указан password2 в phones.ini либо в phones_add.ini
         # после изменения расписания необходим перезапуск сервера или команда util.py reload-schedule
         'schedule_': {'descr':'Расписание опросов', 'type':'text', 'size':200},
         'schedule': '',
