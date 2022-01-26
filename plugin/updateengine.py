@@ -110,7 +110,7 @@ class UpdaterEngine():
         if version.upper() == LATEST:
             version = [r['tag_name'] for r in self.releases if (not r['prerelease'] or self.prerelease) and (not r['draft'] or self.draft)][0]
         if version not in [r['tag_name'] for r in self.releases]:
-            raise RuntimeError('Release with version "{version}" not found on github release')
+            raise RuntimeError(f'Release with version "{version}" not found on github release')
         release = [r for r in self.releases if r['tag_name']  == version][0]
         return release
 
