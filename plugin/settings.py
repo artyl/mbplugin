@@ -270,7 +270,7 @@ ini = {
         'tgmb_format': '<b>{Alias}</b>\t<code>{PhoneNum}</code>\t<b>{Balance}</b>({BalDeltaQuery})',
         'mobilebalance_http_': {'descr':'Адрес web страницы mobilebalance (настройки\\WWW). На конце обязательно слэш', 'type':'text', 'size':100},
         'mobilebalance_http': 'http://localhost:19778/123456/',
-        'command_menu_list': {'descr':'Список комманд, которые отображаются в меню TG', 'type':'text', 'size':200},
+        'command_menu_list_': {'descr':'Список комманд, которые отображаются в меню TG', 'type':'text', 'size':200},
         'command_menu_list': 'help,id,balance',
         'cmd_alias_': {'descr':'Дополнительные команды для бота в формате alias:description:command', 'type':'text', 'size':200, 'validate':lambda i:len(i.split(':',3))==3 and i.split(':')[0].isalnum()},
         'cmd_alias': '',
