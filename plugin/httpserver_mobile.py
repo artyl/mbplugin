@@ -14,7 +14,7 @@ except Exception:
 try:
     import telegram
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-    from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
+    from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, Dispatcher
 except ModuleNotFoundError:
     print('No telegram installed, no telegram bot')
 
@@ -757,15 +757,46 @@ def auth_decorator(func):  # pylint: disable=no-self-argument
 
 class TelegramBot():
 
+    # TODO make singleton class with __new__
     instance = None  # когда создадим класс сюда запишем ссылку на созданный экземпляр
 
     def __init__(self):
         if 'telegram' not in sys.modules:
             return  # Нет модуля TG - просто выходим
+        TelegramBot.instance = self  # Запустили бота - прописываем инстанс singleton
+        # TgCommand для команд type(func) != str , для cmd_alias type(func) == str
+        TgCommand = collections.namedtuple('TgCommand', 'name, description, func')
+        commands_list: typing.List[TgCommand] = [
+            TgCommand('/help', 'справка', self.get_help),
+            TgCommand('/id', 'узнать id профиля', self.get_id),
+            TgCommand('/balance', 'текущий баланс', self.get_balancetext),
+            TgCommand('/balancefile', 'текущий баланс файлом', self.get_balancefile),
+            TgCommand('/receivebalance', 'запросить балансы, аналог команды mbp get-balance (фильтр после пробела)', self.receivebalance),
+            TgCommand('/receivebalancefailed', 'запросить балансы номеров с ошибками', self.receivebalance),
+            TgCommand('/restart', 'перезапустить сервер', self.restartservice),
+            TgCommand('/getone', 'получить баланс одного номера', self.get_one),
+            TgCommand('/checkone', 'запросить баланс одного номера', self.get_one, ),
+            TgCommand('/schedule', 'текущие задачи в планировщике', self.get_schedule),
+            TgCommand('/schedulereload', 'текущие задачи в планировщике', self.get_schedule),
+            TgCommand('/getlog', 'отобразить лог', self.get_log),
+        ]
+        self.commands: typing.Dict[str, TgCommand] = {cmd.name:cmd for cmd in commands_list}
+        # Читаем алиасы команд
+        for line in store.options('cmd_alias', section='Telegram', listparam=True):
+            try:
+                name, description, func = line.split(':', 3)
+                alias = TgCommand(re.sub('^//', '/', f'/{name.strip()}'), description, re.sub('^//', '/', f'/{func.strip()}'))
+                self.commands[alias.name] = alias
+            except:
+                logging.warning(f'Wrong tg alias {line}')
+        self.start_bot()
+        self.add_bot_menu()
+
+    def start_bot(self):
+        'Запускаем бота'
         api_token = store.options('api_token', section='Telegram').strip()
         request_kwargs = {}
         tg_proxy = store.options('tg_proxy', section='Telegram').strip()
-        self.commands = []
         if tg_proxy.lower() == 'auto':
             request_kwargs['proxy_url'] = urllib.request.getproxies().get('https', '')
         elif tg_proxy != '' and tg_proxy.lower() != 'auto':
@@ -778,28 +809,16 @@ class TelegramBot():
                 logging.info(f'Module telegram starting for id={self.auth_id()}')
                 self.updater = Updater(api_token, use_context=True, request_kwargs=request_kwargs)
                 logging.info(f'{self.updater}')
-                dp = self.updater.dispatcher
-                self.add_command(dp, "help", self.get_help, 'справка')
-                self.add_command(dp, "id", self.get_id, 'узнать id профиля')
-                self.add_command(dp, "balance", self.get_balancetext, 'текущий баланс')
-                self.add_command(dp, "balancefile", self.get_balancefile, 'текущий баланс файлом')
-                self.add_command(dp, "receivebalance", self.receivebalance, 'запросить балансы, аналог команды mbp get-balance (фильтр после пробела)')
-                self.add_command(dp, "receivebalancefailed", self.receivebalance, 'запросить балансы номеров с ошибками')
-                self.add_command(dp, "restart", self.restartservice, 'перезапустить сервер')
-                self.add_command(dp, "getone", self.get_one, 'получить баланс одного номера')
-                self.add_command(dp, "checkone", self.get_one, 'запросить баланс одного номера')
-                self.add_command(dp, "schedule", self.get_schedule, 'текущие задачи в планировщике')
-                self.add_command(dp, "schedulereload", self.get_schedule, 'текущие задачи в планировщике')
-                self.add_command(dp, "getlog", self.get_log, 'отобразить лог')
-                # self.add_command(dp, "alias", self.get_alias, 'alias')
-                dp.add_handler(CallbackQueryHandler(self.button))
-                dp.add_handler(MessageHandler(Filters.all, self.handle_catch_all))
-                self.add_menu()
+                for cmd in self.commands.values():
+                    if type(cmd.func) != str:  # только команды
+                        # В handler надо класть без слэша '/help' -> 'help' поэтому [1:] 
+                        self.updater.dispatcher.add_handler(CommandHandler(cmd.name[1:], cmd.func))
+                self.updater.dispatcher.add_handler(CallbackQueryHandler(self.button))
+                self.updater.dispatcher.add_handler(MessageHandler(Filters.all, self.handle_catch_all))
                 self.updater.start_polling()  # Start the Bot
-                TelegramBot.instance = self  # Запустили бота - прописываем инстанс
                 logging.info('Telegram bot started')
                 if str(store.options('send_empty', section='Telegram')) == '1':
-                    self.send_message(text='Hey there!')
+                    self.send_message(text='Hey there!', disable_notification=True)
             except Exception:
                 exception_text = f'Ошибка запуска telegram bot {store.exception_text()}'
                 logging.error(exception_text)
@@ -810,28 +829,16 @@ class TelegramBot():
         elif str(store.options('start_tgbot', section='Telegram')) != '1':
             logging.info('Telegram bot start is disabled in mbplugin.ini (start_tgbot=0)')
 
-    def add_command(self,dispatcher, name, func, description):
-        'Добавляет команду к боту - dispatcher.add_handler(CommandHandler(name, func))'
-        self.commands.append([name, description])
-        dispatcher.add_handler(CommandHandler(name, func))
-    def handle_catch_all(self, update, context):
-        'catch-all handler - логируем все что не попало в фильтры'
-        if update is not None and update.effective_message is not None:
-            logging.info(f'TG catch-all:{update.effective_chat.id} {update.effective_message.text}')
-
-    def add_menu(self):
-        'Читает алиасы, добавляет их к командам и в справку, создает меню'
-        alias = store.options('alias', section='Telegram', listparam=True)
-        # print(alias)  # ??? пока не понятно как это увязывать с вызовами
+    def add_bot_menu(self):
+        'создает персональное меню бота [/] для всех id из auth_id из пунктов перечисленных в command_menu_list'
         command_menu_list = store.options('command_menu_list', section='Telegram').strip().split(',')
-        command_menu_list = [i.strip() for i in command_menu_list]
-        commands_dict = {n:telegram.bot.BotCommand(f"/{n}", d) for n, d in self.commands}
+        command_menu_list = [re.sub('^//', '/', f'/{i.strip()}') for i in command_menu_list]
         for id in self.auth_id():
+            # Перебираем команды из списка command_menu_list и те которые есть в command_menu_list вставляем в меню [/]
+            cmds = [self.commands[c1] for c1 in command_menu_list if c1 in self.commands]
             self.updater.bot.set_my_commands(
-                [commands_dict[n] for n in command_menu_list if n in commands_dict],
+                [telegram.bot.BotCommand(cmd.name, cmd.description) for cmd in cmds],
                 scope=telegram.BotCommandScopeChat(id))
-        #cmd = self.updater.bot.get_my_commands(scope=telegram.BotCommandScopeChat(list(self.auth_id())[0]))
-        #print([c.to_json() for c in cmd])
 
     def auth_id(self):
         auth_id = store.options('auth_id', section='Telegram').strip()
@@ -857,16 +864,34 @@ class TelegramBot():
                     logging.info(f'Unsuccess tg send:{text} {exception_text}')
                 return None
 
-    def get_alias(self, update, context):
-        # context.args=['1', '2', '3']
-        self.get_help(update, context)
+    def handle_catch_all(self, update, context):
+        '''catch-all handler - отрабатываем алиасы и логируем все остальное что не попало в фильтры, 
+        аутентификацию можно не отрабатывать - она отработает когда пойдем в вызванную по алиасу команду'''
+        if update is not None and update.effective_message is not None:
+            acmd, *aargs = re.split(r'\s+', update.effective_message.text)
+            if acmd in self.commands and type(self.commands[acmd].func) == str:
+                logging.info(f'TG catch alias:{update.effective_chat.id} {update.effective_message.text}')
+                alias = self.commands[acmd]
+                # реальный text который уйдет в команду, реальная команда и реальные аргументы
+                real_text = ' '.join([alias.func] + aargs)
+                rcmd, *rargs = re.split(r'\s+', real_text)
+                if rcmd not in self.commands:
+                    logging.info(f'TG for alias {acmd} not found command {alias.func}')
+                    return
+                cmd = self.commands[rcmd]
+                update.effective_message.text = real_text
+                context.args = rargs
+                cmd.func(update, context)
+                return
+            logging.info(f'TG catch-all:{update.effective_chat.id} {update.effective_message.text}')
 
     @auth_decorator
     def get_help(self, update, context):
-        """Send help. Auth only"""
-        help_text = '\n'.join([f'/{n} - {d}' for n, d in self.commands]).strip()
-        logging.info(f'TG:{update.effective_message.chat_id} /help')
-        self.put_text(update.effective_message.reply_text, help_text)
+        """Send help. only auth user"""
+        help_text = [f'{cmd.name} - {cmd.description}' for cmd in self.commands.values()]
+        if context.args != []:
+            help_text.insert(0, repr(context.args))
+        self.put_text(update.effective_message.reply_text, '\n'.join(help_text).strip())
 
     @auth_decorator
     def get_balancetext(self, update, context):
@@ -1022,7 +1047,7 @@ class TelegramBot():
         if cmd in ['checkone', 'getone']:
             self.get_one(update, context)
 
-    def send_message(self, text:str, parse_mode=telegram.ParseMode.HTML, ids=None):
+    def send_message(self, text:str, parse_mode=telegram.ParseMode.HTML, ids=None, **kwargs):
         'Отправляем сообщение по списку ids, либо по списку auth_id из mbplugin.ini'
         if self.updater is None or text == '':
             return
@@ -1030,10 +1055,10 @@ class TelegramBot():
         text = text if type(text) == str else str(text)
         for id in lst:
             try:
-                self.updater.bot.sendMessage(chat_id=id, text=text, parse_mode=parse_mode)
+                self.updater.bot.sendMessage(chat_id=id, text=text, parse_mode=parse_mode, **kwargs)
             except Exception:
                 try:
-                    self.updater.bot.sendMessage(chat_id=id, text=text[:4000], parse_mode=None)
+                    self.updater.bot.sendMessage(chat_id=id, text=text[:4000], parse_mode=None, **kwargs)
                 except Exception:
                     exception_text = f'Ошибка отправки сообщения {text} для {id} telegram bot {store.exception_text()}'
                     logging.error(exception_text)
@@ -1341,6 +1366,9 @@ def main():
             send_http_signal(cmd='exit')
     except Exception:
         exception_text = f'Ошибка запуска WebServer: {store.exception_text()}'
+        logging.error(exception_text)
+        if 'UnicodeDecodeError:' in exception_text:
+            exception_text += f'\nWebServer не запустится если имя компьютера содержит русские буквы,\nв настоящий момент имя компьютера "{socket.gethostname()}"'
         logging.error(exception_text)
 
 

@@ -271,9 +271,9 @@ ini = {
         'mobilebalance_http_': {'descr':'Адрес web страницы mobilebalance (настройки\\WWW). На конце обязательно слэш', 'type':'text', 'size':100},
         'mobilebalance_http': 'http://localhost:19778/123456/',
         'command_menu_list': {'descr':'Список комманд, которые отображаются в меню TG', 'type':'text', 'size':200},
-        'command_menu_list': 'help,id,balance',        
-        'alias_': {'descr':'Дополнительные команды для бота', 'type':'text', 'size':200},
-        'alias': '',        
+        'command_menu_list': 'help,id,balance',
+        'cmd_alias_': {'descr':'Дополнительные команды для бота в формате alias:description:command', 'type':'text', 'size':200, 'validate':lambda i:len(i.split(':',3))==3 and i.split(':')[0].isalnum()},
+        'cmd_alias': '',
     },
     'HttpServer': {  # Раздел mbplugin.ini [HttpServer]
         'start_http_': {'descr':'Стартовать http сервер', 'type':'checkbox'},
