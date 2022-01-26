@@ -763,7 +763,6 @@ class TelegramBot():
     def __init__(self):
         if 'telegram' not in sys.modules:
             return  # Нет модуля TG - просто выходим
-        TelegramBot.instance = self  # Запустили бота - прописываем инстанс singleton
         # TgCommand для команд type(func) != str , для cmd_alias type(func) == str
         TgCommand = collections.namedtuple('TgCommand', 'name, description, func')
         commands_list: typing.List[TgCommand] = [
@@ -811,12 +810,13 @@ class TelegramBot():
                 logging.info(f'{self.updater}')
                 for cmd in self.commands.values():
                     if type(cmd.func) != str:  # только команды
-                        # В handler надо класть без слэша '/help' -> 'help' поэтому [1:] 
+                        # В handler надо класть без слэша '/help' -> 'help' поэтому [1:]
                         self.updater.dispatcher.add_handler(CommandHandler(cmd.name[1:], cmd.func))
                 self.updater.dispatcher.add_handler(CallbackQueryHandler(self.button))
                 self.updater.dispatcher.add_handler(MessageHandler(Filters.all, self.handle_catch_all))
                 self.updater.start_polling()  # Start the Bot
                 logging.info('Telegram bot started')
+                TelegramBot.instance = self  # Запустили бота - прописываем инстанс singleton
                 if str(store.options('send_empty', section='Telegram')) == '1':
                     self.send_message(text='Hey there!', disable_notification=True)
             except Exception:
@@ -844,6 +844,7 @@ class TelegramBot():
         auth_id = store.options('auth_id', section='Telegram').strip()
         if not re.match(r'(\d+,?)', auth_id):
             logging.error(f'incorrect auth_id in ini: {auth_id}')
+            return []
         return map(int, auth_id.split(','))
 
     def get_id(self, update, context):
