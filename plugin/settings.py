@@ -61,6 +61,7 @@ chrome_executable_path_alternate = [
 # Список параметров которые являются путями, для них при обращении в store.options делаем абсолютные пути
 path_param = ['loggingfolder', 'loggingfilename', 'logginghttpfilename', 'storefolder', 'balance_html']
 ########################################################################################
+# type variants text, checkbox, select, list(of str)
 ini = {
     'Options': {  # Раздел mbplugin.ini [Options]
         'autoupdate_': {'descr':'Проверять и предлагать устанавливать новые версии', 'type':'checkbox'},
@@ -180,7 +181,10 @@ ini = {
         # спецвариант по просьбе Mr. Silver в котором возвращаются не остаток интернета, а использованный
         # 1 - показывать использованный трафик (usedByMe) по всем  или 0 - показывать оставшийся трафик (NonUsed) по всем
         # список тел, через запятую - показать использованный только для этого списка телефонов
-        'mts_usedbyme_': {'descr':'По МТС возвращать использованный трафик вместо оставшегося', 'type':'checkbox'},
+        'mts_usedbyme_': {
+            'descr': 'По МТС возвращать использованный трафик вместо оставшегося 1 - показывать использованный по всем, 0 - показывать оставшийся по всем, num1,num2,num3 - показывать использованный только по этим номерам', 
+            'type': 'text',
+            'validate': lambda i:(i in ('0', '1') or re.match(r'^(\d\d\d+,)*\d\d\d+$', i))},
         'mts_usedbyme': '0',
         # спецвариант по просьбе dimon_s2020 при 0 берет данные по счетчику максимальные из всех
         # 1 - Переданные клиентом (ЛКК)
@@ -272,7 +276,7 @@ ini = {
         'mobilebalance_http': 'http://localhost:19778/123456/',
         'command_menu_list_': {'descr':'Список комманд, которые отображаются в меню TG', 'type':'text', 'size':200},
         'command_menu_list': 'help,id,balance',
-        'cmd_alias_': {'descr':'Дополнительные команды для бота в формате alias:description:command', 'type':'text', 'size':200, 'validate':lambda i:len(i.split(':',3))==3 and i.split(':')[0].isalnum()},
+        'cmd_alias_': {'descr':'Дополнительные команды для бота в формате alias:description:command', 'type':'list', 'size':200, 'validate':lambda i:re.match(r'^/?[A-Za-z0-9]+:[^:]*:/?\w+.*', i)},
         'cmd_alias': '',
     },
     'HttpServer': {  # Раздел mbplugin.ini [HttpServer]
@@ -299,7 +303,10 @@ ini = {
         # schedule = every(4).hour,mts,beeline
         # если фильтры не указаны, то опрос проводится по всем телефонам, для которых указан password2 в phones.ini либо в phones_add.ini
         # после изменения расписания необходим перезапуск сервера или команда util.py reload-schedule
-        'schedule_': {'descr':'Расписание опросов', 'type':'text', 'size':200},
+        'schedule_': {
+            'descr':'Расписание опросов', 'type':'list', 'size':200, 
+            'validate': lambda i:re.match(r'^every\(\d*\)\.(?:minutes?|hours?|days?|weeks?)(.at\(.+\))?,(?:check|check_send|check_new_version|ping)(_once)?(,.*)?', i)
+            },
         'schedule': '',
 
     },

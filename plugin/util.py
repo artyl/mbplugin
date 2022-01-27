@@ -125,12 +125,14 @@ def install_chromium(ctx, browsers):
 def pip_update(ctx, quiet):
     '''Обновляем пакеты по requirements.txt или requirements_win.txt '''
     name = 'pip-update'
+    flags = " -q " if quiet else ""
     if sys.platform == 'win32':
-        os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --no-warn-script-location --upgrade pip')
-        os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --no-warn-script-location -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements_win.txt")}')
+        requirements_path = os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements_win.txt")
+        flags += ' --no-warn-script-location '
     else:
-        os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} --upgrade pip')
-        os.system(f'"{sys.executable}" -m pip install {"-q" if quiet else ""} -r {os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements.txt")}')
+        requirements_path = os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements.txt")
+    os.system(f'"{sys.executable}" -m pip install {flags} --upgrade pip')
+    os.system(f'"{sys.executable}" -m pip install {flags} -r {requirements_path}')
     echo(f'OK {name}')
 
 
@@ -515,7 +517,7 @@ def check_ini(ctx):
                 valid, msg = store.option_validate(key, pkey=pkey)
                 if not valid:
                     phones_ini_mess.append(f'Section [Phone] #{nn} ' + msg)
-                if key.lower() not in store.settings.ini['Options'] and key.lower() not in store.settings.PHONE_INI_KEYS_LOWER:
+                if key.lower() not in store.settings.ini['Options'] and key.lower() not in store.settings.PHONE_INI_KEYS_LOWER and key.lower() not in ('phone_orig', 'region_orig'):
                     phones_ini_mess.append(f'Section [Phone] #{nn} has unused {key}')
         if len(phones_ini_mess):
             echo(f'Fail {name} phones.ini\n'+'\n'.join(phones_ini_mess))
@@ -705,7 +707,8 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
             echo(f'No new version found on github release')
             return
     if not skip_download:
-        updater.download_version(version=version, force=force, checksign=not no_check_sign)
+        fn = updater.download_version(version=version, force=force, checksign=not no_check_sign)
+        echo(f'Download {fn} from github OK')
     if not skip_install:
         if ask_update and not click.confirm('Will we make an update?', default=True):
             echo(f'OK {name} update canceled')

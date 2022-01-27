@@ -234,9 +234,14 @@ def option_validate(param, section='Options', pkey=None) -> typing.Tuple[bool, s
     if prop is not None:
         if prop['type'] == 'checkbox' and str(val) not in ['0', '1']:
             err_mess = f'Error {param}={val}, must be 0 or 1'
-        if prop['type'] == 'select' and str(val) not in prop['variants'].split():
+        elif prop['type'] == 'select' and str(val) not in prop['variants'].split():
             err_mess = f'Error {param}={val}, must be {prop["variants"]}'
-        if 'validate' in prop and not prop['validate'](str(val)):
+        elif prop['type'] == 'list' and 'validate' in prop:
+            val_list = options(param, section=section, listparam=True)
+            invalid = [i for i in val_list if not prop['validate'](i)]
+            if invalid != []:
+                err_mess = f'Error line {param} check {" ".join(invalid)}'
+        elif 'validate' in prop and not prop['validate'](str(val)):
             err_mess = f'Error {param}="{val}", invalid (not check validation)'
     return (err_mess == ''), err_mess
 

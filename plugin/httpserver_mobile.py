@@ -14,7 +14,7 @@ except Exception:
 try:
     import telegram
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-    from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, Dispatcher
+    from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, callbackcontext
 except ModuleNotFoundError:
     print('No telegram installed, no telegram bot')
 
@@ -743,17 +743,28 @@ class Scheduler():
         'Останавливаем шедулер'
         Scheduler.instance._scheduler_running = False
 
-def auth_decorator(func):  # pylint: disable=no-self-argument
-    def wrapper(self, update, context):
-        # update.message.chat_id отсутствует у CallbackQueryHandler пробуем через update.effective_chat.id:
-        if update.effective_chat.id in self.auth_id():
-            if update is not None and update.effective_message is not None:
-                logging.info(f'TG auth:{update.effective_chat.id} {update.effective_message.text}')
-            res = func(self, update, context)  # pylint: disable=not-callable
-            return res
-        else:
-            logging.info(f'TG:{update.effective_chat.id} unauthorized {update.effective_message.text}')
-    return wrapper
+
+def auth_decorator(errmsg=None, nonauth: typing.Callable = None):
+    'Если хотим незалогиненому выдать сообщение об ошибке - указываем его в errmsg, если без авторизации хотим вызвать другой метод - указываем его в nonauth'
+    def decorator(func):  # pylint: disable=no-self-argument
+        def wrapper(self, update: telegram.update.Update, context):
+            # update.message.chat_id отсутствует у CallbackQueryHandler пробуем через update.effective_chat.id:
+            if update is None or update.effective_chat is None or update.effective_message is None:
+                return
+            if update.effective_chat.id in self.auth_id():
+                if update is not None and update.effective_message is not None:
+                    logging.info(f'TG auth:{update.effective_chat.id} {update.effective_message.text}')
+                res = func(self, update, context)  # pylint: disable=not-callable
+                return res
+            elif nonauth is not None:
+                nonauth(self, update, context)
+            else:
+                if errmsg is not None:
+                    update.effective_message.reply_text(errmsg)
+                logging.info(f'TG:{update.effective_chat.id} unauthorized {update.effective_message.text}')
+        return wrapper
+    return decorator
+
 
 class TelegramBot():
 
@@ -886,7 +897,7 @@ class TelegramBot():
                 return
             logging.info(f'TG catch-all:{update.effective_chat.id} {update.effective_message.text}')
 
-    @auth_decorator
+    @auth_decorator(errmsg='/help\n/id')
     def get_help(self, update, context):
         """Send help. only auth user"""
         help_text = [f'{cmd.name} - {cmd.description}' for cmd in self.commands.values()]
@@ -894,26 +905,26 @@ class TelegramBot():
             help_text.insert(0, repr(context.args))
         self.put_text(update.effective_message.reply_text, '\n'.join(help_text).strip())
 
-    @auth_decorator
+    @auth_decorator()
     def get_balancetext(self, update, context):
         """Send balance only auth user."""
         baltxt = prepare_balance('FULL', params={'include': ','.join(context.args)})
         self.put_text(update.effective_message.reply_text, baltxt)
 
-    @auth_decorator
+    @auth_decorator()
     def get_balancefile(self, update, context):
         """Send balance html file only auth user."""
         _, res = getreport()
         for id in self.auth_id():
             self.updater.bot.send_document(chat_id=id, filename='balance.htm', document=io.BytesIO('\n'.join(res).strip().encode('cp1251')))
 
-    @auth_decorator
+    @auth_decorator()
     def restartservice(self, update, context):
         """Hard reset service"""
         self.put_text(update.effective_message.reply_text, 'Service will be restarted')
         restart_program(reason=f'TG:{update.effective_message.chat_id} /restart {context.args}')
 
-    @auth_decorator
+    @auth_decorator()
     def receivebalance(self, update, context):
         """ Запросить балансы по всем номерам, only auth user.
         /receivebalance
@@ -929,7 +940,7 @@ class TelegramBot():
         params = {'include': None if context.args == [] else ','.join(context.args)}
         Scheduler().run_once(cmd='check', feedback_func=feedback_func, kwargs={'filter':context.args, 'params':params, 'only_failed':only_failed})
 
-    @auth_decorator
+    @auth_decorator()
     def get_schedule(self, update, context):
         """Show schedule only auth user.
         /schedule
@@ -940,8 +951,8 @@ class TelegramBot():
         text = Scheduler().view_txt()
         self.put_text(update.effective_message.reply_text, text if text.strip() != '' else 'Empty')
 
-    @auth_decorator
-    def get_one(self, update, context: telegram.ext.callbackcontext.CallbackContext):
+    @auth_decorator()
+    def get_one(self, update, context: callbackcontext.CallbackContext):
         """Receive one balance with inline keyboard/args, only auth user.
         /checkone - получаем баланс
         /getone - показываем"""
@@ -949,11 +960,11 @@ class TelegramBot():
         args = ' '.join(context.args if context.args is not None else []).lower()
         if args != '' and update is not None:  # context.args
             cmd = (update.effective_message.text[1:]).split(' ')[0]
-            filtered = [v for k,v in store.ini('phones.ini').phones().items() if v['number'].lower()==args or v['alias'].lower()==args]
+            filtered = [v for k,v in store.ini('phones.ini').phones().items() if v['number'].lower() == args or v['alias'].lower()==args]
             message = self.put_text(update.effective_message.reply_text, f'You have chosen {args}')
             if len(filtered) > 0:
                 val = filtered[0]
-                callback_data=f"{cmd}_{val['Region']}_{val['Number']}"
+                callback_data = f"{cmd}_{val['Region']}_{val['Number']}"
                 cmd, keypair = callback_data.split('_', 1)  # До _ команда, далее Region_Number
             else:
                 self.put_text(message.edit_text, f'Not found {args}')  # type: ignore
@@ -982,8 +993,8 @@ class TelegramBot():
             feedback_func = lambda txt:self.put_text(query.edit_message_text, txt)  # type: ignore
             Scheduler().run_once(cmd='get_one', feedback_func=feedback_func, kwargs={'keypair': keypair, 'check': cmd == 'checkone'})
 
-    @auth_decorator
-    def get_log(self, update: telegram.update.Update, context: telegram.ext.callbackcontext.CallbackContext):
+    @auth_decorator()
+    def get_log(self, update: telegram.update.Update, context: callbackcontext.CallbackContext):
         """Receive one log with inline keyboard/param, only auth user.
         /getlog - лог по последнему запросу
         сюда приходим ДВА раза сначала чтобы создать клавиатуру(query=None),
@@ -1028,7 +1039,7 @@ class TelegramBot():
                 return
             reply(query.edit_message_text, query.message, query.data.split('_', 1)[1])
 
-    @auth_decorator
+    @auth_decorator()
     def button(self, update, context) -> None:
         '''Клавиатура, здесь реакция на нажатие
         Определяем откуда пришли и бросаем обратно'''

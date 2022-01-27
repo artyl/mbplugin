@@ -109,6 +109,10 @@ class UpdaterEngine():
             self.releases = self.session.get(url, verify=self.verify_ssl).json()
         if version.upper() == LATEST:
             version = [r['tag_name'] for r in self.releases if (not r['prerelease'] or self.prerelease) and (not r['draft'] or self.draft)][0]
+        # составляем список версий, которые подходят под указанный паттерн, если нет точного совпадения
+        matched_version = [r['tag_name'] for r in self.releases if version.lower() in r['tag_name'].lower() and r['tag_name'].startswith('v1.')] 
+        if len(matched_version) == 1:
+            version = matched_version[0]  # если нашлась ровно одна - то это то что нам нужно
         if version not in [r['tag_name'] for r in self.releases]:
             raise RuntimeError(f'Release with version "{version}" not found on github release')
         release = [r for r in self.releases if r['tag_name']  == version][0]
@@ -145,7 +149,7 @@ class UpdaterEngine():
                 result.append(f"{asset['name']} {asset['download_count']}")
         return '\n'.join(result)
 
-    def download_version(self, version='', force=False, checksign=True) -> None:
+    def download_version(self, version='', force=False, checksign=True) -> str:
         '''Загружаем обновление, force=True независимо от наличия на диске, checksign=False - не проверять подпись
         возвращаем полный путь к скачанному файлу'''
         release = self.github_release(version)

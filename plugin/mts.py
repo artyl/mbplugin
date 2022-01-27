@@ -108,10 +108,16 @@ class browserengine(browsercontroller.BrowserController):
                     self.result['Internet'] = round(usedbyme[0]*unitMult/unitDiv, 2)
 
         self.page_goto('https://lk.mts.ru/uslugi/podklyuchennye')
-        res2 = self.wait_params(params=[{
-            'name': '#services', 'url_tag': ['for=api/services/list/active$'],
-            'jsformula': "data.data.services.map(s=>[s.name,!!s.subscriptionFee.value?s.subscriptionFee.value*(s.subscriptionFee.unitOfMeasureRaw=='DAY'?30:1):0])"
-            }])
+        res2 = self.wait_params(params=[
+            {
+                'name': '#services', 'url_tag': ['for=api/services/list/active$'],
+                'jsformula': "data.data.services.map(s=>[s.name,!!s.subscriptionFee.value?s.subscriptionFee.value*(s.subscriptionFee.unitOfMeasureRaw=='DAY'?30:1):0])"
+            },
+            {
+                'name': 'BlockStatus', 'url_tag': ['for=api/services/list/active'], 
+                'jsformula': "data.data.accountBlockStatus == 'Unblocked' ? '' : data.data.accountBlockStatus"
+            },
+        ])
         try:
             services = sorted(res2['#services'], key=lambda i:(-i[1],i[0]))
             free = len([a for a,b in services if b==0 and (a,b)!=('Ежемесячная плата за тариф', 0)])
