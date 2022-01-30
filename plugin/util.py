@@ -756,43 +756,55 @@ def db_query(ctx, query):
 @click.option('-l', '--login', type=str, default='')
 @click.pass_context
 def bugreport(ctx, num, alias, plugin, login):
+    def impersonate(data, line):
+        if len(line['password2']) > 0:
+            data = data.replace(line['password2'], '********')
+        if len(line['number']) > 0:
+            data = data.replace(line['number'], 'XXXXXXXXX')
+        return data
     'Подготовка данных по запросу баланса для отправки разработчику, задайте либо порядковый номер, либо псевдоним, либо имя плагина и логин'
     name = 'bugreport'
-    echo(num, plugin, alias, login)
+    # echo(f'{num=}, {plugin=}, {alias=}, {login=}')
     phones = store.ini('phones.ini')
     phones.read()
     # Делаем словарь телефонов для поиска
     dp = [dict([('nn',sec)]+list(phones.ini[sec].items())) for sec in phones.ini.sections() if phones.ini[sec].get('Monitor', 'FALSE') == 'TRUE']
-    p_num = [i for i in dp if i['nn'] == str(num)]
-    p_alias = [i for i in dp if i['alias'] == alias]
-    p_plugin_login = [i for i in dp if i['region'] == plugin and i['login'] == num]
-    line = []
-    if len(p_num) == 1:
-        line = p_num[0]
-    elif len(p_alias) == 1:
-        line = p_alias[0]
-    elif len(p_plugin_login) == 1:
-        line = p_plugin_login[0]
-    else:
-        echo(f'Fail {name}')
+    dp = [i for i in dp if i['nn'] == str(num) or num < 0]
+    dp = [i for i in dp if i['alias'] == alias or alias == '']
+    dp = [i for i in dp if i['region'] == plugin or plugin == '']
+    dp = [i for i in dp if i['number'] == login or login == '']
+    if len(dp) == 0:
+        echo(f'Fail {name}: по указанному фильтру ничего не нашлось.')
         return
+    if len(dp) > 1:
+        echo(f'Fail {name}: найдено несколько, должен отфильтроваться только один, укажите точнее')
+        return
+    line = dp[0]
+    echo(f'Найден один номер {line["alias"]}, составляем багрепорт')
     plugin, login = line['region'], line['number']
     plugin_login = line['region'] + '_' + re.sub(r'\W', '_', line['number'].split('/')[0])
     path = store.abspath_join('mbplugin', 'log', f'*{plugin_login}*')
     logname = store.abspath_join('mbplugin', 'log', 'http.log')
     zfn = store.abspath_join('mbplugin', 'log', f'bugreport_{plugin_login}.zip')
+    zfn = impersonate(zfn, line)
     with zipfile.ZipFile(zfn, 'w', zipfile.ZIP_DEFLATED) as zf:
         for fn in glob.glob(path):
             if fn.lower().endswith('.zip'):
                 continue
-            #breakpoint()
-            zf.write(fn, os.path.split(fn)[-1])
-        with open(logname, encoding='cp1251', errors='ignore') as lf:
+            if os.path.splitext(fn) not in ['.log']:
+                zf.write(fn, impersonate(os.path.split(fn)[-1], line))
+            else:
+                with open(fn, errors='ignore') as f:
+                    data = f.read()
+                    zf.writestr(impersonate(os.path.split(fn)[-1], line), impersonate(data, line).encode('utf-8'))
+        with open(logname, errors='ignore') as lf:
             # getbalance_plugin Start {plugin} {login}
             log_all = lf.read().split('\n\n')
             log_flt = [el for el in log_all if f'getbalance_plugin Start {plugin} {login}' in el]
         if len(log_flt)>0:
-            zf.writestr('http.log', log_flt[-1].encode('cp1251'))
+            zf.writestr('http.log', impersonate(log_flt[-1], line).encode('utf-8'))
+    echo('Логины и пароли из лога удалены, но рекомендуется проверить файлы лога на наличие в них нежелательных для компроментации данных')
+    echo(f'Bugreport сохранен в {zfn}')
     echo(f'OK {name}')
 
 

@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
-import os, sys, time, io, re, json, pickle, requests, urllib.request, configparser, pprint, zipfile, logging, traceback, collections, typing
+import os, sys, locale, time, io, re, json, pickle, requests, urllib.request, configparser, pprint, zipfile, logging, traceback, collections, typing
 from os.path import abspath
 import settings
 
@@ -254,6 +254,7 @@ class ini():
         self.ini = configparser.ConfigParser()
         self.fn = fn
         self.inipath = abspath_join(settings.mbplugin_ini_path, self.fn)
+        self.codepage = locale.getpreferredencoding() # для windows cp1251, для остальных utf-8
 
     def find_files_up(self, fn):
         'Ищем файл вверх по дереву путей'
@@ -366,11 +367,11 @@ class ini():
         if os.path.exists(self.inipath):  # Если файл ini на диске есть сверяем с предыдущей версией
             self.save_bak()
             # TODO если сохраняем коменты (коменты попадут куда надо если меняем не больше одной строчки за раз):
-            with open(self.inipath, encoding='cp1251') as f_ini_r:
+            with open(self.inipath, encoding=self.codepage) as f_ini_r:
                 for num,line in enumerate(f_ini_r.read().splitlines()):
                     if line.startswith(';'):
                         raw.insert(num, line)
-        with open(self.inipath, encoding='cp1251', mode='w') as f_ini_w:
+        with open(self.inipath, encoding=self.codepage, mode='w') as f_ini_w:
             f_ini_w.write('\n'.join(raw))
         # TODO Если просто сохраняем то так
         # self.ini.write(open(self.inipath, 'w'))
