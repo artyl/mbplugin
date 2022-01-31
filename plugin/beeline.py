@@ -67,65 +67,69 @@ def get_balance_api(login, password, storename=None, **kwargs):
     else:
         raise RuntimeError(f'Balance not found in {jsonBalance}')
 
-    jsonTariff = beeline_api(session, token, login, 'info/pricePlan')
-    if jsonTariff.get('meta', {}).get('status', '') == 'OK':
-        result['TarifPlan'] = jsonTariff['pricePlanInfo']['entityName']
+    try:
+        jsonTariff = beeline_api(session, token, login, 'info/pricePlan')
+        if jsonTariff.get('meta', {}).get('status', '') == 'OK':
+            result['TarifPlan'] = jsonTariff['pricePlanInfo']['entityName']
 
-    # список услуг
-    jsonSubscr = beeline_api(session, token, login, 'info/subscriptions')
-    subscr = len(jsonSubscr.get('subscriptions',[]))
-    jsonServices = beeline_api(session, token, login, 'info/serviceList')
-    paid_sum = 0
-    ppi = jsonTariff['pricePlanInfo']
-    kperiod = 1
-    if ppi.get('rcRate', None) != None and ppi.get('rcRatePeriod', None) != None:
-        kperiod = 30 if jsonTariff['pricePlanInfo']['rcRatePeriod'].split('.')[-1]=='dayly' else 1
-        paid_sum = ppi['rcRate'] * kperiod
-    services = []
-    for el in jsonServices['services']:
-        if el.get('rcRate', None) != None and el.get('rcRatePeriod', None) != None:
-            kperiod = 30 if el['rcRatePeriod'].split('.')[-1]=='dayly' else 1
-            fee = el['rcRate'] * kperiod
-        else:
-            fee = 0
-        services.append((el['entityName'],fee))
-    free = len([a for a, b in services if b == 0])  # бесплатные
-    paid = len([a for a, b in services if b != 0])  # платные
-    paid_sum = paid_sum+round(sum([b for a, b in services if b != 0]), 2)
-    result['UslugiOn'] = f'{free}/{subscr}/{paid}({paid_sum})'
-    result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
+        # список услуг
+        jsonSubscr = beeline_api(session, token, login, 'info/subscriptions')
+        subscr = len(jsonSubscr.get('subscriptions',[]))
+        jsonServices = beeline_api(session, token, login, 'info/serviceList')
+        paid_sum = 0
+        ppi = jsonTariff['pricePlanInfo']
+        kperiod = 1
+        if ppi.get('rcRate', None) != None and ppi.get('rcRatePeriod', None) != None:
+            kperiod = 30 if jsonTariff['pricePlanInfo']['rcRatePeriod'].split('.')[-1]=='dayly' else 1
+            paid_sum = ppi['rcRate'] * kperiod
+        services = []
+        for el in jsonServices['services']:
+            if el.get('rcRate', None) != None and el.get('rcRatePeriod', None) != None:
+                kperiod = 30 if el['rcRatePeriod'].split('.')[-1]=='dayly' else 1
+                fee = el['rcRate'] * kperiod
+            else:
+                fee = 0
+            services.append((el['entityName'],fee))
+        free = len([a for a, b in services if b == 0])  # бесплатные
+        paid = len([a for a, b in services if b != 0])  # платные
+        paid_sum = paid_sum+round(sum([b for a, b in services if b != 0]), 2)
+        result['UslugiOn'] = f'{free}/{subscr}/{paid}({paid_sum})'
+        result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
 
-    jsonStatus = beeline_api(session, token, login, 'info/status')
-    if jsonStatus.get('meta', {}).get('status', '') == 'OK':
-        result['BlockStatus'] = jsonStatus['status']
+        jsonStatus = beeline_api(session, token, login, 'info/status')
+        if jsonStatus.get('meta', {}).get('status', '') == 'OK':
+            result['BlockStatus'] = jsonStatus['status']
 
-    jsonRests = beeline_api(session, token, login, 'info/rests')
-    if jsonRests.get('meta', {}).get('status', '') == 'OK' and 'rests' in jsonRests:
-        result['Min'] = 0
-        result['Internet'] = 0
-        result['SMS'] = 0
-        for elem in jsonRests['rests']:
-            if elem['unitType'] == 'VOICE':
-                result['Min'] += elem['currValue']
-            if elem['unitType'] == 'INTERNET':
-                result['Internet'] += elem['currValue']
-            if elem['unitType'] == 'SMS_MMS':
-                result['SMS'] += elem['currValue']
+        jsonRests = beeline_api(session, token, login, 'info/rests')
+        if jsonRests.get('meta', {}).get('status', '') == 'OK' and 'rests' in jsonRests:
+            result['Min'] = 0
+            result['Internet'] = 0
+            result['SMS'] = 0
+            for elem in jsonRests['rests']:
+                if elem['unitType'] == 'VOICE':
+                    result['Min'] += elem['currValue']
+                if elem['unitType'] == 'INTERNET':
+                    result['Internet'] += elem['currValue']
+                if elem['unitType'] == 'SMS_MMS':
+                    result['SMS'] += elem['currValue']
 
-    # похоже теперь у билайна не rests а accumulators, данных мало так что пробуем так
-    # и не понятно как определить про что аккумулятор, так что пока ориентируемся на поле unit, у интернета он 'unit': 'KBYTE'
-    jsonAcc = beeline_api(session, token, login, 'info/accumulators')
-    if jsonAcc.get('meta', {}).get('status', '') == 'OK' and 'accumulators' in jsonAcc:
-        result['Min'] = result.get('Min', 0)
-        result['Internet'] = result.get('Internet', 0)
-        result['SMS'] = result.get('SMS', 0)
-        for elem in jsonAcc['accumulators']:
-            if elem.get('unit','') == 'SECONDS':
-                result['Min'] += elem.get('rest', 0)//60
-            if elem.get('unit','') == 'KBYTE':
-                result['Internet'] += elem.get('rest', 0)*(settings.UNIT['KB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
-            if elem.get('unit','') == 'SMS':
-                result['SMS'] += elem.get('rest', 0)
+        # похоже теперь у билайна не rests а accumulators, данных мало так что пробуем так
+        # и не понятно как определить про что аккумулятор, так что пока ориентируемся на поле unit, у интернета он 'unit': 'KBYTE'
+        jsonAcc = beeline_api(session, token, login, 'info/accumulators')
+        if jsonAcc.get('meta', {}).get('status', '') == 'OK' and 'accumulators' in jsonAcc:
+            result['Min'] = result.get('Min', 0)
+            result['Internet'] = result.get('Internet', 0)
+            result['SMS'] = result.get('SMS', 0)
+            for elem in jsonAcc['accumulators']:
+                if elem.get('unit','') == 'SECONDS':
+                    result['Min'] += elem.get('rest', 0)//60
+                if elem.get('unit','') == 'KBYTE':
+                    result['Internet'] += elem.get('rest', 0)*(settings.UNIT['KB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
+                if elem.get('unit','') == 'SMS':
+                    result['SMS'] += elem.get('rest', 0)
+    except Exception:
+        exception_text = f'Ошибка при получении дополнительных данных {store.exception_text()}'
+        logging.error(exception_text)
 
     session.save_session()
     return result

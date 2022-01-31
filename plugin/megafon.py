@@ -36,47 +36,65 @@ def get_balance(login, password, storename=None, **kwargs):
     result['Balance'] = response3.json().get('balance', 0)
     result['KreditLimit'] = response3.json().get('limit', 0)
 
-    response4 = session.get('https://lk.megafon.ru/api/profile/name')
-    if response4.status_code == 200 and 'json' in response4.headers.get('content-type'):
-        result['UserName'] = response4.json()['name'].replace('"','').replace("'",'').replace('&quot;','')
+    try:
+        response4 = session.get('https://lk.megafon.ru/api/profile/name')
+        if response4.status_code == 200 and 'json' in response4.headers.get('content-type'):
+            result['UserName'] = response4.json()['name'].replace('"','').replace("'",'').replace('&quot;','')
 
-    response5_new = session.get('https://lk.megafon.ru/api/tariff/2019-3/current')
-    response5 = session.get('https://lk.megafon.ru/api/tariff/current')
-    if response5.status_code != 200:
-        response5 = response5_new
-    if response5.status_code == 200 and 'json' in response5.headers.get('content-type'):
-        result['TarifPlan'] = response5.json().get('name', '').replace('&nbsp;',' ').replace('&mdash;','-')
+        response5_new = session.get('https://lk.megafon.ru/api/tariff/2019-3/current')
+        response5 = session.get('https://lk.megafon.ru/api/tariff/current')
+        if response5.status_code != 200:
+            response5 = response5_new
+        if response5.status_code == 200 and 'json' in response5.headers.get('content-type'):
+            result['TarifPlan'] = response5.json().get('name', '').replace('&nbsp;',' ').replace('&mdash;','-')
+    except Exception:
+        exception_text = f'Ошибка при получении дополнительных данных {store.exception_text()}'
+        logging.error(exception_text)
+
 
     #Старый вариант без получения стоимости платных услуг
     #response6 = session.get('https://lk.megafon.ru/api/lk/mini/options')
     #if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
     #    servicesDto = response6.json().get('servicesDto', {})
     #    result['UslugiOn'] = f"{servicesDto.get('free','')}/{servicesDto.get('paid','')}"
-    response6 = session.get('https://lk.megafon.ru/api/options/list/current')
-    if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
-        oList = response6.json()
-        services = [(i['optionName'],i['monthRate']*(1 if i['monthly'] else 30)) for i in oList.get('paid',[])]
-        services += [(i['optionName'],i['monthRate']*(1 if i['monthly'] else 30)) for i in oList.get('free',[])]
-        services.sort(key=lambda i:(-i[1],i[0]))
-        free = len([a for a, b in services if b == 0])  # бесплатные
-        paid = len([a for a, b in services if b != 0])  # платные
-        paid_sum = round(sum([b for a, b in services]), 2)
-        result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
-        result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
+    try:
+        response6 = session.get('https://lk.megafon.ru/api/options/list/current')
+        if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
+            oList = response6.json()
+            services = [(i['optionName'], i['monthRate'] * (1 if i['monthly'] else 30)) for i in oList.get('paid', [])]
+            services += [(i['optionName'], i['monthRate'] * (1 if i['monthly'] else 30)) for i in oList.get('free', [])]
+            services.sort(key=lambda i: (-i[1], i[0]))
+            free = len([a for a, b in services if b == 0])  # бесплатные
+            paid = len([a for a, b in services if b != 0])  # платные
+            paid_sum = round(sum([b for a, b in services]), 2)
+            result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
+            result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
+    except Exception:
+        exception_text = f'Ошибка обработки api/options/list/current {store.exception_text()}'
+        logging.error(exception_text)
 
-    response7 = session.get('https://lk.megafon.ru/api/options/remaindersMini')
-    if response7.status_code == 200 and 'json' in response7.headers.get('content-type'):
-        remainders = sum([i.get('remainders', []) for i in response7.json().get('remainders', [])], [])
-        minutes = [i['availableValue'] for i in remainders if i['unit'].startswith('мин')]
-        if len(minutes) > 0:
-            result['Min'] = sum([i['value'] for i in minutes])
-        internet = [i['availableValue'] for i in remainders if i['unit'].endswith('Б')]
-        unitDiv = settings.UNIT.get(interUnit, 1)
-        if len(internet) > 0:
-            result['Internet'] = sum([round(i['value']*settings.UNIT.get(i['unit'], 1)/unitDiv, 3) for i in internet])
-        sms = [i['availableValue'] for i in remainders if i['unit'].startswith('шту')]
-        if len(sms) > 0:
-            result['SMS'] = sum([i['value'] for i in sms])
+    try:
+        response7 = session.get('https://lk.megafon.ru/api/options/remaindersMini')
+        if response7.status_code == 200 and 'json' in response7.headers.get('content-type'):
+            remainders = sum([
+                i.get('remainders', [])
+                for i in response7.json().get('remainders', [])
+                if 'на мегафон' not in i.get('name', '').lower() and 'в крыму' not in i.get('name', '').lower()
+            ], [])
+            minutes = [i['availableValue'] for i in remainders if i.get('unit', '').startswith('мин') or i.get('groupId', '') == 'voice']
+            if len(minutes) > 0:
+                result['Min'] = sum([i['value'] for i in minutes])
+            internet = [i['availableValue'] for i in remainders if i.get('unit', '').endswith('Б') or i.get('groupId', '') == 'internet']
+            unitDiv = settings.UNIT.get(interUnit, 1)
+            if len(internet) > 0:
+                result['Internet'] = sum([round(i['value'] * settings.UNIT.get(i.get('unit', ''), 1) / unitDiv, 3) for i in internet])
+            sms = [i['availableValue'] for i in remainders if i.get('unit', '').startswith('шту') or i.get('groupId', '') == 'message']
+            if len(sms) > 0:
+                result['SMS'] = sum([i['value'] for i in sms])
+    except Exception:
+        exception_text = f'Ошибка обработки pi/options/remaindersMini {store.exception_text()}'
+        logging.error(exception_text)
+
 
     session.save_session()
     return result
