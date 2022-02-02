@@ -43,7 +43,7 @@ zadarma - Zadarma.com (IP телефония)
 cardtel - cardtel.ru (IP телефония)  
 sipnet - Sipnet.ru (IP телефония)  
 mangooffice - www.mango-office.ru (IP телефония) (автор Pasha)  
-ntvplus - NTV+ (TV)  
+ntvplus - NTV+ быстрая проверка баланса по номеру договора и фамилии (TV)  
 strelka - strelka.ru Баланс карты стрелка  
 sodexo - sodexo.com Получение баланса карты Sodexo (подарочные карты)  
 currency - Курсы валют USD, EUR, с ЦБ и с MOEX, курсы акций с MOEX и yahoo finance (заменил плагины eur, usd, moex и yahoo)  
