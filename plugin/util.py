@@ -714,6 +714,7 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
             echo(f'OK {name} update canceled')
             return
         res, msg = updater.install_update(version=version, force=force, undo_update=undo_update, by_current=by_current)
+        echo('Run setup_and_check.bat or mbplugin/standalone/mbp after install')
     echo(f'{"OK" if res else "Fail"} {name}: {msg}')
 
 

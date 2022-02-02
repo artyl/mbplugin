@@ -49,6 +49,7 @@ TRAY_MENU = (
     {'text': "Flush log", 'cmd': lambda: store.logging_restart(), 'show': True},
     {'text': "Reload schedule", 'cmd': lambda: Scheduler().reload(), 'show': True},
     {'text': "Recompile jsmblh plugin", 'cmd': lambda: compile_all_jsmblh.recompile(), 'show': True},
+    #{'text': "Version update", 'cmd': lambda: run_update(), 'show': True},  # TODO продумать как это показывать
     {'text': "Restart server", 'cmd': lambda: restart_program(reason='tray icon command'), 'show': True},
     {'text': "Exit program", 'cmd': lambda: restart_program(reason='Tray icon exit', exit_only=True), 'show': True}
 )
@@ -775,6 +776,7 @@ class TelegramBot():
         if 'telegram' not in sys.modules:
             return  # Нет модуля TG - просто выходим
         # TgCommand для команд type(func) != str , для cmd_alias type(func) == str
+        self.updater = None
         TgCommand = collections.namedtuple('TgCommand', 'name, description, func')
         commands_list: typing.List[TgCommand] = [
             TgCommand('/help', 'справка', self.get_help),
@@ -813,7 +815,6 @@ class TelegramBot():
             request_kwargs['proxy_url'] = tg_proxy
             # ??? Надо или не надо ?
             # request_kwargs['urllib3_proxy_kwargs'] = {'assert_hostname': 'False', 'cert_reqs': 'CERT_NONE'}
-        self.updater = None
         if api_token != '' and str(store.options('start_tgbot', section='Telegram')) == '1' and 'telegram' in sys.modules:
             try:
                 logging.info(f'Module telegram starting for id={self.auth_id()}')
@@ -842,6 +843,8 @@ class TelegramBot():
 
     def add_bot_menu(self):
         'создает персональное меню бота [/] для всех id из auth_id из пунктов перечисленных в command_menu_list'
+        if self.updater is None:
+            return
         command_menu_list = store.options('command_menu_list', section='Telegram').strip().split(',')
         command_menu_list = [re.sub('^//', '/', f'/{i.strip()}') for i in command_menu_list]
         for id in self.auth_id():
@@ -1307,6 +1310,9 @@ class WebServer():
                 Scheduler().reload()
                 ct, text = Scheduler().view_html()
                 text = [settings.header_html] + text
+            elif cmd.lower() == 'version_update':  # обновление версии
+                res = run_update()
+                ct, text = 'text/html', settings.header_html + f'\n<pre>\n{res}\n</pre>\n'
             elif cmd == 'logging_restart':  # logging_restart
                 store.logging_restart()
                 ct, text = 'text/html', 'OK'
@@ -1367,6 +1373,15 @@ def parse_arguments(argv, parcerclass=argparse.ArgumentParser):
     parser = parcerclass()
     parser.add_argument('--cmd', type=str, help='command for web server (start/stop)', default='start')
     return parser.parse_args(argv)
+
+
+def run_update():
+    if sys.platform == 'win32':
+        mbp_path = os.path.join(store.settings.mbplugin_root_path, 'mbp.bat')
+        return os.popen(f'"{mbp_path}" version-update').read()
+    else:
+        mbp_path = os.path.join(store.settings.mbplugin_root_path, 'mbp')
+        return os.popen(f'"{mbp_path}" version-update').read()
 
 
 def main():
