@@ -530,6 +530,26 @@ class BalanceOverPlaywright():
                 print(f'Check {selectors[sel]}')
                 assert self.page_evaluate(f"document.querySelector('{selectors['login_selector']}') !== null")==True, f'Not found on page:{sel}:{selectors[sel]}'
 
+    def show_captcha(self, captcha_checker, captcha_focus):
+        'Показываем окно с капчей - Если стоит флаг показывать капчу то включаем видимость хрома и ждем заданное время'
+        if str(self.options('show_captcha')) == '1':
+            logging.info('Show captcha')
+            hide_chrome(hide=False, foreground=True)
+            self.page_evaluate(captcha_focus)
+            for cnt2 in range(int(self.options('max_wait_captcha'))):
+                _ = cnt2
+                if not self.page_evaluate(captcha_checker, False):
+                    break  # ВЫХОДИМ ИЗ ЦИКЛА - капчи на странице больше нет
+                self.sleep(1)
+            else:  # Капчу так никто и не ввел
+                self.page_screenshot(suffix='captcha')
+                logging.error(f'Show captcha timeout. A captcha appeared, but no one entered it')
+                raise RuntimeError(f'A captcha appeared, but no one entered it')
+        else:  # Показ капчи не зададан выдаем ошибку и завершаем
+            logging.error(f'Captcha appeared')
+            self.page_screenshot(suffix='captcha')
+            raise RuntimeError(f'Captcha appeared')        
+
     @check_browser_opened_decorator
     def do_logon(self, url=None, user_selectors=None):
         '''Делаем заход в личный кабинет/ проверяем не залогинены ли уже
@@ -557,6 +577,8 @@ class BalanceOverPlaywright():
             self.page_wait_for(loadstate=True)
         self.page_screenshot()
         for countdown in range(self.wait_loop):
+            if self.page_evaluate(selectors['captcha_checker'], False):
+                self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])            
             if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_url(selectors['lk_page_url']):
                 logging.info(f'Already login')
                 break # ВЫХОДИМ ИЗ ЦИКЛА - уже залогинины
@@ -591,24 +613,7 @@ class BalanceOverPlaywright():
                 self.sleep(1*self.force)
                 # Проверяем - это не капча ?
                 if self.page_evaluate(selectors['captcha_checker'], False):
-                    # Если стоит флаг показывать капчу то включаем видимость хрома и ждем заданное время
-                    if str(self.options('show_captcha')) == '1':
-                        logging.info('Show captcha')
-                        hide_chrome(hide=False, foreground=True)
-                        self.page_evaluate(selectors['captcha_focus'])
-                        for cnt2 in range(int(self.options('max_wait_captcha'))):
-                            _ = cnt2
-                            if not self.page_evaluate(selectors['captcha_checker'], False):
-                                break  # ВЫХОДИМ ИЗ ЦИКЛА - капчи на странице больше нет
-                            self.sleep(1)
-                        else:  # Капчу так никто и не ввел
-                            self.page_screenshot(suffix='captcha')
-                            logging.error(f'Show captcha timeout. A captcha appeared, but no one entered it')
-                            raise RuntimeError(f'A captcha appeared, but no one entered it')
-                    else:  # Показ капчи не зададан выдаем ошибку и завершаем
-                        logging.error(f'Captcha appeared')
-                        self.page_screenshot(suffix='captcha')
-                        raise RuntimeError(f'Captcha appeared')
+                    self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])
                 else:
                     # Никуда не попали и это не капча
                     self.page_screenshot(suffix='unknown')
