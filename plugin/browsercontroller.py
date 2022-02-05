@@ -548,7 +548,7 @@ class BalanceOverPlaywright():
         else:  # Показ капчи не зададан выдаем ошибку и завершаем
             logging.error(f'Captcha appeared')
             self.page_screenshot(suffix='captcha')
-            raise RuntimeError(f'Captcha appeared')        
+            raise RuntimeError(f'Captcha appeared')
 
     @check_browser_opened_decorator
     def do_logon(self, url=None, user_selectors=None):
@@ -578,7 +578,8 @@ class BalanceOverPlaywright():
         self.page_screenshot()
         for countdown in range(self.wait_loop):
             if self.page_evaluate(selectors['captcha_checker'], False):
-                self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])            
+                self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])
+                self.sleep(2)  # если не ждать - успевает проскочить после капчи
             if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_url(selectors['lk_page_url']):
                 logging.info(f'Already login')
                 break # ВЫХОДИМ ИЗ ЦИКЛА - уже залогинины
@@ -744,6 +745,7 @@ class BalanceOverPlaywright():
                     # browser.version есть только у класса Browser а у нас BrowserContext - приходится извращаться
                     self.result['Version'] = f'{browsertype_text} {self.page.evaluate("navigator.userAgent")}'
             logging.debug(f'Data ready {self.result.keys()}')
+            # self.page.pause()
             if str(self.options('log_responses')) == '1' or self.options('logginglevel') == 'DEBUG':
                 import pprint
                 text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'

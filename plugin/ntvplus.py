@@ -8,11 +8,17 @@ icon = '789cd594fb5bcf6718c75fdfe6344b63b6396cb699310bdfc6b6b6b699b1759212e94c22
 login_url = 'https://service.ntvplus.ru/account/action/quick-check-action'
 
 # regexp для поиска баланса на странице
-re_balance = r'(?usi)Баланс.*?>(\d+\.\d+)'
-re_licSchet = r'(?usi)Номер карточки.*?value.?>\D+(\d+)'
+re_balance = r'(?usi)Баланс.*?--digits.>(\d+\.\d+)'
+re_licSchet = r'(?usi)Номер карточки.*?--value.?>\D+(\d+)'
 re_tarifPlan = r'(?usi)Подключённые пакеты.*?>(?:.*?item.>(.*?)<)+'
+re_BlockStatus = r'(?usi)Состояние.*?--label.>(.*?)<'
 
 def find_by_regexp(text, param, regexp, join=False, uslugi_list=False, uslugi_on=False):
+    ''' Ищем по регулярке и возвращаем словарь {param : первый найденный по regexp}
+        либо если указано:
+        uslugi_list - клеим результаты в пары res1,res2 -> res1 \t 0  res2 \t 0
+        uslugi_on - Возвращаем количество результатов res1,res2 -> 2
+        join - объединяем все найденные патерны res1,res2 -> 'res1,res2' '''
     try:
         if uslugi_list:
             return {param: '\n'.join([f'{i}\t0' for i in re.findall(regexp, text)]).strip()}
@@ -37,13 +43,18 @@ def get_balance(login, password, storename=None, **kwargs):
         response0.json()["load"]
     except:
         raise RuntimeError(f'POST Login page {login_url} error: not found load {store.exception_text}')        
-    response = session.get(f'https://service.ntvplus.ru{response0.json()["load"]}')
+    url = f'https://service.ntvplus.ru{response0.json()["load"]}'
+    response = session.get(url)
+    session.save_response(url, response, save_text=True)  # сохраняем
 
     result['Balance'] = re.search(re_balance, response.text).group(1).replace(',', '.').strip()
     result.update(find_by_regexp(response.text, 'licSchet', re_licSchet))
+    result.update(find_by_regexp(response.text, 'BlockStatus', re_BlockStatus))
     result.update(find_by_regexp(response.text, 'TarifPlan', re_tarifPlan, join=True))
     result.update(find_by_regexp(response.text, 'UslugiList', re_tarifPlan, uslugi_list=True))
     result.update(find_by_regexp(response.text, 'UslugiOn', re_tarifPlan, uslugi_on=True))
+    
+    
 
     return result
 

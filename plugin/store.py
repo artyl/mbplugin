@@ -146,8 +146,8 @@ class Session():
         with open(abspath_join(self.storefolder, self.storename), 'wb') as f:
             pickle.dump(self._session, f)
 
-    def save_response(self, url, response):
-        'debug save response'
+    def save_response(self, url, response, save_text=False):
+        'debug сохранение по умолчанию только response.json() или если указано отдельно сохраняем text'
         if self.storename is None:
             return
         # Сохраняем по старинке в режиме DEBUG каждую страницу в один файл
@@ -159,8 +159,14 @@ class Session():
         # Новый вариант сохранения - все json в один файл
         if options('logginglevel') == 'DEBUG' or str(options('log_responses')) == '1':
             try:
-                js = response.json()
-                self.json_response[f'{url}_{self.pagecounter}'] = js
+                idx = f'{url}_{self.pagecounter}'
+                if save_text:
+                    self.json_response[idx] = response.text
+                else:
+                    try:
+                        self.json_response[idx] = response.json()
+                    except Exception:
+                        self.json_response[idx] = "It's not json"
                 text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k, v in self.json_response.items()])
                 open(abspath_join(options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore').write(text)
             except Exception:
