@@ -92,7 +92,7 @@ def get_balance(login, password, storename=None, **kwargs):
             if len(sms) > 0:
                 result['SMS'] = sum([i['value'] for i in sms])
     except Exception:
-        exception_text = f'Ошибка обработки pi/options/remaindersMini {store.exception_text()}'
+        exception_text = f'Ошибка обработки api/options/remaindersMini {store.exception_text()}'
         logging.error(exception_text)
 
 

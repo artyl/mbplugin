@@ -308,7 +308,7 @@ class Dbengine():
 
 class Mdbengine():
     def __init__(self, dbname=None):
-        import pyodbc
+        import pyodbc  # type: ignore
         if dbname is None:
             dbname = store.abspath_join(settings.mbplugin_ini_path, 'BalanceHistory.mdb')
         self.dbname = dbname
@@ -371,7 +371,7 @@ def update_sqlite_from_mdb_core(dbname=None, deep=None) -> bool:
     while allt:
         # берем одну строчку из общего списка
         c = allt.pop(0)
-        # Если для этого timestamp есть строчка в обазах добавляем из
+        # Если для этого timestamp есть строчка добавляем из
         pair = [c if c in dmdb else None, c if c in dsqlite else None]
         if allt == [] or allt[0] in dmdb and pair[0] is not None or allt[0] in dsqlite and pair[1] is not None:
             # Это следующая строка или была последняя

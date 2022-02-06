@@ -789,7 +789,7 @@ class TelegramBot():
             TgCommand('/getone', 'получить баланс одного номера', self.get_one),
             TgCommand('/checkone', 'запросить баланс одного номера', self.get_one, ),
             TgCommand('/schedule', 'текущие задачи в планировщике', self.get_schedule),
-            TgCommand('/schedulereload', 'текущие задачи в планировщике', self.get_schedule),
+            TgCommand('/schedulereload', 'перезагрузка расписания', self.get_schedule),
             TgCommand('/getlog', 'отобразить лог', self.get_log),
         ]
         self.commands: typing.Dict[str, TgCommand] = {cmd.name:cmd for cmd in commands_list}
