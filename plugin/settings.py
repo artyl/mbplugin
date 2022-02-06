@@ -60,6 +60,8 @@ chrome_executable_path_alternate = [
         ]
 # Список параметров которые являются путями, для них при обращении в store.options делаем абсолютные пути
 path_param = ['loggingfolder', 'loggingfilename', 'logginghttpfilename', 'storefolder', 'balance_html']
+# Если для response не прокатывает user-agent то используем эту строчку, если в ini ничего не указано
+default_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36"
 ########################################################################################
 # type variants text, checkbox, select, list(of str)
 ini = {

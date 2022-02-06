@@ -2,7 +2,7 @@
 ''' Автор ArtyLa '''
 import os, sys, re, logging, time
 import requests
-import store
+import store, settings
 
 # Строка для поиска баланса на странице
 re_balance = r'(?usi)balance.*?>\D*?(-?\d*?[\.,]\d*?)\D*?<'
@@ -17,15 +17,11 @@ login_checkers = ['<input[^>]*name="email"[^>]*', '<input[^>]*name="password"[^>
 def get_balance(login, password, storename=None, **kwargs):
     logging.info(f'start get_balance {login}')
     result = {}
-    headers = {
-        'Connection': 'keep-alive',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36',
-    }
-    data = {
-        'answer': 'json',
-        'email': login,
-        'password': password,
-    }
+    user_agent = store.options('user_agent', pkey=store.get_pkey(login, plugin_name=__name__))
+    if user_agent.strip() == '':
+        user_agent = settings.default_user_agent
+    headers = {'Connection': 'keep-alive', 'User-Agent': user_agent,}
+    data = { 'answer': 'json', 'email': login, 'password': password,}
     session = store.Session(storename, headers=headers)
     response3 = session.get('https://my.zadarma.com/')
     if re.search(re_balance, response3.text):

@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import logging, os, sys, re, time, datetime
+import logging, os, sys, re, time, datetime, json, random
 import store, settings
 import browsercontroller
 
@@ -76,7 +76,7 @@ class browserengine(browsercontroller.BrowserController):
             ])
         if '#counters' in res1 and type(res1['#counters']) == list and len(res1['#counters'])>0:
             counters = res1['#counters']
-            # deadlineDate 
+            # deadlineDate
             deadline_dates = set([i['deadlineDate'] for i in counters if 'deadlineDate' in i])
             if len(deadline_dates)>0:
                 deadline_date = min(deadline_dates)
@@ -121,7 +121,7 @@ class browserengine(browsercontroller.BrowserController):
                 'jsformula': "data.data.services.map(s=>[s.name,!!s.subscriptionFee.value?s.subscriptionFee.value*(s.subscriptionFee.unitOfMeasureRaw=='DAY'?30:1):0])"
             },
             {
-                'name': 'BlockStatus', 'url_tag': ['for=api/services/list/active'], 
+                'name': 'BlockStatus', 'url_tag': ['for=api/services/list/active'],
                 'jsformula': "data.data.accountBlockStatus == 'Unblocked' ? '' : data.data.accountBlockStatus"
             },
         ])
@@ -260,7 +260,10 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
 
     def do_login():
         url = "http://login.mts.ru/amserver/UI/Login"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36",}
+        user_agent = store.options('user_agent', pkey=store.get_pkey(login, plugin_name=__name__))
+        if user_agent.strip() == '':
+            user_agent = settings.default_user_agent
+        headers = {"User-Agent": user_agent,}
         session = store.Session(storename, headers = headers)
         response = session.get(url, headers=headers)
         check_status_code(response, 200)
@@ -272,11 +275,30 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
             headers=headers,
         )
         check_status_code(response, 200)
-        csrf_token, csrf_ts_token = get_tokens(response)        
+        csrf_token, csrf_ts_token = get_tokens(response)
         #2
+        fonts = 'cursive;monospace;serif;sans-serif;default;Arial;Arial Black;Arial Narrow;Bookman Old Style;Bradley Hand ITC;Century;Century Gothic;Comic Sans MS;Courier;Courier New;Georgia;Impact;Lucida Console;Papyrus;Tahoma;Times;Times New Roman;Trebuchet MS;Verdana;'
+        fonts_l = fonts.split(';')
+        fonts = ';'.join(fonts_l[:random.randint(5, len(fonts_l))])
+        id_token_2 = {
+            'screen': {'screenWidth': 1920, 'screenHeight': 1080, 'screenColourDepth': 24},
+            'platform': 'Win32',
+            'language': 'ru',
+            'timezone': {'timezone': -180},
+            'plugins': {'installedPlugins': ''},
+            'fonts': { 'installedFonts': fonts},
+            'userAgent': user_agent,
+            'appName': 'Netscape',
+            'appCodeName': user_agent.split('/', 1)[0],
+            'appVersion': user_agent.split('/', 1)[1],
+            'buildID': '20220101000000',
+            'oscpu': 'Windows NT 6.1; Win64; x64',
+            'product': 'Gecko',
+            'productSub': '20100101'
+        }
         response = session.post(url,
             data={
-                "IDToken2": '{"screen":{"screenWidth":1920,"screenHeight":1080,"screenColourDepth":24},"platform":"Win32","language":"ru","timezone":{"timezone":-180},"plugins":{"installedPlugins":""},"fonts":{"installedFonts":"cursive;monospace;serif;sans-serif;default;Arial;Arial Black;Arial Narrow;Bookman Old Style;Bradley Hand ITC;Century;Century Gothic;Comic Sans MS;Courier;Courier New;Georgia;Impact;Lucida Console;Papyrus;Tahoma;Times;Times New Roman;Trebuchet MS;Verdana;"},"userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36","appName":"Netscape","appCodeName":"Mozilla","appVersion":"5.0 (Windows)","buildID":"20181001000000","oscpu":"Windows NT 6.1; Win64; x64","product":"Gecko","productSub":"20100101"}',
+                "IDToken2": json.dumps(id_token_2),
                 "csrf.sign": csrf_token,
                 "csrf.ts": csrf_ts_token,
             },
@@ -444,7 +466,7 @@ def get_balance(login, password, storename=None, **kwargs):
     plugin_name = kwargs.get('plugin_name', __name__)
     pkey=store.get_pkey(login, plugin_name=plugin_name)
     plugin_mode = store.options('plugin_mode', pkey=pkey).upper()
-    # Поменять дефолт если будут проблемы с playwright != 'WEB': 
+    # Поменять дефолт если будут проблемы с playwright != 'WEB':
     if plugin_mode in ('API', 'FASTAPI'):
         fast_api = (plugin_mode == 'FASTAPI')
         return get_balance_api(login, password, storename, plugin_name=plugin_name, fast_api=fast_api)

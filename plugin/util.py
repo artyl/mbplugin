@@ -657,7 +657,7 @@ def version(ctx, verbose, download_stat):
     import browsercontroller
     browser = browsercontroller.BrowserController(login='', password='', storename='test', plugin_name=__name__)
     result = browser.main(run=browsercontroller.CHECK_PLAYWRIGHT)
-    echo(result.get('Version'))  # chromium Mozilla/5.0 ...
+    echo(result.get('Version'))  # chromium Mozilla ...
     if updater.check_update():
         version, msg_version = updater.latest_version_info()
         echo(f'New version found {version}\n{msg_version}')
