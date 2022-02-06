@@ -253,21 +253,17 @@ class BalanceOverPlaywright():
         # Удаляем скриншоты с прошлых разов
         for fn in glob.glob(store.abspath_join(self.options('loggingfolder'), self.storename + '*.png')):
             os.remove(fn)
-        # headless ТОЛЬКО в PLAYWRIGHT и ТОЛЬКО если отключен показ капчи, и ТОЛЬКО если не стоит show_chrome=0
+        # headless ТОЛЬКО если отключен показ капчи, pause, и ТОЛЬКО если не стоит show_chrome=0
         # иначе мы видимость браузера из headless уже не вернем и капчу показать не сможем
         if type(headless) == bool:
             self.headless = headless
-        elif headless == NOT_IN_CHROME:
+        elif str(self.options('show_captcha') == '1' or str(self.options('show_chrome')) == '1') or str(self.options('playwright_pause')) == '1':
+            self.headless = False  # Ignore headless option if ...            
+        elif headless == NOT_IN_CHROME and self.options('browsertype') == 'chromium':
             # Если указано что в хроме headless не работает и настройками это не поменяли, то выключаем чтобы хоть как-то отработало
-            if str(self.options('headless_chrome')) == '1' and self.options('browsertype') == 'chromium':
-                self.headless = False
-            else:
-                self.headless = True
-        else:  #if headless is None:
-            if(str(self.options('show_captcha')) == '0' and str(self.options('show_chrome')) == '0'):
-                self.headless = str(self.options('headless_chrome')) == '1'
-            else:
-                self.headless = False
+            self.headless = False
+        else:
+            self.headless = str(self.options('headless_chrome')) == '1'
         if '/' in login:
             self.login, self.acc_num = self.login_ori.split('/')
             # !!! в storename уже преобразован поэтому чтобы выкинуть из него ненужную часть нужно по ним тоже регуляркой пройтись
@@ -482,6 +478,8 @@ class BalanceOverPlaywright():
         else:
             self.chrome_executable_path = self.browsertype.executable_path
         logging.info(f'Launch chrome from {self.chrome_executable_path}')
+        if self.options('user_agent').strip() != '':
+            self.launch_config.update({'user_agent': self.options('user_agent').strip()})
         if self.options('browser_proxy').strip() != '':
             self.launch_config['args'].append(f'--proxy-server={self.options("browser_proxy").strip()}')
         # playwright: launch_func = self.sync_pw.chromium.launch_persistent_context
@@ -539,6 +537,8 @@ class BalanceOverPlaywright():
             for cnt2 in range(int(self.options('max_wait_captcha'))):
                 _ = cnt2
                 if not self.page_evaluate(captcha_checker, False):
+                    self.page_screenshot(suffix='no_more_captcha')
+                    logging.info('No more captcha')
                     break  # ВЫХОДИМ ИЗ ЦИКЛА - капчи на странице больше нет
                 self.sleep(1)
             else:  # Капчу так никто и не ввел
@@ -745,7 +745,8 @@ class BalanceOverPlaywright():
                     # browser.version есть только у класса Browser а у нас BrowserContext - приходится извращаться
                     self.result['Version'] = f'{browsertype_text} {self.page.evaluate("navigator.userAgent")}'
             logging.debug(f'Data ready {self.result.keys()}')
-            # self.page.pause()
+            if str(self.options('playwright_pause')) == '1':
+                self.page.pause()
             if str(self.options('log_responses')) == '1' or self.options('logginglevel') == 'DEBUG':
                 import pprint
                 text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
