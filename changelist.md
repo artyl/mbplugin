@@ -330,9 +330,9 @@ ADD: Вызов обновления версии из веб интерфейс
 ## mbplugin v1.00.15 (04.02.22) MTS captcha2
 FIX: Добавил второй вид капчи от МТС в отлов и показ  
 
-## mbplugin v1.00.16 (06.02.22) user-agent
-FIX: Не все параметры из phones_add.ini приходили при запросе к phones.ini issue #19 (спасибо Vlad)  
-ADD: В ntvplus добавил BlockStatus по полю Состояние issue #17  
-ADD: МТС показ даты продления тарифа issue #16  
+## mbplugin v1.00.16 (06.02.22) user-agent 
+FIX: Не все параметры из phones_add.ini приходили при запросе к phones.ini (спасибо Vlad) issue #19  
+ADD: В ntvplus добавил BlockStatus по полю Состояние (спасибо TheTERMINATOR) issue #17  
+ADD: МТС показ даты продления тарифа (спасибо andrej2) issue #16  
 ADD: Во всех плагинах в playwright можно задать user_agent для браузера issue #13, обратите внимание что на странице chrome://version/ всегда показывается ОРИГИНАЛЬНЫЙ user-agent, опция влияет только на то как браузер представляется внешним сайтам (посмотреть это можно например здесь https://www.whatismybrowser.com/detect/what-is-my-user-agent)  
 ADD: Отладочный режим playwright_pause для поиска дополнительных данных на странице issue #18  
