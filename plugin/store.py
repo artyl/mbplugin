@@ -423,9 +423,9 @@ class ini():
                     try:
                         # Проблема - configparser возвращает ключи в lowercase - так что приходится перебирать
                         # ключи чтобы не оказалось два одинаковых ключа с разным кейсом
-                        for k in data[key].keys():
-                            if k in phones_add[secnum]:
-                                data[key][k] = phones_add[secnum][k]
+                        if secnum in phones_add:
+                            for k,v in phones_add[secnum].items():
+                                data[key][k] = v
                     except Exception:
                         raise RuntimeError(f'Parse phones_add.ini error in section{secnum}')
         return data
