@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import logging, os, sys, re, time
+import logging, os, sys, re, time, datetime
 import store, settings
 import browsercontroller
 
@@ -76,6 +76,13 @@ class browserengine(browsercontroller.BrowserController):
             ])
         if '#counters' in res1 and type(res1['#counters']) == list and len(res1['#counters'])>0:
             counters = res1['#counters']
+            # deadlineDate 
+            deadline_dates = set([i['deadlineDate'] for i in counters if 'deadlineDate' in i])
+            if len(deadline_dates)>0:
+                deadline_date = min(deadline_dates)
+                delta = datetime.datetime.fromisoformat(deadline_date) - datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(seconds=10800)))
+                self.result['TurnOff'] = delta.days
+                self.result['TurnOffStr'] = deadline_date.split('T')[0]
             # Минуты
             calling = [i for i in counters if i['packageType'] == 'Calling']
             if calling != []:
@@ -253,7 +260,7 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
 
     def do_login():
         url = "http://login.mts.ru/amserver/UI/Login"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:81.0) Gecko/20100101 Firefox/81.0",}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36",}
         session = store.Session(storename, headers = headers)
         response = session.get(url, headers=headers)
         check_status_code(response, 200)
@@ -269,7 +276,7 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
         #2
         response = session.post(url,
             data={
-                "IDToken2": '{"screen":{"screenWidth":1920,"screenHeight":1080,"screenColourDepth":24},"platform":"Win32","language":"ru","timezone":{"timezone":-180},"plugins":{"installedPlugins":""},"fonts":{"installedFonts":"cursive;monospace;serif;sans-serif;default;Arial;Arial Black;Arial Narrow;Bookman Old Style;Bradley Hand ITC;Century;Century Gothic;Comic Sans MS;Courier;Courier New;Georgia;Impact;Lucida Console;Papyrus;Tahoma;Times;Times New Roman;Trebuchet MS;Verdana;"},"userAgent":"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:94.0) Gecko/20100101 Firefox/94.0","appName":"Netscape","appCodeName":"Mozilla","appVersion":"5.0 (Windows)","buildID":"20181001000000","oscpu":"Windows NT 6.1; Win64; x64","product":"Gecko","productSub":"20100101"}',
+                "IDToken2": '{"screen":{"screenWidth":1920,"screenHeight":1080,"screenColourDepth":24},"platform":"Win32","language":"ru","timezone":{"timezone":-180},"plugins":{"installedPlugins":""},"fonts":{"installedFonts":"cursive;monospace;serif;sans-serif;default;Arial;Arial Black;Arial Narrow;Bookman Old Style;Bradley Hand ITC;Century;Century Gothic;Comic Sans MS;Courier;Courier New;Georgia;Impact;Lucida Console;Papyrus;Tahoma;Times;Times New Roman;Trebuchet MS;Verdana;"},"userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36","appName":"Netscape","appCodeName":"Mozilla","appVersion":"5.0 (Windows)","buildID":"20181001000000","oscpu":"Windows NT 6.1; Win64; x64","product":"Gecko","productSub":"20100101"}',
                 "csrf.sign": csrf_token,
                 "csrf.ts": csrf_ts_token,
             },
