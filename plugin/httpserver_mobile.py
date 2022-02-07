@@ -1313,6 +1313,11 @@ class WebServer():
             elif cmd.lower() == 'version_update':  # обновление версии
                 res = run_update()
                 ct, text = 'text/html', settings.header_html + f'\n<pre>\n{res}\n</pre>\n'
+                if 'Update:' in text and 'No new version found' not in text:
+                    logging.info('Schedule restart web service')
+                    threading.Thread(target=lambda: restart_program(reason=f'WEB: /restart', delay=5), name='Restart', daemon=True).start()
+                else:
+                    logging.info('No new version, no restart')
             elif cmd == 'logging_restart':  # logging_restart
                 store.logging_restart()
                 ct, text = 'text/html', 'OK'
