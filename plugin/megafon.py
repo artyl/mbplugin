@@ -76,14 +76,11 @@ def get_balance(login, password, storename=None, **kwargs):
     try:
         response7 = session.get('https://lk.megafon.ru/api/options/remaindersMini')
         if response7.status_code == 200 and 'json' in response7.headers.get('content-type'):
-            remainders = sum([
-                i.get('remainders', [])
-                for i in response7.json().get('remainders', [])
-                if 'на мегафон' not in i.get('name', '').lower() and 'в крыму' not in i.get('name', '').lower()
-            ], [])
+            r7_remainders = response7.json().get('remainders', [])  # {.., remainders: [{remainders:[{...},{...}], ...]...},  ...}
+            remainders = sum([i.get('remainders', []) for i in r7_remainders if 'в крыму' not in i.get('name', '').lower()], [])
             minutes = [i['availableValue'] for i in remainders if i.get('unit', '').startswith('мин') or i.get('groupId', '') == 'voice']
             if len(minutes) > 0:
-                result['Min'] = sum([i['value'] for i in minutes])
+                result['Min'] = sum([i['value'] for i in minutes if i['value']<10000])
             internet = [i['availableValue'] for i in remainders if i.get('unit', '').endswith('Б') or i.get('groupId', '') == 'internet']
             unitDiv = settings.UNIT.get(interUnit, 1)
             if len(internet) > 0:
