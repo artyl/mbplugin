@@ -257,7 +257,7 @@ class BalanceOverPlaywright():
         # иначе мы видимость браузера из headless уже не вернем и капчу показать не сможем
         if type(headless) == bool:
             self.headless = headless
-        elif str(self.options('show_captcha') == '1' or str(self.options('show_chrome')) == '1') or str(self.options('playwright_pause')) == '1':
+        elif str(self.options('show_captcha')) == '1' or str(self.options('show_chrome')) == '1' or str(self.options('playwright_pause')) == '1':
             self.headless = False  # Ignore headless option if ...            
         elif headless == NOT_IN_CHROME and self.options('browsertype') == 'chromium':
             # Если указано что в хроме headless не работает и настройками это не поменяли, то выключаем чтобы хоть как-то отработало
@@ -478,6 +478,7 @@ class BalanceOverPlaywright():
         else:
             self.chrome_executable_path = self.browsertype.executable_path
         logging.info(f'Launch chrome from {self.chrome_executable_path}')
+        logging.info(f'Launch chrome with {self.launch_config}')
         if self.options('user_agent').strip() != '':
             self.launch_config.update({'user_agent': self.options('user_agent').strip()})
         if self.options('browser_proxy').strip() != '':
