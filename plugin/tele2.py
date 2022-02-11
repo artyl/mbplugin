@@ -226,9 +226,9 @@ def get_balance_api(login, password, storename=None, **kwargs):
 
 def get_balance(login, password, storename=None, **kwargs):
     pkey = store.get_pkey(login, plugin_name=__name__)
-    if store.options('plugin_mode', pkey=pkey).upper() == 'WEB':
-        return get_balance_browser(login, password, storename)
-    return get_balance_api(login, password, storename)
+    if store.options('plugin_mode', pkey=pkey).upper() == 'API':
+        return get_balance_api(login, password, storename)
+    return get_balance_browser(login, password, storename)
 
 
 if __name__ == '__main__':
