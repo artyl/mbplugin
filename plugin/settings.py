@@ -202,6 +202,9 @@ ini = {
         'mosenergosbyt_nm_indication_take': '0',
         'mosenergosbyt_nm_indication_variants_': {'descr': 'Мосэнергосбыт: Для электросчетчика, какие варианты данных искать', 'type': 'text'},
         'mosenergosbyt_nm_indication_variants': '1:ЛКК,2:АИИС КУЭ,3:ПГУ',
+        # Номер на который придет SMS при входе в ЛК теле2
+        'tele2_sms_num': {'descr': 'Номер на который придет SMS при логине в ЛК теле2 в формате 10 цифр, если не задан используется логин', 'type': 'text', 'validate': lambda i: (i.strip() == '' or i.isdigit() and len(i.strip()) == 10)},
+        'tele2_sms_num': '',
         # Вести отдельный полный лог по стокам (stock.py)
         'stock_fulllog_': {'descr': 'Вести отдельный полный лог по стокам (stock.py)', 'type': 'checkbox'},
         'stock_fulllog': '0',

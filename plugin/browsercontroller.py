@@ -458,6 +458,14 @@ class BalanceOverPlaywright():
         if selector != '' and self.page.query_selector(selector):
             return self.page.click(selector, *args, **kwargs)
 
+    @check_browser_opened_decorator
+    @safe_run_with_log_decorator
+    def page_press(self, selector, key, *args, **kwargs):
+        ''' переносим вызов click в класс для того чтобы каждый раз не указывать page
+        Кликаем только если элемент есть'''
+        if selector != '' and key != '':
+            return self.page.press(selector, key, *args, **kwargs)
+
     def launch_browser(self, launch_func):
         self.launch_config.update({
             'user_data_dir': self.user_data_dir,
@@ -490,6 +498,7 @@ class BalanceOverPlaywright():
         self.page = self.browser.pages[0]
         [p.close() for p in self.browser.pages[1:]]
         self.page.on("response", self.response_worker)
+        self.page.on("dialog", lambda dialog: dialog.dismiss())
         if str(self.options('intercept_request')) == '1' and str(self.options('show_captcha')) == '0':
             # Если включено показывать капчу - то придется грузить все чтобы загрузить картинки
             self.page.route("*", self.on_route_worker)
@@ -734,7 +743,11 @@ class BalanceOverPlaywright():
             self.browsertype : playwright.sync_api._generated.BrowserType = getattr(self.sync_pw, browsertype_text)
             self.launch_browser(launch_func=self.browsertype.launch_persistent_context)  # self.sync_pw.chromium.launch_persistent_context
             if run == NORMAL:
-                self.data_collector()
+                try:
+                    self.data_collector()
+                except Exception:
+                    logging.error(f'Exception in data_collector: {store.exception_text()}')
+                    raise
             elif run == CHECK_LOGON:
                 self.check_logon_selectors_prepare()
                 self.check_logon_selectors()
