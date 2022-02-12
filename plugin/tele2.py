@@ -192,8 +192,8 @@ def get_balance_api(login, password, storename=None, **kwargs):
 
     result = {}
     headers = {
-        'Tele2-User-Agent': '"mytele2-app/3.17.0"; "unknown"; "Android/9"; "Build/12998710"',
-        'User-Agent': 'okhttp/4.2.0', 'X-API-Version': '1',
+        'Tele2-User-Agent': '"mytele2-app/4.10.0"; "unknown"; "Android/9"; "Build/12998710"',
+        'User-Agent': 'okhttp/4.2.0', 'X-API-Version': '3',
         'Content-Type': 'application/x-www-form-urlencoded'
     }
     data = {
