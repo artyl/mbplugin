@@ -11,7 +11,9 @@ goto :EOF
 :test
 %~d0
 cd "%~dp0"
+call python\python -m pip install -r docker\requirements_pytest.txt 
 call python\python -m pytest tests %2 %3 %4 %5 %6 %7 %8 %9
+echo %errorlevel%
 goto :EOF
 @REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ fixup
 :fixup
@@ -104,6 +106,16 @@ if EXIST mbplugin\store\headless (
     ECHO Error setup_and_check
     GOTO :EOF
 )
+
+cd "%~dp0\mbplugin"
+call python\python -m pip install -r docker\requirements_pytest.txt 
+call python\python -m pytest tests
+if EXIST mbplugin\python\__pycache__  (
+    ECHO Error tests
+    GOTO :EOF
+)
+call python\python -m pip uninstall -y -r docker\requirements_pytest.txt 
+call python\python -m pip install -r docker\requirements_win.txt
 
 cd "%~dp0\.."
 call mbplugin\python\python mbplugin\python\remove__pycache__.py
