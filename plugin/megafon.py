@@ -77,6 +77,18 @@ class browserengine(browsercontroller.BrowserController):
         #Login by SMS  [ True, True, True, True, False ]
         #Inside lk     [ False, False, False, False, True ]
         ######################################
+        self.page_evaluate("document.querySelectorAll('i.ng_personal_popup_close').forEach(el => el.click())")
+        self.sleep(1)
+        self.page_screenshot()
+        self.page_goto(self.baseurl + '/../../remainders')
+        self.sleep(3)
+        self.page_screenshot()
+        self.page_goto(self.baseurl + '/../../tariff')
+        self.sleep(3)
+        self.page_screenshot()
+        self.page_goto(self.baseurl + '/../../options')
+        self.sleep(3)
+        self.page_screenshot()
         breakpoint()
         raise RuntimeError('Not implemented yet')
         #self.do_logon(url=login_url, user_selectors=user_selectors)

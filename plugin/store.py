@@ -439,7 +439,8 @@ class ini():
                         raise RuntimeError(f'Parse phones_add.ini error in section{secnum}')
                 # Выравниваем все значения, которые в CapitalCase присваивая им значения из lower case
                 for k in data[key]:
-                    data[key][k] = data[key][k.lower()]
+                    if k.lower() != k and k.lower() in data[key]:
+                        data[key][k] = data[key][k.lower()]
         return data
 
 
