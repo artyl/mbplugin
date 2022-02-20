@@ -29,8 +29,15 @@ def check_logon_selectors(page, login_url, user_selectors):
             break
         page.wait_for_timeout(1000)
     page_evaluate(page,selectors['before_login_js'])
-    page.wait_for_selector(selectors['password_selector'])
-    for sel in ['chk_login_page_js', 'login_clear_js', 'password_clear_js', 'chk_submit_js', 'chk_lk_page_js']:
+    sel = 'chk_submit_after_login_js'
+    selector_checklist = ['chk_login_page_js', 'login_clear_js', 'chk_submit_js', 'chk_lk_page_js']
+    # Для сайтов с раздельным вводом логина и пароля не можем проверить наличие поля пароля
+    if selectors[sel] != '':
+        assert page_evaluate(page,selectors[sel]) == True, 'Bad result (False) for {sel}'
+    else:
+        page.wait_for_selector(selectors['password_selector'])
+        selector_checklist.extend(['password_clear_js'])
+    for sel in selector_checklist:
         if selectors[sel] !='':
             eval_res = page_evaluate(page,selectors[sel])
             if sel.startswith('chk_lk_page_js'):
@@ -52,6 +59,9 @@ class TestUM:
         print ("class setup")
         self.sync_pw = sync_playwright().start()
         self.user_data_dir = store.abspath_join(store.options('storefolder'), 'headless', 'test')
+        # Firefox в некоторых версиях не хочет стартовать если не создана папка профиля
+        if not os.path.exists(self.user_data_dir):
+            os.makedirs(self.user_data_dir, exist_ok=True)
         self.browser = self.sync_pw.firefox.launch_persistent_context(
             user_data_dir=self.user_data_dir,
             # Если нужно показать браузер
