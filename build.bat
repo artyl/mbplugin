@@ -11,7 +11,7 @@ goto :EOF
 :test
 %~d0
 cd "%~dp0"
-call mbplugin\python\python -m pytest tests %2 %3 %4 %5 %6 %7 %8 %9
+call python\python -m pytest tests %2 %3 %4 %5 %6 %7 %8 %9
 goto :EOF
 @REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ fixup
 :fixup
