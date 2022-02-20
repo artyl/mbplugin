@@ -8,7 +8,7 @@ import browsercontroller
 icon = '789CAD532DA8C250143E0F5E31080B83D581618F056141EBE00583F0C06235D9865530894D64C13010C12C68B50D8345C3FA82C16A90051141C7E6DF39CF5DAE6F4E1EBCF7C11776EE77CE3DDF39BB9F5FF97720E46FFCB851B8F30DE4EF83FB398FCBE5F267FABE0F994C060A85029CCF678AD56A358ABDE2683422EDE170A05E645966F9BAAEC79BFD01CBB2487B3C1EE95B5114963F180CC0300CEAA35AAD42A5528172B90CB95C0E5455A5BB86C361623E72329940B3D9846EB70BBD5E0F1CC7A1386A4EA713D326E5E35C70263C168B456C7E49F948BC07FBE7B15C2E1F346118422A95225FCFF68335F91A8220D0CCF16C3C1E93CF76BB4D1E77BB1DF3C6F78231DE4BBD5EA7F833341A0D9A99A669502A95C81F6AB7DB2DF519017B984EA7D0E974683FD96C96CE716FA669329DE779AC0FFEBF705D37E613678E75715711B01ECE68BD5E8324492F771131080210459169E7F379CCE766B379F92E56AB15A4D369D2CE66B387DC56ABF5ABB7B5DFEFA1DFEF9357DC6FB15804DBB6FFE5DD22AF62AEE146'
 api_url = 'https://api.tele2.ru/api/subscribers/'
 login_url = 'https://msk.tele2.ru/lk'
-
+api_headers = {'Tele2-User-Agent': 'mytele2-app/6.09.0', 'User-Agent': 'okhttp/6.2.3' }
 
 class browserengine(browsercontroller.BrowserController):
 
@@ -157,7 +157,7 @@ def get_balance_api(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     def check_or_get_bearer():
         '''Проверяем если сессия отдает баланс, то ок, если нет, то логинимся заново'''
-        session = store.Session(storename, headers = headers)
+        session = store.Session(storename, headers = api_headers)
         if 'Authorization' in session.get_headers():
             response1 = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/balance')
             if response1.status_code == 200:
@@ -181,7 +181,6 @@ def get_balance_api(login, password, storename=None, **kwargs):
         return response.json().get('data',{}) if response.status_code == 200 else ''
 
     result = {}
-    headers = {'Tele2-User-Agent': 'mytele2-app/6.09.0', 'User-Agent': 'okhttp/6.2.3' }
     data = {
         'username': '7'+login,
         'password': password,

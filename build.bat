@@ -4,26 +4,35 @@
 @REM git clean -fXd
 
 if NOT "%1"=="" goto %1
-ECHO RUN build clean/test/build
+ECHO RUN build clean/test/build/fixup
 
 goto :EOF
-@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ test
 :test
-py.test tests %2 %3 %4 %5 %6 %7 %8 %9
-
+%~d0
+cd "%~dp0"
+call mbplugin\python\python -m pytest tests %2 %3 %4 %5 %6 %7 %8 %9
 goto :EOF
-@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ fixup
+:fixup
+%~d0
+cd "%~dp0\plugin"
+@REM Fix docker playwright container version by playwright in python lib
+..\python\python -c "import util;util.mbplugin_dockerfile_version()"
+@REM Fix mbplugin_ini.md by setting.py
+..\python\python -c "import util;util.mbplugin_ini_md_gen()"
+goto :EOF
+@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ run
 :run
-
 goto :EOF
-@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ clean
 :clean
 %~d0
 if NOT EXIST ..\mbplugin\store\git-clear-protected (git clean -fXd) ELSE echo git-clear-protected
 if exist ..\mbplugin\dist rd ..\mbplugin\dist /S /Q
 
 goto :EOF
-@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ build
 :build
 %~d0
 if not exist dist mkdir dist

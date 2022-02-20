@@ -844,7 +844,11 @@ def mbplugin_ini_md_gen():
                     data.append(f'Варианты значения {param}: 0 - выключено или 1 - включено  ')
                 if p_attr['type'] == 'select':
                     data.append(f'Варианты значения {param}: {p_attr["variants"]}  ')
-
+    prev = open(fn_md, 'r', encoding='utf8').read() if os.path.exists(fn_md) else ''
+    if prev == '\n'.join(data):
+        echo(f'Nothing has changes in {fn_md}')
+        return
+    echo(f'Write change to {fn_md}')
     with open(fn_md, mode='w', encoding='utf8', newline='\n') as f:
         f.write('\n'.join(data))
 
@@ -857,7 +861,10 @@ def mbplugin_dockerfile_version():
     with open(fn_docker) as f:
         dockerfile = f.read()
         pl_ver_docker = re.findall(r'mcr.microsoft.com/playwright:v(\d+\.\d+\.\d+)', dockerfile)[0]
-    print(pl_ver_req, '->', pl_ver_docker)
+    if pl_ver_req == pl_ver_docker:
+        echo(f'Nothing has changes in {fn_docker} {pl_ver_req}')
+        return
+    echo(f'Write change to {dockerfile} {pl_ver_docker} -> {pl_ver_req}')
     if pl_ver_req != pl_ver_docker:
         with open(fn_docker, mode='w', newline='\n') as f:
             dockerfile = re.sub(r'mcr.microsoft.com/playwright:v((\d+\.\d+\.\d+))', f'mcr.microsoft.com/playwright:v{pl_ver_req}' , dockerfile)

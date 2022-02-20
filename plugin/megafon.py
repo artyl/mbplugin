@@ -53,10 +53,20 @@ class browserengine(browsercontroller.BrowserController):
                 self.page_press('input[name=j_username]', "Control+a")
                 self.page_fill('input[name=j_username]', self.login)
                 self.page_fill('input[name=j_password]', self.password)
-                self.sleep(3)
+                print(self.page.query_selector('input[type=submit]').is_disabled())
+                self.page_click('input[name=j_username]')
+                print(self.page.query_selector('input[type=submit]').is_disabled())
                 self.page_screenshot()
-                breakpoint()
-                self.page_click('input[type=submit]')
+                self.page_evaluate("document.querySelector('input[type=submit]').click()")
+                self.sleep(5)
+                self.page_screenshot()
+                
+                # self.page_press('input[name=j_password]', "Tab")
+                # self.page.pause()
+                # breakpoint()
+                # self.page_evaluate("document.querySelector('input[type=submit]').click()");self.sleep(1)
+                # self.page.query_selector('input[type=submit]').is_disabled()
+                # self.page_click('input[type=submit]')
             if state == States(*[True, True, True, True, False]):  # Login by SMS
                 self.page_click('span.gadget_login_entry_password')
             if state == States(*[False, False, False, False, True]):  # Inside lk

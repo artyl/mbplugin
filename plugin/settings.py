@@ -3,7 +3,7 @@
 Значения по умолчанию, здесь ничего не меняем, если хотим поменять меняем в mbplugin.ini
 подробное описание см в readme.md
 '''
-import os, sys, re
+import os, sys, re, locale
 UNIT = {'TB': 1073741824, 'ТБ': 1073741824, 'TByte': 1073741824, 'TBYTE': 1073741824,
         'GB': 1048576, 'ГБ': 1048576, 'GByte': 1048576, 'GBYTE': 1048576,
         'MB': 1024, 'МБ': 1024, 'MByte': 1024, 'MBYTE': 1024,
@@ -45,6 +45,8 @@ if sys.platform != 'win32':
 # Папка в которой по умолчанию находится mbplugin.ini, phones.ini, база
 # т.к. раньше допускалось что папка mbplugin может находится на несколько уровней вложенности вниз ищем вверх phones.ini
 mbplugin_ini_path = find_file_up(mbplugin_root_path, 'phones.ini')
+# Кодировка для windows cp1251, для остальных utf-8 
+ini_codepage = locale.getpreferredencoding()
 # В нормальном случае mbplugin_root_path и mbplugin_ini_path - одна и та же папка
 # Список открытых ключей для подписи файла контрольных сумм для проверки при обновлении из интернета
 public_keys = [b'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtD5e5dyS4dmHWLL1tx2ZfBoqCY5G72sRYllLvWMX0R sign-key-20210818']

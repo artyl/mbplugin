@@ -172,6 +172,14 @@ class Session():
             except Exception:
                 pass
         self.pagecounter += 1
+    
+    def close(self):
+        'Close session if opened'
+        if type(self._session) == requests.Session:
+            self._session.close()
+    
+    def __del__(self):
+        self.close()
 
     def get(self, url, **kwargs) -> requests.Response:
         response: requests.Response = self._session.get(url, **kwargs)
@@ -257,10 +265,11 @@ class ini():
         'файл mbplugin.ini ищем в вышележащих папках либо в settings.mbplugin_ini_path если он не пустой'
         'остальные ini ищем в пути прописанном в mbplugin.ini\\MobileBalance\\path'
         'Все пути считаются относительными папки где лежит сам mbplugin.ini, если не указано иное'
+        'Кодировка для windows cp1251, для остальных utf-8 см locale.getpreferredencoding()'
         self.ini = configparser.ConfigParser()
         self.fn = fn
         self.inipath = abspath_join(settings.mbplugin_ini_path, self.fn)
-        self.codepage = locale.getpreferredencoding() # для windows cp1251, для остальных utf-8
+        self.codepage = settings.ini_codepage # для windows cp1251, для остальных utf-8
 
     def find_files_up(self, fn):
         'Ищем файл вверх по дереву путей'
@@ -275,7 +284,7 @@ class ini():
         'Для чтения phones.ini с добавлением данных из phones_add.ini см метод ini.phones'
         if os.path.exists(self.inipath):
             if self.fn.lower() == 'phones.ini' or self.fn.lower() == 'phones_add.ini':
-                with open(self.inipath) as f_ini:
+                with open(self.inipath, encoding=self.codepage) as f_ini:
                     prep1 = re.sub(r'(?usi)\[Phone\] #(\d+)', r'[\1]', f_ini.read())
                 # TODO костыль N1, мы подменяем p_pluginLH на p_plugin чтобы при переключении плагина не разъезжались данные
                 prep2 = re.sub(r'(?usi)(Region)(\s*=\s*p_\S+)(LH)', r'\1\2\n\1_orig\2\3', prep1)
@@ -285,7 +294,7 @@ class ini():
                 prep3 = re.sub(r'(?usi)(Number)(\s*=\s*\S+)( #\d+)', r'\1\2\n\1_orig\2\3', prep2)
                 self.ini.read_string(prep3)
             else:
-                self.ini.read(self.inipath)
+                self.ini.read(self.inipath, encoding=self.codepage)
         elif not os.path.exists(self.inipath) and self.fn.lower() == settings.mbplugin_ini:
             self.create()
             self.write()
@@ -413,7 +422,7 @@ class ini():
             if secnum.isnumeric() and 'Monitor' in el:
                 key = (re.sub(r' #\d+','',el['Number']),el['Region']) # (1234567#1, mts) -> (1234567, mts)
                 data[key] = dict(el)
-                data[key]['NN'] = int(secnum)
+                data[key]['NN'] = data[key]['nn'] = int(secnum)
                 data[key]['Alias'] = el.get('Alias','')
                 data[key]['Region'] = el.get('Region','')
                 data[key]['Number'] = el.get('Number','')
@@ -428,6 +437,9 @@ class ini():
                                 data[key][k] = v
                     except Exception:
                         raise RuntimeError(f'Parse phones_add.ini error in section{secnum}')
+                # Выравниваем все значения, которые в CapitalCase присваивая им значения из lower case
+                for k in data[key]:
+                    data[key][k] = data[key][k.lower()]
         return data
 
 

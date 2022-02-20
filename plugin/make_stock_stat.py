@@ -1,4 +1,6 @@
-import sys, win32com.client
+import sys
+if sys.platform == 'win32':
+    import win32com.client
 
 def make_stock_stat(fn):
     open(fn)
@@ -48,4 +50,8 @@ def make_stock_stat(fn):
         wb_res.Sheets[1].Range(wb_res.Sheets[1].Cells(num+2,2),wb_res.Sheets[1].Cells(num+2,len(all_stock.keys())+1)).Value=tuple(line.values())
 
 if __name__ == '__main__':
-    make_stock_stat(sys.argv[1])
+    if sys.platform == 'win32':
+        make_stock_stat(sys.argv[1])
+    else:
+        print('Windows platform only')
+

@@ -13,7 +13,8 @@ def get_card_info(cardnum):
     session = store.Session()
     session.disable_warnings()  # pylint: disable=no-member
     response2 = session.get(url, headers={'Referer': baseurl + '/'}, verify=False)
-    return response2.json()
+    res =  response2.json()
+    return res
 
 
 def get_balance(login, password, storename=None, **kwargs):
