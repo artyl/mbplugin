@@ -107,7 +107,7 @@ if EXIST mbplugin\store\headless (
     GOTO :EOF
 )
 
-cd "%~dp0\mbplugin"
+cd "%~dp0"
 call python\python -m pip install -r docker\requirements_pytest.txt 
 call python\python -m pytest tests
 if EXIST mbplugin\python\__pycache__  (
