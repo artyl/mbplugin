@@ -12,6 +12,30 @@
     https://query1.finance.yahoo.com/v8/finance/chart/AAPL
     Получение котировок ETF c Finex-etf
     https://finex-etf.ru/products/FXIT
+
+    Получить данные по конкретному инструменту рынка сайта MOEX.
+    Например для получения курса USD/RUB с торгов MOEX_currency_selt_x_EUR_RUB__TOM
+    MOEX_engine_market_board_security
+    https://iss.moex.com/iss/engines/[engine]/markets/[market]/securities/[security]
+    либо
+    https://iss.moex.com/iss/engines/[engine]/markets/[market]/boards/[board]/securities/[security]
+    https://iss.moex.com/iss/reference/52
+    Engines смотрим на
+    https://iss.moex.com/iss/engines
+    Markets для конкретного Engines смотрим (например для engines=currency)
+    https://iss.moex.com/iss/engines/currency/markets/
+    Boards для конкретного Boards смотрим (например для engines=currency)
+    https://iss.moex.com/iss/engines/stock/markets/shares/boards       
+    например [engine] = currency, [market] = selt, [board] = нет [security] = USD000UTSTOM
+    Список бумаг смотрим на странице без указания бумаги (первая колонка SECID):
+    https://iss.moex.com/iss/engines/currency/markets/selt/securities
+    Данные по бумаге
+    MOEX_currency_selt_x_EUR_RUB__TOM
+    https://iss.moex.com/iss/engines/currency/markets/selt/securities/USD000UTSTOM
+    Еще пример без board: MOEX_stock_shares_x_AFLT
+    https://iss.moex.com/iss/engines/stock/markets/shares/securities/AFLT.xml
+    Пример c board: MOEX_stock_shares_TQTD_TECH
+    https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQTD/securities/TECH    
 '''
 import os, sys, re, time, logging
 import requests, bs4
@@ -58,25 +82,12 @@ def get_balance(login, password, storename=None, **kwargs):
         securities = {i['secid']:i for i in lines}
         result['Balance'] = round(float(securities[login]['rate']), 4)
         result['TarifPlan'] = f"MOEX курс {login} на {securities[login]['tradedate']} {securities[login]['tradetime']}"
-    elif re.match(r'(?usi)^MOEX[ _](\w+?)[ _](\w+?)[ _](\w+?)$', login):  # Получить данные по конкретному инструменту рынка.
-        # Получить данные по конкретному инструменту рынка.
-        # MOEX_engine_market_security
-        # https://iss.moex.com/iss/engines/[engine]/markets/[market]/securities/[security]
-        # https://iss.moex.com/iss/reference/52
-        # Engines смотрим на
-        # https://iss.moex.com/iss/engines
-        # Markets для конкретного Engines смотрим (напрмер для engines=currency)
-        # https://iss.moex.com/iss/engines/currency/markets/
-        # например [engine] = currency, [market] = selt, [security] = USD000UTSTOM
-        # Список бумаг смотрим на странице без указания бумаги (первая колонка SECID):
-        # https://iss.moex.com/iss/engines/currency/markets/selt/securities
-        # Данные по бумаге
-        # MOEX_currency_selt_EUR_RUB__TOM
-        # https://iss.moex.com/iss/engines/currency/markets/selt/securities/USD000UTSTOM
-        # Еще пример: MOEX_stock_shares_AFLT
-        # https://iss.moex.com/iss/engines/stock/markets/shares/securities/AFLT.xml
-        engine, market, securiti = re.match(r'(?usi)^MOEX[ _](\w+?)[ _](\w+?)[ _](\w+?)$', login).groups()
-        url = f'https://iss.moex.com/iss/engines/{engine.lower()}/markets/{market.lower()}/securities/{securiti.upper()}.json?iss.meta=off'
+    elif re.match(r'(?usi)^MOEX_(\w+?)_(\w+?)_(\w+?)_(\w+?)$', login):  # Получить данные по конкретному инструменту рынка.
+        engine, market, board, securiti = re.match(r'(?usi)^MOEX_(\w+?)_(\w+?)_(\w+?)_(\w+?)$', login).groups()
+        if board.lower() == 'x':
+            url = f'https://iss.moex.com/iss/engines/{engine.lower()}/markets/{market.lower()}/securities/{securiti.upper()}.json?iss.meta=off'
+        else:
+            url = f'https://iss.moex.com/iss/engines/{engine.lower()}/markets/{market.lower()}/boards/{board.upper()}/securities/{securiti.upper()}.json?iss.meta=off'
         response = session.get(url)
         data = response.json()
         securities = dict(zip(data['securities']['columns'], data['securities']['data'][0]))
