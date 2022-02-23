@@ -110,7 +110,8 @@ if EXIST mbplugin\store\headless (
 cd "%~dp0"
 call python\python -m pip install -r docker\requirements_pytest.txt 
 call python\python -m pytest tests
-if EXIST mbplugin\python\__pycache__  (
+call python\python -m pytest tests
+if "%ERRORLEVEL%"==1  (
     ECHO Error tests
     GOTO :EOF
 )
