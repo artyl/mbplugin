@@ -34,10 +34,10 @@ https://finex-etf.ru/products/FXIT
 '''
 ''' Автор ArtyLa '''
 import os, sys, re, time, logging, threading, queue, json
-import xml.etree.ElementTree as etree
 import store, settings
 
 icon = '789C73F235636100033320D600620128666450804840E591C1F7EFDF19BE7DFB06A641F8C78F1F0C7FFEFC61F8FBF72FC3FFFFFFC118C4068981E460EA607A90F582D4C0F4E0C22035E8668030B27D84F0BF7FFFE0FA90ED7DF5F2274365DE1D86C6B27B0CF3A73F659837F529437CD0558669BD8F19E64F7BCA30A5FB11863B407E8289BD7EF58BE1C695AF0CE9D1D719BA1A1F3074363C60B0D33BC3D000340FC4AF2DBE8BE20E585881D8EFDEFC62B0503FCD90147A8D61E796B70C0B663E63B874FE334373E53D9CFA91C3F9CFEF7F607B8D144F82CD7878EF3B43B0EB2586558B5F82DD8F4D3F281C90F9DFBFFD65488F829861AA720A4C1B2B9D6458BEE005C32EA09BD0F563C3DF8066A4455E03EBCD8ABBC160AD7D1A6CC6CA452F180EEC7AC7F0F8E17714F5D8E20D64C68219CF80FEFBC770F6E427B81993BB1E31043A5F44713F3169066606C84D4E466751C20F39FE70E11B57BF32381A9EC5D00F4BCF84DC70FAF84786DDDBDE82F1C9A31F31D23125E9971AF9075BFE454E1BB070C6967F01C1D1A7CC'
+
 
 def get_curs_moex(currenc):
     'Возвращает курсы валют относительно заданной'
@@ -53,6 +53,7 @@ def get_curs_moex(currenc):
     res = {pair[0]:val for pair,val in rate.items() if pair[1] == currenc}
     return res
 
+
 def get_yahoo(market, security, cnt, qu=None, user_agent='', **kwargs):
     url = time.strftime(f'https://query1.finance.yahoo.com/v8/finance/chart/{security}')
     if user_agent.strip() == '':
@@ -65,6 +66,7 @@ def get_yahoo(market, security, cnt, qu=None, user_agent='', **kwargs):
     if qu:
         qu.put(res)
     return res
+
 
 def get_finex(market, security, cnt, qu=None, **kwargs):
     #url = f'https://finex-etf.ru/products/{security}'
@@ -82,34 +84,15 @@ def get_finex(market, security, cnt, qu=None, **kwargs):
     return res
 
 
-def get_moex_old(market, security, cnt, qu=None, **kwargs):
-    'Старая версия берет данные со страницы о бумаге'
-    url = time.strftime(f'https://iss.moex.com/iss/engines/stock/markets/shares/securities/{security}')
-    response = store.Session().get(url)
-    root=etree.fromstring(response.text)
-    # из securities возьмем стоимость бумаги за вчерашний день, если нет торгов
-    rows_securities = root.findall('*[@id="securities"]/rows')[0]
-    # из market возьмем стоимость самую свежую по торгам
-    rows_market = root.findall('*[@id="marketdata"]/rows')[0]
-    prevwarprices = [c.get('PREVWAPRICE') for c in list(rows_securities) if c.get('PREVWAPRICE')!='']
-    lasts = [c.get('LAST') for c in list(rows_market) if c.get('LAST')!='']
-    price =  float(lasts[0] if lasts != [] else prevwarprices[0])
-    res = {'security':security, 'price':price,'value':price*cnt, 'cnt': cnt, 'currency':'RUB'}
-    if qu:
-        qu.put(res)
-    
-    return res
-
-
 def get_moex(market, security, cnt, qu=None, **kwargs):
     moexmarket = market.upper()[-4:] if len(market)>2 else 'TQBR'
     marketval = {'TQBR': 'RUB', 'TQTF': 'RUB', 'TQTD': 'USD', 'TQTE': 'EUR'}
-    url = f'https://iss.moex.com/iss/engines/stock/markets/shares/boards/{moexmarket}/securities.xml?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST'
+    url = f'https://iss.moex.com/iss/engines/stock/markets/shares/boards/{moexmarket}/securities/{security}.json?iss.meta=off'
     response = store.Session().get(url)
-    root=etree.fromstring(response.text)
-    rows = root.find('*[@id="marketdata"]/rows')
-    allsec = {l.items()[0][1]:l.items()[1][1] for l in rows}
-    price = float(allsec[security.upper()])
+    data = response.json()
+    # securities = dict(zip(data['securities']['columns'], data['securities']['data'][0]))
+    marketdata = dict(zip(data['marketdata']['columns'], data['marketdata']['data'][0]))
+    price = float(marketdata['LAST'] if marketdata['LAST'] is not None else marketdata['MARKETPRICE'])
     res = {'security':security, 'price':price,'value':price*cnt, 'cnt': cnt, 'currency':marketval[moexmarket]}
     if qu:
         qu.put(res)

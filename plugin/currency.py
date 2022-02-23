@@ -14,7 +14,6 @@
     https://finex-etf.ru/products/FXIT
 '''
 import os, sys, re, time, logging
-import xml.etree.ElementTree as etree
 import requests, bs4
 import store, settings
 
@@ -43,37 +42,72 @@ def get_balance(login, password, storename=None, **kwargs):
             if login.lower() == val.lower():
                 result['Balance'] = round(float(cur.replace(',', '.')), 4)
                 result['TarifPlan'] = f'ЦБ РФ рублей за {ed} {val_text} c {cdate}'
-    elif re.match(r'^(?usi)(?:RBC)[ _]?\w{3}$', login):  # Курсы ЦБ с РБК например RBC_USD
+    elif re.match(r'(?usi)^(?:RBC)[ _]?\w{3}$', login):  # Курсы ЦБ с РБК например RBC_USD
         login = re.findall(r'(?:RBC)[ _]?(\w{3})', login)[0]
         url = time.strftime("http://cbrates.rbc.ru/tsv/840/%Y/%m/%d.tsv")
         response = session.get(url)
-        result['Balance'] = response.text.split()[-1]
-        result['userName'] = f'Курс {login} от РБК'
-    elif re.match(r'^(?usi)(?:MOEX)?[ _]?\w{3}/\w{3}$', login):  # USD/RUB или MOEX USD/RUB - MOEX
+        result['Balance'] = float(response.text.split()[-1])
+        result['userName'] = f"Курс {login} от РБК (ЦБ) на {time.strftime('%Y-%m-%d')}"
+        result['TarifPlan'] = result['userName']
+    elif re.match(r'(?usi)^(?:MOEX)?[ _]?\w{3}/\w{3}$', login):  # USD/RUB или MOEX USD/RUB - MOEX
         login = re.findall(r'\w{3}/\w{3}', login)[0]
-        response = session.get('https://iss.moex.com/iss/statistics/engines/futures/markets/indicativerates/securities')
-        currs = dict(re.findall(r'secid="(\w{3}/\w{3})" rate="(.*?)"',response.text))
-        result['Balance'] = round(float(currs[login]), 4)
-        result['TarifPlan'] = f'MOEX курс {login}'
-    elif re.match(r'^(?usi)(?:MOEX)[ _]?\w+$', login):  # Курсы акций на - MOEX, напр MOEX_TATNP
-        login = re.findall(r'(?:MOEX)[ _]?(\w+)', login)[0]
-        url = f'https://iss.moex.com/iss/engines/stock/markets/shares/securities/{login}'
+        response = session.get('https://iss.moex.com/iss/statistics/engines/futures/markets/indicativerates/securities.json?iss.meta=off')
+        data = response.json()
+        headers = data['securities']['columns']
+        lines = [dict(zip(headers,i)) for i in data['securities']['data']]
+        securities = {i['secid']:i for i in lines}
+        result['Balance'] = round(float(securities[login]['rate']), 4)
+        result['TarifPlan'] = f"MOEX курс {login} на {securities[login]['tradedate']} {securities[login]['tradetime']}"
+    elif re.match(r'(?usi)^MOEX[ _](\w+?)[ _](\w+?)[ _](\w+?)$', login):  # Получить данные по конкретному инструменту рынка.
+        # Получить данные по конкретному инструменту рынка.
+        # MOEX_engine_market_security
+        # https://iss.moex.com/iss/engines/[engine]/markets/[market]/securities/[security]
+        # https://iss.moex.com/iss/reference/52
+        # Engines смотрим на
+        # https://iss.moex.com/iss/engines
+        # Markets для конкретного Engines смотрим (напрмер для engines=currency)
+        # https://iss.moex.com/iss/engines/currency/markets/
+        # например [engine] = currency, [market] = selt, [security] = USD000UTSTOM
+        # Список бумаг смотрим на странице без указания бумаги (первая колонка SECID):
+        # https://iss.moex.com/iss/engines/currency/markets/selt/securities
+        # Данные по бумаге
+        # MOEX_currency_selt_EUR_RUB__TOM
+        # https://iss.moex.com/iss/engines/currency/markets/selt/securities/USD000UTSTOM
+        # Еще пример: MOEX_stock_shares_AFLT
+        # https://iss.moex.com/iss/engines/stock/markets/shares/securities/AFLT.xml
+        engine, market, securiti = re.match(r'(?usi)^MOEX[ _](\w+?)[ _](\w+?)[ _](\w+?)$', login).groups()
+        url = f'https://iss.moex.com/iss/engines/{engine.lower()}/markets/{market.lower()}/securities/{securiti.upper()}.json?iss.meta=off'
         response = session.get(url)
-        root=etree.fromstring(response.text)
-        rows_securities = root.findall('*[@id="securities"]/rows')[0]  # Данные по бумаге
-        rows_market = root.findall('*[@id="marketdata"]/rows')[0]  # Последние данные по торгам
-        lasts = [c.get('LAST') for c in list(rows_market) if c.get('LAST')!='']  # берем последнюю цену по торгам
-        prevwarprices = [c.get('PREVWAPRICE') for c in list(rows_securities) if c.get('PREVWAPRICE')!='']  # Если сегодня торгов не было возьмем из rows_securities
-        result['TarifPlan'] = [c.get('SECNAME') for c in rows_securities if c.get('SECNAME')!=''][0]  # Название бумаги
-        result['Balance'] = float(lasts[0] if lasts != [] else prevwarprices[0])
-    elif re.match(r'^(?usi)(?:YAHOO)[ _]?\w+$', login):  # Курсы акций на - YAHOO finance, напр YAHOO_AAPL
+        data = response.json()
+        securities = dict(zip(data['securities']['columns'], data['securities']['data'][0]))
+        lines = [dict(zip(data['marketdata']['columns'], line)) for line in data['marketdata']['data']]
+        res_lines = [line for line in lines if line['LAST'] is not None and line['MARKETPRICE'] is not None]
+        if len(res_lines) >0:
+            marketdata = res_lines[0]
+            result['Balance'] = round(float(marketdata['LAST'] if marketdata['LAST'] is not None else marketdata['MARKETPRICE']), 4)
+            result['TariffPlan'] = f"{securities['SECNAME']} на {marketdata['SYSTIME']}"
+        else:
+            result['Balance'] = round(float(securities['PREVPRICE'] if securities['PREVPRICE'] is not None else securities['PREVWAPRICE']), 4)
+            result['TariffPlan'] = f"{securities['SECNAME']} на {securities['PREVDATE']}"
+    elif re.match(r'(?usi)^(?:MOEX)[ _]?\w+$', login):  # Курсы акций на - MOEX, напр MOEX_TATNP
+        login = re.findall(r'(?:MOEX)[ _]?(\w+)', login)[0]
+        url = f'https://iss.moex.com/iss/engines/stock/markets/shares/securities/{login}.json?iss.meta=off'
+        response = session.get(url)
+        data = response.json()
+        securities = dict(zip(data['securities']['columns'], data['securities']['data'][0]))
+        marketdata = dict(zip(data['marketdata']['columns'], data['marketdata']['data'][0]))
+        # Если сегодня торгов не было возьмем из rows_securities
+        price = round(float(marketdata['LAST'] if marketdata['LAST'] is not None else marketdata['MARKETPRICE']), 4)
+        result['TarifPlan'] = securities['SECNAME']  # Название бумаги
+        result['Balance'] = price
+    elif re.match(r'(?usi)^(?:YAHOO)[ _]?\w+$', login):  # Курсы акций на - YAHOO finance, напр YAHOO_AAPL
         login = re.findall(r'(?:YAHOO)[ _]?(\w+)', login)[0]
         url = time.strftime(f'https://query1.finance.yahoo.com/v8/finance/chart/{login}')
         response = session.get(url)
         meta = response.json()['chart']['result'][0]['meta']
         meta['regularMarketPrice']
         result['Balance'] = meta['regularMarketPrice']
-    elif re.match(r'^(?usi)(?:FINEX)[ _]?\w+$', login):  # Курсы ETF на - finex-etf например FINEX_FXIT
+    elif re.match(r'(?usi)^(?:FINEX)[ _]?\w+$', login):  # Курсы ETF на - finex-etf например FINEX_FXIT
         login = re.findall(r'(?:FINEX)[ _]?(\w+)', login)[0]
         url = time.strftime(f'https://finex-etf.ru/products/{login}')
         response = session.get(url)
