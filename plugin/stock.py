@@ -90,9 +90,9 @@ def get_moex(market, security, cnt, qu=None, **kwargs):
     url = f'https://iss.moex.com/iss/engines/stock/markets/shares/boards/{moexmarket}/securities/{security}.json?iss.meta=off'
     response = store.Session().get(url)
     data = response.json()
-    # securities = dict(zip(data['securities']['columns'], data['securities']['data'][0]))
+    securities = dict(zip(data['securities']['columns'], data['securities']['data'][0]))
     marketdata = dict(zip(data['marketdata']['columns'], data['marketdata']['data'][0]))
-    price = float(marketdata['LAST'] if marketdata['LAST'] is not None else marketdata['MARKETPRICE'])
+    price = float(marketdata['LAST'] if marketdata['LAST'] is not None else securities['PREVPRICE'])
     res = {'security':security, 'price':price,'value':price*cnt, 'cnt': cnt, 'currency':marketval[moexmarket]}
     if qu:
         qu.put(res)

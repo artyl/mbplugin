@@ -84,7 +84,7 @@ def get_balance(login, password, storename=None, **kwargs):
         res_lines = [line for line in lines if line['LAST'] is not None and line['MARKETPRICE'] is not None]
         if len(res_lines) >0:
             marketdata = res_lines[0]
-            result['Balance'] = round(float(marketdata['LAST'] if marketdata['LAST'] is not None else marketdata['MARKETPRICE']), 4)
+            result['Balance'] = round(float(marketdata['LAST']), 4)
             result['TariffPlan'] = f"{securities['SECNAME']} на {marketdata['SYSTIME']}"
         else:
             result['Balance'] = round(float(securities['PREVPRICE'] if securities['PREVPRICE'] is not None else securities['PREVWAPRICE']), 4)
@@ -97,7 +97,7 @@ def get_balance(login, password, storename=None, **kwargs):
         securities = dict(zip(data['securities']['columns'], data['securities']['data'][0]))
         marketdata = dict(zip(data['marketdata']['columns'], data['marketdata']['data'][0]))
         # Если сегодня торгов не было возьмем из rows_securities
-        price = round(float(marketdata['LAST'] if marketdata['LAST'] is not None else marketdata['MARKETPRICE']), 4)
+        price = round(float(marketdata['LAST'] if marketdata['LAST'] is not None else securities['PREVPRICE']), 4)
         result['TarifPlan'] = securities['SECNAME']  # Название бумаги
         result['Balance'] = price
     elif re.match(r'(?usi)^(?:YAHOO)[ _]?\w+$', login):  # Курсы акций на - YAHOO finance, напр YAHOO_AAPL
