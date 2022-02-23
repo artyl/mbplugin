@@ -353,4 +353,4 @@ FIX: Pasha прислал способ как починить tele2 API. API с
 ## mbplugin v1.00.20 (23.02.22) Fix currency
 CHANGE: Поменял порядок пунктов в меню в web сервере на основной странице, правда предчувствие подсказывает мне что будут недовольные.  
 FIX: Восстановлена работоспособность тестов py.test. Тесты включены как часть деплоя в build build  
-ADD: Мелкие изменения по плагину currency, добавлен режим MOEX_currency_selt_x_EUR_RUB__TOM (подробнее см внитри plugin/currency.py)  
+ADD: Мелкие изменения по плагину currency, добавлен режим MOEX_currency_selt_x_EUR_RUB__TOM (подробнее см внутри plugin/currency.py)  
