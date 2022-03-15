@@ -4,7 +4,7 @@
 https://beget.com/ru
 https://beget.com/ru/kb/api/beget-api '''
 
-import os, sys, re, logging
+import os, sys, re, logging, time
 import store, json
 
 def is_json(myjson):
@@ -42,6 +42,7 @@ def get_balance(login, password, storename=None, **kwargs):
         logging.info(f'Not found TurnOff')
 
     session.save_session()
+    time.sleep(1)  # Запрос отрабатывающий меньше секунды ломает логику, поэтому ставим задержку
     return result
 
 if __name__ == '__main__':
