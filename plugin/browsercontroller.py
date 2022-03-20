@@ -555,6 +555,7 @@ class BalanceOverPlaywright():
                 self.page_screenshot(suffix='captcha')
                 logging.error(f'Show captcha timeout. A captcha appeared, but no one entered it')
                 raise RuntimeError(f'A captcha appeared, but no one entered it')
+            self.sleep(2)  # После капчи даем загрузиться странице
         else:  # Показ капчи не зададан выдаем ошибку и завершаем
             logging.error(f'Captcha appeared')
             self.page_screenshot(suffix='captcha')
@@ -589,7 +590,6 @@ class BalanceOverPlaywright():
         for countdown in range(self.wait_loop):
             if self.page_evaluate(selectors['captcha_checker'], False):
                 self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])
-                self.sleep(2)  # если не ждать - успевает проскочить после капчи
             if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_url(selectors['lk_page_url']):
                 logging.info(f'Already login')
                 break # ВЫХОДИМ ИЗ ЦИКЛА - уже залогинины
@@ -604,6 +604,9 @@ class BalanceOverPlaywright():
                 if (self.page_evaluate(selectors['chk_submit_after_login_js'], default=False)):  # Если нужно после логина нажать submit
                     self.page_click(selectors['submit_after_login_selector']) # либо click
                     self.page_evaluate(selectors['submit_after_login_js'])  # либо через js
+                    self.sleep(1*self.force)
+                    if self.page_evaluate(selectors['captcha_checker'], False):  # После ввода логина может появиться капча
+                        self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])
                     self.page_wait_for(selector=selectors['password_selector'])  # и ждем появления поля с паролем
                     self.sleep(1*self.force)
                 self.page_evaluate(selectors['password_clear_js'])  # очищаем поле пароля
@@ -615,6 +618,8 @@ class BalanceOverPlaywright():
                 self.page_click(selectors['submit_selector']) #  нажимаем на submit form
                 self.page_evaluate(selectors['submit_js'])  # либо через js (на некоторых сайтах один из вариантов не срабатывает)
                 self.page_wait_for(loadstate=True)  # ждем отработки нажатия
+                if self.page_evaluate(selectors['captcha_checker'], False):  # После ввода пароля тоже может быть капча
+                    self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])                
                 # ждем появления личного кабинета, или проваливаемся по таймауту
                 self.page_wait_for(expression=selectors['chk_lk_page_js'], response_url=selectors['lk_page_url'])
                 self.sleep(1*self.force if not is_bad_chk_lk_page_js else self.max_timeout)

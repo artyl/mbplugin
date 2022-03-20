@@ -10,7 +10,7 @@ login_url = 'https://login.mts.ru/amserver/UI/Login?service=newlk'  # - друг
 # login_url = 'https://lk.mts.ru/'  # а на этой запомнить сессию нельзя
 user_selectors = {
     # Возможно 2 разных формы логина, кроме того при заходе через мобильный МТС форма будет отличаться поэтому в выражении предусмотрены все варианты
-    'chk_lk_page_js': "document.querySelector('form input[id^=phone]')==null && document.querySelector('form input[id=password]')==null && document.querySelector('form button[value=Ignore]')==null && document.getElementById('enter-with-phone-form')==null",
+    'chk_lk_page_js': "document.querySelector('form input[id=phoneInput]')==null && document.querySelector('form input[id=password]')==null && document.querySelector('form button[value=Ignore]')==null && document.getElementById('enter-with-phone-form')==null",
     'lk_page_url': 'login/userInfo', # не считаем что зашли в ЛК пока не прогрузим этот url
     # У нас форма из двух последовательных окон (хотя иногда бывает и одно, у МТС две разных формы логона)
     'chk_login_page_js': "document.querySelector('form input[id=phoneInput]')!=null || document.querySelector('form input[id=password]')!=null || document.querySelector('form button[value=Ignore]')!=null || document.getElementById('enter-with-phone-form')!=null",
@@ -21,14 +21,16 @@ user_selectors = {
                           i2=document.getElementById('IDButton');
                           if(b2!==null && i2!==null){i2.value='Ignore';b2.submit.click();}
                         """,
-    'login_clear_js': "document.querySelector('form input[id^=phone]').value=''",
-    'login_selector': 'form input[id^=phone]',
+    'login_clear_js': "document.querySelector('form input[id=phoneInput]').value=''",
+    'login_selector': 'form input[id=phoneInput]',
     # проверка нужен ли submit после логина (если поле пароля уже есть то не нужен, иначе нужен)
     'chk_submit_after_login_js': "document.querySelector('form input[id=phoneInput]')!=null || document.querySelector('form input[id=password]')==null",
+    'submit_after_login_js': "document.querySelector('.mainContainer').querySelector('form [type=submit]').click()", # js для нажатия на далее после логона
+    'submit_js': "document.querySelector('.mainContainer').querySelector('form [type=submit]').click()",  # js для нажатия на финальный submit
     'remember_checker': "document.querySelector('form input[name=rememberme]')!=null && document.querySelector('form input[name=rememberme]').checked==false",  # Проверка что флаг remember me не выставлен
     'remember_js': "document.querySelector('form input[name=rememberme]').click()",  # js для выставления remember me
-    'captcha_checker': "document.querySelector('div[id=captcha-wrapper]')!=null||document.body.innerText.startsWith('This question is for testing whether you are a human visitor and to prevent automated spam submission.')",
-    'captcha_focus': "[document.getElementById('ans'),document.getElementById('password')].filter(s => s!=null).map(s=>s.focus())",
+    'captcha_checker': "document.querySelector('img[id=captchaImage]')!=null||document.querySelector('div[id=captcha-wrapper]')!=null||document.body.innerText.startsWith('This question is for testing whether you are a human visitor and to prevent automated spam submission.')",
+    'captcha_focus': "[document.getElementById('ans'),document.getElementById('password'),document.getElementById('captchaInput')].filter(s => s!=null).map(s=>s.focus())",
     }
 
 class browserengine(browsercontroller.BrowserController):
@@ -44,9 +46,11 @@ class browserengine(browsercontroller.BrowserController):
             self.responses = {}  # Сбрасываем все загруженные данные - там данные по материнскому телефону
             # Так больше не работает
             # url_redirect = f'https://login.mts.ru/amserver/UI/Login?service=idp2idp&IDButton=switch&IDToken1=id={self.acc_num},ou=user,o=users,ou=services,dc=amroot&org=/users&ForceAuth=true&goto=https://lk.mts.ru'
-            # Теперь добываем url так
-            url_redirect = self.page_evaluate(f"Array.from(document.querySelectorAll('a.user-block__content')).filter(el => el.querySelector('.user-block__phone').innerText.replace(/\D/g,'').endsWith('{self.acc_num}'))[0].href")
-            self.page_goto(url_redirect)
+            # Так тоже больше не работает
+            # url_redirect = self.page_evaluate(f"Array.from(document.querySelectorAll('a.user-block__content')).filter(el => el.querySelector('.user-block__phone').innerText.replace(/\D/g,'').endsWith('{self.acc_num}'))[0].href")
+            # self.page_goto(url_redirect)
+            # Теперь сразу кликаем на нужный блок, если и это сломают - будем кликать playwright
+            self.page_evaluate(f"Array.from(document.querySelectorAll('a.user-block__content')).filter(el => el.querySelector('.user-block__phone').innerText.replace(/\D/g,'').endsWith('{self.acc_num}'))[0].click()")
             # !!! Раньше я на каждой странице при таком заходе проверял что номер тот, сейчас проверяю только на старте
             for _ in range(10):
                 self.sleep(1)
