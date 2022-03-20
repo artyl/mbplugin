@@ -14,6 +14,7 @@ user_selectors={
                 'login_selector': 'form input[formcontrolname=username]',
                 }
 
+
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
@@ -22,14 +23,12 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'BlockStatus', 'url_tag': ['devices/devices'], 'jsformula': "data.devices[0].productStatus == 'active' ? '' : data.devices[0].productStatus"},
             {'name': 'TarifPlan', 'url_tag': ['devices/devices'], 'jsformula': "data.devices[0].offeringSpeed.speedValue+data.devices[0].offeringSpeed.unitOfMeasure"}
             ,])
-        # 'BlockStatus'
-        # data.devices[0].productStatus
-        # TarifPlan
-        # data.devices[0].offeringSpeed.speedValue+data.devices[0].offeringSpeed.unitOfMeasure
+
 
 def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     return browserengine(login, password, storename, plugin_name=__name__).main()
+
 
 if __name__ == '__main__':
     print('This is module yota')
