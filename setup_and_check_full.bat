@@ -14,7 +14,7 @@ REM если используем встроенный браузер запускаем playwright install chromium
 mbplugin\python\python mbplugin\plugin\util.py install-chromium
 
 REM очищаем кэши браузера (только в full)
-REM mbplugin\python\python mbplugin\plugin\util.py clear-browser-cache
+mbplugin\python\python mbplugin\plugin\util.py clear-browser-cache
 
 REM Пересобираем DLL и JSMB LH plugin
 mbplugin\python\python mbplugin\plugin\util.py recompile-plugin

@@ -30,8 +30,10 @@
     Список бумаг смотрим на странице без указания бумаги (первая колонка SECID):
     https://iss.moex.com/iss/engines/currency/markets/selt/securities
     Данные по бумаге
-    MOEX_currency_selt_x_EUR_RUB__TOM
+    MOEX_currency_selt_x_USD000UTSTOM
     https://iss.moex.com/iss/engines/currency/markets/selt/securities/USD000UTSTOM
+    MOEX_currency_selt_x_EUR_RUB__TOM
+    https://iss.moex.com/iss/engines/currency/markets/selt/securities/EUR_RUB__TOM
     Еще пример без board: MOEX_stock_shares_x_AFLT
     https://iss.moex.com/iss/engines/stock/markets/shares/securities/AFLT.xml
     Пример c board: MOEX_stock_shares_TQTD_TECH
