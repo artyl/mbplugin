@@ -7,6 +7,7 @@ icon = '789c73f235636100033320d600620128666450804800e58ff041300c9c6c669801c49f80
 
 # Для тестов выносим параметры наружу, чтобы их можно было взять тестами
 login_url = 'https://auth.mgts.ru/login/b2c'
+# login_url = 'http://localhost:9000/'  # for debug
 user_selectors={
                 'chk_lk_page_js': "document.getElementById('loginform-username')==null && document.getElementById('loginform-password')==null",
                 'chk_login_page_js': "document.getElementById('loginform-username')!=null || document.getElementById('loginform-password')!=null",
@@ -22,10 +23,11 @@ class browserengine(browsercontroller.BrowserController):
         self.sleep(3*self.force)
         balance  = self.page_evaluate("document.querySelector('.account-info_balance_value').innerText.replace(/[^0-9,\.]/g,'').replace(',','.')")
         self.result['Balance'] = float(balance)
+        self.responses[f'GET URL:{self.page.url}$'] = self.page.content()  # т.к. мы парсим страницу, то для лога интересно ее содержимое
         try:
             self.result['UserName'] = self.page_evaluate("document.querySelector('.account-info_title').innerText.replace(/\s/g,' ')")
             self.result['TarifPlan'] = self.page_evaluate("Array.from(document.querySelectorAll('.text-link')).map(e => e.innerText).join(' ')")
-            self.result['LicSchet'] = self.page_evaluate("Array.from(document.querySelectorAll('.account-info_item_value')).map(e => e.innerText).join(' ')")
+            self.result['LicSchet'] = self.page_evaluate("Array.from(document.querySelectorAll('.account-info_item_value')).filter(e => e.parentElement.innerText.includes('Лицевой')).map(e => e.innerText).join(' ')")
         except Exception:
             logging.info(f'Ошибка при получении доп информации {store.exception_text()}')
 
