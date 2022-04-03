@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import typing, os, sys, io, re, time, json, threading, logging, importlib, queue, argparse, subprocess, glob, base64, collections
+import typing, os, sys, io, random, re, time, json, threading, logging, importlib, queue, argparse, subprocess, glob, base64, collections
 import wsgiref.simple_server, socketserver, socket, urllib.parse, urllib.request
 import requests, psutil, bs4, uuid, PIL.Image, schedule
 import settings, store, dbengine, compile_all_jsmblh, updateengine  # pylint: disable=import-error
@@ -179,6 +179,12 @@ def getbalance_plugin(method, param_source):
         storename = re.sub(r'\W', '_', f"{lang}_{plugin}_{param['login']}")
         dbengine.flags('setunic', f"{lang}_{plugin}_{param['login']}", 'start')  # выставляем флаг о начале запроса
         try:
+            if store.option_validate('jitter')[0]:
+                jitters = store.options('jitter').split(',',1)
+                # n и m сортируем по возрастанию т.к. randint не любит когда n>m
+                j_time = random.uniform(*sorted([int(jitters[0]), int(jitters[1])]))
+                logging.info(f'Jitter {j_time:.2f} seconds')
+                time.sleep(j_time)
             result = module.get_balance(param['login'], param['password'], storename, pkey=pkey)
             if type(result) != dict or 'Balance' not in result:
                 raise RuntimeError(f'В result отсутствует баланс')

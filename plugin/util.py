@@ -529,13 +529,15 @@ def check_ini(ctx):
 
 @cli.command()
 @click.option('-b', '--bpoint', type=int)
+@click.option('-p', '--params', multiple=True, type=click.Tuple([str, str]), help='overpal parameters ex. -p showchrome 1 -p plugin_mode WEB')
 @click.argument('plugin', type=str)
 @click.argument('login', type=str)
 @click.argument('password', type=str)
 @click.pass_context
-def check_plugin(ctx, bpoint, plugin, login, password):
+def check_plugin(ctx, bpoint, params, plugin, login, password):
     'Проверка работы плагина по заданному логину и паролю'
     name = 'check-plugin'
+    store.options('', mainparams=dict(params))
     store.turn_logging()
     echo(f'{plugin} {login} {password}')
     import httpserver_mobile

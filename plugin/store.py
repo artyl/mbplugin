@@ -211,11 +211,14 @@ def get_pkey(login, plugin_name):
 def options(param, default=None, section='Options', listparam=False, mainparams={}, pkey=None, flush=False):
     '''Читаем параметр из mbplugin.ini либо дефолт из settings
     Если listparam=True, то читаем список из всех, что начинается на param
-    mainparams - перекрывает любые другие варианты, если в нем присутствует - берем его
+    mainparams - перекрывает любые другие варианты, если пришли помним их до перезапуска, если в нем присутствует параметр - берем его
     Если результат путь (settings.path_param) - то вычисляем для него абсолютный путь
     Если указан pkey (number, plugin) и секция Options то пытаемся прочитать индивидуальные параметры для этого телефона из phones.ini/phones_add.ini
     если указан flush - кэш очищается
     '''
+    if not hasattr(options, 'mainparams'):
+        options.mainparams = {}
+    options.mainparams.update({k.lower():v for k,v in mainparams.items()})
     if not hasattr(options, 'mbplugin_ini') or flush:
         options.mbplugin_ini = None
         options.phones = None
@@ -238,8 +241,8 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     else:  # Обычный параметр
         if default is None:  # default не задан = возьмем из settings
             default = settings.ini[section].get(param.lower(), None)
-        if param.lower() in mainparams:  # х.з. уже не помню зачем делал, всегда приходит пустой словарь, надо разобраться и задеприкейтить
-            res = mainparams[param.lower()]  # Deprecate
+        if param.lower() in options.mainparams:  # mainparams в приоритете
+            res = options.mainparams[param.lower()]
         else:  # Берем обычный параметр, если в ini его нет, то default
             res = options.mbplugin_ini.get(section, param.lower(), fallback=default)
         if param.lower() in settings.path_param:
@@ -248,7 +251,7 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
 
 
 def option_validate(param, section='Options', pkey=None) -> typing.Tuple[bool, str]:
-    'Проверка корректности опции'
+    'Проверка корректности опции '
     val = options(param, section=section, pkey=pkey)
     prop: typing.Dict = settings.ini[section].get(param + '_', None)  # type: ignore
     err_mess = ''
