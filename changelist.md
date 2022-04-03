@@ -365,4 +365,5 @@ ADD: С помощью dimon_s2020 запилили плагин для МГТС
 
 ## mbplugin v1.00.22 (??.03.22) ???
 FIX: Чуть подправил показ лицевого счета в МГТС  
-ADD: Сделал setup_and_check_full.bat с очисткой кэша браузера а из setup_and_check.bat очистку убрал
+ADD: Сделал setup_and_check_full.bat с очисткой кэша браузера а из setup_and_check.bat очистку убрал  
+FIX: исправлена работа smile-net (virginconnect)  

@@ -44,6 +44,13 @@ def path_split_all(path):
             res.insert(0, p2)
     return res
 
+def validate_json(data):
+    'Проверяем строку на то что это валидный json'
+    try:
+        json.loads(data)
+    except json.decoder.JSONDecodeError:
+        return False  # Invalid JSON
+    return True  # Valid JSON
 
 class Feedback():
     '''Класс для создания функции обратной связи, используется чтобы откуда угодно кидать сообщения
