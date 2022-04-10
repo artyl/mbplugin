@@ -8,7 +8,7 @@ icon = '789C65535B485451145D338E14D9400FEDF5950465D857A51F2104817D14D64720FE0AE5
 
 login_url = 'https://lk.virginconnect.ru/login'
 balance_url = 'https://lk.virginconnect.ru/services/apiGetAllServicesList'
-login_checkers = ['<input[^>]*name="login"[^>]*', '<input[^>]*name="password"[^>]*', '<input[^>]*type="submit"[^>]*']
+login_checkers = ['<input[^>]*id="login"[^>]*', '<input[^>]*id="pswd"[^>]*', '<button[^>]*type="submit"[^>]*']
 
 # regexp для поиска баланса на странице
 re_balance = r'(?usi)>Баланс.*?value.*?>\s*(-?\d+[.,]\d+) '
