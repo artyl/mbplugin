@@ -600,6 +600,7 @@ class BalanceOverPlaywright():
                     self.sleep(1*self.force)
                 self.page_wait_for(selector=selectors['login_selector'])  # Ожидаем наличия поля логина
                 self.page_evaluate(selectors['login_clear_js'])  # очищаем поле логина
+                self.sleep(0.1)
                 self.page_fill(selectors['login_selector'], self.login)  # вводим логин
                 if (self.page_evaluate(selectors['chk_submit_after_login_js'], default=False)):  # Если нужно после логина нажать submit
                     self.page_click(selectors['submit_after_login_selector']) # либо click
