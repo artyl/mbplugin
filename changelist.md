@@ -372,5 +372,5 @@ ADD: для check_plugin можно задавать параметры пере
 ADD: параметр jitter - можно задавать задержку перед началом проверки от n до m секунд в формате n,m по умолчанию 1,1 задержку между задать как общим параметром в mbplugin.ini так и индивидуально для конкретного номера  
 FIX: strelka, перестал отдавать без подмены user-agent  
 
-## mbplugin v1.00.24 (??.04.22) fix MTS new LK, MGTS, smile-net small fixes
+## mbplugin v1.00.24 (22.04.22) fix MTS new LK, MGTS, smile-net small fixes
 FIX: Получение остатков по минутам и SMS в билайне в варианте plugin_mode=WEB  
