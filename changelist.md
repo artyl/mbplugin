@@ -376,4 +376,5 @@ FIX: strelka, перестал отдавать без подмены user-agent
 FIX: Получение остатков по минутам и SMS в билайне в варианте plugin_mode=WEB  
 
 ## mbplugin v1.00.25 (24.04.22) beeline uslugi list try 1
-ADD: Попытка сделать список услуг в web версии  
+ADD: Попытка сделать список услуг в web версии beeline  
+ADD: Быстрый заход в ЛК без повторного логина в WEB версии beeline  
