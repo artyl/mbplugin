@@ -6,6 +6,8 @@ import store, settings, browsercontroller
 icon = '789C7D93CB6B135114C6BF79C4BC66924993D0269926D3247DD8579A5A92D61A5B84B6282816AC8FADB890BAB3E24E37EE15D48505F11FD045C54AC577B1540AC5A255B1B4A2958AF85AE9C23E92F8CD344A15F4901FDF9D7BE79C09E7BB67C7EE8C0C2B32A48E68250418EB07A5F3FF45454505CACBCBE1F3F9204912445182D7EB4520184490FC2B3C5E0F227A04A220941021992A8A10A842692F180C4051953F72BD9A86B2AA66A8B12628B14628C63AEEAA46A8550D50889AA026EAE149D6A38C6BD5ABFDCE8F1C3D0F5C2F02770BC03875823A459D26B3E42599E7DE5BEA12799F8776E6A295AB376D012E7F07AEFD004696811B2BC02D726F15784026F2C063324D9EB2C67332CFF5B365045ADA103A3E0CDCE4F31D729F678F587FB2F4ED19F2827BAFA8AFC922F9403E93AF79F8CF0DA332D50E776D3BD41A6A5D164EE2DA9C85BB210BA521034F6316BEE60E78531D50F9AE92CEC0D5DA0E676B16C18616C8A20C4114D86BD1EAAF60F94DB8762B2AC2E13092890489731DB27A2F0A1264D31F7A63936DD6B359E39777FCC1ED70221AD5D19A4E23B77D1B72B91CD22D2984F5305C7607BFCB7C4940B47B2F94ADFBA012676E006EE2EC1A40B0E720D20347D03B7812FD43A7D07FE2347A8E0D2175E830427B0EC0BE6B3FFCDD7D080F5D0246D9E7DB66FFA8E3D4C95548336B48CEADA16BB180BEA53C7AD9B7EE8F45843E156037FBF7A580E0D96118CD6DC0956FC0557A364246C9D88A55273E9547E76C013BE75863BE884E7A1059A01F0BE6BD584679BACDBA0389C10BF49FDE8F9977883C5CF7D0F1A48824BD6BE1FB29DE9D38FD93DFF1EC4D1E81D2FD3143E3ACE891045C6521B87CC41F81C35F014F4847D848C048D6C0A8AE41C888C3138EC2AFC7E0D1B48D23004DF3A2BAB6D69A1769C30CC9928C4DECB7CD66A75F326246CC9AB57F85611888C562F42ECA1C1B6459E27F8B40AFD42DFE8E9F8F93C73F'
 
 login_url = 'https://my.beeline.ru'
+# если залогинены, то попадем сразу в ЛК, иначе попадем ХЗ куда
+direct_lk_url = 'https://beeline.ru/customers/products/mobile/profile/#/home'
 user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=password][role=textbox]') == null",
                 'chk_login_page_js': "document.querySelector('form input[type=password][role=textbox]') !== null",
                 'login_clear_js': "document.querySelector('form input[type=text]').value=''",
@@ -17,7 +19,11 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
-        self.do_logon(url=login_url, user_selectors=user_selectors)
+        self.page_goto(direct_lk_url)
+        self.sleep(2)
+        # Если не попали внутрь ЛК - тогда пытаемся логиниться
+        if self.page_evaluate("document.querySelector('form input[name=userName]') != null"):
+            self.do_logon(url=login_url, user_selectors=user_selectors)
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "parseFloat(data.balance.data.balance).toFixed(2)"},
             {'name': 'TarifPlan', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.profileSummary.data.tariffName"},
@@ -28,7 +34,33 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'LicSchet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.profileSummary.data.ctn"},
             ])
         self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
-
+        self.page_goto(self.page.url.split('#')[0]+'#/services')
+        self.sleep(1)
+        self.page_click("a[role=\"button\"]:has-text(\"Партнерские Сервисы\")")
+        self.sleep(1)
+        self.page.click("a[role=\"button\"]:has-text(\"Развлечения от билайн\")")
+        self.sleep(2)
+        try:
+            services = [v for k,v in self.responses.items() if 'api/profile/userinfo/data/?blocks=ConnectedServices' in k][0]['connectedServices']['data']
+            subscribtions = [v for k,v in self.responses.items() if 'api/profile/userinfo/data/?blocks=Subscriptions' in k][0]['subscriptions']['data']
+            uslugi = [[ln.get('title','xxx'), ln.get('rcRate',0)*(1 if ln.get('rcRatePeriod')=='Mounthly' else 1)] for ln in services]
+            # у меня этого нет - строчка ниже написана в слепую
+            uslugi.extend([[ln.get('title','xxx'), ln.get('rcRate',0)*(1 if ln.get('rcRatePeriod')=='Mounthly' else 1)] for ln in subscribtions])
+            # дополнительно добавляем алерт про услуги
+            if len(subscribtions) > 0:
+                uslugi.append(['Unwanted Нежелательная подписка (проверьте)', 0])
+            profile = [v for k,v in self.responses.items() if 'api/profile/userinfo/data' in k][0]['profileSummary']
+            # TODO надо брать тарифный план, но он у меня нулевой, я не знаю где брать
+            paid_sum = profile.get('tariffRcRate', 0) * (30 if profile.get('rcRatePeriod') == 'Daily' else 1)
+            free = len([a for a, b in uslugi if b == 0])  # бесплатные
+            subscr = len(subscribtions)
+            paid = len([a for a, b in uslugi if b != 0])  # платные
+            paid_sum = paid_sum+round(sum([b for a, b in uslugi if b != 0]), 2)
+            self.result['UslugiOn'] = f'{free}/{subscr}/{paid}({paid_sum})'
+            self.result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in uslugi])
+        except Exception:
+            exception_text = f'Ошибка при получении списка услуг и подписок {store.exception_text()}'
+            logging.error(exception_text)
 
 
 def get_balance_browser(login, password, storename=None, **kwargs):

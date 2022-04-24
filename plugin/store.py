@@ -215,6 +215,8 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     Если результат путь (settings.path_param) - то вычисляем для него абсолютный путь
     Если указан pkey (number, plugin) и секция Options то пытаемся прочитать индивидуальные параметры для этого телефона из phones.ini/phones_add.ini
     если указан flush - кэш очищается
+    Приоритет:
+    mbplugin.ini < phones.ini < mainparam(cmd -p options)
     '''
     if not hasattr(options, 'mainparams'):
         options.mainparams = {}
@@ -241,13 +243,14 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     else:  # Обычный параметр
         if default is None:  # default не задан = возьмем из settings
             default = settings.ini[section].get(param.lower(), None)
-        if param.lower() in options.mainparams:  # mainparams в приоритете
-            res = options.mainparams[param.lower()]
-        else:  # Берем обычный параметр, если в ini его нет, то default
-            res = options.mbplugin_ini.get(section, param.lower(), fallback=default)
+        # Берем обычный параметр, если в ini его нет, то default
+        res = options.mbplugin_ini.get(section, param.lower(), fallback=default)
         if param.lower() in settings.path_param:
             res = abspath_join(res)
-    return phones_options.get(param.lower(), res)
+    if param.lower() in options.mainparams:  # mainparams в приоритете над всем даже phones.ini
+        return options.mainparams[param.lower()]
+    else:  # Проверяем phones.ini, если есть берем его
+        return phones_options.get(param.lower(), res)
 
 
 def option_validate(param, section='Options', pkey=None) -> typing.Tuple[bool, str]:
