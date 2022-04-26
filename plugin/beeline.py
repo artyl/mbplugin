@@ -27,9 +27,9 @@ class browserengine(browsercontroller.BrowserController):
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "parseFloat(data.balance.data.balance).toFixed(2)"},
             {'name': 'TarifPlan', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.profileSummary.data.tariffName"},
-            {'name': 'Internet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.listForYoung.map(el => (el.unit=='KBYTE'?el.rest:0)).reduce((s,el) => s+el)"},
-            {'name': 'Min', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.listForYoung.map(el => (el.unit=='SECONDS'?el.rest:0)).reduce((s,el) => (s+el/60)).toFixed(0)"},
-            {'name': 'SMS', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.listForYoung.map(el => (el.unit=='SMS'?el.rest:0)).reduce((s,el) => s+el)"},
+            {'name': 'Internet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='KBYTE'?el.rest:0)).reduce((s,el) => s+el)"},
+            {'name': 'Min', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='SECONDS'?el.rest:0)).reduce((s,el) => (s+el/60)).toFixed(0)"},
+            {'name': 'SMS', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='SMS'?el.rest:0)).reduce((s,el) => s+el)"},
             {'name': 'BlockStatus', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.status.data.status"},
             {'name': 'LicSchet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.profileSummary.data.ctn"},
             ])
