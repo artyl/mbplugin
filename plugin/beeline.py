@@ -50,7 +50,7 @@ class browserengine(browsercontroller.BrowserController):
             if len(subscribtions) > 0:
                 uslugi.append(['Unwanted Нежелательная подписка (проверьте)', 0])
             profile = [v for k,v in self.responses.items() if 'api/profile/userinfo/data' in k][0]['profileSummary']['data']
-            # TODO надо брать тарифный план, но он у меня нулевой, я не знаю где брать
+            # Цена тарифа только в виде '250 ₽ в месяц' - придется парсить
             tariff_rate = int(re.sub('\D','',profile['tariffRcRateText']))
             paid_sum = tariff_rate * (30 if 'день' in profile.get('tariffRcRateText') else 1)
             free = len([a for a, b in uslugi if b == 0])  # бесплатные
