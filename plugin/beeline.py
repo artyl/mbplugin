@@ -25,13 +25,13 @@ class browserengine(browsercontroller.BrowserController):
         if self.page_evaluate("document.querySelector('form input[name=userName]') != null"):
             self.do_logon(url=login_url, user_selectors=user_selectors)
         self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "parseFloat(data.balance.data.balance).toFixed(2)"},
-            {'name': 'TarifPlan', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.profileSummary.data.tariffName"},
-            {'name': 'Internet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='KBYTE'?el.rest:0)).reduce((s,el) => s+el)"},
-            {'name': 'Min', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='SECONDS'?el.rest:0)).reduce((s,el) => (s+el/60)).toFixed(0)"},
-            {'name': 'SMS', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='SMS'?el.rest:0)).reduce((s,el) => s+el)"},
-            {'name': 'BlockStatus', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.status.data.status"},
-            {'name': 'LicSchet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.profileSummary.data.ctn"},
+            {'name': 'Balance', 'url_tag': ['api/profile/userinfo/data/?noTimeout'], 'jsformula': "parseFloat(data.balance.data.balance).toFixed(2)"},
+            {'name': 'TarifPlan', 'url_tag': ['api/profile/userinfo/data/?noTimeout'], 'jsformula': "data.profileSummary.data.tariffName"},
+            {'name': 'Internet', 'url_tag': ['api/profile/userinfo/data/?noTimeout'], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='KBYTE'?el.rest:0)))"},
+            {'name': 'Min', 'url_tag': ['api/profile/userinfo/data/?noTimeout'], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='SECONDS'?el.rest/60:0))).toFixed(0)"},
+            {'name': 'SMS', 'url_tag': ['api/profile/userinfo/data/?noTimeout'], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='SMS'?el.rest:0)))"},
+            {'name': 'BlockStatus', 'url_tag': ['api/profile/userinfo/data/?noTimeout'], 'jsformula': "data.status.data.status"},
+            {'name': 'LicSchet', 'url_tag': ['api/profile/userinfo/data/?noTimeout'], 'jsformula': "data.profileSummary.data.ctn"},
             ])
         self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
         self.page_goto(self.page.url.split('#')[0]+'#/services')
@@ -49,9 +49,10 @@ class browserengine(browsercontroller.BrowserController):
             # дополнительно добавляем алерт про услуги
             if len(subscribtions) > 0:
                 uslugi.append(['Unwanted Нежелательная подписка (проверьте)', 0])
-            profile = [v for k,v in self.responses.items() if 'api/profile/userinfo/data' in k][0]['profileSummary']
+            profile = [v for k,v in self.responses.items() if 'api/profile/userinfo/data' in k][0]['profileSummary']['data']
             # TODO надо брать тарифный план, но он у меня нулевой, я не знаю где брать
-            paid_sum = profile.get('tariffRcRate', 0) * (30 if profile.get('rcRatePeriod') == 'Daily' else 1)
+            tariff_rate = int(re.sub('\D','',profile['tariffRcRateText']))
+            paid_sum = tariff_rate * (30 if 'день' in profile.get('tariffRcRateText') else 1)
             free = len([a for a, b in uslugi if b == 0])  # бесплатные
             subscr = len(subscribtions)
             paid = len([a for a, b in uslugi if b != 0])  # платные
