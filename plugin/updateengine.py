@@ -241,7 +241,10 @@ class UpdaterEngine():
         если by_current - из self.current_zipname
         если undo_update - self.current_bak_zipname'''
         if self.new_zipname is None and version != '':
-            self.new_zipname = store.abspath_join('mbplugin', 'pack', f'mbplugin_bare.{version}.zip')
+            all_bare_updates = glob.glob(store.abspath_join('mbplugin', 'pack', f'mbplugin_bare.*{version}*.zip'))
+            if len(all_bare_updates) !=1:
+                return False, f'File for update {self.new_zipname} not found or more than one match'
+            self.new_zipname = all_bare_updates[0]
         # проверка файлов по current.zip
         # Здесь проверяем чтобы не поменять что-то что руками поменяно (отсутствующие на диске файлы не важны)
         if not os.path.exists(self.current_zipname) and not force:
