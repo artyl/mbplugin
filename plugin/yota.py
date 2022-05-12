@@ -21,8 +21,9 @@ class browserengine(browsercontroller.BrowserController):
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['finance/getBalance'], 'jsformula': "parseFloat(data.amount).toFixed(2)"},
             {'name': 'BlockStatus', 'url_tag': ['devices/devices'], 'jsformula': "data.devices[0].productStatus == 'active' ? '' : data.devices[0].productStatus"},
-            {'name': 'TarifPlan', 'url_tag': ['devices/devices'], 'jsformula': "data.devices[0].offeringSpeed.speedValue+data.devices[0].offeringSpeed.unitOfMeasure"}
-            ,])
+            {'name': 'TarifPlan', 'url_tag': ['devices/devices'], 'jsformula': "data.devices[0].offeringSpeed.speedValue+' '+data.devices[0].offeringSpeed.unitOfMeasure"},
+            {'name': 'TurnOff', 'url_tag': ['devices/devices'], 'jsformula': "data.devices[0].slider.currentProduct.remain+' '+data.devices[0].slider.currentProduct.remainString"},
+            ])
 
 
 def get_balance(login, password, storename=None, **kwargs):
