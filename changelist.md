@@ -382,6 +382,6 @@ ADD: Быстрый заход в ЛК без повторного логина 
 ## mbplugin v1.00.26 (26.04.22) beeline remains in web version
 ADD: Попытка сделать список остатков в web версии beeline  
 
-## mbplugin v1.00.27 (12.05.22) fix bug - update with version select
+## mbplugin v1.00.27 (12.05.22) fix bug - update with version select, yota - add TurnOff
 BUG: Ошибка при обновлении - если при попытке обновления указать указать 1.00.27 (без v) то обновление скачивалось но ругалось на отсутствующий файл и не устанавливалось  
 ADD: yota, добавлен TurnOff (исправления прислал Daemoon1)  
