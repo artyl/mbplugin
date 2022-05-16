@@ -89,17 +89,23 @@ class browserengine(browsercontroller.BrowserController):
         self.page_goto(self.baseurl + '/../../options')
         self.sleep(3)
         self.page_screenshot()
-        breakpoint()
-        raise RuntimeError('Not implemented yet')
+        self.page_goto('https://beta.lk.megafon.ru')
+        self.sleep(3)
+        self.page_screenshot()
+        self.page_goto('https://beta.lk.megafon.ru/options')
+        self.sleep(3)
+        self.page_screenshot()
+        #breakpoint()        
+        #raise RuntimeError('Not implemented yet')
         #self.do_logon(url=login_url, user_selectors=user_selectors)
         self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "parseFloat(data.balance.data.balance).toFixed(2)"},
-            {'name': 'TarifPlan', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.profileSummary.data.tariffName"},
-            {'name': 'Internet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='KBYTE'?el.rest:0)).reduce((s,el) => s+el.rest)"},
-            {'name': 'Min', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='SECONDS'?el.rest:0)).reduce((s,el) => (s+el.rest)/60).toFixed(0)"},
-            {'name': 'SMS', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.accumulators.data.list.map(el => (el.unit=='SMS'?el.rest:0)).reduce((s,el) => s+el.rest)"},
-            {'name': 'BlockStatus', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.status.data.status"},
-            {'name': 'LicSchet', 'url_tag': ['api/profile/userinfo/data'], 'jsformula': "data.profileSummary.data.ctn"},
+            {'name': 'Balance', 'url_tag': ['api/main/balance'], 'jsformula': "parseFloat(data.balance).toFixed(2)"},
+            {'name': 'KreditLimit', 'url_tag': ['api/main/balance'], 'jsformula': "parseFloat(data.balanceWithLimit).toFixed(2)"},
+            {'name': 'UserName', 'url_tag': ['/api/auth/sessionCheck'], 'jsformula': """data.name.replace('"','').replace("'",'').replace('&quot;','').replace('&nbsp;',' ').replace('&mdash;','-')"""},
+            {'name': 'TarifPlan', 'url_tag': ['api/tariff'], 'jsformula': """data.name.replace('"','').replace("'",'').replace('&quot;','').replace('&nbsp;',' ').replace('&mdash;','-')"""},
+            {'name': 'Internet', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='INTERNET').map(el => el.availableValue.value*1024)"},  # FIXME el.availableValue.unit
+            {'name': 'Min', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='VOICE').map(el => el.availableValue.value)"},
+            {'name': 'Sms', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='MESSAGE').map(el => el.availableValue.value)"},
             ])
         self.result['Internet'] = self.result.get('Internet', 0) * (settings.UNIT['KB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
 
@@ -197,7 +203,7 @@ def get_balance_api(login, password, storename=None, **kwargs):
 
 def get_balance(login, password, storename=None, **kwargs):
     pkey = store.get_pkey(login, plugin_name=__name__)
-    if store.options('plugin_mode', pkey=pkey).upper() == 'WEB':
+    if store.options('plugin_mode', pkey=pkey).upper() == 'WEB_DEBUG':
         return get_balance_browser(login, password, storename)
     return get_balance_api(login, password, storename)
 
