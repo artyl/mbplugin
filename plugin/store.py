@@ -279,7 +279,7 @@ class ini():
         'остальные ini ищем в пути прописанном в mbplugin.ini\\MobileBalance\\path'
         'Все пути считаются относительными папки где лежит сам mbplugin.ini, если не указано иное'
         'Кодировка для windows cp1251, для остальных utf-8 см locale.getpreferredencoding()'
-        self.ini = configparser.ConfigParser()
+        self.ini = configparser.ConfigParser(interpolation=None)
         self.fn = fn
         self.inipath = abspath_join(settings.mbplugin_ini_path, self.fn)
         self.codepage = settings.ini_codepage # для windows cp1251, для остальных utf-8
@@ -379,7 +379,7 @@ class ini():
             return  # only mbplugin.ini
         data = ini_write_to_string(self.ini)
         if self.fn.lower() == 'phones.ini': # для phones.ini отдельно приседаем
-            t_ini = configparser.ConfigParser()  # Делаем копию ini чтобы не портить загруженный оригинал
+            t_ini = configparser.ConfigParser(interpolation=None)  # Делаем копию ini чтобы не портить загруженный оригинал
             t_ini.read_string(data)
             for sec in t_ini.sections():  # number_orig -> number, region_orig -> region
                 for key in t_ini[sec]:
