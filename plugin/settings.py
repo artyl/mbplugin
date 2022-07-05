@@ -383,12 +383,14 @@ table_template = {
 </table>
 </td></tr>
 </table>
+{html_script}
 </body>
 </html>''',
 'style': '''<style type="text/css">
 .BackgroundTable, .InfoTable {font-family: Verdana; font-size:85%}
 .HistoryBgTable, .HistoryTable {font-family: Verdana; font-size:100%}
-th {background-color: #D1D1D1}
+th {background-color: #D1D1D1;}
+th.order {cursor: pointer;}
 td{white-space: nowrap;text-align: right;}
 tr:hover {background-color: #ffff99;}
 .hdr  {text-align:left;color:#FFFFFF; font-weight:bold; background-color:#0E3292; padding-left:5}
@@ -419,6 +421,59 @@ a.hdr { color: #FFFFFF}
 </table>
 </td></tr>
 </table>
+''',
+'script': '''<script>
+  // take from https://stackoverflow.com/questions/14267781/sorting-html-table-with-javascript
+  function table_sort() {
+    const styleSheet = document.createElement('style')
+    styleSheet.innerHTML = `
+          .order-inactive span {visibility:hidden;}
+          .order-inactive:hover span {visibility:visible;}
+          .order-active span {visibility: visible;}
+      `
+    document.head.appendChild(styleSheet)
+    document.querySelectorAll('th.order').forEach(th_elem => {
+      let asc = true
+      const span_elem = document.createElement('span')
+      span_elem.style = "font-size:0.8rem; margin-left:0.5rem"
+      span_elem.innerHTML = String.fromCharCode(9660) // \/
+      th_elem.appendChild(span_elem)
+      th_elem.classList.add('order-inactive')
+
+      const index = Array.from(th_elem.parentNode.children).indexOf(th_elem)
+      th_elem.addEventListener('click', (e) => {
+        document.querySelectorAll('th.order').forEach(elem => {
+          elem.classList.remove('order-active')
+          elem.classList.add('order-inactive')
+        })
+        th_elem.classList.remove('order-inactive')
+        th_elem.classList.add('order-active')
+
+        if (!asc) {
+          th_elem.querySelector('span').innerHTML = String.fromCharCode(9650) // /\ 
+        } else {
+          th_elem.querySelector('span').innerHTML = String.fromCharCode(9660) // \/
+        }
+        const arr = Array.from(th_elem.closest("table").querySelectorAll('tbody tr.order'))//.slice(1)
+        arr.sort((a, b) => {
+          a_val = a.children[index].innerText
+          b_val = b.children[index].innerText
+          if(!isNaN(parseFloat(a_val))  &&  !isNaN(parseFloat(b_val))) {
+            a_val = parseFloat(a_val)
+            b_val = parseFloat(b_val)
+            return (asc) ? a_val-b_val : b_val-a_val
+          }
+          return (asc) ? a_val.localeCompare(b_val) : b_val.localeCompare(a_val)
+        })
+        arr.forEach(elem => {
+          th_elem.closest("table").querySelector("tbody").appendChild(elem)
+        })
+        asc = !asc
+      })
+    })
+  }
+  table_sort()
+</script>
 '''
 }
 

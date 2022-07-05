@@ -280,6 +280,7 @@ def getreport(param=[]):
     template_page = settings.table_template['page']
     template_history = settings.table_template['history']
     temlate_style = settings.table_template['style']
+    html_script = settings.table_template['script']
     db = dbengine.Dbengine()
     flags = dbengine.flags('getall')  # берем все флаги словарем
     responses = dbengine.responses()  # все ответы по запросам
@@ -295,7 +296,7 @@ def getreport(param=[]):
     header = table_format.strip().split(',')
     # классы для формата заголовка
     header_class = {'Balance': 'p_b', 'RealAverage': 'p_r', 'BalDelta': 'p_r', 'BalDeltaQuery': 'p_r', 'NoChangeDays': 'p_r', 'CalcTurnOff': 'p_r', 'MinAverage': 'p_r', }
-    html_header = ''.join([f'<th id="h{h}" class="{header_class.get(h,"p_n")}">{dbengine.PhonesHText.get(h, h)}</th>' for h in header])
+    html_header = ''.join([f'<th id="h{h}" class="order {header_class.get(h,"p_n")}">{dbengine.PhonesHText.get(h, h)}</th>' for h in header])
     html_table = []
     for line in table:
         html_line = []
@@ -337,9 +338,9 @@ def getreport(param=[]):
             classflag = 's_us'
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('queue'):
             classflag = 'n_us'
-        html_table.append(f'<tr id="row" class="{classflag}">{"".join(html_line)}</tr>')
+        html_table.append(f'<tr id="row" class="order {classflag}">{"".join(html_line)}</tr>')
     temlate_style = temlate_style.replace('{HoverCss}', store.options('HoverCss'))  # HoverCss общий на всю страницу, поэтому берем без pkey
-    res = template_page.format(style=temlate_style, html_header=html_header, html_table='\n'.join(html_table), title=store.version())
+    res = template_page.format(style=temlate_style, html_header=html_header, html_table='\n'.join(html_table), title=store.version(), html_script=html_script)
     return 'text/html', [res]
 
 
