@@ -386,6 +386,6 @@ ADD: Попытка сделать список остатков в web верс
 BUG: Ошибка при обновлении - если при попытке обновления указать указать 1.00.27 (без v) то обновление скачивалось но ругалось на отсутствующий файл и не устанавливалось  
 ADD: yota, добавлен TurnOff (исправления прислал Daemoon1)  
 
-## mbplugin v1.00.28 (05.07.22) fix bug - percent in ini
+## mbplugin v1.00.28 (05.07.22) fix bug - percent in ini, sort by column balance.html
 BUG: Ошибка при наличии символа процента в ini, открываем ini с параметром interpolation=None (issue #23 спасибо volgamax)  
 ADD: Сортировка по полям balance.html (за идею спасибо LazyPapa)  
