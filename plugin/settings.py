@@ -147,6 +147,9 @@ ini = {
         # например для показа капчи.
         'show_chrome_': {'descr': 'Показывать окно chrome', 'type': 'checkbox'},
         'show_chrome': '0',
+        # Пытаться спрятаться от скриптов определяющих что мы не человек, по умолчанию включено
+        'playwright_stealth_': {'descr': 'Режим playwright stealth', 'type': 'checkbox'},
+        'playwright_stealth': '1',
         # Режим Headless Прятать окна Chrome (при logginglevel=DEBUG всегда показывает)
         # Честный headless chrome режим, из этого режима вернуть окно в видимое нельзя
         'headless_chrome_': {'descr': 'Headless режим работы chrome', 'type': 'checkbox'},
@@ -458,10 +461,10 @@ a.hdr { color: #FFFFFF}
         arr.sort((a, b) => {
           a_val = a.children[index].innerText
           b_val = b.children[index].innerText
-          if(!isNaN(parseFloat(a_val))  &&  !isNaN(parseFloat(b_val))) {
+          if(a_val.match(/^\s*[-+]?([0-9]*[.])?[0-9]+$/g) && b_val.match(/^\s*[-+]?([0-9]*[.])?[0-9]+$/g)) {
             a_val = parseFloat(a_val)
             b_val = parseFloat(b_val)
-            return (asc) ? a_val-b_val : b_val-a_val
+            return (asc) ? b_val-a_val : a_val-b_val
           }
           return (asc) ? a_val.localeCompare(b_val) : b_val.localeCompare(a_val)
         })

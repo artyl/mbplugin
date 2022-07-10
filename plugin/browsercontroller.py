@@ -1,6 +1,10 @@
 ''' Работа с браузером через синхронный вариант библиотеки playwright python '''
 import glob, json, logging, os, re, shutil, subprocess, sys, time
 from playwright.sync_api import sync_playwright
+try:
+    from playwright_stealth import stealth_sync
+except Exception:
+    print('No stealth_sync module')
 import playwright
 if sys.platform == 'win32':
     try:
@@ -41,6 +45,7 @@ default_logon_selectors = {
             'submit_js': "document.querySelector('form [type=submit]').click()",  # js для нажатия на финальный submit
             'captcha_focus': '',  # перевод фокуса на поле капчи
             'pause_press_submit': '1',  # Пауза перед нажатием submit не меньше 1
+            'fatal': '',  # Если сработало это условие, то значит баланс не получить - например 403 у МТС
 }
 
 # Константы
@@ -496,6 +501,11 @@ class BalanceOverPlaywright():
         if self.hide_chrome_flag:
             hide_chrome()
         self.page = self.browser.pages[0]
+        if str(self.options('playwright_stealth')) == '1':
+            try:
+                stealth_sync(self.page)
+            except:
+                logging.error('Bad turn stealth_sync(self.page)')
         [p.close() for p in self.browser.pages[1:]]
         self.page.on("response", self.response_worker)
         self.page.on("dialog", lambda dialog: dialog.dismiss())
@@ -588,6 +598,9 @@ class BalanceOverPlaywright():
             self.page_wait_for(loadstate=True)
         self.page_screenshot()
         for countdown in range(self.wait_loop):
+            if self.page_evaluate(selectors['fatal'], False):
+                logging.error(f'Fatal detected')
+                raise RuntimeError(f'Fatal detected')
             if self.page_evaluate(selectors['captcha_checker'], False):
                 self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])
             if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_url(selectors['lk_page_url']):
