@@ -90,6 +90,8 @@ def getbalance_standalone_one_pass(filter:list=[], only_failed:bool=False) -> No
             if Q_CMD_CANCEL in cmdqueue.queue:
                 qu = [cmdqueue.get(block=False) for el in range(cmdqueue.qsize())]
                 [cmdqueue.put(el) for el in qu if el != Q_CMD_CANCEL]  # type: ignore
+                logging.info(f'Receive cancel signal to query')
+                store.feedback.text(f"Receive cancel signal")
                 return
             store.feedback.text(f"Receive {val['Alias']}:{val['Region']}_{val['Number']}")
             getbalance_plugin('get', {'plugin': [val['Region']], 'login': [val['Number']], 'password': [val['Password2']], 'date': ['date']})
@@ -525,13 +527,14 @@ def restart_program(reason='', exit_only=False, delay=0):
     if not exit_only:
         subprocess.Popen(cmd)  # Crossplatform run process
     psutil.Process().kill()
-    if Q_CMD_EXIT in cmdqueue.queue:  # Если есть то второй раз не кладем
+    if Q_CMD_EXIT not in cmdqueue.queue:  # Если есть то второй раз не кладем
         cmdqueue.put(Q_CMD_EXIT)  # Если kill не сработал (для pid=1 не сработает) - шлем сигнал
 
 def cancel_query(reason=''):
     'Cancel query in getbalance_standalone_one_pass by Q_CMD_CANCEL'
-    if Q_CMD_CANCEL in cmdqueue.queue:  # Если есть то второй раз не кладем
+    if Q_CMD_CANCEL not in cmdqueue.queue:  # Если есть то второй раз не кладем
         cmdqueue.put(Q_CMD_CANCEL)
+        logging.info(f'Send cancel signal to query')
     
 def send_http_signal(cmd, force=True):
     'Посылаем сигнал локальному веб-серверу'
