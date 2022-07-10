@@ -389,3 +389,7 @@ ADD: yota, добавлен TurnOff (исправления прислал Daemo
 ## mbplugin v1.00.28 (05.07.22) fix bug - percent in ini
 BUG: Ошибка при наличии символа процента в ini, открываем ini с параметром interpolation=None (issue #23 спасибо volgamax)  
 ADD: Сортировка по полям balance.html (за идею спасибо LazyPapa)  
+
+## mbplugin v1.00.29 (10.07.22) fix bug - mts balance
+FIX: починка баланса МТС  
+ADD: mbp browser - открытие движка браузера  

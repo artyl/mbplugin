@@ -828,6 +828,33 @@ def console(ctx, args):
     echo(f'OK {name}')
 
 
+@cli.command()
+@click.argument('url', type=str, default='')
+@click.pass_context
+def browser(ctx, url):
+    'Запуск браузера playwright '
+    name = 'browser '
+    store.turn_logging()
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        page = browser.new_page()
+        print(f"{store.options('playwright_stealth')=}")
+        if str(store.options('playwright_stealth')) == '1':
+            try:
+                from playwright_stealth import stealth_sync
+                stealth_sync(page)
+                print('Stealth mode')
+            except:
+                logging.error('Bad turn stealth_sync(page)')        
+        page.wait_for_timeout(1000)
+        if url.strip().lower().startswith('http'):
+            page.goto(url)
+        page.pause()
+        browser.close()
+    echo(f'OK {name}')
+
+
 def mbplugin_ini_md_gen():
     'Генерирует mbplugin_ini.md с актуальным описанием ключей'
     fn_md = store.abspath_join(store.settings.mbplugin_root_path, 'mbplugin', 'mbplugin_ini.md')
