@@ -30,7 +30,9 @@ SCHED_CMDS = (CMD_CHECK, CMD_CHECK_NEW_VERSION, CMD_CHECK_SEND, CMD_GET_ONE, CMD
 
 Job = collections.namedtuple('Job' , 'job_str job_sched cmd filter err_msg')
 
-cmdqueue: queue.Queue = queue.Queue()  # Диспетчер комманд - нужен для передачи сигналов между трэдами, в т.к. для завершения в докере - kill для pid=1 не работает
+Q_CMD_EXIT = 'exit'
+Q_CMD_CANCEL = 'cancel'
+cmdqueue: queue.Queue = queue.Queue()  # Диспетчер команд - нужен для передачи сигналов между трэдами, в т.к. для завершения в докере - kill для pid=1 не работает
 
 HTML_NO_REPORT = '''Для того чтобы были доступны отчеты необходимо в mbplugin.ini включить запись результатов в sqlite базу<br>
 sqlitestore = 1<br>Также можно настроить импорт из базы BalanceHistory.mdb включив <br>
@@ -50,6 +52,7 @@ TRAY_MENU = (
     {'text': "Reload schedule", 'cmd': lambda: Scheduler().reload(), 'show': True},
     {'text': "Recompile jsmblh plugin", 'cmd': lambda: compile_all_jsmblh.recompile(), 'show': True},
     #{'text': "Version update", 'cmd': lambda: run_update(), 'show': True},  # TODO продумать как это показывать
+    {'text': "Cancel the balance request", 'cmd': lambda: cancel_query(reason='tray icon command'), 'show': True},
     {'text': "Restart server", 'cmd': lambda: restart_program(reason='tray icon command'), 'show': True},
     {'text': "Exit program", 'cmd': lambda: restart_program(reason='Tray icon exit', exit_only=True), 'show': True}
 )
@@ -83,10 +86,16 @@ def getbalance_standalone_one_pass(filter:list=[], only_failed:bool=False) -> No
     for val in queue_balance:
         # TODO пока дергаем метод от вебсервера там уже все есть, потом может вынесем отдельно
         try:
+            # проверяем на сигнал Q_CMD_CANCEL, все остальное - кладем обратно
+            if Q_CMD_CANCEL in cmdqueue.queue:
+                qu = [cmdqueue.get(block=False) for el in range(cmdqueue.qsize())]
+                [cmdqueue.put(el) for el in qu if el != Q_CMD_CANCEL]  # type: ignore
+                return
             store.feedback.text(f"Receive {val['Alias']}:{val['Region']}_{val['Number']}")
             getbalance_plugin('get', {'plugin': [val['Region']], 'login': [val['Number']], 'password': [val['Password2']], 'date': ['date']})
         except Exception:
             logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {store.exception_text()}")
+
 
 def getbalance_standalone(filter:list=[], only_failed:bool=False, retry:int=-1, params=None) -> None:
     ''' Получаем балансы делая несколько проходов по неудачным
@@ -516,9 +525,14 @@ def restart_program(reason='', exit_only=False, delay=0):
     if not exit_only:
         subprocess.Popen(cmd)  # Crossplatform run process
     psutil.Process().kill()
-    cmdqueue.put('exit')  # Если kill не сработал (для pid=1 не сработает) - шлем сигнал
+    if Q_CMD_EXIT in cmdqueue.queue:  # Если есть то второй раз не кладем
+        cmdqueue.put(Q_CMD_EXIT)  # Если kill не сработал (для pid=1 не сработает) - шлем сигнал
 
-
+def cancel_query(reason=''):
+    'Cancel query in getbalance_standalone_one_pass by Q_CMD_CANCEL'
+    if Q_CMD_CANCEL in cmdqueue.queue:  # Если есть то второй раз не кладем
+        cmdqueue.put(Q_CMD_CANCEL)
+    
 def send_http_signal(cmd, force=True):
     'Посылаем сигнал локальному веб-серверу'
     logging.info(f'Send {cmd} signal to web server')
@@ -793,6 +807,7 @@ class TelegramBot():
             TgCommand('/receivebalance', 'запросить балансы, аналог команды mbp get-balance (фильтр после пробела)', self.receivebalance),
             TgCommand('/receivebalancefailed', 'запросить балансы номеров с ошибками', self.receivebalance),
             TgCommand('/restart', 'перезапустить сервер', self.restartservice),
+            TgCommand('/cancel', 'остановить очередь запросов', self.cancel),
             TgCommand('/getone', 'получить баланс одного номера', self.get_one),
             TgCommand('/checkone', 'запросить баланс одного номера', self.get_one, ),
             TgCommand('/schedule', 'текущие задачи в планировщике', self.get_schedule),
@@ -935,6 +950,12 @@ class TelegramBot():
         restart_program(reason=f'TG:{update.effective_message.chat_id} /restart {context.args}')
 
     @auth_decorator()
+    def cancel(self, update, context):
+        """Send cancel signal to receive balance query"""
+        self.put_text(update.effective_message.reply_text, 'Query will be canceled')
+        cancel_query(reason=f'TG:{update.effective_message.chat_id} /cancel {context.args}')
+
+    @auth_decorator()
     def receivebalance(self, update, context):
         """ Запросить балансы по всем номерам, only auth user.
         /receivebalance
@@ -948,7 +969,7 @@ class TelegramBot():
         # Если запросили все - запрашиваем все, потом два раза только плохие
         only_failed = (update.effective_message.text == "/receivebalancefailed")
         params = {'include': None if context.args == [] else ','.join(context.args)}
-        Scheduler().run_once(cmd='check', feedback_func=feedback_func, kwargs={'filter':context.args, 'params':params, 'only_failed':only_failed})
+        Scheduler().run_once(cmd=CMD_CHECK, feedback_func=feedback_func, kwargs={'filter':context.args, 'params':params, 'only_failed':only_failed})
 
     @auth_decorator()
     def get_schedule(self, update, context):
@@ -980,7 +1001,7 @@ class TelegramBot():
                 self.put_text(message.edit_text, f'Not found {args}')  # type: ignore
                 return
             feedback_func = lambda txt:self.put_text(message.edit_text, txt)  # type: ignore
-            Scheduler().run_once(cmd='get_one', feedback_func=feedback_func, kwargs={'keypair': keypair, 'check': cmd == 'checkone'})
+            Scheduler().run_once(cmd=CMD_GET_ONE, feedback_func=feedback_func, kwargs={'keypair': keypair, 'check': cmd == 'checkone'})
             return
         query: typing.Optional[telegram.callbackquery.CallbackQuery] = update.callback_query
         if query is None:  # Создаем клавиатуру
@@ -1001,7 +1022,7 @@ class TelegramBot():
                 return
             cmd, keypair = query.data.split('_', 1)  # До _ команда, далее Region_Number
             feedback_func = lambda txt:self.put_text(query.edit_message_text, txt)  # type: ignore
-            Scheduler().run_once(cmd='get_one', feedback_func=feedback_func, kwargs={'keypair': keypair, 'check': cmd == 'checkone'})
+            Scheduler().run_once(cmd=CMD_GET_ONE, feedback_func=feedback_func, kwargs={'keypair': keypair, 'check': cmd == 'checkone'})
 
     @auth_decorator()
     def get_log(self, update: telegram.update.Update, context: callbackcontext.CallbackContext):
@@ -1158,8 +1179,12 @@ class WebServer():
                 self.telegram_bot = TelegramBot()
             if 'schedule' in sys.modules:  # Scheduler (он сам все запустит в threading)
                 self.scheduler = Scheduler()
-            # Запустили все остальное демонами и ждем, когда они пришлют сигнал
-            cmdqueue.get()
+            # Запустили все остальное демонами и ждем, когда они пришлют сигнал exit
+            while True:
+                cmd = cmdqueue.get()
+                if cmd != Q_CMD_EXIT:  # если это не наша команда - кладем обратно.
+                    cmdqueue.put(cmd)
+                time.sleep(1)
 
     def shutdown(self):
         self.telegram_bot.stop()
@@ -1350,7 +1375,7 @@ class WebServer():
                     ct, text, status, add_headers = self.editor(environ)
             elif cmd == 'getbalance_standalone':  # start balance request
                 # TODO подумать над передачей параметров в fetch - filter=filter,only_failed=only_failed
-                Scheduler().run_once(cmd='check')
+                Scheduler().run_once(cmd=CMD_CHECK)
                 ct, text = 'text/html; charset=cp1251', ['OK']
             elif cmd == 'flushlog':  # Start new log
                 store.logging_restart()
@@ -1362,6 +1387,9 @@ class WebServer():
                 ct, text = 'text/html; charset=cp1251', ['OK']
                 # TODO нужен редирект иначе она зацикливается на рестарте
                 threading.Thread(target=lambda: restart_program(reason=f'WEB: /restart', delay=0.1), name='Restart', daemon=True).start()
+            elif cmd == 'cancel':  # cancel query 
+                ct, text = 'text/html; charset=cp1251', ['OK']
+                cancel_query(reason=f'WEB: /cancel')
             elif cmd == 'exit':  # exit cmd
                 ct, text = 'text/html; charset=cp1251', ['OK']
                 threading.Thread(target=lambda: restart_program(reason=f'WEB: /exit', exit_only=True, delay=0.1), name='Exit', daemon=True).start()

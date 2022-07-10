@@ -357,6 +357,7 @@ main_html = r'''
 <button onclick="fetch('/reload_schedule').then(function(response) {return response})">Reload schedule</button><br>
 <button onclick="fetch('/recompile').then(function(response) {return response})">Recompile jsmblh plugin</button><br>
 <button onclick="fetch('/restart').then(function(response) {return response})">Restart web server</button><br>
+<button onclick="fetch('/cancel').then(function(response) {return response})">Cancel the balance request</button><br>
 <button onclick="fetch('/exit').then(function(response) {return response})">Exit web server</button><br>
 <br>
 <a href=https://github.com/artyl/mbplugin/blob/master/readme.md>Документация на github</a><br>
