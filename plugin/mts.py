@@ -31,13 +31,16 @@ user_selectors = {
     'remember_js': "document.querySelector('form input[name=rememberme]').click()",  # js для выставления remember me
     'captcha_checker': "document.querySelector('img[id=captchaImage]')!=null||document.querySelector('div[id=captcha-wrapper]')!=null||document.body.innerText.startsWith('This question is for testing whether you are a human visitor and to prevent automated spam submission.')",
     'captcha_focus': "[document.getElementById('ans'),document.getElementById('password'),document.getElementById('captchaInput')].filter(s => s!=null).map(s=>s.focus())",
-    'fatal': "/Доступ к сайту login.mts.ru запрещен./.test(document.querySelector('.descr').innerText)"
+    'fatal': "d=document.querySelector('.descr');d===null?false:/Доступ к сайту login.mts.ru запрещен./.test(d.innerText)"
     }
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         mts_usedbyme = self.options('mts_usedbyme')
         self.do_logon(url=login_url, user_selectors=user_selectors)
+
+        # ни дня без приключений - теперь у нас снова новый личный кабинет, пока переходим в старый, будет время переделаем
+        self.page_evaluate(f"Array.from(document.querySelectorAll('button')).filter(el=>el.innerText=='Вернуться в старый'||el.innerText=='В старый Личный кабинет').forEach(el=>el.click())")
 
         # TODO close banner # document.querySelectorAll('div[class=popup__close]').forEach(s=>s.click())
         if self.login_ori != self.login and self.acc_num.isdigit():  # это финт для захода через другой номер
