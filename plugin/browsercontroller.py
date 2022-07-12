@@ -599,6 +599,7 @@ class BalanceOverPlaywright():
         self.page_screenshot()
         for countdown in range(self.wait_loop):
             if self.page_evaluate(selectors['fatal'], False):
+                self.page_screenshot(suffix='fatal')
                 logging.error(f'Fatal detected')
                 raise RuntimeError(f'Fatal detected')
             if self.page_evaluate(selectors['captcha_checker'], False):

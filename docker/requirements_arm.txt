@@ -13,7 +13,7 @@ cryptography==3.4.8
 idna==2.10
 Pillow==9.0.1
 #playwright==1.14.1 installed separately
-#playwright-stealth==1.0.5
+playwright-stealth==1.0.5
 psutil==5.8.0
 pycparser==2.20
 pyee==8.2.2
