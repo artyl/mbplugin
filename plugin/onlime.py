@@ -6,8 +6,10 @@ icon = '789C73F235636100033320D600620128666450804840E5A905989999F1CAB359A833B0DB
 
 login_url = None
 user_selectors = {'chk_lk_page_js': "document.querySelector('#account_info_block') != null",
-                  'chk_login_page_js': "document.querySelector('#username') != null",
-                  'before_login_js': "",
+                  'chk_login_page_js': "['#standard_auth_btn', '#username'].filter(el=> document.querySelector(el)!=null).length > 0",
+                  'before_login_js': """b1=document.querySelector('#standard_auth_btn');
+                  if(b1!==null){b1.click()};
+                  """,
                   'login_clear_js': "document.querySelector('#username').value=''",
                   'password_clear_js': "document.querySelector('#password').value=''",
                   'login_selector': '#username',
@@ -18,11 +20,6 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('#account_info_block
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.page_goto('https://my.rt.ru')
-        #self.page_wait_for(loadstate=True) - не работает
-        self.page_wait_for(expression="document.querySelector('#standard_auth_btn')") # без этого не работает
-        #if self.page_evaluate("document.querySelector('#standard_auth_btn')"): - не работает, ну или не смог правильно вызвать
-        self.page_evaluate("document.querySelector('#standard_auth_btn').click()") # работает только совместно со строкой 22
-        self.sleep(1*self.force)
         self.do_logon(url=login_url, user_selectors=user_selectors)
         # Здесь мы берем данные с загружаемой страницы
         self.wait_params(params=[
