@@ -75,18 +75,20 @@ class browserengine(browsercontroller.BrowserController):
                 return  # Если номер не наш - уходим
 
         # 'api/login/userInfo' старый ЛК, 'api/login/user-info' новый ЛК остальное крое amount одинаковое
-
+        api_login_userinfo = 'api/login/user-info'
+        if self.page_evaluate("document.querySelector('[id=ng-header__account-phone_desktop]')!=null", False):
+            api_login_userinfo = 'api/login/userInfo'
         # Для начала только баланс быстрым способом (может запаздывать)
         self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': ['api/login/userInfo', 'api/login/user-info'], 'jsformula': "parseFloat(data.userProfile.balance).toFixed(2)"},
+            {'name': 'Balance', 'url_tag': [api_login_userinfo], 'jsformula': "parseFloat(data.userProfile.balance).toFixed(2)"},
             # Закрываем банеры (для эстетики)
-            {'name': '#banner1', 'url_tag': ['api/login/userInfo', 'api/login/user-info'], 'jsformula': "document.querySelectorAll('mts-dialog div[class=popup__close]').forEach(s=>s.click())", 'wait':False},
+            {'name': '#banner1', 'url_tag': [api_login_userinfo], 'jsformula': "document.querySelectorAll('mts-dialog div[class=popup__close]').forEach(s=>s.click())", 'wait':False},
             ])
 
         # Потом все остальное
         res1 = self.wait_params(params=[
-            {'name': 'TarifPlan', 'url_tag': ['api/login/userInfo', 'api/login/user-info'], 'jsformula': "data.userProfile.tariff.replace('(МАСС) (SCP)','')"},
-            {'name': 'UserName', 'url_tag': ['api/login/userInfo', 'api/login/user-info'], 'jsformula': "data.userProfile.displayName"},
+            {'name': 'TarifPlan', 'url_tag': [api_login_userinfo], 'jsformula': "data.userProfile.tariff.replace('(МАСС) (SCP)','')"},
+            {'name': 'UserName', 'url_tag': [api_login_userinfo], 'jsformula': "data.userProfile.displayName"},
             {'name': 'Balance', 'url_tag': ['for=api/accountInfo/mscpBalance'], 'jsformula': "parseFloat(data.data==null ? data.amount : data.data.amount).toFixed(2)"},
             {'name': 'Balance2', 'url_tag': ['for=api/cashback/account'], 'jsformula': "parseFloat(data.data.balance).toFixed(2)"},
             {'name': '#counters', 'url_tag': ['for=api/sharing/counters'], 'jsformula': "data.data.counters"},
