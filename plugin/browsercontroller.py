@@ -30,8 +30,8 @@ default_logon_selectors = {
             'lk_page_url': '', # Если задан то появление в списке self.responces этого url или его части будет означать что мы залогинились
             'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",  # true если мы в окне логина
             'before_login_js': '',  # Команда которую надо выполнить перед вводом логина
-            'login_clear_js': "document.querySelector('form input[type=text]').value=''",  # команда для очистки поля логина
-            'login_selector': 'form input[type=text]',   # селектор поля ввода логина
+            'login_clear_js': "document.querySelector('form input[type^=te]').value=''",  # команда для очистки поля логина
+            'login_selector': 'form input[type^=te]',   # селектор поля ввода логина
             'chk_submit_after_login_js': "",  # проверка нужен ли submit после логина
             'submit_after_login_js': "document.querySelector('form [type=submit]').click()",  # Если после ввода логина нужно нажать submit через js
             'submit_after_login_selector': "",  # или через селектор
@@ -590,7 +590,7 @@ class BalanceOverPlaywright():
             logging.error(f'Не все ключи из user_selectors есть в selectors. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}')
         selectors.update(user_selectors)
         # Если проверка на нахождение в личном кабинете на отсутствие элемента - дополнительно ожидаем чтобы страница гарантированно загрузилась
-        is_bad_chk_lk_page_js = ' == null' in selectors['chk_lk_page_js'] or '=== null' in selectors['chk_lk_page_js']
+        is_bad_chk_lk_page_js = '= null' in selectors['chk_lk_page_js']
         if url is not None:  # Иногда мы должны сложным путем попасть на страницу - тогда указываем url=None
             self.page_goto(url)
             # Появилось слишком много сайтов на которых медленно открывается страница логона и мы успеваем подумать что пароля на странице нет
