@@ -21,7 +21,7 @@ class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         self.sleep(3*self.force)
-        balance  = self.page_evaluate("document.querySelector('.account-info_balance_value').innerText.replace(/[^0-9,\.]/g,'').replace(',','.')")
+        balance  = self.page_evaluate("document.querySelector('.account-info_balance_value').innerText.replace(/[^0-9,\.-]/g,'').replace(',','.')")
         self.result['Balance'] = float(balance)
         self.responses[f'GET URL:{self.page.url}$'] = self.page.content()  # т.к. мы парсим страницу, то для лога интересно ее содержимое
         try:
