@@ -657,7 +657,7 @@ class BalanceOverPlaywright():
             self.sleep(1)
         self.page_screenshot()
 
-    def calculate_param(self, url_tag: list =[], jsformula: str ='', pformula: str =''):
+    def calculate_param(self, param_name, url_tag: list =[], jsformula: str ='', pformula: str =''):
         'Вычисляет js выражение jsformula над json co страницы с url_tag, !!! url_tag - список тэгов'
         # TODO self.page.evaluate(f"(data) => {jsformula}", json_data)
         #return self.page_evaluate(f"()=>{{data={json.dumps(json_data,ensure_ascii=False)};return {jsformula};}}")
@@ -666,7 +666,7 @@ class BalanceOverPlaywright():
             if len(response_result_)>0:
                 response_result = response_result_[-1]  # если ответов несколько - берем последний, так правильнее
                 if pformula != '':
-                    logging.info(f'pformula on {url_tag}:{pformula}')
+                    logging.info(f'{param_name}: pformula on {url_tag}:{pformula}')
                     # Для скрипта на python делаем
                     try:
                         res = eval(pformula, {'data':response_result})
@@ -675,7 +675,7 @@ class BalanceOverPlaywright():
                         exception_text = f'Ошибка в pformula:{pformula} :{store.exception_text()}'
                         logging.info(exception_text)
                 if jsformula != '':
-                    logging.info(f'jsformula on {url_tag}:{jsformula}')
+                    logging.info(f'{param_name}: jsformula on {url_tag}:{jsformula}')
                     # !!! TODO Было:
                     res = self.page_evaluate(f"()=>{{data={json.dumps(response_result,ensure_ascii=False)};return {jsformula};}}")
                     # Стало: в playwright автоматом подставится переменная response_result из кода, теперь можно так:
@@ -716,7 +716,9 @@ class BalanceOverPlaywright():
             error_msg = f'Not all params have name param: {params}'
             logging.error(error_msg)
             raise RuntimeError(error_msg)
-        store.feedback.text(f'Собираем параметры {",".join([i.get("name","") for i in params])}', append=True)
+        fb_txt = f'Собираем параметры {",".join([i.get("name","") for i in params])}'
+        store.feedback.text(fb_txt, append=True)
+        logging.info(f'wait_params: {fb_txt}')
         if url != '':  # Если указан url то сначала переходим на него
             self.page_goto(url)
             self.page_wait_for(loadstate=True)
@@ -724,12 +726,16 @@ class BalanceOverPlaywright():
             self.sleep(1)
             breakpoint() if os.path.exists('breakpoint_wait') else None
             for param in params:
-                res = self.calculate_param(param.get('url_tag',[]), param.get('jsformula',''), param.get('pformula',''))
+                if param['name'] in result:
+                    continue  # Если этот параметр уже получен, то его пропускаем
+                res = self.calculate_param(param['name'], param.get('url_tag',[]), param.get('jsformula',''), param.get('pformula',''))
                 if res is not None:
                     result[param['name']] = res
             # Если все обязательные уже получили
-            if {i['name'] for i in params if i.get('wait',True)} - set(result) == set():
+            required__not_received = {i['name'] for i in params if i.get('wait',True)} - set(result)
+            if required__not_received == set():
                 break  # выходим если все получили
+            logging.info(f'Wait {", ".join(required__not_received)}')
             if countdown == self.wait_and_reload:
                 # так и не дождались - пробуем перезагрузить и еще подождать
                 self.page_reload('Data not received')

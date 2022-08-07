@@ -82,7 +82,7 @@ class browserengine(browsercontroller.BrowserController):
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': [api_login_userinfo], 'jsformula': "parseFloat(data.userProfile.balance).toFixed(2)"},
             # Закрываем банеры (для эстетики)
-            {'name': '#banner1', 'url_tag': [api_login_userinfo], 'jsformula': "document.querySelectorAll('mts-dialog div[class=popup__close]').forEach(s=>s.click())", 'wait':False},
+            {'name': '#banner1', 'url_tag': [api_login_userinfo], 'jsformula': "document.querySelectorAll('mts-dialog div[class=popup__close]').forEach(s=>s.click())==null", 'wait':False},
             ])
 
         # Потом все остальное
@@ -155,19 +155,16 @@ class browserengine(browsercontroller.BrowserController):
             logging.info(f'Ошибка при получении списка услуг {store.exception_text()}')
 
         # Идем и пытаемся взять инфу со страницы https://lk.mts.ru/obshchiy_paket
+        # Теперь это на https://lk.ssl.mts.ru/sharing
         # Но только если телефон в списке в поле mts_usedbyme или для всех телефонов если там 1
         if mts_usedbyme == '1' or self.login in mts_usedbyme.split(',') or self.acc_num.lower().startswith('common'):
-            self.page_goto('https://lk.mts.ru/obshchiy_paket')
             # 24.08.2021 иногда возвращается легальная страница, но вместо информации там сообщение об ошибке - тогда перегружаем и повторяем
             for i in range(3):
-                res3 = {}
                 res3_alt = self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/sharing/counters', '/longtask/'], 'jsformula': "data"}])
                 if 'Donor' in str(res3_alt) or 'Acceptor' in str(res3_alt):
                     break  # Новый вариант аккумуляторов
-                # TODO отключить в будущем
-                res3 = self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/Widgets/GetUserClaims', '/longtask/'], 'jsformula': "data.result"}])
-                if 'claim_error' not in str(res3):
-                    break # Старый вариант аккумуляторов (если он уже не срабатывает приходит пустой без ошибки)
+                if i == 1:  # Аккумуляторы теперь приходят с первоначальной страницей, но если вдруг их нет пробуем ткнуться в страницу с аккумуляторами
+                    self.page_goto('https://lk.ssl.mts.ru/sharing')
                 logging.info(f'mts_usedbyme: GetUserClaims вернул claim_error - reload')
                 self.page_reload()
                 self.sleep(5)
@@ -195,26 +192,6 @@ class browserengine(browsercontroller.BrowserController):
                             self.result['SMS'] = el.get('usedAmount', 0)
                         if el.get('packageType', '') == 'Internet':
                             self.result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)
-                # TODO отключить в будущем
-                # Обработка по старому варианту страницы api/Widgets/GetUserClaims
-                if 'RoleDonor' in str(res3):  # Просто ищем подстроку во всем json вдруг что-то изменится
-                    logging.info(f'mts_usedbyme: RoleDonor')
-                    res4 = self.wait_params(params=[{'name': '#donor', 'url_tag': ['for=api/Widgets/AvailableCountersDonor$', '/longtask/'], 'jsformula': "data.result"}])
-                    # acceptorsTotalConsumption - иногда возвращается 0 приходится считать самим
-                    # data = {i['counterViewUnit']:i['groupConsumption']-i['acceptorsTotalConsumption'] for i in res4['#donor']}
-                    data = {i['counterViewUnit']:i['groupConsumption']-sum([j.get('consumption',0) for j in i.get('acceptorsConsumption',[])]) for i in res4['#donor']}
-                if 'RoleAcceptor' in str(res3):
-                    logging.info(f'mts_usedbyme: RoleAcceptor')
-                    res4 = self.wait_params(params=[{'name': '#acceptor', 'url_tag': ['for=api/Widgets/AvailableCountersAcceptor', '/longtask/'], 'jsformula': "data.result.counters"}])
-                    data = {i['counterViewUnit']:i['consumption'] for i in res4['#acceptor']}
-                if 'RoleDonor' in str(res3) or 'RoleAcceptor' in str(res3):
-                    logging.info(f'mts_usedbyme collect: data={data}')
-                    if 'MINUTE' in data:
-                        self.result['SpendMin'] = data["MINUTE"]
-                    if 'ITEM' in data:
-                        self.result['SMS'] = data["ITEM"]
-                    if 'GBYTE' in data:
-                        self.result['Internet'] = data["GBYTE"]
                 # Спецверсия для общего пакета, работает только для Donor
                 if self.acc_num.lower().startswith('common'):
                     # Обработка по новому варианту страницы api/sharing/counters
@@ -234,21 +211,6 @@ class browserengine(browsercontroller.BrowserController):
                                     self.result['Internet'] = round((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 1024 / 1024, 3)
                                 else:                       # потрачено
                                     self.result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)
-                    # TODO отключить в будущем старый вариант
-                    # Обработка по старому варианту страницы api/Widgets/GetUserClaims
-                    elif 'RoleDonor' in str(res3):
-                        # потребление и остаток
-                        cdata_charge = {i['counterViewUnit']:i['groupConsumption'] for i in res4['#donor']}
-                        сdata_rest = {i['counterViewUnit']:i['counterLimit']-i['groupConsumption'] for i in res4['#donor']}
-                        self.result['Min'] = сdata_rest["MINUTE"]  # осталось минут
-                        self.result['SpendMin'] = cdata_charge["MINUTE"]  # Потрачено минут
-                        if 'rest' in self.acc_num:
-                            self.result['SMS'] = сdata_rest["ITEM"]  # остатки по инету и SMS
-                            self.result['Internet'] = сdata_rest["GBYTE"]
-                        else:
-                            self.result['SMS'] = cdata_charge["ITEM"]  # расход по инету и SMS
-                            self.result['Internet'] = cdata_charge["GBYTE"]
-                        logging.info(f'mts_usedbyme common collect: сdata_rest={сdata_rest} cdata_charge={cdata_charge}')
                     else:  #  Со страницы общего пакета не отдали данные, чистим все, иначе будут кривые графики. ТОЛЬКО для common
                         raise RuntimeError(f'Страница общего пакета не возвращает данных')
             except Exception:
@@ -486,7 +448,7 @@ def get_balance(login, password, storename=None, **kwargs):
     pkey=store.get_pkey(login, plugin_name=plugin_name)
     plugin_mode = store.options('plugin_mode', pkey=pkey).upper()
     # Поменять дефолт если будут проблемы с playwright != 'WEB':
-    if plugin_mode in ('API', 'FASTAPI'):
+    if False:  # API вариант не работает plugin_mode in ('API', 'FASTAPI'):
         fast_api = (plugin_mode == 'FASTAPI')
         return get_balance_api(login, password, storename, plugin_name=plugin_name, fast_api=fast_api)
     else:
