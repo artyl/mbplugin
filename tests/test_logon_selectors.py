@@ -102,6 +102,10 @@ class TestUM:
         plugin = 'beeline_uz'
         self.do_test_plugin(plugin)
 
+    def test_lifeby(self):
+        plugin = 'lifeby'
+        self.do_test_plugin(plugin)
+
     def test_lovit(self):
         plugin = 'lovit'
         self.do_test_plugin(plugin)
