@@ -17,6 +17,7 @@ class browserengine(browsercontroller.BrowserController):
         # Здесь мы берем данные с загружаемой страницы api.vscale.io/v1/billing/balance (то что мы видем в отладчике на странице Network)
         # {"balance":123, "unpaid":0,"user_id":12345}
         # данные страницы json представленные в переменной data соответственно формула получения data.balance
+        # т.к. бонусы этот те же деньги, так что в балансе сумма баланса и бонусов
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['chailand/getbalance'], 'jsformula': 'data.success.Cash_Balance+data.success.Cash_Bonus_Balance',},
             {'name': 'Balance2', 'url_tag': ['chailand/getbalance'], 'jsformula': 'data.success.Token_Balance',},
