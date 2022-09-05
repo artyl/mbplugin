@@ -477,9 +477,17 @@ def result_to_xml(result):
     'Конвертирует словарь результатов в готовый к отдаче вид '
     # Коррекция SMS и Min (должны быть integer)
     if 'SMS' in result:
-        result['SMS'] = int(result['SMS'])
+        if result['SMS'].isdigit():
+            result['SMS'] = int(result['SMS'])
+        else:
+            logging.error(f'Bad SMS value: {result["SMS"]}')
+            del result['SMS']
     if 'Min' in result:
-        result['Min'] = int(result['Min'])
+        if result['Min'].isdigit():
+            result['Min'] = int(result['Min'])
+        else:
+            logging.error(f'Bad Min value: {result["Min"]}')
+            del result['Min']
     for k, v in result.items():
         if type(v) == float:
             result[k] = round(v, 2)  # Чтобы не было паразитных микрокопеек

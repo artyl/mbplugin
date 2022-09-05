@@ -22,7 +22,7 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'BlockStatus', 'url_tag': ['LH_Active_TP'], 'jsformula': "data.state_TP"},
             {'name': 'Min', 'url_tag': ['LHA_getCurrentBalances'], 'jsformula': "data.filter(el=>el.emptyIconType=='call')[0].title.replace(/\D/g,'')"},
             {'name': 'SMS', 'url_tag': ['LHA_getCurrentBalances'], 'jsformula': "data.filter(el=>el.emptyIconType=='sms')[0].title.replace(/\D/g,'')"},
-            {'name': 'Internet', 'url_tag': ['LHA_getCurrentBalances'], 'jsformula': "data.filter(el=>el.emptyIconType=='traffic')[0].title.replace(/[^\d.,]/g,'')"},
+            {'name': 'Internet', 'url_tag': ['LHA_getCurrentBalances'], 'jsformula': "data.filter(el=>el.emptyIconType=='traffic')[0].title.replace(/[^\d.,]/g,'').replace(',','.')"},
             #{'name': 'UslugiOn', 'url_tag': ['LHA_getUserServices'], 'jsformula': "'0/'+data.length"},
             #{'name': 'UslugiList', 'url_tag': ['LHA_getUserServices'], 'jsformula': "data.map(el=>el.title+'\t0р').join('\n')"},
             ])

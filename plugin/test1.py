@@ -28,7 +28,7 @@ def get_balance(login, password, storename=None, **kwargs):
             'SpendMin': 32,  # double Кол-во потраченных минут (с секундами)
             'Expired': 'Дата истечения баланса/платежа', # BalExpired->BeeExpired, Expired->BeeExpired
             'ObPlat': 14,   # double Сумма обещанного платежа
-            'Internet': 1234,  # double Кол-во оставшегося/потраченного трафика
+            'Internet': 1234.45,  # double Кол-во оставшегося/потраченного трафика
             # 'ErrorMsg':	'Сообщение об ошибке', # Если оо есть в Reponce то это ошибка
             'UslugiOn': '2/8',
             'UslugiList': 'Услуга1\t10р\nУслуга2\t20р\nУслуга3\t30р\nУслуга4\t40р' # Это будет показано в hover, если включено

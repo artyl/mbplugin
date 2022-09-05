@@ -15,38 +15,28 @@ user_selectors = {'chk_lk_page_js': "document.getElementById('ext-gen2') != null
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
-        self.login = self.login[-9:]
+        # self.login = self.login[-9:]
         self.do_logon(url=login_url, user_selectors=user_selectors)
         # Кликаем на '_root/PERSONAL_INFO' или на '_root/USER_INFO' т.е. '_root/...._INFO'
         self.page_evaluate( '''document.querySelector('span[id^="_root/"][id$=INFO]').click()''')
         self.page_wait_for(loadstate=True)
         self.sleep(1)
         self.wait_params(params=[{
-            'name': 'Balance',
-            'jsformula': r'''()=>
-            {
-                b1 = document.getElementById('balance')
-                b2 = document.getElementById('BALANCE')
-                baltxt = (b1!=null?b1:b2).innerText.replace('\u2012','-').replace('коп.','').replace(',','.').replace(/[^\d\.,-]/g, '')
-                return parseFloat(baltxt)
-            }''',},{
-            'name': 'TarifPlan',
-            'jsformula': '''()=>{
-                t1=document.getElementById('TRPL')
-                t2=document.getElementById('TPLAN')
-                return (t1!=null?t1:t2).innerText
-            }'''
-            },{
-            'name': 'BlockStatus',
-            'jsformula': '''()=>{
-                s1=document.getElementById('STATUS')
-                s2=document.getElementById('CUR_STATUS')
-                return (s1!=null?s1:s2).innerText
-            }'''
-            },
+            'name': 'Balance', 'jsformula': r"parseFloat(document.querySelector('#balance, #BALANCE').innerText.replace('\u2012','-').replace(/[^\d\.,-]/g, '').replace(',','.'))"},
+            {'name': 'TarifPlan', 'jsformula': "document.querySelector('#TRPL, #TPLAN').innerText"},
+            {'name': 'BlockStatus', 'jsformula': "document.querySelector('#STATUSL, #CUR_STATUS').innerText"},
             {'name': 'UserName','jsformula': "document.all.NAME==null?'':document.all.NAME.innerText"},
             {'name': 'Expired', 'jsformula': "document.all.DEN==null?'':document.all.DEN.innerText", 'wait': False},
+            {'name': 'Min', 'jsformula': "(el => el!==null?parseInt(el[0]):'')(document.querySelector('#DISCOUNT').innerText.match(/\d+\.?\d+ мин/))"},
+            {'name': 'SMS', 'jsformula': "(el => el!==null?parseInt(el[0]):'')(document.querySelector('#DISCOUNT').innerText.match(/\d+\.?\d+ SMS/))"},
+            {'name': 'Internet', 'jsformula': "(el => el!==null?parseFloat(el[0]):'')(document.querySelector('#DISCOUNT').innerText.match(/\d+\.?\d+ МБ/))"},
             ])
+        if self.result['Min'] == '':
+            del self.result['Min']
+        if self.result['SMS'] == '':
+            del self.result['SMS']
+        if self.result['Internet'] == '':
+            del self.result['Internet']
 
 def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
