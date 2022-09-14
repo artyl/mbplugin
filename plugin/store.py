@@ -473,21 +473,22 @@ def read_stocks(stocks_name):
     return stocks
 
 
+def fix_int_params(result, params):
+    'Коррекция SMS и Min (должны быть integer или приводится к integer)'
+    for param in params:
+        if param in result:
+            result[param] = str(result[param])
+            if result[param].isdigit():
+                result[param] = int(result[param])
+            else:
+                logging.error(f'Bad {param} value: {result[param]}')
+                del result[param]
+    return result
+
+
 def result_to_xml(result):
     'Конвертирует словарь результатов в готовый к отдаче вид '
-    # Коррекция SMS и Min (должны быть integer)
-    if 'SMS' in result:
-        if result['SMS'].isdigit():
-            result['SMS'] = int(result['SMS'])
-        else:
-            logging.error(f'Bad SMS value: {result["SMS"]}')
-            del result['SMS']
-    if 'Min' in result:
-        if result['Min'].isdigit():
-            result['Min'] = int(result['Min'])
-        else:
-            logging.error(f'Bad Min value: {result["Min"]}')
-            del result['Min']
+    result = fix_int_params(result, params=['SMS', 'Min'])
     for k, v in result.items():
         if type(v) == float:
             result[k] = round(v, 2)  # Чтобы не было паразитных микрокопеек
@@ -497,11 +498,7 @@ def result_to_xml(result):
 
 def result_to_html(result):
     'Конвертирует словарь результатов в готовый к отдаче вид '
-    # Коррекция SMS и Min (должны быть integer)
-    if 'SMS' in result:
-        result['SMS'] = int(result['SMS'])
-    if 'Min' in result:
-        result['Min'] = int(result['Min'])
+    result = fix_int_params(result, params=['SMS', 'Min'])
     body = json.dumps(result, ensure_ascii=False)
     return f'<html><meta charset="windows-1251"><p id=response>{body}</p></html>'
 
