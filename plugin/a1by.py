@@ -20,16 +20,16 @@ class browserengine(browsercontroller.BrowserController):
         # Кликаем на '_root/PERSONAL_INFO' или на '_root/USER_INFO' т.е. '_root/...._INFO'
         self.page_evaluate( '''document.querySelector('span[id^="_root/"][id$=INFO]').click()''')
         self.page_wait_for(loadstate=True)
-        self.sleep(1)
+        self.sleep(2)
         self.wait_params(params=[{
             'name': 'Balance', 'jsformula': r"parseFloat(document.querySelector('#balance, #BALANCE').innerText.replace('\u2012','-').replace(/[^\d\.,-]/g, '').replace(',','.'))"},
             {'name': 'TarifPlan', 'jsformula': "document.querySelector('#TRPL, #TPLAN').innerText"},
-            {'name': 'BlockStatus', 'jsformula': "document.querySelector('#STATUSL, #CUR_STATUS').innerText"},
+            {'name': 'BlockStatus', 'jsformula': "document.querySelector('#STATUS, #CUR_STATUS').innerText"},
             {'name': 'UserName','jsformula': "document.all.NAME==null?'':document.all.NAME.innerText"},
             {'name': 'Expired', 'jsformula': "document.all.DEN==null?'':document.all.DEN.innerText", 'wait': False},
-            {'name': 'Min', 'jsformula': "(el => el!==null?parseInt(el[0]):'')(document.querySelector('#DISCOUNT').innerText.match(/\d+\.?\d+ мин/))"},
-            {'name': 'SMS', 'jsformula': "(el => el!==null?parseInt(el[0]):'')(document.querySelector('#DISCOUNT').innerText.match(/\d+\.?\d+ SMS/))"},
-            {'name': 'Internet', 'jsformula': "(el => el!==null?parseFloat(el[0]):'')(document.querySelector('#DISCOUNT').innerText.match(/\d+\.?\d+ МБ/))"},
+            {'name': 'Min', 'jsformula': "d1=document.querySelector('#DISCOUNT'); d2=(d1!==null)?d1.innerText.match(/\d+\.?\d+ мин/):null; d3=(d2!==null)?parseFloat(d2[0]):'' "},
+            {'name': 'SMS', 'jsformula': "d1=document.querySelector('#DISCOUNT'); d2=(d1!==null)?d1.innerText.match(/\d+\.?\d+ SMS/):null; d3=(d2!==null)?parseFloat(d2[0]):'' "},
+            {'name': 'Internet', 'jsformula': "d1=document.querySelector('#DISCOUNT'); d2=(d1!==null)?d1.innerText.match(/\d+\.?\d+ МБ/):null; d3=(d2!==null)?parseFloat(d2[0]):'' "},
             ])
         if self.result['Min'] == '':
             del self.result['Min']

@@ -38,7 +38,10 @@ class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         mts_usedbyme = self.options('mts_usedbyme')
         self.do_logon(url=login_url, user_selectors=user_selectors)
-
+        
+        if self.page_evaluate('Array.from(document.querySelectorAll("h1")).filter(el=>el.innerText=="Добавьте почту").length==1'):
+            self.page_click("button:has-text('Пропустить')")  # Skip
+            # self.page_press("button:has-text('Пропустить')", ' ')  # Skip
         # ни дня без приключений - теперь у нас снова новый личный кабинет, пока переходим в старый, будет время переделаем
         # self.page_evaluate(f"Array.from(document.querySelectorAll('button')).filter(el=>el.innerText=='Вернуться в старый'||el.innerText=='В старый Личный кабинет').forEach(el=>el.click())")
 

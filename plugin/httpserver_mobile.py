@@ -532,6 +532,7 @@ def restart_program(reason='', exit_only=False, delay=0):
 
 def cancel_query(reason=''):
     'Cancel query in getbalance_standalone_one_pass by Q_CMD_CANCEL'
+    logging.info(f'Press Cancel')
     if Q_CMD_CANCEL not in cmdqueue.queue:  # Если есть то второй раз не кладем
         cmdqueue.put(Q_CMD_CANCEL)
         logging.info(f'Send cancel signal to query')
