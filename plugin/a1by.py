@@ -27,9 +27,9 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'BlockStatus', 'jsformula': "document.querySelector('#STATUS, #CUR_STATUS').innerText"},
             {'name': 'UserName','jsformula': "document.all.NAME==null?'':document.all.NAME.innerText"},
             {'name': 'Expired', 'jsformula': "document.all.DEN==null?'':document.all.DEN.innerText", 'wait': False},
-            {'name': 'Min', 'jsformula': "d1=document.querySelector('#DISCOUNT'); d2=(d1!==null)?d1.innerText.match(/\d+\.?\d+ мин/):null; d3=(d2!==null)?parseFloat(d2[0]):'' "},
-            {'name': 'SMS', 'jsformula': "d1=document.querySelector('#DISCOUNT'); d2=(d1!==null)?d1.innerText.match(/\d+\.?\d+ SMS/):null; d3=(d2!==null)?parseFloat(d2[0]):'' "},
-            {'name': 'Internet', 'jsformula': "d1=document.querySelector('#DISCOUNT'); d2=(d1!==null)?d1.innerText.match(/\d+\.?\d+ МБ/):null; d3=(d2!==null)?parseFloat(d2[0]):'' "},
+            {'name': 'SMS', 'jsformula': "d1=document.querySelector('#DISCOUNT'); d2=(d1!==null)?d1.innerText.match(/\d+\.?\d* SMS/):null; d3=(d2!==null)?parseFloat(d2[0]):'' "}, 
+            {'name': 'Min', 'jsformula': "d1=document.querySelector('#DISCOUNT'); d2=(d1!==null)?d1.innerText.match(/\d+\.?\d* мин/):null; d3=(d2!==null)?parseFloat(d2[0]):'' "},
+            {'name': 'Internet', 'jsformula': "d1=document.querySelector('#DISCOUNT'); d2=(d1!==null)?d1.innerText.match(/\d+\.?\d* МБ/):null; d3=(d2!==null)?parseFloat(d2[0]):'' "},
             ])
         if self.result['Min'] == '':
             del self.result['Min']
