@@ -12,7 +12,7 @@ if sys.platform == 'win32':
     except Exception:
         print('No win32 installed, no fake-headless mode')
 import psutil
-#import pprint; pp = pprint.PrettyPrinter(indent=4).pprint
+# import pprint; pp = pprint.PrettyPrinter(indent=4).pprint
 import store, settings
 
 # Какой бы ни был режим в mbplugin для всех сторонних модулей отключаем расширенное логирование
@@ -26,26 +26,26 @@ import store, settings
 # по url: window.location.href=="https://...."
 # по селектору: document.querySelector('span[id=balance]') !== null
 default_logon_selectors = {
-            'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",  # true если мы в личном кабинете
-            'lk_page_url': '', # Если задан то появление в списке self.responces этого url или его части будет означать что мы залогинились
-            'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",  # true если мы в окне логина
-            'before_login_js': '',  # Команда которую надо выполнить перед вводом логина
-            'login_clear_js': "document.querySelector('form input[type^=te]').value=''",  # команда для очистки поля логина
-            'login_selector': 'form input[type^=te]',   # селектор поля ввода логина
-            'chk_submit_after_login_js': "",  # проверка нужен ли submit после логина
-            'submit_after_login_js': "document.querySelector('form [type=submit]').click()",  # Если после ввода логина нужно нажать submit через js
-            'submit_after_login_selector': "",  # или через селектор
-            'password_clear_js': "document.querySelector('form input[type=password]').value=''",  # команда на очистку поля пароля
-            'password_selector': 'form input[type=password]',  # селектор для поля пароля
-            'remember_checker': "",  # "document.querySelector('form input[name=remember]').checked==false",  # Проверка что флаг remember me не выставлен
-            'remember_js': "",  # "document.querySelector('form input[name=remember]').click()",  # js для выставления remember me
-            'remember_selector': "",  # 'form input[name=remember]',  # селектор для выставления remember me (не указывайте оба сразу а то может кликнуть два раза)
-            'captcha_checker': "",  # проверка что на странице капча у MTS - document.querySelector("div[id=captcha-wrapper]")!=null
-            'submit_selector': '',  # селектор для нажатия на финальный submit
-            'submit_js': "document.querySelector('form [type=submit]').click()",  # js для нажатия на финальный submit
-            'captcha_focus': '',  # перевод фокуса на поле капчи
-            'pause_press_submit': '1',  # Пауза перед нажатием submit не меньше 1
-            'fatal': '',  # Если сработало это условие, то значит баланс не получить - например 403 у МТС
+    'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",  # true если мы в личном кабинете
+    'lk_page_url': '',  # Если задан то появление в списке self.responses этого url или его части будет означать что мы залогинились
+    'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",  # true если мы в окне логина
+    'before_login_js': '',  # Команда которую надо выполнить перед вводом логина
+    'login_clear_js': "document.querySelector('form input[type^=te]').value=''",  # команда для очистки поля логина
+    'login_selector': 'form input[type^=te]',   # селектор поля ввода логина
+    'chk_submit_after_login_js': "",  # проверка нужен ли submit после логина
+    'submit_after_login_js': "document.querySelector('form [type=submit]').click()",  # Если после ввода логина нужно нажать submit через js
+    'submit_after_login_selector': "",  # или через селектор
+    'password_clear_js': "document.querySelector('form input[type=password]').value=''",  # команда на очистку поля пароля
+    'password_selector': 'form input[type=password]',  # селектор для поля пароля
+    'remember_checker': "",  # "document.querySelector('form input[name=remember]').checked==false",  # Проверка что флаг remember me не выставлен
+    'remember_js': "",  # "document.querySelector('form input[name=remember]').click()",  # js для выставления remember me
+    'remember_selector': "",  # 'form input[name=remember]',  # селектор для выставления remember me (не указывайте оба сразу а то может кликнуть два раза)
+    'captcha_checker': "",  # проверка что на странице капча у MTS - document.querySelector("div[id=captcha-wrapper]")!=null
+    'submit_selector': '',  # селектор для нажатия на финальный submit
+    'submit_js': "document.querySelector('form [type=submit]').click()",  # js для нажатия на финальный submit
+    'captcha_focus': '',  # перевод фокуса на поле капчи
+    'pause_press_submit': '1',  # Пауза перед нажатием submit не меньше 1
+    'fatal': '',  # Если сработало это условие, то значит баланс не получить - например 403 у МТС
 }
 
 # Константы
@@ -62,9 +62,9 @@ def safe_run_decorator(func):
         default = kwargs.pop('default', None)
         log_string = f'call: {getattr(func,"__name__","")}({", ".join(map(repr,args))}, {", ".join([f"{k}={repr(v)}" for k,v in kwargs.items()])})'
         if str(store.options('log_full_eval_string')) == '0':
-            log_string = log_string if len(log_string) < 200 else log_string[:100]+'...'+log_string[-100:]
+            log_string = log_string if len(log_string) < 200 else log_string[:100] + '...' + log_string[-100:]
             if 'password' in log_string:
-                log_string = log_string.split('password')[0]+'password ....'
+                log_string = log_string.split('password')[0] + 'password ....'
         try:
             res = func(*args, **kwargs)  # pylint: disable=not-callable
             logging.info(f'{log_string} OK')
@@ -100,12 +100,11 @@ def hide_chrome(hide=True, foreground=False):
         text = win32gui.GetWindowText(hwnd).lower()
         className = win32gui.GetClassName(hwnd).lower()
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
-        try:  #  ??? text.lower().find('chrome')>=0  remote-debugging-port or remote-debugging-pipe
-            if (text != '' and
-            ('remote-debugging-p' in ''.join(psutil.Process(pid).cmdline()) or 'ms-playwright\\firefox' in ''.join(psutil.Process(pid).cmdline()))
-            and not text.startswith('msct') and not text.startswith('default') and 'восстановить' not in text):
+        try:  # ??? text.lower().find('chrome')>=0  remote-debugging-port or remote-debugging-pipe
+            if (text != '' and ('remote-debugging-p' in ''.join(psutil.Process(pid).cmdline()) or 'ms-playwright\\firefox' in ''.join(psutil.Process(pid).cmdline())) and not text.startswith('msct') and not text.startswith('default') and 'восстановить' not in text):
                 windowList.append((hwnd, text, className))
-                logging.debug(f'enumWindowFunc:text={text}, className={className}')
+                logging.debug(
+                    f'enumWindowFunc:text={text}, className={className}')
         except Exception:
             pass
 
@@ -145,12 +144,12 @@ def kill_chrome():
 @safe_run_decorator
 def fix_crash_banner(storefolder, storename):
     'Исправляем Preferences чтобы убрать баннер Работа Chrome была завершена некорректно'
-    fn_pref = store.abspath_join(storefolder, 'headless', storename,'Default', 'Preferences')
+    fn_pref = store.abspath_join(storefolder, 'headless', storename, 'Default', 'Preferences')
     if not os.path.exists(fn_pref):
         return  # Нет Preferences - выходим
     with open(fn_pref, encoding='utf8') as f:
         data = f.read()
-    data1 = data.replace('"exit_type":"Crashed"','"exit_type":"Normal"').replace('"exited_cleanly":false','"exited_cleanly":true')
+    data1 = data.replace('"exit_type":"Crashed"', '"exit_type":"Normal"').replace('"exited_cleanly":false', '"exited_cleanly":true')
     if data != data1:
         logging.info(f'Fix chrome crash banner')
         open(fn_pref, encoding='utf8', mode='w').write(data1)
@@ -198,14 +197,14 @@ def safe_run_with_log_decorator(func):  # pylint: disable=no-self-argument
         параметры предназначенные декоратору, и не передаются в вызываемую функцию:
         default: возвращаемое в случае ошибки значение'''
         default = kwargs.pop('default', None)
-        if len(args) > 0 and (args[0] == '' or args[0] == None):
+        if len(args) > 0 and (args[0] == '' or args[0] is None):
             return default
         # Готовим строку для лога
         log_string = f'call: {getattr(func,"__name__","")}({", ".join(map(repr,args))}, {", ".join([f"{k}={repr(v)}" for k,v in kwargs.items()])})'
         if str(self.options('log_full_eval_string')) == '0':
-            log_string = log_string if len(log_string) < 200 else log_string[:100]+'...'+log_string[-100:]
+            log_string = log_string if len(log_string) < 200 else log_string[:100] + '...' + log_string[-100:]
             if 'password' in log_string:
-                log_string = log_string.split('password')[0]+'password ....'
+                log_string = log_string.split('password')[0] + 'password ....'
         log_string = log_string.encode('cp1251', errors='ignore').decode('cp1251', errors='ignore')  # Убираем всякую хрень
         try:
             res = func(self, *args, **kwargs)  # pylint: disable=not-callable
@@ -214,7 +213,7 @@ def safe_run_with_log_decorator(func):  # pylint: disable=no-self-argument
         except Exception:
             exception_text = store.exception_text()
             if 'Target page, context or browser has been closed' in exception_text:
-                raise RuntimeError(f'Browser has been closed') # браузера уже нет
+                raise RuntimeError(f'Browser has been closed')  # браузера уже нет
             logging.info(f'{log_string} fail: {exception_text}')
             return default
     wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
@@ -226,10 +225,10 @@ class BalanceOverPlaywright():
     def options(self, param):
         ''' Обертка вокруг store.options чтобы передать в нее пару (номер, плагин) для вытаскивания индивидуальных параметров'''
         # Брать нужно оригинальный логин (с дописками, т.к. по нему мы будем искать совпадение в phones.ini
-        pkey = store.get_pkey(self.login_ori, plugin_name = self.plugin_name)
+        pkey = store.get_pkey(self.login_ori, plugin_name=self.plugin_name)
         return store.options(param, pkey=pkey)
 
-    def __init__(self,  login, password, storename=None, wait_loop=30, wait_and_reload=10, max_timeout=15, login_url=None, user_selectors=None, headless=None, force=1, plugin_name=''):
+    def __init__(self, login, password, storename=None, wait_loop=30, wait_and_reload=10, max_timeout=15, login_url=None, user_selectors=None, headless=None, force=1, plugin_name=''):
         '''Передаем стандартно login, password, storename'
         Дополнительно
         wait_loop=30 - Сколько секунд ждать появления информации на странице
@@ -263,7 +262,7 @@ class BalanceOverPlaywright():
         if type(headless) == bool:
             self.headless = headless
         elif str(self.options('show_captcha')) == '1' or str(self.options('show_chrome')) == '1' or str(self.options('playwright_pause')) == '1':
-            self.headless = False  # Ignore headless option if ...            
+            self.headless = False  # Ignore headless option if ...
         elif headless == NOT_IN_CHROME and self.options('browsertype') == 'chromium':
             # Если указано что в хроме headless не работает и настройками это не поменяли, то выключаем чтобы хоть как-то отработало
             self.headless = False
@@ -280,7 +279,7 @@ class BalanceOverPlaywright():
         self.hide_chrome_flag = str(self.options('show_chrome')) == '0' and self.options('logginglevel') != 'DEBUG'
         self.profile_directory = self.storename
         self.launch_config_args = [
-            '--log-level=3', # no logging
+            '--log-level=3',  # no logging
             "--window-position=-2000,-2000" if self.hide_chrome_flag else "--window-position=80,80",
             "--window-size=800,900"]
         # if self.headless:
@@ -320,15 +319,15 @@ class BalanceOverPlaywright():
         'Обработчик обращений браузера, здесь можно их прервать, чтобы лишние данные не грузить'
         # TODO вынести константы наверх
         stop_url = ['google-analytics', '.yandex.ru/', 'dynamicyield.com/', 'googletagmanager.com/', 'yastatic.net/', 'cloudflare.com/', 'facebook.net/', 'vk.com/']
-        if route.request.resource_type in ('image', 'font', 'manifest') or len([u for u in stop_url if u in route.request.url])>0:
-            #print(f'Abort {route.request.method}:{route.request.url}')
+        if route.request.resource_type in ('image', 'font', 'manifest') or len([u for u in stop_url if u in route.request.url]) > 0:
+            # print(f'Abort {route.request.method}:{route.request.url}')
             try:
                 logging.debug(f'Abort: {route.request.resource_type}:{route.request.url}')
                 route.abort()
             except Exception:
                 print('NO ABORT')
         else:
-            #print(route.request.resource_type)
+            # print(route.request.resource_type)
             try:
                 route.continue_()
             except Exception:
@@ -341,8 +340,8 @@ class BalanceOverPlaywright():
 
     def sleep(self, delay):
         'Специальный sleep, т.к. вокруг все асинхронное должны спать через asyncio.sleep в секундах'
-        #logging.info(f'sleep {delay}')
-        return self.page.wait_for_timeout(delay*1000)
+        # logging.info(f'sleep {delay}')
+        return self.page.wait_for_timeout(delay * 1000)
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
@@ -357,10 +356,9 @@ class BalanceOverPlaywright():
                 logging.info(exception_text)
                 raise
 
-
     def page_check_response_url(self, response_url):
         ''' проверяем наличие response_url в загруженных url, если не задан или пустой то возвращаем True '''
-        if response_url == None or response_url == '':
+        if response_url is None or response_url == '':
             return True
         if len([i for i in self.responses.keys() if response_url in i]) > 0:
             logging.info(f'Found an "{response_url}" in responses')
@@ -373,7 +371,7 @@ class BalanceOverPlaywright():
     def page_goto(self, url):
         ''' переносим вызов goto в класс для того чтобы каждый раз не указывать page и обернуть декораторами'''
         try:
-            if url != None and url != '':
+            if url is not None and url != '':
                 return self.page.goto(url)
         except Exception:
             logging.info(f'goto timeout')
@@ -410,16 +408,16 @@ class BalanceOverPlaywright():
         location_href_url - ожидание url в адресной строке (glob, regex or predicate)
         response_url - появления в self.responses указанного url
         '''
-        if loadstate != None and loadstate == True:
+        if loadstate is not None and loadstate is True:
             try:
-                self.page.wait_for_load_state("networkidle", timeout=self.max_timeout*1000)
+                self.page.wait_for_load_state("networkidle", timeout=self.max_timeout * 1000)
             except Exception:
                 logging.info(f'wait_for_load_state timeout')
-        if location_href_url != None and location_href_url != '':
+        if location_href_url is not None and location_href_url != '':
             self.page.wait_for_url(location_href_url, **kwargs)
-        if  selector != None and selector != '':
+        if selector is not None and selector != '':
             self.page.wait_for_selector(selector)
-        if  expression != None and expression != '':
+        if expression is not None and expression != '':
             # TODO почему то с self.page.wait_for_function возникли проблемы - переделал на eval
             res = None
             for cnt in range(self.max_timeout):
@@ -431,11 +429,11 @@ class BalanceOverPlaywright():
                     if 'Execution context was destroyed' not in exception_text:
                         logging.info(exception_text)
                     if 'Target page, context or browser has been closed' in exception_text:
-                        raise RuntimeError(f'Browser has been closed on {cnt} try') # браузера уже нет
-                if res is not None and res == True:
+                        raise RuntimeError(f'Browser has been closed on {cnt} try')  # браузера уже нет
+                if res is not None and res is True:
                     break
                 self.sleep(1)
-        if response_url != None and response_url != '':
+        if response_url is not None and response_url != '':
             for cnt in range(self.max_timeout):
                 if self.page_check_response_url(response_url):
                     break
@@ -476,18 +474,18 @@ class BalanceOverPlaywright():
             'user_data_dir': self.user_data_dir,
             'ignore_https_errors': True,
             'args': self.launch_config_args,
-            })
+        })
         if self.options('use_builtin_browser').strip() == '0':
             self.chrome_executable_path = self.options('chrome_executable_path').strip()
             if self.chrome_executable_path == '':
                 chrome_paths = [p for p in settings.chrome_executable_path_alternate if os.path.exists(p)]
-                if len(chrome_paths) >0:
+                if len(chrome_paths) > 0:
                     self.chrome_executable_path = chrome_paths[0]
             if self.chrome_executable_path == '' or not os.path.exists(self.chrome_executable_path):
                 error_msg = f'Chrome.exe not found {self.chrome_executable_path}'
                 logging.error(error_msg)
                 raise RuntimeError(error_msg)
-            self.launch_config.update({'executable_path': self.chrome_executable_path,})
+            self.launch_config.update({'executable_path': self.chrome_executable_path, })
         else:
             self.chrome_executable_path = self.browsertype.executable_path
         logging.info(f'Launch chrome from {self.chrome_executable_path}')
@@ -497,14 +495,14 @@ class BalanceOverPlaywright():
         if self.options('browser_proxy').strip() != '':
             self.launch_config['args'].append(f'--proxy-server={self.options("browser_proxy").strip()}')
         # playwright: launch_func = self.sync_pw.chromium.launch_persistent_context
-        self.browser = launch_func(**self.launch_config) # sync_pw.chromium.launch_persistent_context
+        self.browser = launch_func(**self.launch_config)  # sync_pw.chromium.launch_persistent_context
         if self.hide_chrome_flag:
             hide_chrome()
         self.page = self.browser.pages[0]
         if str(self.options('playwright_stealth')) == '1':
             try:
                 stealth_sync(self.page)
-            except:
+            except Exception:
                 logging.error('Bad turn stealth_sync(self.page)')
         [p.close() for p in self.browser.pages[1:]]
         self.page.on("response", self.response_worker)
@@ -512,7 +510,7 @@ class BalanceOverPlaywright():
         if str(self.options('intercept_request')) == '1' and str(self.options('show_captcha')) == '0':
             # Если включено показывать капчу - то придется грузить все чтобы загрузить картинки
             self.page.route("*", self.on_route_worker)
-        self.browser.on("disconnected", self.disconnected_worker) # вешаем обработчик закрытие браузера
+        self.browser.on("disconnected", self.disconnected_worker)  # вешаем обработчик закрытие браузера
 
     def browser_close(self):
         self.browser.close()
@@ -525,10 +523,10 @@ class BalanceOverPlaywright():
         selectors = default_logon_selectors.copy()
         login_url = self.login_url
         user_selectors = self.user_selectors
-        assert set(user_selectors)-set(selectors) == set(), f'Не все ключи из user_selectors есть в selectors. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}'
+        assert set(user_selectors) - set(selectors) == set(), f'Не все ключи из user_selectors есть в selectors. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}'
         selectors.update(user_selectors)
         # TODO fix for submit_js -> chk_submit_js
-        selectors['chk_submit_js'] = selectors['submit_js'].replace('.click()','!== null')
+        selectors['chk_submit_js'] = selectors['submit_js'].replace('.click()', '!== null')
         print(f'login_url={login_url}')
         if login_url != '':
             self.page_goto(login_url)
@@ -536,17 +534,17 @@ class BalanceOverPlaywright():
         self.sleep(1)
         self.page_wait_for(expression=selectors['chk_login_page_js'])
         for sel in ['chk_login_page_js', 'login_clear_js', 'password_clear_js', 'chk_submit_js']:
-            if selectors[sel] !='':
+            if selectors[sel] != '':
                 print(f'Check {selectors[sel]}')
                 eval_res = self.page_evaluate(selectors[sel])
                 if sel.startswith('chk_'):
-                    assert eval_res == True , f'Bad result for js:{sel}:{selectors[sel]}'
+                    assert eval_res is True, f'Bad result for js:{sel}:{selectors[sel]}'
                 else:
-                    assert eval_res == '' , f'Bad result for js:{sel}:{selectors[sel]}'
+                    assert eval_res == '', f'Bad result for js:{sel}:{selectors[sel]}'
         for sel in ['login_selector', 'password_selector', 'submit_selector']:
-            if selectors[sel] !='':
+            if selectors[sel] != '':
                 print(f'Check {selectors[sel]}')
-                assert self.page_evaluate(f"document.querySelector('{selectors['login_selector']}') !== null")==True, f'Not found on page:{sel}:{selectors[sel]}'
+                assert self.page_evaluate(f"document.querySelector('{selectors['login_selector']}') !== null") is True, f'Not found on page:{sel}:{selectors[sel]}'
 
     def show_captcha(self, captcha_checker, captcha_focus):
         'Показываем окно с капчей - Если стоит флаг показывать капчу то включаем видимость хрома и ждем заданное время'
@@ -586,7 +584,7 @@ class BalanceOverPlaywright():
         if user_selectors is None:
             user_selectors = self.user_selectors if user_selectors is not None else {}
         # проверяем что все поля из user_selectors есть в селектор (если не так то скорее всего опечатка и надо сигналить)
-        if set(user_selectors)-set(selectors) != set():
+        if set(user_selectors) - set(selectors) != set():
             logging.error(f'Не все ключи из user_selectors есть в selectors. Возможна опечатка, проверьте {set(user_selectors)-set(selectors)}')
         selectors.update(user_selectors)
         # Если проверка на нахождение в личном кабинете на отсутствие элемента - дополнительно ожидаем чтобы страница гарантированно загрузилась
@@ -594,7 +592,7 @@ class BalanceOverPlaywright():
         if url is not None:  # Иногда мы должны сложным путем попасть на страницу - тогда указываем url=None
             self.page_goto(url)
             # Появилось слишком много сайтов на которых медленно открывается страница логона и мы успеваем подумать что пароля на странице нет
-            self.sleep(1*self.force if not is_bad_chk_lk_page_js else 5)
+            self.sleep(1 * self.force if not is_bad_chk_lk_page_js else 5)
             self.page_wait_for(loadstate=True)
         self.page_screenshot()
         for countdown in range(self.wait_loop):
@@ -606,42 +604,43 @@ class BalanceOverPlaywright():
                 self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])
             if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_url(selectors['lk_page_url']):
                 logging.info(f'Already login')
-                break # ВЫХОДИМ ИЗ ЦИКЛА - уже залогинины
+                break  # ВЫХОДИМ ИЗ ЦИКЛА - уже залогинины
             if self.page_evaluate(selectors['chk_login_page_js']):
                 logging.info(f'Login')
                 if selectors['before_login_js'] != '':
                     self.page_evaluate(selectors['before_login_js'])  # Если задано какое-то действие перед логином - выполняем
-                    self.sleep(1*self.force)
+                    self.sleep(1 * self.force)
+                    self.page_screenshot()
                 self.page_wait_for(selector=selectors['login_selector'])  # Ожидаем наличия поля логина
                 self.page_evaluate(selectors['login_clear_js'])  # очищаем поле логина
                 self.sleep(0.1)
                 self.page_fill(selectors['login_selector'], self.login)  # вводим логин
                 if (self.page_evaluate(selectors['chk_submit_after_login_js'], default=False)):  # Если нужно после логина нажать submit
-                    self.page_click(selectors['submit_after_login_selector']) # либо click
+                    self.page_click(selectors['submit_after_login_selector'])  # либо click
                     self.page_evaluate(selectors['submit_after_login_js'])  # либо через js
-                    self.sleep(1*self.force)
+                    self.sleep(1 * self.force)
                     if self.page_evaluate(selectors['captcha_checker'], False):  # После ввода логина может появиться капча
                         self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])
                     self.page_wait_for(selector=selectors['password_selector'])  # и ждем появления поля с паролем
-                    self.sleep(1*self.force)
+                    self.sleep(1 * self.force)
                 self.page_evaluate(selectors['password_clear_js'])  # очищаем поле пароля
                 self.page_fill(selectors['password_selector'], self.password)  # вводим пароль
                 if self.page_evaluate(selectors['remember_checker'], default=False):  # Если есть невыставленный check remember me
                     self.page_evaluate(selectors['remember_js'])  # выставляем его
                     self.page_click(selectors['remember_selector'])
-                self.sleep(1*self.force + int(selectors['pause_press_submit']))
-                self.page_click(selectors['submit_selector']) #  нажимаем на submit form
+                self.sleep(1 * self.force + int(selectors['pause_press_submit']))
+                self.page_click(selectors['submit_selector'])  # нажимаем на submit form
                 self.page_evaluate(selectors['submit_js'])  # либо через js (на некоторых сайтах один из вариантов не срабатывает)
                 self.page_wait_for(loadstate=True)  # ждем отработки нажатия
                 if self.page_evaluate(selectors['captcha_checker'], False):  # После ввода пароля тоже может быть капча
-                    self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])                
+                    self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])
                 # ждем появления личного кабинета, или проваливаемся по таймауту
                 self.page_wait_for(expression=selectors['chk_lk_page_js'], response_url=selectors['lk_page_url'])
-                self.sleep(1*self.force if not is_bad_chk_lk_page_js else self.max_timeout)
+                self.sleep(1 * self.force if not is_bad_chk_lk_page_js else self.max_timeout)
                 if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_url(selectors['lk_page_url']):
                     logging.info(f'Logged on')
                     break  # ВЫХОДИМ ИЗ ЦИКЛА - залогинились
-                self.sleep(1*self.force)
+                self.sleep(1 * self.force)
                 # Проверяем - это не капча ?
                 if self.page_evaluate(selectors['captcha_checker'], False):
                     self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])
@@ -657,19 +656,19 @@ class BalanceOverPlaywright():
             self.sleep(1)
         self.page_screenshot()
 
-    def calculate_param(self, param_name, url_tag: list =[], jsformula: str ='', pformula: str =''):
+    def calculate_param(self, param_name, url_tag: list = [], jsformula: str = '', pformula: str = ''):
         'Вычисляет js выражение jsformula над json co страницы с url_tag, !!! url_tag - список тэгов'
         # TODO self.page.evaluate(f"(data) => {jsformula}", json_data)
-        #return self.page_evaluate(f"()=>{{data={json.dumps(json_data,ensure_ascii=False)};return {jsformula};}}")
+        # return self.page_evaluate(f"()=>{{data={json.dumps(json_data,ensure_ascii=False)};return {jsformula};}}")
         if url_tag != []:  # Ищем в загруженных страницах
-            response_result_ = [v for k,v in self.responses.items() if [i for i in url_tag if i not in k]==[]]
-            if len(response_result_)>0:
+            response_result_ = [v for k, v in self.responses.items() if [i for i in url_tag if i not in k] == []]
+            if len(response_result_) > 0:
                 response_result = response_result_[-1]  # если ответов несколько - берем последний, так правильнее
                 if pformula != '':
                     logging.info(f'{param_name}: pformula on {url_tag}:{pformula}')
                     # Для скрипта на python делаем
                     try:
-                        res = eval(pformula, {'data':response_result})
+                        res = eval(pformula, {'data': response_result})
                         return res
                     except Exception:
                         exception_text = f'Ошибка в pformula:{pformula} :{store.exception_text()}'
@@ -712,7 +711,7 @@ class BalanceOverPlaywright():
         Из того что уже вылезло - если возникают проблемы со сложным eval надо завернуть его в ()=>{...;return ...}
         '''
         result = {}
-        if len([i for i in params if 'name' not in i])>0:
+        if len([i for i in params if 'name' not in i]) > 0:
             error_msg = f'Not all params have name param: {params}'
             logging.error(error_msg)
             raise RuntimeError(error_msg)
@@ -728,11 +727,11 @@ class BalanceOverPlaywright():
             for param in params:
                 if param['name'] in result:
                     continue  # Если этот параметр уже получен, то его пропускаем
-                res = self.calculate_param(param['name'], param.get('url_tag',[]), param.get('jsformula',''), param.get('pformula',''))
+                res = self.calculate_param(param['name'], param.get('url_tag', []), param.get('jsformula', ''), param.get('pformula', ''))
                 if res is not None:
                     result[param['name']] = res
             # Если все обязательные уже получили
-            required__not_received = {i['name'] for i in params if i.get('wait',True)} - set(result)
+            required__not_received = {i['name'] for i in params if i.get('wait', True)} - set(result)
             if required__not_received == set():
                 break  # выходим если все получили
             logging.info(f'Wait {", ".join(required__not_received)}')
@@ -743,7 +742,7 @@ class BalanceOverPlaywright():
             no_received_keys = {i['name'] for i in params} - set(result)
             logging.error(f'Not found all param on {url}: {",".join(no_received_keys)}')
         if save_to_result:
-            self.result.update({k:v for k,v in result.items() if not k.startswith('#')})  # Не переносим те что с решеткой в начале
+            self.result.update({k: v for k, v in result.items() if not k.startswith('#')})  # Не переносим те что с решеткой в начале
         self.page_screenshot()
         return result
 
@@ -762,11 +761,11 @@ class BalanceOverPlaywright():
         if sys.platform != 'win32' and not self.launch_config.get('headless', True) and str(self.options('xvfb')) == '1':
             os.system('pgrep Xvfb || Xvfb :99 -screen 0 1920x1080x24 &')
             os.system('export DISPLAY=:99')  # On linux and headless:False use Xvfb
-            os.environ['DISPLAY']=':99'
+            os.environ['DISPLAY'] = ':99'
         store.feedback.text(f'Запуск браузера', append=True)
         with sync_playwright() as self.sync_pw:
             browsertype_text = self.options('browsertype')
-            self.browsertype : playwright.sync_api._generated.BrowserType = getattr(self.sync_pw, browsertype_text)
+            self.browsertype: playwright.sync_api._generated.BrowserType = getattr(self.sync_pw, browsertype_text)
             self.launch_browser(launch_func=self.browsertype.launch_persistent_context)  # self.sync_pw.chromium.launch_persistent_context
             if run == NORMAL:
                 try:

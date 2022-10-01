@@ -25,20 +25,20 @@ user_selectors = {
     'login_selector': 'form input[type=tel]',
     # проверка нужен ли submit после логина (если поле пароля уже есть то не нужен, иначе нужен)
     'chk_submit_after_login_js': "document.querySelector('form input[type=tel]')!=null || document.querySelector('form input[id=password]')==null",
-    'submit_after_login_js': "document.querySelectorAll('form [type=submit]').forEach(el => el.click())", # js для нажатия на далее после логона
+    'submit_after_login_js': "document.querySelectorAll('form [type=submit]').forEach(el => el.click())",  # js для нажатия на далее после логона
     'submit_js': "document.querySelectorAll('form [type=submit]').forEach(el => el.click())",  # js для нажатия на финальный submit
     'remember_checker': "document.querySelector('form input[name=rememberme]')!=null && document.querySelector('form input[name=rememberme]').checked==false",  # Проверка что флаг remember me не выставлен
     'remember_js': "document.querySelector('form input[name=rememberme]').click()",  # js для выставления remember me
     'captcha_checker': "document.querySelector('img[id=captchaImage]')!=null||document.querySelector('div[id=captcha-wrapper]')!=null||document.body.innerText.startsWith('This question is for testing whether you are a human visitor and to prevent automated spam submission.')",
     'captcha_focus': "[document.getElementById('ans'),document.getElementById('password'),document.getElementById('captchaInput')].filter(s => s!=null).map(s=>s.focus())",
     'fatal': "d=document.querySelector('.descr');d===null?false:/Доступ к сайту login.mts.ru запрещен./.test(d.innerText)"
-    }
+}
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         mts_usedbyme = self.options('mts_usedbyme')
         self.do_logon(url=login_url, user_selectors=user_selectors)
-        
+
         if self.page_evaluate('Array.from(document.querySelectorAll("h1")).filter(el=>el.innerText=="Добавьте почту").length==1'):
             self.page_click("button:has-text('Пропустить')")  # Skip
             # self.page_press("button:has-text('Пропустить')", ' ')  # Skip
@@ -51,15 +51,15 @@ class browserengine(browsercontroller.BrowserController):
             # TODO возможно с прошлого раза может сохраниться переключенный но вроде работает и так
             # New LK '.mts-multi-account' old LK [id=ng-header__account-phone_desktop]
             self.page_wait_for(expression="document.querySelector('.mts-multi-account')!=null || document.querySelector('[id=ng-header__account-phone_desktop]')!=null")
-            
+
             self.responses = {}  # Сбрасываем все загруженные данные - там данные по материнскому телефону
             # Теперь сразу кликаем на нужный блок, если и это сломают - будем кликать playwright
             # Старый ЛК
             if self.page_evaluate("document.querySelector('[id=ng-header__account-phone_desktop]')!=null", False):
-                self.page_evaluate(f"Array.from(document.querySelectorAll('a.user-block__content')).filter(el => el.querySelector('.user-block__phone').innerText.replace(/\D/g,'').endsWith('{self.acc_num}'))[0].click()")
+                self.page_evaluate(rf"Array.from(document.querySelectorAll('a.user-block__content')).filter(el => el.querySelector('.user-block__phone').innerText.replace(/\D/g,'').endsWith('{self.acc_num}'))[0].click()")
             # Новый ЛК
             if self.page_evaluate("document.querySelector('.mts-multi-account')!=null", False):
-                self.page_evaluate(f"Array.from(document.querySelectorAll('.mts-multi-account .account-badge')).filter(el => el.querySelector('.account-badge__phone').innerText.replace(/\D/g,'').endsWith('{self.acc_num}'))[0].click()")
+                self.page_evaluate(rf"Array.from(document.querySelectorAll('.mts-multi-account .account-badge')).filter(el => el.querySelector('.account-badge__phone').innerText.replace(/\D/g,'').endsWith('{self.acc_num}'))[0].click()")
             # !!! Раньше я на каждой странице при таком заходе проверял что номер тот, сейчас проверяю только на старте
             for _ in range(10):
                 self.sleep(1)
@@ -68,7 +68,7 @@ class browserengine(browsercontroller.BrowserController):
                     numb = self.page_evaluate("document.getElementById('ng-header__account-phone_desktop').innerText", None)
                 if self.page_evaluate("document.querySelector('.mts-multi-account')!=null", False):
                     numb = self.page_evaluate("document.querySelectorAll('.mts-multi-account .account-badge.active .account-badge__phone')[0].innerText", None)
-                if numb is not None and numb !='':
+                if numb is not None and numb != '':
                     break
             else:
                 return  # номера на странице так и нет - уходим
@@ -86,7 +86,7 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'Balance', 'url_tag': [api_login_userinfo], 'jsformula': "parseFloat(data.userProfile.balance).toFixed(2)"},
             # Закрываем банеры (для эстетики)
             {'name': '#banner1', 'url_tag': [api_login_userinfo], 'jsformula': "document.querySelectorAll('mts-dialog div[class=popup__close]').forEach(s=>s.click())==null", 'wait':False},
-            ])
+        ])
 
         # Потом все остальное
         res1 = self.wait_params(params=[
@@ -95,12 +95,12 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'Balance', 'url_tag': ['for=api/accountInfo/mscpBalance'], 'jsformula': "parseFloat(data.data==null ? data.amount : data.data.amount).toFixed(2)"},
             {'name': 'Balance2', 'url_tag': ['for=api/cashback/account'], 'jsformula': "parseFloat(data.data.balance).toFixed(2)"},
             {'name': '#counters', 'url_tag': ['for=api/sharing/counters'], 'jsformula': "data.data.counters"},
-            ])
-        if '#counters' in res1 and type(res1['#counters']) == list and len(res1['#counters'])>0:
+        ])
+        if '#counters' in res1 and type(res1['#counters']) == list and len(res1['#counters']) > 0:
             counters = res1['#counters']
             # deadlineDate
             deadline_dates = set([i['deadlineDate'] for i in counters if 'deadlineDate' in i])
-            if len(deadline_dates)>0:
+            if len(deadline_dates) > 0:
                 deadline_date = min(deadline_dates)
                 delta = datetime.datetime.fromisoformat(deadline_date) - datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(seconds=10800)))
                 self.result['TurnOff'] = delta.days
@@ -109,17 +109,17 @@ class browserengine(browsercontroller.BrowserController):
             calling = [i for i in counters if i['packageType'] == 'Calling']
             if calling != []:
                 unit = {'Second': 60, 'Minute': 1}.get(calling[0]['unitType'], 1)
-                nonused = [i['amount'] for i in calling[0] ['parts'] if i['partType'] == 'NonUsed']
-                usedbyme = [i['amount'] for i in calling[0] ['parts'] if i['partType'] == 'UsedByMe']
+                nonused = [i['amount'] for i in calling[0]['parts'] if i['partType'] == 'NonUsed']
+                usedbyme = [i['amount'] for i in calling[0]['parts'] if i['partType'] == 'UsedByMe']
                 if nonused != []:
-                    self.result['Min'] = int(nonused[0]/unit)
+                    self.result['Min'] = int(nonused[0] / unit)
                 if usedbyme != []:
-                    self.result['SpendMin'] = int(usedbyme[0]/unit)
+                    self.result['SpendMin'] = int(usedbyme[0] / unit)
             # SMS
             messaging = [i for i in counters if i['packageType'] == 'Messaging']
             if messaging != []:
-                nonused = [i['amount'] for i in messaging[0] ['parts'] if i['partType'] == 'NonUsed']
-                usedbyme = [i['amount'] for i in messaging[0] ['parts'] if i['partType'] == 'UsedByMe']
+                nonused = [i['amount'] for i in messaging[0]['parts'] if i['partType'] == 'NonUsed']
+                usedbyme = [i['amount'] for i in messaging[0]['parts'] if i['partType'] == 'UsedByMe']
                 if (mts_usedbyme == '0' or self.login not in mts_usedbyme.split(',')) and nonused != []:
                     self.result['SMS'] = int(nonused[0])
                 if (mts_usedbyme == '1' or self.login in mts_usedbyme.split(',')) and usedbyme != []:
@@ -129,12 +129,12 @@ class browserengine(browsercontroller.BrowserController):
             if internet != []:
                 unitMult = settings.UNIT.get(internet[0]['unitType'], 1)
                 unitDiv = settings.UNIT.get(self.options('interUnit'), 1)
-                nonused = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'NonUsed']
-                usedbyme = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'UsedByMe']
+                nonused = [i['amount'] for i in internet[0]['parts'] if i['partType'] == 'NonUsed']
+                usedbyme = [i['amount'] for i in internet[0]['parts'] if i['partType'] == 'UsedByMe']
                 if (mts_usedbyme == '0' or self.login not in mts_usedbyme.split(',')) and nonused != []:
-                    self.result['Internet'] = round(nonused[0]*unitMult/unitDiv, 2)
+                    self.result['Internet'] = round(nonused[0] * unitMult / unitDiv, 2)
                 if (mts_usedbyme == '1' or self.login in mts_usedbyme.split(',')) and usedbyme != []:
-                    self.result['Internet'] = round(usedbyme[0]*unitMult/unitDiv, 2)
+                    self.result['Internet'] = round(usedbyme[0] * unitMult / unitDiv, 2)
 
         self.page_goto('https://lk.mts.ru/uslugi/podklyuchennye')
         res2 = self.wait_params(params=[
@@ -148,10 +148,10 @@ class browserengine(browsercontroller.BrowserController):
             },
         ])
         try:
-            services = sorted(res2['#services'], key=lambda i:(-i[1],i[0]))
-            free = len([a for a,b in services if b==0 and (a,b)!=('Ежемесячная плата за тариф', 0)])
-            paid = len([a for a,b in services if b!=0])
-            paid_sum = round(sum([b for a,b in services if b!=0]),2)
+            services = sorted(res2['#services'], key=lambda i: (-i[1], i[0]))
+            free = len([a for a, b in services if b == 0 and (a, b) != ('Ежемесячная плата за тариф', 0)])
+            paid = len([a for a, b in services if b != 0])
+            paid_sum = round(sum([b for a, b in services if b != 0]), 2)
             self.result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
             self.result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
         except Exception:
@@ -177,18 +177,18 @@ class browserengine(browsercontroller.BrowserController):
                 return
             try:
                 # Обработка по новому варианту страницы api/sharing/counters
-                if res3_alt.get('#checktask',{}).get('data',{}).get('subscriberType','')=='Donor':
+                if res3_alt.get('#checktask', {}).get('data', {}).get('subscriberType', '') == 'Donor':
                     logging.info(f'mts_usedbyme: Donor')
-                    for el in res3_alt.get('#checktask',{}).get('data',{}).get('counters',[]):  # data.counters. ...
+                    for el in res3_alt.get('#checktask', {}).get('data', {}).get('counters', []):  # data.counters. ...
                         if el.get('packageType', '') == 'Calling':
                             self.result['SpendMin'] = int((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) / 60)
                         if el.get('packageType', '') == 'Messaging':
                             self.result['SMS'] = el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)
                         if el.get('packageType', '') == 'Internet':
                             self.result['Internet'] = round((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) / 1024 / 1024, 3)
-                if res3_alt.get('#checktask',{}).get('data',{}).get('subscriberType','')=='Acceptor':
+                if res3_alt.get('#checktask', {}).get('data', {}).get('subscriberType', '') == 'Acceptor':
                     logging.info(f'mts_usedbyme: Acceptor')
-                    for el in res3_alt.get('#checktask',{}).get('data',{}).get('counters',[]):  # data.counters. ...
+                    for el in res3_alt.get('#checktask', {}).get('data', {}).get('counters', []):  # data.counters. ...
                         if el.get('packageType', '') == 'Calling':
                             self.result['SpendMin'] = int(el.get('usedAmount', 0) / 60)
                         if el.get('packageType', '') == 'Messaging':
@@ -198,9 +198,9 @@ class browserengine(browsercontroller.BrowserController):
                 # Спецверсия для общего пакета, работает только для Donor
                 if self.acc_num.lower().startswith('common'):
                     # Обработка по новому варианту страницы api/sharing/counters
-                    if res3_alt.get('#checktask',{}).get('data',{}).get('subscriberType','')=='Donor':
+                    if res3_alt.get('#checktask', {}).get('data', {}).get('subscriberType', '') == 'Donor':
                         logging.info(f'mts_usedbyme: Common for donor')
-                        for el in res3_alt.get('#checktask',{}).get('data',{}).get('counters',[]):  # data.counters. ...
+                        for el in res3_alt.get('#checktask', {}).get('data', {}).get('counters', []):  # data.counters. ...
                             if el.get('packageType', '') == 'Calling':
                                 self.result['Min'] = int((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 60)  # осталось минут
                                 self.result['SpendMin'] = int((el.get('usedAmount', 0)) / 60)  # Потрачено минут
@@ -214,7 +214,7 @@ class browserengine(browsercontroller.BrowserController):
                                     self.result['Internet'] = round((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 1024 / 1024, 3)
                                 else:                       # потрачено
                                     self.result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)
-                    else:  #  Со страницы общего пакета не отдали данные, чистим все, иначе будут кривые графики. ТОЛЬКО для common
+                    else:  # Со страницы общего пакета не отдали данные, чистим все, иначе будут кривые графики. ТОЛЬКО для common
                         raise RuntimeError(f'Страница общего пакета не возвращает данных')
             except Exception:
                 logging.info(f'Ошибка при получении obshchiy_paket {store.exception_text()}')
@@ -247,20 +247,21 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
         user_agent = store.options('user_agent', pkey=store.get_pkey(login, plugin_name=__name__))
         if user_agent.strip() == '':
             user_agent = settings.default_user_agent
-        headers = {"User-Agent": user_agent,}
-        session = store.Session(storename, headers = headers)
+        headers = {"User-Agent": user_agent, }
+        session = store.Session(storename, headers=headers)
         response = session.get(url, headers=headers)
         check_status_code(response, 200)
-        #1
+        # 1
         csrf_token, csrf_ts_token = get_tokens(response)
         headers["Referer"] = url
-        response = session.post(url,
-            data={"IDToken1": login, "IDButton": "Submit", "encoded": "false", "loginURL": "?service=default", "csrf.sign": csrf_token, "csrf.ts": csrf_ts_token,},
+        response = session.post(
+            url,
+            data={"IDToken1": login, "IDButton": "Submit", "encoded": "false", "loginURL": "?service=default", "csrf.sign": csrf_token, "csrf.ts": csrf_ts_token, },
             headers=headers,
         )
         check_status_code(response, 200)
         csrf_token, csrf_ts_token = get_tokens(response)
-        #2
+        # 2
         fonts = 'cursive;monospace;serif;sans-serif;default;Arial;Arial Black;Arial Narrow;Bookman Old Style;Bradley Hand ITC;Century;Century Gothic;Comic Sans MS;Courier;Courier New;Georgia;Impact;Lucida Console;Papyrus;Tahoma;Times;Times New Roman;Trebuchet MS;Verdana;'
         fonts_l = fonts.split(';')
         fonts = ';'.join(fonts_l[:random.randint(5, len(fonts_l))])
@@ -270,7 +271,7 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
             'language': 'ru',
             'timezone': {'timezone': -180},
             'plugins': {'installedPlugins': ''},
-            'fonts': { 'installedFonts': fonts},
+            'fonts': {'installedFonts': fonts},
             'userAgent': user_agent,
             'appName': 'Netscape',
             'appCodeName': user_agent.split('/', 1)[0],
@@ -280,7 +281,8 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
             'product': 'Gecko',
             'productSub': '20100101'
         }
-        response = session.post(url,
+        response = session.post(
+            url,
             data={
                 "IDToken2": json.dumps(id_token_2),
                 "csrf.sign": csrf_token,
@@ -288,17 +290,19 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
             },
             headers=headers,
         )
-        #3
+        # 3
         csrf_token, csrf_ts_token = get_tokens(response)
-        response = session.post(url,
+        response = session.post(
+            url,
             data={"IDToken1": login, "IDToken2": password, "IDButton": "Check", "encoded": "false", "loginURL": "?service=default", "csrf.sign": csrf_token, "csrf.ts": csrf_ts_token, },
             headers=headers,
             allow_redirects=False,
         )
         check_status_code(response, 200)
-        #4
+        # 4
         csrf_token, csrf_ts_token = get_tokens(response)
-        response = session.post(url,
+        response = session.post(
+            url,
             data={"IDButton": "Login", "encoded": "false", "csrf.sign": csrf_token, "csrf.ts": csrf_ts_token, },
             headers=headers,
             allow_redirects=False,
@@ -320,8 +324,8 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
             logging.info(f'{response1.status_code}')
             token = response1.json()
             url = f'https://lk.mts.ru/api/longtask/check/{token}?for={api}'
-        for l in range(10):  # 10 попыток TODO вынести в settings
-            if longtask or l > 0:  # для не longtask запросов на первой итерации не ждем
+        for l_try in range(10):  # 10 попыток TODO вынести в settings
+            if longtask or l_try > 0:  # для не longtask запросов на первой итерации не ждем
                 logging.info(f'Wait longtask')
                 time.sleep(2)
             logging.info(f'{url}')
@@ -329,7 +333,7 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
             logging.info(f'{response2.status_code}')
             if response2.status_code >= 400:
                 return {}  # Вернули ошибку, продолжать нет смысла
-            if response2.status_code == 204:  #  No Content - wait
+            if response2.status_code == 204:  # No Content - wait
                 continue
             if response2.status_code != 200:
                 continue  # Надо чуть подождать (бывает что и 6 секунд можно прождать)
@@ -377,12 +381,12 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
         cb = get_api_json('api/cashback/account', longtask=True)
 
         if 'amount' in aib:
-            result['Balance'] = round(float(aib.get('data',{}).get('amount',0)), 2)
+            result['Balance'] = round(float(aib.get('data', {}).get('amount', 0)), 2)
         else:
             logging.info(f'не смогли взять баланс с api/accountInfo/mscpBalance')
-        result['Balance2'] = cb.get('data',{}).get('balance', 0)
+        result['Balance2'] = cb.get('data', {}).get('balance', 0)
         # Услуги
-        sla_services = sla.get('data',{}).get('services', [])
+        sla_services = sla.get('data', {}).get('services', [])
         # services = [(i['name'], i.get('subscriptionFee', {}).get('value', 0)) for i in sla_services]
         # [(i['name'], i.get('subscriptionFee', {}).get('value', 0)*settings.UNIT.get(i.get('subscriptionFee', {}).get('unitOfMeasureRaw', 0), 1)) for i in sla_services]
         services = []
@@ -390,31 +394,31 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
             name = el['name']
             subscription_fee = el.get('subscriptionFee', {})
             fee = subscription_fee.get('value', 0)
-            unit = settings.UNIT.get(subscription_fee.get('unitOfMeasureRaw', 0),1)
-            services.append([name, fee*unit])
-        free = len([a for a,b in services if b==0 and (a,b)!=('Ежемесячная плата за тариф', 0)])
-        paid = len([a for a,b in services if b!=0])
-        paid_sum = round(sum([b for a,b in services if b!=0]),2)
-        services.sort(key=lambda i:(-i[1],i[0]))
-        result['UslugiOn']=f'{free}/{paid}({paid_sum})'
-        result['UslugiList']='\n'.join([f'{a}\t{b}' for a,b in services])
+            unit = settings.UNIT.get(subscription_fee.get('unitOfMeasureRaw', 0), 1)
+            services.append([name, fee * unit])
+        free = len([a for a, b in services if b == 0 and (a, b) != ('Ежемесячная плата за тариф', 0)])
+        paid = len([a for a, b in services if b != 0])
+        paid_sum = round(sum([b for a, b in services if b != 0]), 2)
+        services.sort(key=lambda i: (-i[1], i[0]))
+        result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
+        result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
         # Counters
-        sc_counters = sc.get('data',{}).get('counters', [])
+        sc_counters = sc.get('data', {}).get('counters', [])
         # Минуты
         calling = [i for i in sc_counters if i['packageType'] == 'Calling']
         if calling != []:
             unit = {'Second': 60, 'Minute': 1}.get(calling[0]['unitType'], 1)
-            nonused = [i['amount'] for i in calling[0] ['parts'] if i['partType'] == 'NonUsed']
-            usedbyme = [i['amount'] for i in calling[0] ['parts'] if i['partType'] == 'UsedByMe']
+            nonused = [i['amount'] for i in calling[0]['parts'] if i['partType'] == 'NonUsed']
+            usedbyme = [i['amount'] for i in calling[0]['parts'] if i['partType'] == 'UsedByMe']
             if nonused != []:
-                result['Min'] = int(nonused[0]/unit)
+                result['Min'] = int(nonused[0] / unit)
             if usedbyme != []:
-                result['SpendMin'] = int(usedbyme[0]/unit)
+                result['SpendMin'] = int(usedbyme[0] / unit)
         # SMS
         messaging = [i for i in sc_counters if i['packageType'] == 'Messaging']
         if messaging != []:
-            nonused = [i['amount'] for i in messaging[0] ['parts'] if i['partType'] == 'NonUsed']
-            usedbyme = [i['amount'] for i in messaging[0] ['parts'] if i['partType'] == 'UsedByMe']
+            nonused = [i['amount'] for i in messaging[0]['parts'] if i['partType'] == 'NonUsed']
+            usedbyme = [i['amount'] for i in messaging[0]['parts'] if i['partType'] == 'UsedByMe']
             if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
                 result['SMS'] = int(nonused[0])
             if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
@@ -424,12 +428,12 @@ def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=F
         if internet != []:
             unitMult = settings.UNIT.get(internet[0]['unitType'], 1)
             unitDiv = settings.UNIT.get(options('interUnit'), 1)
-            nonused = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'NonUsed']
-            usedbyme = [i['amount'] for i in internet[0] ['parts'] if i['partType'] == 'UsedByMe']
+            nonused = [i['amount'] for i in internet[0]['parts'] if i['partType'] == 'NonUsed']
+            usedbyme = [i['amount'] for i in internet[0]['parts'] if i['partType'] == 'UsedByMe']
             if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
-                result['Internet'] = round(nonused[0]*unitMult/unitDiv, 2)
+                result['Internet'] = round(nonused[0] * unitMult / unitDiv, 2)
             if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
-                result['Internet'] = round(usedbyme[0]*unitMult/unitDiv, 2)
+                result['Internet'] = round(usedbyme[0] * unitMult / unitDiv, 2)
 
     except Exception:
         exception_text = f'Ошибка при получении дополнительных данных {store.exception_text()}'
@@ -448,7 +452,7 @@ def get_balance(login, password, storename=None, **kwargs):
     '''
     # т.к. для совместимости остался приходящий сюда плагин mts2 пришлось пойти на трюк
     plugin_name = kwargs.get('plugin_name', __name__)
-    pkey=store.get_pkey(login, plugin_name=plugin_name)
+    pkey = store.get_pkey(login, plugin_name=plugin_name)
     plugin_mode = store.options('plugin_mode', pkey=pkey).upper()
     # Поменять дефолт если будут проблемы с playwright != 'WEB':
     if False:  # API вариант не работает plugin_mode in ('API', 'FASTAPI'):

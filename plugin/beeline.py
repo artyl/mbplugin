@@ -9,13 +9,13 @@ login_url = 'https://my.beeline.ru'
 # если залогинены, то попадем сразу в ЛК, иначе попадем ХЗ куда
 direct_lk_url = 'https://beeline.ru/customers/products/mobile/profile/#/home'
 user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=password][role=textbox]') == null",
-                'chk_login_page_js': "document.querySelector('form input[type=password][role=textbox]') !== null",
-                'login_clear_js': "document.querySelector('form input[type=text]').value=''",
-                'login_selector': 'form input[type=text]',
-                'password_clear_js': "document.querySelector('form input[type=password][role=textbox]').value=''",
-                'password_selector': 'form input[type=password][role=textbox]',
-                'submit_js': "document.querySelector('form [type=button]').click()",
-                }
+                  'chk_login_page_js': "document.querySelector('form input[type=password][role=textbox]') !== null",
+                  'login_clear_js': "document.querySelector('form input[type=text]').value=''",
+                  'login_selector': 'form input[type=text]',
+                  'password_clear_js': "document.querySelector('form input[type=password][role=textbox]').value=''",
+                  'password_selector': 'form input[type=password][role=textbox]',
+                  'submit_js': "document.querySelector('form [type=button]').click()",
+                  }
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
@@ -32,31 +32,31 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'SMS', 'url_tag': ['api/profile/userinfo/data/?noTimeout'], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='SMS'?el.rest:0)))"},
             {'name': 'BlockStatus', 'url_tag': ['api/profile/userinfo/data/?noTimeout'], 'jsformula': "data.status.data.status"},
             {'name': 'LicSchet', 'url_tag': ['api/profile/userinfo/data/?noTimeout'], 'jsformula': "data.profileSummary.data.ctn"},
-            ])
-        self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
-        self.page_goto(self.page.url.split('#')[0]+'#/services')
+        ])
+        self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
+        self.page_goto(self.page.url.split('#')[0] + '#/services')
         self.sleep(1)
         self.page_click("a[role=\"button\"]:has-text(\"Партнерские Сервисы\")")
         self.sleep(1)
         self.page.click("a[role=\"button\"]:has-text(\"Развлечения от билайн\")")
         self.sleep(2)
         try:
-            services = [v for k,v in self.responses.items() if 'api/profile/userinfo/data/?blocks=ConnectedServices' in k][0]['connectedServices']['data']
-            subscribtions = [v for k,v in self.responses.items() if 'api/profile/userinfo/data/?blocks=Subscriptions' in k][0]['subscriptions']['data']
-            uslugi = [[ln.get('title','xxx'), ln.get('rcRate',0)*(1 if ln.get('rcRatePeriod')=='Mounthly' else 1)] for ln in services]
+            services = [v for k, v in self.responses.items() if 'api/profile/userinfo/data/?blocks=ConnectedServices' in k][0]['connectedServices']['data']
+            subscribtions = [v for k, v in self.responses.items() if 'api/profile/userinfo/data/?blocks=Subscriptions' in k][0]['subscriptions']['data']
+            uslugi = [[ln.get('title', 'xxx'), ln.get('rcRate', 0) * (1 if ln.get('rcRatePeriod') == 'Mounthly' else 1)] for ln in services]
             # у меня этого нет - строчка ниже написана в слепую
-            uslugi.extend([[ln.get('title','xxx'), ln.get('rcRate',0)*(1 if ln.get('rcRatePeriod')=='Mounthly' else 1)] for ln in subscribtions])
+            uslugi.extend([[ln.get('title', 'xxx'), ln.get('rcRate', 0) * (1 if ln.get('rcRatePeriod') == 'Mounthly' else 1)] for ln in subscribtions])
             # дополнительно добавляем алерт про услуги
             if len(subscribtions) > 0:
                 uslugi.append(['Unwanted Нежелательная подписка (проверьте)', 0])
-            profile = [v for k,v in self.responses.items() if 'api/profile/userinfo/data' in k][0]['profileSummary']['data']
+            profile = [v for k, v in self.responses.items() if 'api/profile/userinfo/data' in k][0]['profileSummary']['data']
             # Цена тарифа только в виде '250 ₽ в месяц' - придется парсить
-            tariff_rate = int(re.sub('\D','',profile['tariffRcRateText']))
+            tariff_rate = int(re.sub(r'\D', '', profile['tariffRcRateText']))
             paid_sum = tariff_rate * (30 if 'день' in profile.get('tariffRcRateText') else 1)
             free = len([a for a, b in uslugi if b == 0])  # бесплатные
             subscr = len(subscribtions)
             paid = len([a for a, b in uslugi if b != 0])  # платные
-            paid_sum = paid_sum+round(sum([b for a, b in uslugi if b != 0]), 2)
+            paid_sum = paid_sum + round(sum([b for a, b in uslugi if b != 0]), 2)
             self.result['UslugiOn'] = f'{free}/{subscr}/{paid}({paid_sum})'
             self.result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in uslugi])
         except Exception:
@@ -81,7 +81,7 @@ def get_balance_api(login, password, storename=None, **kwargs):
         return response.json()
     result = {}
     # Загружаем или создаем сессию
-    session = store.Session(storename, headers = {'User-Agent': 'tiehttp', })
+    session = store.Session(storename, headers={'User-Agent': 'tiehttp', })
     uri = 'https://my.beeline.ru/api/1.0/auth/auth?login=' + \
         login + '&password=' + password
     response1 = session.get(uri)
@@ -107,25 +107,25 @@ def get_balance_api(login, password, storename=None, **kwargs):
 
         # список услуг
         jsonSubscr = beeline_api(session, token, login, 'info/subscriptions')
-        subscr = len(jsonSubscr.get('subscriptions',[]))
+        subscr = len(jsonSubscr.get('subscriptions', []))
         jsonServices = beeline_api(session, token, login, 'info/serviceList')
         paid_sum = 0
         ppi = jsonTariff['pricePlanInfo']
         kperiod = 1
-        if ppi.get('rcRate', None) != None and ppi.get('rcRatePeriod', None) != None:
-            kperiod = 30 if jsonTariff['pricePlanInfo']['rcRatePeriod'].split('.')[-1]=='dayly' else 1
+        if ppi.get('rcRate', None) is not None and ppi.get('rcRatePeriod', None) is not None:
+            kperiod = 30 if jsonTariff['pricePlanInfo']['rcRatePeriod'].split('.')[-1] == 'dayly' else 1
             paid_sum = ppi['rcRate'] * kperiod
         services = []
         for el in jsonServices['services']:
-            if el.get('rcRate', None) != None and el.get('rcRatePeriod', None) != None:
-                kperiod = 30 if el['rcRatePeriod'].split('.')[-1]=='dayly' else 1
+            if el.get('rcRate', None) is not None and el.get('rcRatePeriod', None) is not None:
+                kperiod = 30 if el['rcRatePeriod'].split('.')[-1] == 'dayly' else 1
                 fee = el['rcRate'] * kperiod
             else:
                 fee = 0
-            services.append((el['entityName'],fee))
+            services.append((el['entityName'], fee))
         free = len([a for a, b in services if b == 0])  # бесплатные
         paid = len([a for a, b in services if b != 0])  # платные
-        paid_sum = paid_sum+round(sum([b for a, b in services if b != 0]), 2)
+        paid_sum = paid_sum + round(sum([b for a, b in services if b != 0]), 2)
         result['UslugiOn'] = f'{free}/{subscr}/{paid}({paid_sum})'
         result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
 
@@ -154,11 +154,11 @@ def get_balance_api(login, password, storename=None, **kwargs):
             result['Internet'] = result.get('Internet', 0)
             result['SMS'] = result.get('SMS', 0)
             for elem in jsonAcc['accumulators']:
-                if elem.get('unit','') == 'SECONDS':
-                    result['Min'] += elem.get('rest', 0)//60
-                if elem.get('unit','') == 'KBYTE':
-                    result['Internet'] += elem.get('rest', 0)*(settings.UNIT['KB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
-                if elem.get('unit','') == 'SMS':
+                if elem.get('unit', '') == 'SECONDS':
+                    result['Min'] += elem.get('rest', 0) // 60
+                if elem.get('unit', '') == 'KBYTE':
+                    result['Internet'] += elem.get('rest', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
+                if elem.get('unit', '') == 'SMS':
                     result['SMS'] += elem.get('rest', 0)
     except Exception:
         exception_text = f'Ошибка при получении дополнительных данных {store.exception_text()}'

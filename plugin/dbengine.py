@@ -61,11 +61,11 @@ CREATE TABLE IF NOT EXISTS Phones (
     [NoChangeDays] [int] NULL ,
     [AnyString] [nchar] (250), -- COLLATE Cyrillic_General_CI_AS NULL ,
     [CalcTurnOff] [int] NULL
-);''','''
+);''', '''
 CREATE TABLE IF NOT EXISTS Flags (
     [key] [nvarchar] (150) PRIMARY KEY,
     [value] [nvarchar] (150) NULL
-);''','''
+);''', '''
 CREATE TABLE IF NOT EXISTS Responses (
     [key] [nvarchar] (150) PRIMARY KEY,
     [value] [nvarchar] (10000) NULL
@@ -143,7 +143,7 @@ class Dbengine():
         self.conn = sqlite3.connect(self.dbname)  # detect_types=sqlite3.PARSE_DECLTYPES
         self.cur = self.conn.cursor()
         cache_size = int(store.options('sqlite_cache_size'))
-        if cache_size !=0:
+        if cache_size != 0:
             self.cur.execute(f'PRAGMA cache_size = {cache_size};')
         if fast:
             self.cur.execute('PRAGMA synchronous = OFF;')
@@ -184,12 +184,12 @@ class Dbengine():
         line['QueryDateTime'] = datetime.datetime.now().replace(microsecond=0)  # no microsecond
         self.cur.execute(f"select cast(julianday('now')-julianday(max(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' and abs(balance-({result['Balance']}))>0.02")
         line['NoChangeDays'] = self.cur.fetchall()[0][0]  # Дней без изм.
-        if line['NoChangeDays'] == None:
+        if line['NoChangeDays'] is None:
             # Если баланс не менялся ни разу - то ориентируемся на самый первый запрос баланса
             self.cur.execute(f"select cast(julianday('now')-julianday(min(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' ")
             line['NoChangeDays'] = self.cur.fetchall()[0][0]
         # Если записей по этому номеру совсем нет (первый запрос), тогда просто ставим 0
-        line['NoChangeDays'] = line['NoChangeDays'] if line['NoChangeDays'] != None else 0
+        line['NoChangeDays'] = line['NoChangeDays'] if line['NoChangeDays'] is not None else 0
         try:
             options_ini = store.ini('Options.ini').read()
             average_days = int(options_ini['Additional']['AverageDays'])
@@ -210,7 +210,7 @@ class Dbengine():
         if line.get('RealAverage', 0.0) < 0:
             line['CalcTurnOff'] = round(-line['Balance'] / line['RealAverage'], 2)
         self.cur.execute(f'insert into phones ({",".join(line.keys())}) VALUES ({",".join(list("?"*len(line)))})', list(line.values()))
-        result2['QueryDateTime']=datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
+        result2['QueryDateTime'] = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
         self.cur.execute('REPLACE INTO responses(key,value) VALUES(?,?)', [f'{plugin}_{login}', json.dumps(result2, ensure_ascii=False)])
         if commit:
             self.conn.commit()
@@ -247,8 +247,8 @@ class Dbengine():
         cur = self.cur_execute(historysql, [phone_number, operator, days])
         dbheaders = list(zip(*cur.description))[0]
         dbdata = cur.fetchall()
-        dbdata_sets = [set(l) for l in zip(*dbdata)]  # составляем список уникальных значений по каждой колонке
-        dbdata_sets = [{i for i in l if str(i).strip() not in ['','None','0.0','0'] } for l in dbdata_sets]  # подправляем косяки
+        dbdata_sets = [set(el) for el in zip(*dbdata)]  # составляем список уникальных значений по каждой колонке
+        dbdata_sets = [{i for i in el if str(i).strip() not in ['', 'None', '0.0', '0']} for el in dbdata_sets]  # подправляем косяки
         if len(dbdata_sets) == 0:  # Истории нет - возвращаем пустой
             return []
         qtimes_num = dbheaders.index('QueryDateTime')
@@ -261,8 +261,8 @@ class Dbengine():
         for line in dbdata:
             row = dict(zip(dbheaders, line))
             if str(lastonly) == '0' or row['QueryDateTime'] in qtimes_max:  # фильтруем данные по qtimes_max
-                table.append({k:row[k] for k in fields if k in row})
-        return table[::int(store.options('SkipDay', pkey=pkey))+1]
+                table.append({k: row[k] for k in fields if k in row})
+        return table[::int(store.options('SkipDay', pkey=pkey)) + 1]
 
     def check_and_add_addition(self):
         'Создаем таблицы, добавляем новые поля, и нужные индексы если их нет'
@@ -275,7 +275,7 @@ class Dbengine():
             self.cur.execute(f"CREATE INDEX IF NOT EXISTS {idx}")
         self.conn.commit()
 
-    def copy_data(self, path:str):
+    def copy_data(self, path: str):
         'Копирует данные по запросам из другой БД sqlite, может быть полезно когда нужно объединить данные с нескольких источников'
         try:
             src_conn = sqlite3.connect(path)
@@ -293,7 +293,7 @@ class Dbengine():
                 if not ins:
                     cols = tuple([k for k in row.keys() if k != 'id'])
                     ins = 'INSERT OR REPLACE INTO Phones %s VALUES (%s)' % (cols, ','.join(['?'] * len(cols)))
-                if (row['PhoneNumber'],row['Operator'],row['QueryDateTime']) in current_data:
+                if (row['PhoneNumber'], row['Operator'], row['QueryDateTime']) in current_data:
                     cnt_skip += 1
                 else:
                     c = [row[c] for c in cols]

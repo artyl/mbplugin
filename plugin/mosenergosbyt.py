@@ -13,7 +13,7 @@ user_selectors = {
     # Признак того что залогинились (на сложных страница лучше не оставлять по паролю а искать специфичный тэг)
     'chk_lk_page_js': "document.querySelector('#authPage')!=null",
     'remember_checker': "document.querySelector('form input[name=remember]').checked==false",
-    #'remember_js': "document.querySelector('form input[name=remember]').click()",
+    # 'remember_js': "document.querySelector('form input[name=remember]').click()",
     'remember_selector': "form input[name=remember]",
 }
 
@@ -21,21 +21,21 @@ class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         # Выключаем банеры если есть
-        self.page_click("button:has-text('Отключить на странице')") # Skip
-        self.page_click("div[role='document'] path") # Нажимаем на крестик
+        self.page_click("button:has-text('Отключить на странице')")  # Skip
+        self.page_click("div[role='document'] path")  # Нажимаем на крестик
         # Сначала из файла gate_lkcomu?action=sql&query=LSList& получаем id_service по номеру лицевого счета
         res1 = self.wait_params(params=[{
             'name': '#id_services',
             'url_tag': ['gate_lkcomu?action=sql&query=LSList&'],
             'jsformula': f'data.data.map(s=>[s.nn_ls,s.id_service])',
-        },{
+        }, {
             'name': '#vl_providers',
             'url_tag': ['gate_lkcomu?action=sql&query=LSList&'],
             'jsformula': f'data.data.map(s=>[s.nn_ls,s.vl_provider])',
         }])  # Это промежуточные данные их не берем в результат (они начинаются с #)
-        id_services = dict(res1['#id_services'])  #   Нам нужен id_service
+        id_services = dict(res1['#id_services'])  # Нам нужен id_service
         vl_providers = dict(res1['#vl_providers'])  # и vl_provider чтобы искать остальные данные
-        if self.acc_num != '' and (self.acc_num not in id_services or self.acc_num not in vl_providers) :
+        if self.acc_num != '' and (self.acc_num not in id_services or self.acc_num not in vl_providers):
             logging.error(f'Не найден лицевой счет')
             raise RuntimeError(f'Не найден лицевой счет')
         # Теперь получаем данные по лицевому счету если указан либо по первому с балансом
@@ -45,8 +45,8 @@ class browserengine(browsercontroller.BrowserController):
             id_service = id_services[nn_ls]
             vl_provider = vl_providers[nn_ls]
             try:
-                nm_indication_variants = dict([map(str.strip,i.split(':')) for i in store.options('mosenergosbyt_nm_indication_variants').strip().split(',')])
-                nm_indication_take = nm_indication_variants.get(str(store.options('mosenergosbyt_nm_indication_take').strip()),'')
+                nm_indication_variants = dict([map(str.strip, i.split(':')) for i in store.options('mosenergosbyt_nm_indication_variants').strip().split(',')])
+                nm_indication_take = nm_indication_variants.get(str(store.options('mosenergosbyt_nm_indication_take').strip()), '')
             except Exception:
                 logging.error(f'Неправильные настройки для nm_indication в mbplugin.ini: {store.exception_text()}')
                 nm_indication_take = ''
@@ -54,35 +54,30 @@ class browserengine(browsercontroller.BrowserController):
                 'name': 'Balance',  # Баланс в зависимости от вида ЛК может придти либо так
                 'url_tag': ['gate_lkcomu?action=sql&query=smorodinaTransProxy&', 'AbonentCurrentBalance', urllib.parse.quote(vl_provider)],
                 'jsformula': f'data.data.map(s => s.sm_balance).reduce((a,b)=>a+b)',
-            },{
+            }, {
                 'name': 'Balance',  # Либо так (у dimon_s2020) эта версия работает 23.10.20
                 'url_tag': ['gate_lkcomu?action=sql&query=bytProxy&', 'proxyquery=CurrentBalance', urllib.parse.quote(vl_provider)],
                 'jsformula': f'data.data.map(s => s.vl_balance).reduce((a,b)=>a+b)',
-            },{
-            #    'name': 'Balance',  # Либо так (у dimon_s2020) vesion2
-            #    'url_tag': ['gate_lkcomu?action=sql&query=bytProxy&', 'proxyquery=Invoice', urllib.parse.quote(vl_provider)],
-            #    'jsformula': f'-(data.data[0].sm_total)',
-            #},{
+            }, {
                 'name': 'Balance2',  # Показания электросчетчика втарифе T1, берем максимальные, они скорее всего будут правильные
                 'url_tag': ['gate_lkcomu?action=sql&query=bytProxy&', 'proxyquery=Indications', urllib.parse.quote(vl_provider)],
                 'jsformula': f'Math.max(...data.data.filter(s=>s.nm_indication_take=="{nm_indication_take}"||"{nm_indication_take}"=="").map(s=>s.vl_t1))', 'wait':True,  # FIXME пока поставил обязательное ожидание, посмотрим будет ли получать. у некоторых этого параметра может и не быть
-            },{
+            }, {
                 'name': 'UserName',  # Username
                 'url_tag': ['gate_lkcomu?action=sql&query=GetProfileAttributesValues&'],
                 'jsformula': f'data.data[0].attributes[0].vl_attribute+" "+data.data[0].attributes[1].vl_attribute+" "+data.data[0].attributes[2].vl_attribute',
             }], url=f'https://my.mosenergosbyt.ru/accounts/{id_service}',  # Соберем после захода на эту страницу
             )
-            #if 'Balance' in res1:  # FIXME ждем до таймаута
+            # if 'Balance' in res1:  # FIXME ждем до таймаута
             #    break
         else:
             if 'Balance' not in res1:
                 logging.error(f'Не найден баланс')
-                #raise RuntimeError(f'Не найден баланс')
+                # raise RuntimeError(f'Не найден баланс')
 
-        #import pprint
-        #text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k,v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
-        #open('..\\log\\mosenergosbyt.log','w').write(text)
-
+        # import pprint
+        # text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k,v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
+        # open('..\\log\\mosenergosbyt.log','w').write(text)
 
 
 def get_balance(login, password, storename=None, **kwargs):
@@ -92,5 +87,5 @@ def get_balance(login, password, storename=None, **kwargs):
 
 if __name__ == '__main__':
     print(store.options('mosenergosbyt_nm_indication_variants'))
-    print(dict([map(str.strip,i.split(':', 1)) for i in store.options('mosenergosbyt_nm_indication_variants').strip().split(',')]))  # type: ignore
+    print(dict([map(str.strip, i.split(':', 1)) for i in store.options('mosenergosbyt_nm_indication_variants').strip().split(',')]))  # type: ignore
     print('This is module mosenergosbyt on browser')

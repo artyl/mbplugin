@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
-''' Автор ArtyLa '''
-''' CBR.RU Получение курсов с сайта ЦБ в логин наименование курса, например USD
+''' Автор ArtyLa
+    CBR.RU Получение курсов с сайта ЦБ в логин наименование курса, например USD
     https://cbr.ru/currency_base/daily/
     MOEX Получение курсов с сайта ЦБ в логин наименование курса как на сайте например USD/RUB или MOEX_USD/RUB
     https://iss.moex.com/iss/statistics/engines/futures/markets/indicativerates/securities
@@ -25,7 +25,7 @@
     Markets для конкретного Engines смотрим (например для engines=currency)
     https://iss.moex.com/iss/engines/currency/markets/
     Boards для конкретного Boards смотрим (например для engines=currency)
-    https://iss.moex.com/iss/engines/stock/markets/shares/boards       
+    https://iss.moex.com/iss/engines/stock/markets/shares/boards
     например [engine] = currency, [market] = selt, [board] = нет [security] = USD000UTSTOM
     Список бумаг смотрим на странице без указания бумаги (первая колонка SECID):
     https://iss.moex.com/iss/engines/currency/markets/selt/securities
@@ -37,7 +37,7 @@
     Еще пример без board: MOEX_stock_shares_x_AFLT
     https://iss.moex.com/iss/engines/stock/markets/shares/securities/AFLT.xml
     Пример c board: MOEX_stock_shares_TQTD_TECH
-    https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQTD/securities/TECH    
+    https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQTD/securities/TECH
 '''
 import os, sys, re, time, logging
 import requests, bs4
@@ -53,7 +53,7 @@ def get_balance(login, password, storename=None, **kwargs):
         user_agent = settings.default_user_agent
     session = store.Session(storename, headers={'User-Agent': user_agent})
     login_ori = login
-    login = login.strip().upper().replace('\\','/')
+    login = login.strip().upper().replace('\\', '/')
     if re.match(r'^\w\w\w$', login):  # USD - курс цб
         response = session.get("https://cbr.ru/currency_base/daily/")
         soup = bs4.BeautifulSoup(response.text, 'html.parser')
@@ -80,8 +80,8 @@ def get_balance(login, password, storename=None, **kwargs):
         response = session.get('https://iss.moex.com/iss/statistics/engines/futures/markets/indicativerates/securities.json?iss.meta=off')
         data = response.json()
         headers = data['securities']['columns']
-        lines = [dict(zip(headers,i)) for i in data['securities']['data']]
-        securities = {i['secid']:i for i in lines}
+        lines = [dict(zip(headers, i)) for i in data['securities']['data']]
+        securities = {i['secid']: i for i in lines}
         result['Balance'] = round(float(securities[login]['rate']), 4)
         result['TarifPlan'] = f"MOEX курс {login} на {securities[login]['tradedate']} {securities[login]['tradetime']}"
     elif re.match(r'(?usi)^MOEX_(\w+?)_(\w+?)_(\w+?)_(\w+?)$', login):  # Получить данные по конкретному инструменту рынка.
@@ -95,7 +95,7 @@ def get_balance(login, password, storename=None, **kwargs):
         securities = dict(zip(data['securities']['columns'], data['securities']['data'][0]))
         lines = [dict(zip(data['marketdata']['columns'], line)) for line in data['marketdata']['data']]
         res_lines = [line for line in lines if line['LAST'] is not None and line['MARKETPRICE'] is not None]
-        if len(res_lines) >0:
+        if len(res_lines) > 0:
             marketdata = res_lines[0]
             result['Balance'] = round(float(marketdata['LAST']), 4)
             result['TariffPlan'] = f"{securities['SECNAME']} на {marketdata['SYSTIME']}"
@@ -124,7 +124,7 @@ def get_balance(login, password, storename=None, **kwargs):
         login = re.findall(r'(?:FINEX)[ _]?(\w+)', login)[0]
         url = time.strftime(f'https://finex-etf.ru/products/{login}')
         response = session.get(url)
-        result['Balance'] = float(re.sub(r'[^\d\.]','',re.findall(r'singleStockPrice.*?>(.*?)<',response.text)[0]))
+        result['Balance'] = float(re.sub(r'[^\d\.]', '', re.findall(r'singleStockPrice.*?>(.*?)<', response.text)[0]))
 
     return result
 

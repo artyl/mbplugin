@@ -30,10 +30,10 @@ def get_balance(login, password, storename=None, **kwargs):
         logging.info(f'relogon {login}')
         session.drop_and_create()
         response1 = session.get(login_url)
-        if response1.status_code !=200:
+        if response1.status_code != 200:
             raise RuntimeError(f'GET Login page {login_url} error: status_code {response1.status_code}')
         try:
-            url_lk = re.search('action="(.*?)"',response1.text).group(1).replace('&amp;','&')
+            url_lk = re.search('action="(.*?)"', response1.text).group(1).replace('&amp;', '&')
         except Exception:
             raise RuntimeError(f'No action url on {login_url}')
         data = {'username': login, 'password': password}
@@ -47,8 +47,8 @@ def get_balance(login, password, storename=None, **kwargs):
             raise RuntimeError(f"{url_ext} not json: {response3.headers.get('content-type')}")
 
     data = response3.json()
-    client = data.get('client',{})
-    contracts = data.get('contracts',[])
+    client = data.get('client', {})
+    contracts = data.get('contracts', [])
     # Попытка получить баланс
     result['Balance'] = data['contracts'][0]['account_balance']
     # Если contracts>1 то прибавляем остальное
@@ -65,7 +65,7 @@ def get_balance(login, password, storename=None, **kwargs):
         logging.info(f'Not found userName')
 
     try:
-        result['licSchet'] =  client['id']
+        result['licSchet'] = client['id']
     except Exception:
         logging.info(f'Not found licSchet')
 
