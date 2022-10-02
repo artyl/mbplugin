@@ -71,51 +71,63 @@ def get_balance_browser(login, password, storename=None, **kwargs):
 def get_balance_api(login, password, storename=None, **kwargs):
     result = {}
     session = store.Session(storename)
-    response3 = session.get('https://old.lk.megafon.ru/api/lk/main/atourexpense')
-    if 'json' in response3.headers.get('content-type') and 'balance' in response3.text:
-        logging.info('Old session is ok')
-    else:  # Нет, логинимся
-        logging.info('Old session is bad, relogin')
-        session.drop_and_create()
-        response1 = session.get('https://old.lk.megafon.ru/login/')
-        if response1.status_code != 200:
-            raise RuntimeError(f'GET Login page error: status_code {response1.status_code}!=200')
-        csrf = re.search('(?usi)name="CSRF" value="([^\"]+)"', response1.text)
-        data = {'CSRF': csrf, 'j_username': f'+7{login}', 'j_password': password}
-        response2 = session.post('https://old.lk.megafon.ru/dologin/', data=data)
-        if response2.status_code != 200:
-            raise RuntimeError(f'POST Login page error: status_code {response2.status_code}!=200')
-        response3 = session.get('https://old.lk.megafon.ru/api/lk/main/atourexpense')
-        if response3.status_code != 200 or 'json' not in response3.headers.get('content-type'):
-            raise RuntimeError(f'Get Balance page not return json: status_code={response2.status_code} {response3.headers.get("content-type")}')
-        if 'balance' not in response3.text:
-            raise RuntimeError(f'Get Balance page not return balance: status_code={response2.status_code} {response3.text}')
+    new_api = kwargs.get('new_api') is True
+    if new_api:
+        api_url = 'https://api.megafon.ru/mlk/'
+        logging.info('Use NEW api {api_url}')
+        add_headers = {'User-Agent': 'MLK Android Phone 4.28.10'}
+        session.update_headers(add_headers)
+        response1 = session.post(api_url + 'login', data={'login': f'7{login}', 'password': password})
+        if 'json' not in response1.headers.get('content-type') or 'name' not in response1.json():
+            session.drop_and_create()
+            raise RuntimeError(f'Authentication failed: status_code={response1.status_code} {response1.text}')
+        response2 = session.get(api_url + 'auth/check')
+        if 'json' not in response2.headers.get('content-type') or response2.json().get('authenticated') is False:
+            session.drop_and_create()
+            raise RuntimeError(f'Authentication failed: status_code={response2.status_code} {response2.text}')
+        response3 = session.get(api_url + 'api/main/balance')
+    else:  # old api
+        api_url = 'https://old.lk.megafon.ru/'
+        logging.info('Use OLD api {api_url}')
+        response3 = session.get(api_url + 'api/lk/main/atourexpense')
+        if 'json' in response3.headers.get('content-type') and 'balance' in response3.text:
+            logging.info('Old session is ok')
+        else:  # Нет, логинимся
+            logging.info('Old session is bad, relogin')
+            session.drop_and_create()
+            response1 = session.get(api_url + 'login/')
+            if response1.status_code != 200:
+                raise RuntimeError(f'GET Login page error: status_code {response1.status_code}!=200')
+            csrf = re.search('(?usi)name="CSRF" value="([^\"]+)"', response1.text)
+            data = {'CSRF': csrf, 'j_username': f'+7{login}', 'j_password': password}
+            response2 = session.post(api_url + 'dologin/', data=data)
+            if response2.status_code != 200:
+                raise RuntimeError(f'POST Login page error: status_code {response2.status_code}!=200')
+            response3 = session.get(api_url + 'api/lk/main/atourexpense')
+            if response3.status_code != 200 or 'json' not in response3.headers.get('content-type'):
+                raise RuntimeError(f'Get Balance page not return json: status_code={response2.status_code} {response3.headers.get("content-type")}')
+            if 'balance' not in response3.text:
+                raise RuntimeError(f'Get Balance page not return balance: status_code={response3.status_code} {response3.text}')
 
     result['Balance'] = response3.json().get('balance', 0)
     result['KreditLimit'] = response3.json().get('limit', 0)
 
     try:
-        response4 = session.get('https://old.lk.megafon.ru/api/profile/name')
+        response4 = session.get(api_url + 'api/profile/name')
         if response4.status_code == 200 and 'json' in response4.headers.get('content-type'):
             result['UserName'] = response4.json()['name'].replace('"', '').replace("'", '').replace('&quot;', '')
-
-        response5_new = session.get('https://old.lk.megafon.ru/api/tariff/2019-3/current')
-        response5 = session.get('https://old.lk.megafon.ru/api/tariff/current')
+        response5_new = session.get(api_url + 'api/tariff/2019-3/current')
+        response5 = session.get(api_url + 'api/tariff/current')
         if response5.status_code != 200:
             response5 = response5_new
         if response5.status_code == 200 and 'json' in response5.headers.get('content-type'):
             result['TarifPlan'] = response5.json().get('name', '').replace('&nbsp;', ' ').replace('&mdash;', '-')
     except Exception:
-        exception_text = f'Ошибка при получении дополнительных данных {store.exception_text()}'
+        exception_text = f'Ошибка обработки api/profile/name {store.exception_text()}'
         logging.error(exception_text)
 
-    # Старый вариант без получения стоимости платных услуг
-    # response6 = session.get('https://old.lk.megafon.ru/api/lk/mini/options')
-    # if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
-    #    servicesDto = response6.json().get('servicesDto', {})
-    #    result['UslugiOn'] = f"{servicesDto.get('free','')}/{servicesDto.get('paid','')}"
     try:
-        response6 = session.get('https://old.lk.megafon.ru/api/options/list/current')
+        response6 = session.get(api_url + 'api/options/list/current')
         if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
             oList = response6.json()
             services = [(i['optionName'], i['monthRate'] * (1 if i['monthly'] else 30)) for i in oList.get('paid', [])]
@@ -131,7 +143,7 @@ def get_balance_api(login, password, storename=None, **kwargs):
         logging.error(exception_text)
 
     try:
-        response7 = session.get('https://old.lk.megafon.ru/api/options/remaindersMini')
+        response7 = session.get(api_url + 'api/options/remaindersMini')
         if response7.status_code == 200 and 'json' in response7.headers.get('content-type'):
             r7_remainders = response7.json().get('remainders', [])  # {.., remainders: [{remainders:[{...},{...}], ...]...},  ...}
             remainders = sum([i.get('remainders', []) for i in r7_remainders if 'в крыму' not in i.get('name', '').lower()], [])
@@ -154,8 +166,12 @@ def get_balance_api(login, password, storename=None, **kwargs):
 
 def get_balance(login, password, storename=None, **kwargs):
     pkey = store.get_pkey(login, plugin_name=__name__)
-    if store.options('plugin_mode', pkey=pkey).upper() == 'WEB_DEBUG':
+    if store.options('plugin_mode', pkey=pkey).upper() == 'WEB':
         return get_balance_browser(login, password, storename)
+    if store.options('plugin_mode', pkey=pkey).upper() == 'NEW_API':
+        return get_balance_api(login, password, storename, new_api=True)
+    if store.options('plugin_mode', pkey=pkey).upper() == 'OLD_API':
+        return get_balance_api(login, password, storename, new_api=False)
     return get_balance_api(login, password, storename)
 
 if __name__ == '__main__':
