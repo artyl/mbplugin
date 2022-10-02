@@ -55,6 +55,9 @@ CHECK_PLAYWRIGHT = 'check_playwright'
 NORMAL = 'normal'
 CHECK_LOGON = 'check_logon'
 
+ABORT = 'abort'
+CONTINUE = 'continue'
+
 def safe_run_decorator(func):
     def wrapper(*args, **kwargs):
         'decorator:Обертка для функций, выполнение которых не влияет на результат, чтобы при падении они не портили остальное'
@@ -319,19 +322,20 @@ class BalanceOverPlaywright():
         'Обработчик обращений браузера, здесь можно их прервать, чтобы лишние данные не грузить'
         # TODO вынести константы наверх
         stop_url = ['google-analytics', '.yandex.ru/', 'dynamicyield.com/', 'googletagmanager.com/', 'yastatic.net/', 'cloudflare.com/', 'facebook.net/', 'vk.com/']
-        if route.request.resource_type in ('image', 'font', 'manifest') or len([u for u in stop_url if u in route.request.url]) > 0:
-            # print(f'Abort {route.request.method}:{route.request.url}')
-            try:
+        except_url = ['https://mc.yandex.ru/metrika/tag.js']
+        verdict = CONTINUE
+        if route.request.resource_type in ('image', 'font', 'manifest') or any([u in route.request.url for u in stop_url]):
+            verdict = ABORT
+        if any([u in route.request.url for u in except_url]):
+            verdict = CONTINUE
+        try:
+            if verdict == CONTINUE:
+                route.continue_()
+            else:
                 logging.debug(f'Abort: {route.request.resource_type}:{route.request.url}')
                 route.abort()
-            except Exception:
-                print('NO ABORT')
-        else:
-            # print(route.request.resource_type)
-            try:
-                route.continue_()
-            except Exception:
-                print('NO CONTINUE')
+        except Exception:
+            logging.debug(f'NO {verdict}')
 
     def disconnected_worker(self):
         'disconnected_worker вызывается когда закрыли браузер'
