@@ -156,7 +156,7 @@ def get_balance_api(login, password, storename=None, **kwargs):
             for elem in jsonAcc['accumulators']:
                 if elem.get('unit', '') == 'SECONDS':
                     result['Min'] += elem.get('rest', 0) // 60
-                if elem.get('unit', '') == 'KBYTE':
+                if elem.get('unit', '') == 'KBYTE' and elem.get('accName', '') != 'в роуминге':
                     result['Internet'] += elem.get('rest', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
                 if elem.get('unit', '') == 'SMS':
                     result['SMS'] += elem.get('rest', 0)
