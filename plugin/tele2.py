@@ -47,10 +47,12 @@ class browserengine(browsercontroller.BrowserController):
                 break  # В каждом состоянии можем побывать не более одного раза иначе на выход чтобы не забанили
             states.add(state)
             if state.kc_phone and not state.kc_password and state.kc_button == 'Далее' and not state.hnr:  # Хочет номер для sms входа
-                self.page_fill("input[id='keycloakAuth.phone']", prepare_login(self.options('tele2_sms_num')))
-                self.sleep(3)
-                self.page_screenshot()
-                self.page_click('button.keycloak-login-form__button')
+                # Похоже tele2 передумал и можно сразу заходить по паролю
+                # self.page_fill("input[id='keycloakAuth.phone']", prepare_login(self.options('tele2_sms_num')))
+                # self.sleep(3)
+                # self.page_screenshot()
+                # self.page_click('button.keycloak-login-form__button')
+                self.page_evaluate("document.querySelectorAll('.filled-tabs button').forEach(el=>el.innerText=='По паролю'?el.click():0)")
             elif not state.kc_phone and not state.kc_password and state.kc_button == 'Вход по паролю' and not state.hnr:  # Прислал SMS просит код
                 self.page_screenshot()
                 self.page_click('button.keycloak-login-form__button')
