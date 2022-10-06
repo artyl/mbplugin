@@ -8,19 +8,19 @@ import browsercontroller
 icon = '789CAD532DA8C250143E0F5E31080B83D581618F056141EBE00583F0C06235D9865530894D64C13010C12C68B50D8345C3FA82C16A90051141C7E6DF39CF5DAE6F4E1EBCF7C11776EE77CE3DDF39BB9F5FF97720E46FFCB851B8F30DE4EF83FB398FCBE5F267FABE0F994C060A85029CCF678AD56A358ABDE2683422EDE170A05E645966F9BAAEC79BFD01CBB2487B3C1EE95B5114963F180CC0300CEAA35AAD42A5528172B90CB95C0E5455A5BB86C361623E72329940B3D9846EB70BBD5E0F1CC7A1386A4EA713D326E5E35C70263C168B456C7E49F948BC07FBE7B15C2E1F346118422A95225FCFF68335F91A8220D0CCF16C3C1E93CF76BB4D1E77BB1DF3C6F78231DE4BBD5EA7F833341A0D9A99A669502A95C81F6AB7DB2DF519017B984EA7D0E974683FD96C96CE716FA669329DE779AC0FFEBF705D37E613678E75715711B01ECE68BD5E8324492F771131080210459169E7F379CCE766B379F92E56AB15A4D369D2CE66B387DC56ABF5ABB7B5DFEFA1DFEF9357DC6FB15804DBB6FFE5DD22AF62AEE146'
 api_url = 'https://api.tele2.ru/api/subscribers/'
 login_url = 'https://msk.tele2.ru/lk'
-api_headers = {'Tele2-User-Agent': 'mytele2-app/6.09.0', 'User-Agent': 'okhttp/6.2.3' }
+api_headers = {'Tele2-User-Agent': 'mytele2-app/6.09.0', 'User-Agent': 'okhttp/6.2.3'}
 
 class browserengine(browsercontroller.BrowserController):
 
     def data_collector(self):
 
         def prepare_login(login):
-            return re.sub('(\d\d\d)(\d\d\d)(\d\d)(\d\d)','+7 \\1 \\2-\\3-\\4', login)
+            return re.sub(r'(\d\d\d)(\d\d\d)(\d\d)(\d\d)', '+7 \\1 \\2-\\3-\\4', login)
 
         def get_state():
             res = self.page_evaluate('''[
                 document.querySelector('input[id="keycloakAuth.phone"]') != null,
-                document.querySelector('input[id="keycloakAuth.password"]') != null, 
+                document.querySelector('input[id="keycloakAuth.password"]') != null,
                 (a => a == null ? '' : a.innerText)(document.querySelector('button.keycloak-login-form__button')),
                 document.querySelector('input[id="header-navbar-login"]') != null
                 ]''')
@@ -36,8 +36,8 @@ class browserengine(browsercontroller.BrowserController):
         # Проверка текущего состояния и логин пр инеобходимости
         while True:
             # Ждем изменения состояния
-            if len(states)>0:
-                for _ in range(10): 
+            if len(states) > 0:
+                for _ in range(10):
                     if state == get_state():
                         self.sleep(1)
             state = get_state()
@@ -61,12 +61,12 @@ class browserengine(browsercontroller.BrowserController):
                 self.sleep(3)
                 self.page_screenshot()
                 self.page_click('button.keycloak-login-form__button')
-            elif state.kc_phone == False and state.kc_password == False and state.kc_button == '' and state.hnr==False:
+            elif state.kc_phone is False and state.kc_password is False and state.kc_button == '' and state.hnr is False:
                 if len(states) == 1:
                     logging.info(f'Already login')
                 break
             self.sleep(1)
-        if not (state.kc_phone == False and state.kc_password == False and state.kc_button == '' and state.hnr == False):
+        if not (state.kc_phone is False and state.kc_password is False and state.kc_button == '' and state.hnr is False):
             self.page_screenshot()
             logging.error(f'Not entered to lk')
             raise RuntimeError('You have not logged into your personal account')
@@ -74,7 +74,7 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'Balance', 'url_tag': ['/balance$'], 'jsformula': "parseFloat(data.data.value).toFixed(2)"},
             {'name': 'TarifPlan', 'url_tag': ['/tariff$'], 'jsformula': "data.data.frontName"},
             {'name': 'UserName', 'url_tag': ['/profile$'], 'jsformula': "data.data.fullName"},
-            ])
+        ])
         self.page_screenshot()
         self.page_goto(self.baseurl + '/../../lk/remains')
         for _ in range(10):
@@ -87,10 +87,10 @@ class browserengine(browsercontroller.BrowserController):
                 self.sleep(1)
         self.page_screenshot()
         try:
-            response_t = [v for k,v in self.responses.items() if k.endswith('tariff$')][0]
-            response_с = [v for k,v in self.responses.items() if k.endswith('connected$')][0]
-            response_s = [v for k,v in self.responses.items() if k.endswith('subscription$')][0]
-            response_r = [v for k,v in self.responses.items() if k.endswith('rests$')][0]
+            response_t = [v for k, v in self.responses.items() if k.endswith('tariff$')][0]
+            response_с = [v for k, v in self.responses.items() if k.endswith('connected$')][0]
+            response_s = [v for k, v in self.responses.items() if k.endswith('subscription$')][0]
+            response_r = [v for k, v in self.responses.items() if k.endswith('rests$')][0]
             self.result = calculate_dop(self.result, response_t, response_с, response_s, response_r)
         except Exception:
             exception_text = f'Ошибка при получении дополнительных данных {store.exception_text()}'
@@ -103,17 +103,17 @@ def get_balance_browser(login, password, storename=None, **kwargs):
 
 
 def calculate_dop(result, response_t, response_с, response_s, response_r):
-    '''Считаем допы, для обоих вариантов WEB и API 
+    '''Считаем допы, для обоих вариантов WEB и API
     response_t - tariff response_с - connected, response_s - subscription, response_r - rests'''
     def get_data(response):
         if type(response) == dict:
             return response.get('data', {})
-        return response.json().get('data',{}) if response.status_code == 200 else ''
+        return response.json().get('data', {}) if response.status_code == 200 else ''
 
     # Тарифный план у tele2 за услугу не считается, так что просто прибавляем его цену
     tarif_fee = get_data(response_t).get('currentAbonentFee', {}).get('amount', 0)
     tarif_period = get_data(response_t).get('period')
-    paid_tarif = tarif_fee*settings.UNIT.get(tarif_period, 1)
+    paid_tarif = tarif_fee * settings.UNIT.get(tarif_period, 1)
     services = []
     for el in get_data(response_с):
         name = el.get('name', '')
@@ -121,13 +121,13 @@ def calculate_dop(result, response_t, response_с, response_s, response_r):
         fee = abonentFee.get('amount', 0)
         fee = 0 if fee is None else fee
         kperiod = settings.UNIT.get(abonentFee.get('period', ''), 1)
-        services.append((name, fee*kperiod))
+        services.append((name, fee * kperiod))
     for el in get_data(response_s):
         name = el.get('name', '') + ' ' + el.get('description', '')
         cost = el.get('cost', None)
         cost = 0 if cost is None else float(str(cost).replace(',', '.'))
         kperiod = settings.UNIT.get(el.get('period', ''), 1)
-        services.append((name, cost*kperiod))
+        services.append((name, cost * kperiod))
     free = len([a for a, b in services if b == 0])  # бесплатные
     paid = len([a for a, b in services if b != 0])  # платные
     paid_sum = paid_tarif + round(sum([b for a, b in services if b != 0]), 2)
@@ -146,7 +146,7 @@ def calculate_dop(result, response_t, response_с, response_s, response_r):
             if rest['uom'] == 'min':
                 result['Min'] += rest['remain']
             if rest['uom'] == 'mb':
-                result['Internet'] += rest['remain']*(settings.UNIT['MB']/settings.UNIT.get(store.options('interUnit'), settings.UNIT['MB']))
+                result['Internet'] += rest['remain'] * (settings.UNIT['MB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['MB']))
             if rest['uom'] == 'pcs':
                 result['SMS'] += rest['remain']
             if 'billingServiceStatus' in rest.get('service', {}):
@@ -157,7 +157,7 @@ def get_balance_api(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     def check_or_get_bearer():
         '''Проверяем если сессия отдает баланс, то ок, если нет, то логинимся заново'''
-        session = store.Session(storename, headers = api_headers)
+        session = store.Session(storename, headers=api_headers)
         if 'Authorization' in session.get_headers():
             response1 = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/balance')
             if response1.status_code == 200:
@@ -166,7 +166,7 @@ def get_balance_api(login, password, storename=None, **kwargs):
                 return session
         # Логинимся заново
         store.feedback.text(f'Старая сессия не сохранилась, логинимся заново', append=True)
-        session.drop_and_create() # TODO непонятно как лучше рубить концы или нет
+        session.drop_and_create()  # TODO непонятно как лучше рубить концы или нет
         response2 = session.post(f'https://sso.tele2.ru/auth/realms/tele2-b2c/protocol/openid-connect/token?msisdn=7{login}&action=auth&authType=pass', data=data)
         if response2.status_code == 200:
             logging.info('New bearer is ok')
@@ -178,11 +178,11 @@ def get_balance_api(login, password, storename=None, **kwargs):
         raise RuntimeError(f'Bearer get error {response2.status_code}')
 
     def get_data(response):
-        return response.json().get('data',{}) if response.status_code == 200 else ''
+        return response.json().get('data', {}) if response.status_code == 200 else ''
 
     result = {}
     data = {
-        'username': '7'+login,
+        'username': '7' + login,
         'password': password,
         'grant_type': 'password', 'client_id': 'android-app', 'password_type': 'password'
     }
@@ -196,7 +196,7 @@ def get_balance_api(login, password, storename=None, **kwargs):
     result['TarifPlan'] = get_data(response_t).get('frontName', '')  # тариф
     response_p = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/profile')
     result['UserName'] = get_data(response_p).get('fullName', '')  # ФИО владельца
-    siteId = get_data(response_p).get('siteId','')  # регион
+    siteId = get_data(response_p).get('siteId', '')  # регион
     # список услуг
     response_с = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/{siteId}/services?status=connected')
     # подписки (мошенники из Теле2 стыдливо прячут их и стараются не показывать) прибавим их как услуги
