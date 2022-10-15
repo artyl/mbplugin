@@ -11,7 +11,7 @@ import click
 PLUGIN_PATH = os.path.abspath(os.path.split(__file__)[0])
 # Папка корня standalone версии на 2 уровня вверх (оно же settings.mbplugin_root_path)
 ROOT_PATH = os.path.abspath(os.path.join(PLUGIN_PATH, '..', '..'))
-# Для пути с симлинками в unix-like системах приходится идти на трюки (см коментарий к блоку в settings):
+# Для пути с симлинками в unix-like системах приходится идти на трюки (см комментарий к блоку в settings):
 if sys.platform != 'win32' and 'PWD' in os.environ:
     if os.path.exists(os.path.abspath(os.path.join(os.environ['PWD'], 'mbplugin', 'plugin', 'util.py'))):
         ROOT_PATH = os.environ['PWD']
@@ -26,7 +26,7 @@ except ModuleNotFoundError:
     sys.path.insert(0, PLUGIN_PATH)
     import store
 
-def echo(msg:str):
+def echo(msg: str):
     'Обертка, для click.echo чтобы можно было завернуть запись в файл диагностики параллельно с выводом на экран'
     click.echo(msg)
     if os.environ.get('MBPLUGIN_WRITE_DIAG'):
@@ -109,7 +109,7 @@ def install_chromium(ctx, browsers):
         echo(f'Not needed {name}')
         return
     try:
-        if len(browsers)==0:
+        if len(browsers) == 0:
             subprocess.check_call([sys.executable, '-m', 'playwright', 'install', store.options('browsertype')])  # '--with-deps', ???
             echo(f"OK {name} {store.options('browsertype')}")
         else:
@@ -225,7 +225,7 @@ def web_control(ctx):
 def web_server_autostart(ctx, turn):
     '''Автозапуск web сервера (только windows) и только если разрешен в ini
     on - Создаем lnk на run_webserver.bat и помещаем его в автозапуск и запускаем
-    off - убираем из автозапуска
+    off - убираем из авто запуска
     для отключения в ini дайте команду mbp set ini\\HttpServer\\start_http=0
     '''
     name = 'web-server-autostart'
@@ -349,7 +349,7 @@ def check_playwright(ctx):
     import browsercontroller
     browser = browsercontroller.BrowserController(login='', password='', storename='test', plugin_name=__name__)
     result = browser.main(run=browsercontroller.CHECK_PLAYWRIGHT)
-    if hasattr(browser.main,'__exception_text__'):
+    if hasattr(browser.main, '__exception_text__'):
         echo(f'Fail {name}:\n{browser.main.__exception_text__}')
     elif 'Balance' not in result:
         echo(f'Fail {name}:\nno result')
@@ -362,7 +362,7 @@ def check_playwright(ctx):
 @cli.command()
 @click.pass_context
 def init(ctx):
-    '''Инициализация можно втором параметром указать noweb тогда вебсервер не будет запускаться и помещаться в автозапуск
+    '''Инициализация можно втором параметром указать noweb тогда веб сервер не будет запускаться и помещаться в автозапуск
     Если в mbplugin.ini пути не правильные то прописывает абсолютные пути к тем файлам, которые лежат в текущей папке
     копирует phones.ini из примера, если его еще нет
     '''
@@ -488,7 +488,7 @@ def check_ini(ctx):
         mbplugin_ini.read()
         mbplugin_ini_mess = []
         if'Telegram' in mbplugin_ini.ini:
-            if len([i for i in mbplugin_ini.ini['Telegram'].keys() if i.startswith('subscrib'+'tion')]):
+            if len([i for i in mbplugin_ini.ini['Telegram'].keys() if i.startswith('subscrib' + 'tion')]):
                 msg = f'Warning {name} mbplugin.ini - subsri_B_tion key found in ini'
                 mbplugin_ini_mess.append(msg)
         for sec in store.settings.ini.keys():
@@ -500,7 +500,7 @@ def check_ini(ctx):
         jobs = httpserver_mobile.Scheduler(check_only=True).read_from_ini()
         mbplugin_ini_mess.extend([f'{job.err_msg}\n{job.job_str}' for job in jobs if job.err_msg != ''])
         if len(mbplugin_ini_mess):
-            echo(f'Fail {name} mbplugin.ini\n'+'\n'.join(mbplugin_ini_mess))
+            echo(f'Fail {name} mbplugin.ini\n' + '\n'.join(mbplugin_ini_mess))
         else:
             echo(f'OK {name} mbplugin.ini')
         phones_ini_mess = []
@@ -520,7 +520,7 @@ def check_ini(ctx):
                 if key.lower() not in store.settings.ini['Options'] and key.lower() not in store.settings.PHONE_INI_KEYS_LOWER and key.lower() not in ('phone_orig', 'region_orig'):
                     phones_ini_mess.append(f'Section [Phone] #{nn} has unused {key}')
         if len(phones_ini_mess):
-            echo(f'Fail {name} phones.ini\n'+'\n'.join(phones_ini_mess))
+            echo(f'Fail {name} phones.ini\n' + '\n'.join(phones_ini_mess))
         else:
             echo(f'OK {name} phones.ini')
     except Exception:
@@ -529,7 +529,7 @@ def check_ini(ctx):
 
 @cli.command()
 @click.option('-b', '--bpoint', type=int)
-@click.option('-p', '--params', multiple=True, type=click.Tuple([str, str]), help='overpal parameters ex. -p showchrome 1 -p plugin_mode WEB')
+@click.option('-p', '--params', multiple=True, type=click.Tuple([str, str]), help='override parameters ex. -p showchrome 1 -p plugin_mode WEB')
 @click.argument('plugin', type=str)
 @click.argument('login', type=str)
 @click.argument('password', type=str)
@@ -685,7 +685,7 @@ def version(ctx, verbose, download_stat):
 @click.pass_context
 def version_update(ctx, force, version, only_download, only_check, only_install, by_current, undo_update, ask_update, no_check_sign, no_verify_ssl, install_prerelease, batch_mode):
     '''Загружает и обновляет файлы из pack с новой версией, архив с новой версией при обновлении копируем в current.zip
-    version=='' - обновляем до последней, если указана как имя zip файла из папки pack если указана как номер версии по тэгу качаем с гитхаба'''
+    version=='' - обновляем до последней, если указана как имя zip файла из папки pack если указана как номер версии по тэгу качаем с github'''
     name = 'version-update'
     if batch_mode:
         # Если это batch режим и не включен autoupdate то сразу выходим
@@ -738,7 +738,7 @@ def db_query(ctx, query):
                 cnt = db.cur.execute(f"select count(*) from {tbl}").fetchall()[0][0]
                 echo(f'{tbl} {cnt}')
             return
-        query2 = ' '.join(query).replace('select all ','select * ')
+        query2 = ' '.join(query).replace('select all ', 'select * ')
         cur = db.cur.execute(query2)
         if cur.description is not None:
             dbheaders = list(zip(*cur.description))[0]
@@ -771,7 +771,7 @@ def bugreport(ctx, num, alias, plugin, login):
     phones = store.ini('phones.ini')
     phones.read()
     # Делаем словарь телефонов для поиска
-    dp = [dict([('nn',sec)]+list(phones.ini[sec].items())) for sec in phones.ini.sections() if phones.ini[sec].get('Monitor', 'FALSE') == 'TRUE']
+    dp = [dict([('nn', sec)] + list(phones.ini[sec].items())) for sec in phones.ini.sections() if phones.ini[sec].get('Monitor', 'FALSE') == 'TRUE']
     dp = [i for i in dp if i['nn'] == str(num) or num < 0]
     dp = [i for i in dp if i['alias'] == alias or alias == '']
     dp = [i for i in dp if i['region'] == plugin or plugin == '']
@@ -783,7 +783,7 @@ def bugreport(ctx, num, alias, plugin, login):
         echo(f'Fail {name}: найдено несколько, должен отфильтроваться только один, укажите точнее')
         return
     line = dp[0]
-    echo(f'Найден один номер {line["alias"]}, составляем багрепорт')
+    echo(f'Найден один номер {line["alias"]}, составляем bugreport')
     plugin, login = line['region'], line['number']
     plugin_login = line['region'] + '_' + re.sub(r'\W', '_', line['number'].split('/')[0])
     path = store.abspath_join('mbplugin', 'log', f'*{plugin_login}*')
@@ -804,9 +804,9 @@ def bugreport(ctx, num, alias, plugin, login):
             # getbalance_plugin Start {plugin} {login}
             log_all = lf.read().split('\n\n')
             log_flt = [el for el in log_all if f'getbalance_plugin Start {plugin} {login}' in el]
-        if len(log_flt)>0:
+        if len(log_flt) > 0:
             zf.writestr('http.log', impersonate(log_flt[-1], line).encode('utf-8'))
-    echo('Логины и пароли из лога удалены, но рекомендуется проверить файлы лога на наличие в них нежелательных для компроментации данных')
+    echo('Логины и пароли из лога удалены, но рекомендуется проверить файлы лога на наличие в них нежелательных для компрометации данных')
     echo(f'Bugreport сохранен в {zfn}')
     echo(f'OK {name}')
 
@@ -845,8 +845,8 @@ def browser(ctx, url):
                 from playwright_stealth import stealth_sync
                 stealth_sync(page)
                 print('Stealth mode')
-            except:
-                logging.error('Bad turn stealth_sync(page)')        
+            except Exception:
+                logging.error('Bad turn stealth_sync(page)')
         page.wait_for_timeout(1000)
         if url.strip().lower().startswith('http'):
             page.goto(url)
@@ -882,7 +882,7 @@ def mbplugin_ini_md_gen():
         f.write('\n'.join(data))
 
 def mbplugin_dockerfile_version():
-    'Корректирует версию в dockerfile по серсии playwright прописанной в requirements.txt'
+    'Корректирует версию в dockerfile по версии playwright прописанной в requirements.txt'
     fn_docker = store.abspath_join('mbplugin', 'docker', 'Dockerfile')
     fn_req = store.abspath_join('mbplugin', 'docker', 'requirements.txt')
     with open(fn_req) as f:
@@ -896,7 +896,7 @@ def mbplugin_dockerfile_version():
     echo(f'Write change to {dockerfile} {pl_ver_docker} -> {pl_ver_req}')
     if pl_ver_req != pl_ver_docker:
         with open(fn_docker, mode='w', newline='\n') as f:
-            dockerfile = re.sub(r'mcr.microsoft.com/playwright:v((\d+\.\d+\.\d+))', f'mcr.microsoft.com/playwright:v{pl_ver_req}' , dockerfile)
+            dockerfile = re.sub(r'mcr.microsoft.com/playwright:v((\d+\.\d+\.\d+))', f'mcr.microsoft.com/playwright:v{pl_ver_req}', dockerfile)
             f.write(dockerfile)
 
 if __name__ == '__main__':

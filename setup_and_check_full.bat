@@ -22,6 +22,9 @@ mbplugin\python\python mbplugin\plugin\util.py recompile-plugin
 REM Проверяем что все модули импортируются
 mbplugin\python\python mbplugin\plugin\util.py check-import
 
+REM Пересоздаем balance.html
+mbplugin\python\python mbplugin\plugin\util.py refresh-balance-html
+
 REM Проверяем корректность ini файлов
 mbplugin\python\python mbplugin\plugin\util.py check-ini
 
