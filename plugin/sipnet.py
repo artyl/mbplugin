@@ -27,7 +27,7 @@ def get_balance(login, password, storename=None, **kwargs):
         # Логинимся
         logging.info(f'relogon {login}')
         session.drop_and_create()
-        data = {'CabinetAction': 'login','view': 'ru','Name': login,'Password':password,}
+        data = {'CabinetAction': 'login', 'view': 'ru', 'Name': login, 'Password': password}
         response1 = session.post(login_url, data=data, verify=VERIFY_SSL)
         if response1.status_code != 200:
             raise RuntimeError(f'POST Login page {login_url} error: status_code {response1.status_code}')
@@ -38,7 +38,7 @@ def get_balance(login, password, storename=None, **kwargs):
     except Exception:
         logging.info(f'Not found TarifPlan')
     try:
-        result['licSchet'] =  re.search(re_sipid, response1.text).group(1).replace('&nbsp;', '').strip()
+        result['licSchet'] = re.search(re_sipid, response1.text).group(1).replace('&nbsp;', '').strip()
     except Exception:
         logging.info(f'Not found licSchet')
 

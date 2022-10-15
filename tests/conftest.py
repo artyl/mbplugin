@@ -1,19 +1,19 @@
 import pytest
-import sys, os
+import logging, sys, os
 sys.path.insert(0, os.path.abspath('plugin'))
 
-import settings  # pylint: disable=import-error
+import settings  # pylint: disable=import-error # noqa
 
 data_path = os.path.abspath(os.path.join('tests', 'data'))
+logging.basicConfig(filename=os.path.abspath(os.path.join('log', 'pytest.log')), level=logging.INFO)
 settings.mbplugin_root_path = data_path
 settings.mbplugin_ini_path = data_path
 settings.ini_codepage = 'cp1251'
+print(f'{settings.mbplugin_ini_path=}')
 print(os.path.abspath('plugin'))
 
 def pytest_addoption(parser):
-    parser.addoption(
-        "--runslow", action="store_true", default=False, help="run slow tests"
-    )
+    parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: mark test as slow to run")
@@ -29,11 +29,12 @@ def pytest_collection_modifyitems(config, items):
 
 def ini_compare(fn1, fn2):
     'Compare ini files ignore crlf'
-    with open(fn1, encoding=settings.ini_codepage ) as f1, open(fn2, encoding=settings.ini_codepage ) as f2:
+    with open(fn1, encoding=settings.ini_codepage) as f1, open(fn2, encoding=settings.ini_codepage) as f2:
         data1 = f1.read().replace('\r\n', '\n')
         data2 = f2.read().replace('\r\n', '\n')
     return data1 == data2
 
 # https://habr.com/ru/post/448782
-# debug insert assert 0 and use py.test --pdb 
-# python -m pytest tests/test_store.py::test_ini_class_phones_ini_writ -vv --pdb
+# debug insert assert 0 and use py.test --pdb
+# python -m pytest tests/test_store.py::test_ini_class_phones_ini_writ -vv -s --pdb
+# python -m pytest --runslow

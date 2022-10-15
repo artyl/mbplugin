@@ -1,11 +1,11 @@
 import re
 import pytest
-import requests
 import conftest  # type: ignore # ignore import error
+import store, settings
 avtodor_tr = __import__('avtodor-tr')  # pylint: disable=import-error
-import store
 
 def test_avtodor_tr():
+    print(f'{settings.mbplugin_ini_path=}')
     print(f'login_url={avtodor_tr.login_url}')
     session = store.Session()
     response1 = session.get(avtodor_tr.login_url)

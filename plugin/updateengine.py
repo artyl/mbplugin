@@ -103,19 +103,19 @@ class UpdaterEngine():
         Если указанный релиз не найден - падаем RuntimeError'''
         if len(self.releases) == 0:
             url = 'https://api.github.com/repos/artyl/mbplugin/releases'
-            if 'ANOTHER' in os.environ.get('DEBUG_UPDATE',''):
+            if 'ANOTHER' in os.environ.get('DEBUG_UPDATE', ''):
                 # Для отладки обновлений, берем из тестового репозитория
                 url = 'https://api.github.com/repos/artyl/mbplugin1/releases'
             self.releases = self.session.get(url, verify=self.verify_ssl).json()
         if version.upper() == LATEST:
             version = [r['tag_name'] for r in self.releases if (not r['prerelease'] or self.prerelease) and (not r['draft'] or self.draft)][0]
         # составляем список версий, которые подходят под указанный паттерн, если нет точного совпадения
-        matched_version = [r['tag_name'] for r in self.releases if version.lower() in r['tag_name'].lower() and r['tag_name'].startswith('v1.')] 
+        matched_version = [r['tag_name'] for r in self.releases if version.lower() in r['tag_name'].lower() and r['tag_name'].startswith('v1.')]
         if len(matched_version) == 1:
             version = matched_version[0]  # если нашлась ровно одна - то это то что нам нужно
         if version not in [r['tag_name'] for r in self.releases]:
             raise RuntimeError(f'Release with version "{version}" not found on github release')
-        release = [r for r in self.releases if r['tag_name']  == version][0]
+        release = [r for r in self.releases if r['tag_name'] == version][0]
         return release
 
     def latest_version_info(self, short=False) -> typing.Tuple[str, str]:
@@ -224,7 +224,7 @@ class UpdaterEngine():
             for zi in zf1.infolist():  # Во временную переменную прочитали
                 # Первый элемент пути в зависимости от ветки может называться не так как нам нужно
                 fn = store.abspath_join('mbplugin', *(store.path_split_all(zi.filename)[1:]))
-                if 'PLUGIN' in os.environ.get('DEBUG_UPDATE',''):
+                if 'PLUGIN' in os.environ.get('DEBUG_UPDATE', ''):
                     # Для отладки обновлений
                     # В debug режиме не обновляю папку plugin
                     if 'plugin' in store.path_split_all(zi.filename) or '.ico' in zi.filename:
@@ -242,7 +242,7 @@ class UpdaterEngine():
         если undo_update - self.current_bak_zipname'''
         if self.new_zipname is None and version != '':
             all_bare_updates = glob.glob(store.abspath_join('mbplugin', 'pack', f'mbplugin_bare.*{version}*.zip'))
-            if len(all_bare_updates) !=1:
+            if len(all_bare_updates) != 1:
                 return False, f'File for update {self.new_zipname} not found or more than one match'
             self.new_zipname = all_bare_updates[0]
         # проверка файлов по current.zip

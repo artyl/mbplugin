@@ -1,4 +1,4 @@
-import pytest
+import os, pytest
 import conftest  # type: ignore # ignore import error
 import browsercontroller
 
@@ -16,6 +16,5 @@ class browserengine_playwright(browsercontroller.BalanceOverPlaywright):
 def test_browsercontroller_engine_playwright():
     argv = ['login', 'password', 'test_storename']
     be_pw = browserengine_playwright(*argv)
-    be_pw.launch_config['headless'] = False
+    be_pw.launch_config['headless'] = os.environ.get('HEADLESS_CHROME', 'True').lower() == 'true'
     be_pw.main()
-

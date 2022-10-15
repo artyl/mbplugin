@@ -168,7 +168,7 @@ def recompile_plugin(ctx, only_dll, only_jsmblh):
                     src = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', pluginname + '.dll')
                     dst = os.path.join(ROOT_PATH, 'mbplugin', 'dllplugin', pluginname + '.dll')
                     compile_bat = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile.bat')
-                    if 'def get_balance(' in open(fn, encoding='utf8').read():
+                    if 'def' + ' get_balance(' in open(fn, encoding='utf8').read():
                         os.system(f'{compile_bat} {pluginname}')
                         shutil.move(src, dst)
                     if ctx.obj['VERBOSE']:
@@ -392,11 +392,11 @@ def init(ctx):
         echo(f'Fail {name}:\n{store.exception_text()}')
 
 
-@cli.command()
+@cli.command(name='get-balance')
 @click.option('--only_failed', is_flag=True, help='Запросить балансы, по которым были ошибки')
 @click.argument('filter', nargs=-1)
 @click.pass_context
-def get_balance(ctx, only_failed, filter):
+def full_get_balance(ctx, only_failed, filter):  # !!! нельзя пользоваться именем get_balance т.к. по нему фильтруются тесты и построители плагинов
     'Получение балансов, можно указать only_failed, тогда будут запрошены только те где последняя попытка была неудачной'
     name = 'get-balance'
     store.turn_logging()
