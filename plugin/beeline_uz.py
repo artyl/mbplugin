@@ -26,7 +26,7 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'TarifPlan', 'url_tag': ['/dashboard$'], 'jsformula': "data.subUsers[0].pricePlan.ru"},
             {'name': 'UserName', 'url_tag': ['/dashboard$'], 'jsformula': "data.subUsers[0].fio"},
             {'name': 'Internet', 'url_tag': ['/dashboard$'], 'jsformula': "parseFloat(data.usages.filter(el => el.belongsTo=='GPRS_PACK_2')[0].leftover/1024/1024).toFixed(2)"},
-            {'name': 'SMS', 'url_tag': ['/dashboard$'], 'jsformula': "parseFloat(data.usages.filter(el => el.belongsTo=='SMS_ACTIVE')[0].leftover).toFixed(0)"},
+            {'name': 'SMS', 'url_tag': ['/dashboard$'], 'jsformula': "parseFloat(data.usages.filter(el => el.belongsTo.startsWith('SMS'))[0].leftover).toFixed(0)"},
             {'name': 'Min', 'url_tag': ['/dashboard$'], 'jsformula': "parseFloat(data.usages.filter(el => el.belongsTo=='CBM_ON_MINUTE_BALANCE')[0].leftover/60).toFixed(0)"},
             {'name': 'LicSchet', 'url_tag': ['/dashboard$'], 'jsformula': "data.subUsers[0].subAccount"},
             {'name': 'BlockStatus', 'url_tag': ['/dashboard$'], 'jsformula': "data.state"},
