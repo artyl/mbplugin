@@ -28,10 +28,10 @@ def main():
         logging.error(exception_text)
         sys.stdout.write(exception_text)
         return -1
-    if len(sys.argv) == 4: # plugin login password
+    if len(sys.argv) == 4:  # plugin login password
         login = sys.argv[2]
         password = sys.argv[3]
-    else: # request указан в переменной RequestVariable ?
+    else:  # request указан в переменной RequestVariable ?
         try:
             RequestVariable = os.environ['RequestVariable'].strip(' "')
             root = etree.fromstring(RequestVariable)
@@ -46,7 +46,7 @@ def main():
 
     # Запуск плагина
     logging.info(f'Start {lang} {plugin} {login}')
-    dbengine.flags('setunic',f'{lang}_{plugin}_{login}','start')  # выставляем флаг о начале запроса
+    dbengine.flags('setunic', f'{lang}_{plugin}_{login}', 'start')  # выставляем флаг о начале запроса
     try:
         storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
         pkey = (login, f'{lang}_{plugin}')  # Пара (номер, оператор)
@@ -57,7 +57,7 @@ def main():
         exception_text = f'Ошибка при вызове модуля \n{plugin}: {store.exception_text()}'
         logging.error(exception_text)
         sys.stdout.write(exception_text)
-        dbengine.flags('set',f'{lang}_{plugin}_{login}','error call')  # выставляем флаг о ошибке вызова
+        dbengine.flags('set', f'{lang}_{plugin}_{login}', 'error call')  # выставляем флаг о ошибке вызова
         return -1
     # Готовим результат
     try:
@@ -66,9 +66,9 @@ def main():
         exception_text = f'Ошибка при подготовке результата: {store.exception_text()}'
         logging.error(exception_text)
         sys.stdout.write(exception_text)
-        dbengine.flags('set',f'{lang}_{plugin}_{login}','error result')  # выставляем флаг о плохом результате]
+        dbengine.flags('set', f'{lang}_{plugin}_{login}', 'error result')  # выставляем флаг о плохом результате]
         return -1
-    dbengine.flags('delete',f'{lang}_{plugin}_{login}','start')  # запрос завершился успешно - сбрасываем флаг
+    dbengine.flags('delete', f'{lang}_{plugin}_{login}', 'start')  # запрос завершился успешно - сбрасываем флаг
     try:
         # пишем в базу
         dbengine.write_result_to_db(f'{lang}_{plugin}', login, result)

@@ -40,7 +40,7 @@ createhtmlreport = 1<br>
 После включения, запустите mbplugin\\setup_and_check.bat
 '''
 
-# TODO в командах для traymeny используется os.system(f'start ... это будет работать только в windows, но пока пофигу, т.к. сам pystrayработает только в windows
+# TODO в командах для traymeny используется os.system(f'start ... это будет работать только в windows, но пока пофигу, т.к. сам pystray работает только в windows
 TRAY_MENU = (
     {'text': "Main page", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/main'), 'show': True},
     {'text': "View report", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/report'), 'show': True},
@@ -84,7 +84,7 @@ def getbalance_standalone_one_pass(filter: list = [], only_failed: bool = False)
                     dbengine.flags('set', f'{keypair}', 'queue')  # выставляем флаг о постановке в очередь
     store.feedback.text(f'Queued {len(queue_balance)} numbers')
     for val in queue_balance:
-        # TODO пока дергаем метод от вебсервера там уже все есть, потом может вынесем отдельно
+        # TODO пока дергаем метод от веб сервера там уже все есть, потом может вынесем отдельно
         try:
             # проверяем на сигнал Q_CMD_CANCEL, все остальное - кладем обратно
             if Q_CMD_CANCEL in cmdqueue.queue:
@@ -246,9 +246,9 @@ def view_log(param):
 def prepare_loglist_personal():
     'Делает список пар по которым есть скриншоты'
     ss = glob.glob(store.abspath_join(store.options('loggingfolder'), '*.png'))
-    allmatch = [re.search(r'(.*)_\d+\.png', os.path.split(fn)[-1]) for fn in ss]
-    allgroups = sorted(set([m.groups()[0] for m in allmatch if m]))
-    return allgroups
+    all_match = [re.search(r'(.*)_\d+\.png', os.path.split(fn)[-1]) for fn in ss]
+    all_groups = sorted(set([m.groups()[0] for m in all_match if m]))
+    return all_groups
 
 def prepare_log_personal(prefix):
     'Готовит html лог со скриншотами начинающимися на prefix'
@@ -293,7 +293,7 @@ def getreport(param=[]):
     store.options('logginglevel', flush=True)  # Запускаем, чтобы сбросить кэш и перечитать ini
     template_page = settings.table_template['page']
     template_history = settings.table_template['history']
-    temlate_style = settings.table_template['style']
+    template_style = settings.table_template['style']
     html_script = settings.table_template['script']
     db = dbengine.Dbengine()
     flags = dbengine.flags('getall')  # берем все флаги словарем
@@ -353,8 +353,8 @@ def getreport(param=[]):
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('queue'):
             classflag = 'n_us'
         html_table.append(f'<tr id="row" class="order {classflag}">{"".join(html_line)}</tr>')
-    temlate_style = temlate_style.replace('{HoverCss}', store.options('HoverCss'))  # HoverCss общий на всю страницу, поэтому берем без pkey
-    res = template_page.format(style=temlate_style, html_header=html_header, html_table='\n'.join(html_table), title=store.version(), html_script=html_script)
+    template_style = template_style.replace('{HoverCss}', store.options('HoverCss'))  # HoverCss общий на всю страницу, поэтому берем без pkey
+    res = template_page.format(style=template_style, html_header=html_header, html_table='\n'.join(html_table), title=store.version(), html_script=html_script)
     return 'text/html', [res]
 
 
@@ -532,7 +532,7 @@ def restart_program(reason='', exit_only=False, delay=0):
         if pid_from_file == os.getpid():
             os.remove(filename_pid)
     if not exit_only:
-        subprocess.Popen(cmd)  # Crossplatform run process
+        subprocess.Popen(cmd)  # Cross platform run process
     psutil.Process().kill()
     if Q_CMD_EXIT not in cmdqueue.queue:  # Если есть то второй раз не кладем
         cmdqueue.put(Q_CMD_EXIT)  # Если kill не сработал (для pid=1 не сработает) - шлем сигнал
@@ -556,7 +556,7 @@ def send_http_signal(cmd, force=True):
     except Exception:
         pass
     # То что дальше - это вышибание процесса если web сервер не остановился
-    if not(cmd == 'exit' and force):
+    if not (cmd == 'exit' and force):
         return
     for i in range(50):  # Подождем пока сервер остановится
         if os.path.exists(filename_pid):
@@ -778,7 +778,7 @@ class Scheduler():
 
 
 def auth_decorator(errmsg=None, nonauth: typing.Callable = None):
-    'Если хотим незалогиненому выдать сообщение об ошибке - указываем его в errmsg, если без авторизации хотим вызвать другой метод - указываем его в nonauth'
+    'Если хотим не залогиненому выдать сообщение об ошибке - указываем его в errmsg, если без авторизации хотим вызвать другой метод - указываем его в nonauth'
     def decorator(func):  # pylint: disable=no-self-argument
         def wrapper(self, update: telegram.update.Update, context):
             # update.message.chat_id отсутствует у CallbackQueryHandler пробуем через update.effective_chat.id:
@@ -998,7 +998,7 @@ class TelegramBot():
         """Receive one balance with inline keyboard/args, only auth user.
         /checkone - получаем баланс
         /getone - показываем"""
-        # Заданы агрументы? Тогда спросим по ним.
+        # Заданы аргументы? Тогда спросим по ним.
         args = ' '.join(context.args if context.args is not None else []).lower()
         if args != '' and update is not None:  # context.args
             cmd = (update.effective_message.text[1:]).split(' ')[0]
@@ -1047,7 +1047,7 @@ class TelegramBot():
             self.put_text(edit_text, 'This is log')
             res = prepare_log_personal(keypair)
             message.reply_document(filename=f'{keypair}_log.htm', document=io.BytesIO(res.strip().encode('cp1251')))
-        # Заданы агрументы? Тогда спросим по ним.
+        # Заданы аргументы? Тогда спросим по ним.
         args = ' '.join(context.args if context.args is not None else []).lower()
         # запрашиваем по заданному аргументу
         if args != '' and update is not None:  # context.args
