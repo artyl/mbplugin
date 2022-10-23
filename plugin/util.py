@@ -487,7 +487,7 @@ def check_ini(ctx):
         mbplugin_ini = store.ini()
         mbplugin_ini.read()
         mbplugin_ini_mess = []
-        if'Telegram' in mbplugin_ini.ini:
+        if 'Telegram' in mbplugin_ini.ini:
             if len([i for i in mbplugin_ini.ini['Telegram'].keys() if i.startswith('subscrib' + 'tion')]):
                 msg = f'Warning {name} mbplugin.ini - subsri_B_tion key found in ini'
                 mbplugin_ini_mess.append(msg)

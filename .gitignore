@@ -1,6 +1,7 @@
 *.pyc
 .cache
 .coverage
+htmlcov/*
 .pytest_cache
 .mypy_cache/
 __pycache__
