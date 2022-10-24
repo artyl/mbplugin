@@ -1,6 +1,7 @@
 *.pyc
 .cache
 .coverage
+htmlcov/*
 .pytest_cache
 .mypy_cache/
 __pycache__
@@ -24,7 +25,7 @@ webdriver/*
 .idea/*
 venv/*
 tests/data/mbplugin/*
-BalanceHistory.sqlite
+*.sqlite
 balance.html
 plugin/debug.log
 mbplugin*.zip

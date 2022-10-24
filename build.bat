@@ -2,10 +2,23 @@
 %~d0 
 @REM clean:
 @REM git clean -fXd
+set "ptime= "
+where ptime
+if %errorlevel%==0 set ptime=ptime
 
 if NOT "%1"=="" goto %1
 ECHO RUN build clean/test/build/fixup
 
+goto :EOF
+@REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ test
+:coverage
+%~d0
+cd "%~dp0"
+call python\python -m coverage run -m pytest tests %2 %3 %4 %5 %6 %7 %8 %9
+echo coverage html
+call python\python -m coverage html
+@rem call start htmlcov\index.html 
+echo %errorlevel%
 goto :EOF
 @REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ test
 :test

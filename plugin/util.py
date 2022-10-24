@@ -402,8 +402,14 @@ def full_get_balance(ctx, only_failed, filter):  # !!! нельзя пользо
     store.turn_logging()
     import httpserver_mobile
     # breakpoint()
-    httpserver_mobile.getbalance_standalone(filter=filter, only_failed=only_failed)
-    echo(f'OK {name}')
+    result = httpserver_mobile.getbalance_standalone(filter=filter, only_failed=only_failed)
+    for k, v in result.items():
+        echo(f"{k} {'OK' if v else 'BAD'}")
+    state = 'ALL_OK' if all(result.values()) else 'ANY_OK' if any(result.values()) else 'NOONE_OK'
+    state_code = 0 if all(result.values()) else 1 if any(result.values()) else 2
+    counters = f'OK:{list(result.values()).count(True)}/BAD:{list(result.values()).count(False)}/ALL:{len(result)}'
+    echo(f'{name} {state} {counters}')
+    sys.exit(state_code)
 
 
 @cli.command()
@@ -487,7 +493,7 @@ def check_ini(ctx):
         mbplugin_ini = store.ini()
         mbplugin_ini.read()
         mbplugin_ini_mess = []
-        if'Telegram' in mbplugin_ini.ini:
+        if 'Telegram' in mbplugin_ini.ini:
             if len([i for i in mbplugin_ini.ini['Telegram'].keys() if i.startswith('subscrib' + 'tion')]):
                 msg = f'Warning {name} mbplugin.ini - subsri_B_tion key found in ini'
                 mbplugin_ini_mess.append(msg)
@@ -558,6 +564,7 @@ def check_plugin(ctx, bpoint, params, plugin, login, password):
     else:
         res = httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])
     echo(f'{name}:\n{res}')
+    sys.exit(0 if 'Balance' in repr(res) else 1)
 
 
 @cli.command()

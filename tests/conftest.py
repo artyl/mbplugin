@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath('plugin'))
 import settings  # pylint: disable=import-error # noqa
 
 data_path = os.path.abspath(os.path.join('tests', 'data'))
-logging.basicConfig(filename=os.path.abspath(os.path.join('log', 'pytest.log')), level=logging.INFO)
+logging.basicConfig(filename=os.path.abspath(os.path.join('log', 'pytest.log')), level=logging.DEBUG)
 settings.mbplugin_root_path = data_path
 settings.mbplugin_ini_path = data_path
 settings.ini_codepage = 'cp1251'
