@@ -402,8 +402,14 @@ def full_get_balance(ctx, only_failed, filter):  # !!! нельзя пользо
     store.turn_logging()
     import httpserver_mobile
     # breakpoint()
-    httpserver_mobile.getbalance_standalone(filter=filter, only_failed=only_failed)
-    echo(f'OK {name}')
+    result = httpserver_mobile.getbalance_standalone(filter=filter, only_failed=only_failed)
+    for k, v in result.items():
+        echo(f"{k} {'OK' if v else 'BAD'}")
+    state = 'ALL_OK' if all(result.values()) else 'ANY_OK' if any(result.values()) else 'NOONE_OK'
+    state_code = 0 if all(result.values()) else 1 if any(result.values()) else 2
+    counters = f'OK:{list(result.values()).count(True)}/BAD:{list(result.values()).count(False)}/ALL:{len(result)}'
+    echo(f'{name} {state} {counters}')
+    sys.exit(state_code)
 
 
 @cli.command()

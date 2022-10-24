@@ -58,7 +58,7 @@ TRAY_MENU = (
 )
 
 
-def getbalance_standalone_one_pass(filter: list = [], only_failed: bool = False) -> None:
+def getbalance_standalone_one_pass(filter: list = [], only_failed: bool = False):
     ''' Получаем балансы самостоятельно без mobilebalance ОДИН ПРОХОД
     Если filter пустой то по всем номерам из phones.ini
     Если не пустой - то логин/алиас/оператор или его часть
@@ -68,6 +68,7 @@ def getbalance_standalone_one_pass(filter: list = [], only_failed: bool = False)
     для Standalone версии в файле phones_add.ini
     only_failed=True - делать запросы только по тем номерам, по которым прошлый запрос был неудачный
     '''
+    result: typing.Dict = {}
     phones = store.ini('phones.ini').phones()
     queue_balance = []  # Очередь телефонов на получение баланса
     for val in phones.values():
@@ -85,6 +86,7 @@ def getbalance_standalone_one_pass(filter: list = [], only_failed: bool = False)
     store.feedback.text(f'Queued {len(queue_balance)} numbers')
     for val in queue_balance:
         # TODO пока дергаем метод от веб сервера там уже все есть, потом может вынесем отдельно
+        keypair = f"{val['Region']}_{val['Number']}"
         try:
             # проверяем на сигнал Q_CMD_CANCEL, все остальное - кладем обратно
             if Q_CMD_CANCEL in cmdqueue.queue:
@@ -92,14 +94,17 @@ def getbalance_standalone_one_pass(filter: list = [], only_failed: bool = False)
                 [cmdqueue.put(el) for el in qu if el != Q_CMD_CANCEL]  # type: ignore
                 logging.info(f'Receive cancel signal to query')
                 store.feedback.text(f"Receive cancel signal")
-                return
+                return result
             store.feedback.text(f"Receive {val['Alias']}:{val['Region']}_{val['Number']}")
-            getbalance_plugin('get', {'plugin': [val['Region']], 'login': [val['Number']], 'password': [val['Password2']], 'date': ['date']})
+            r1 = getbalance_plugin('get', {'plugin': [val['Region']], 'login': [val['Number']], 'password': [val['Password2']], 'date': ['date']})
+            result[keypair] = 'Balance' in repr(r1)
         except Exception:
+            result[keypair] = False
             logging.error(f"Unsuccessful check {val['Region']} {val['Number']} {store.exception_text()}")
+    return result
 
 
-def getbalance_standalone(filter: list = [], only_failed: bool = False, retry: int = -1, params=None) -> None:
+def getbalance_standalone(filter: list = [], only_failed: bool = False, retry: int = -1, params=None):
     ''' Получаем балансы делая несколько проходов по неудачным
     retry=N количество повторов по неудачным попыткам, после запроса по всем (повторы только при only_failed=False)
     params добавлен чтобы унифицировать вызовы
@@ -108,12 +113,14 @@ def getbalance_standalone(filter: list = [], only_failed: bool = False, retry: i
     logging.info(f'getbalance_standalone: filter={filter}')
     if retry == -1:
         retry = int(store.options('retry_failed', flush=True))
+    result = {}
     if only_failed:
-        getbalance_standalone_one_pass(filter=filter, only_failed=True)
+        result.update(getbalance_standalone_one_pass(filter=filter, only_failed=True))
     else:
-        getbalance_standalone_one_pass(filter=filter, only_failed=False)
+        result.update(getbalance_standalone_one_pass(filter=filter, only_failed=False))
         for i in range(retry):
-            getbalance_standalone_one_pass(filter=filter, only_failed=True)
+            result.update(getbalance_standalone_one_pass(filter=filter, only_failed=True))
+    return result
 
 
 def get_full_info_one_number(keypair: str, check: bool = False) -> str:

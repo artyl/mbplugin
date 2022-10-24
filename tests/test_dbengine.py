@@ -1,5 +1,5 @@
 import pytest
-import os, sys, shutil, logging
+import os, sys, shutil, logging, threading
 import conftest  # type: ignore # ignore import error
 import dbengine, store, settings  # pylint: disable=import-error
 import test1
@@ -10,11 +10,10 @@ class Test:
         # configure self.attribute
         # assert test_method.__name__ == 'test_create_db', test_method
         self.ini_path = os.path.join(conftest.data_path, 'mbplugin.ini')
+        # logginglevel for putest see conftest.py
         logging.info(f'inipath={self.ini_path}')
         self.change_ini('updatefrommdb', '1')
-        self.change_ini('logginglevel', 'DEBUG')
-        # ini.ini['Options']['logginglevel'] = 'DEBUG'
-
+        self.change_ini('sqlitestore', '1')
         shutil.copyfile(self.ini_path + '.ori', self.ini_path)
         self.db = dbengine.Dbengine()
         self.dbname_copy = self.db.dbname + '.cp.sqlite'
@@ -43,15 +42,15 @@ class Test:
         operator = 'p_test1'
         assert len(self.db.phoneheader) == 47
         assert self.db.cur_execute_00('select count(*) from phones') >= 0
-        result1 = test1.get_balance('aaa', 'bbb', wait=False)
-        self.db.write_result('p_test1', phone_number, result1)
-        result2 = test1.get_balance('aaa', 'bbb', wait=False)
+        result1 = test1.get_balance(operator, phone_number, wait=False)
+        self.db.write_result(operator, phone_number, result1)
+        result2 = test1.get_balance(operator, phone_number, wait=False)
         result2.update({'Balance': '123', 'Currency': 'rub', 'Minutes': '23', 'BalExpired': '22.10.2022'})
-        dbengine.write_result_to_db('p_test1', '9161234567', result1)
+        dbengine.write_result_to_db(operator, phone_number, result1)
         assert phone_number in self.db.cur_execute('select * from phones where PhoneNumber=? limit 1', [phone_number])[0], 'Отсутствует запись'
         with pytest.raises(KeyError) as e_info:
-            self.db.write_result('p_test1', phone_number, {})
-        dbengine.write_result_to_db('p_test1', '9161234567', {})
+            self.db.write_result(operator, phone_number, {})
+        dbengine.write_result_to_db(operator, phone_number, {})
         report = self.db.report()
         assert len(report) > 0
         history = self.db.history(phone_number, operator)
@@ -65,11 +64,16 @@ class Test:
         self.db.conn.commit()
         assert self.db.cur.rowcount > 0
         assert self.db.cur_execute_00('select count(*) from phones') == 0
+        assert len(dbengine.responses()) > 0
+        self.change_ini('sqlitestore', '0')
+        assert len(dbengine.responses()) == 0
+        self.change_ini('sqlitestore', '1')
 
     def test_mdb_import(self):
         if sys.platform == 'win32':
             with pytest.raises(Exception) as e_info:
                 dbengine.update_sqlite_from_mdb_core(os.path.join(conftest.data_path, 'aaabbb.mdb'))
+            assert dbengine.update_sqlite_from_mdb(os.path.join(conftest.data_path, 'aaabbb.mdb')) is False
             dbengine.update_sqlite_from_mdb(os.path.join(conftest.data_path, 'BalanceHistory_test.mdb'))
             assert self.db.cur_execute_00('select count(*) from phones') == 9
 
@@ -77,7 +81,8 @@ class Test:
         dbengine.flags('set', 'key1', 'val1')
         dbengine.flags('set', 'key2', 'val2')
         dbengine.flags('set', 'key3', 'val1')
-        assert len(dbengine.flags('getall')) == 3
+        getall = dbengine.flags('getall')
+        assert len(getall) == 3, f'{getall=}'
         dbengine.flags('get', 'key1')
         # ??? assert dbengine.flags('get', 'key1') == 'val1'
         dbengine.flags('setunic', 'key1', 'val1')
@@ -92,7 +97,24 @@ class Test:
         assert len(dbengine.flags('getall')) == 1
         dbengine.flags('deleteall')
         assert len(dbengine.flags('getall')) == 0
-        
+
+    def thread(self):
+        name = threading.current_thread().name
+        for task in range(10):
+            for i in range(10):
+                if name == 'thr_0':
+                    dbengine.flags('set', 'key1', 'val1')
+                elif name == 'thr_1':
+                    dbengine.flags('setunic', 'key1', 'val1')
+                elif name == 'thr_2':
+                    dbengine.flags('getall')
+            print(f'{threading.currentThread().name} done task {task}')
+
+    def test_multithread(self):
+        for t in range(3):
+            threading.Thread(target=self.thread, name=f'thr_{t}', daemon=True).start()
+        [t.join() for t in threading.enumerate() if t.name.startswith('thr_')]
+
 
 def old_test_ini_class_phones_ini_write():
     ini = store.ini('phones.ini')
@@ -112,4 +134,3 @@ def old_test_ini_class_phones_ini_write():
         'balancelessthen': '100.0', 'turnofflessthen': '1', 'balancenotchangedmorethen': '40', 'balancechangedlessthen': '1', 'password2': '123password'}
     assert list(ini.ini['1'].items()) == expected_result1
     assert phones[('9161112233', 'p_test1')] == expected_result2
-

@@ -142,7 +142,7 @@ class Dbengine():
         if dbname is None:
             dbname = store.abspath_join(settings.mbplugin_ini_path, 'BalanceHistory.sqlite')
         self.dbname = dbname
-        logging.debug(f'Open db {self.dbname}')
+        logging.debug(f'Db open {self.dbname}')
         self.conn = sqlite3.connect(self.dbname)  # detect_types=sqlite3.PARSE_DECLTYPES
         if row_factory is not None:
             self.conn.row_factory = row_factory
@@ -160,10 +160,11 @@ class Dbengine():
             self.phoneheader = list(zip(*self.cur.description))[0]
 
     def __enter__(self):
+        logging.debug(f'Db __enter__ {self.dbname}')
         return self
 
     def __exit__(self, type, value, traceback):
-        logging.info(f'close {self.dbname}')
+        logging.info(f'Db __exit__ close {self.dbname}')
         self.conn.close()
 
     def cur_execute(self, query, *args, **kwargs):

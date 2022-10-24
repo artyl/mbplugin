@@ -14,7 +14,7 @@ if __name__ == '__main__':
     # ??? python -m pdb -c "b test_dbengine.py:18" -c c tests/debug_test.py
     # python\python -i tests\debug_test.py
     print('use\nb test_dbengine.py:41')
-    #pdb.set_trace()  # b test_dbengine.py:18
+    # pdb.set_trace()  # b test_dbengine.py:18
     # test_create_db()
     tst = test_dbengine.Test()
     tst.setup_method()
