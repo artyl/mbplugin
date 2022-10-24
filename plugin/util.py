@@ -564,6 +564,7 @@ def check_plugin(ctx, bpoint, params, plugin, login, password):
     else:
         res = httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])
     echo(f'{name}:\n{res}')
+    sys.exit(0 if 'Balance' in repr(res) else 1)
 
 
 @cli.command()
