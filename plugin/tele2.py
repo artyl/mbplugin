@@ -101,6 +101,8 @@ class browserengine(browsercontroller.BrowserController):
 
 def get_balance_browser(login, password, storename=None, **kwargs):
     ''' Работаем через Browser На вход логин и пароль, на выходе словарь с результатами '''
+    # TODO !!! У tele2 в веб варианте просто навешивание page.route уже приводит к кривоте, будет время разберусь, а пока просто отключил
+    store.options('', mainparams={'intercept_request': 0})
     return browserengine(login, password, storename, plugin_name=__name__).main()
 
 

@@ -3,7 +3,7 @@
 для того чтобы не писать утилиты два раза для windows и linux все переносим сюда, а
 непосредственно в bat и sh скриптах оставляем вызов этого скрипта
 '''
-import os, sys, re, time, subprocess, shutil, glob, logging, importlib, zipfile
+import os, sys, re, time, subprocess, shutil, glob, logging, pprint, importlib, zipfile
 import click
 
 # Т.к. мы меняем текущую папку, то sys.argv[0] будет смотреть не туда, пользоваться можно только
@@ -151,15 +151,25 @@ def clear_browser_cache(ctx):
 
 
 @cli.command()
-@click.option('--only-dll', is_flag=True, help='Только DLL')
-@click.option('--only-jsmblh', is_flag=True, help='Только JSMB LH')
+@click.option('--skip-dll', is_flag=True, help='Пропустить сборку DLL')
+@click.option('--skip-jsmblh', is_flag=True, help='Пропустить сборку JSMB LH')
+@click.option('--prepare-link', is_flag=True, help='Подготовить линки на ЛК операторов')
 @click.pass_context
-def recompile_plugin(ctx, only_dll, only_jsmblh):
+def recompile_plugin(ctx, skip_dll, skip_jsmblh, prepare_link):
     'Пересобираем DLL и JSMB LH плагины (только windows) все равно MobileBalance только под windows работает'
     name = 'recompile-plugin'
+    if prepare_link:
+        links = {}
+        for fn in glob.glob('mbplugin\\plugin\\*.py'):
+            pluginname = f'p_{os.path.splitext(os.path.split(fn)[1])[0]}'
+            compile_bat = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile.bat')
+            body = open(fn, encoding='utf8').read()
+            if 'def' + ' get_balance(' in body and 'login_url = ' in body:
+                matchs = re.findall(r"(?usi)login_url = '(.*?)'", body)
+                if len(matchs) > 0:
+                    links[pluginname] = matchs[0]
+        click.echo(pprint.PrettyPrinter(indent=4).pformat(links))
     if sys.platform == 'win32':
-        skip_dll = only_jsmblh and not only_dll
-        skip_jsmblh = only_dll and not only_jsmblh
         if not skip_dll:  # Пересобираем DLL plugin
             try:
                 # os.system(f"{os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile_all_p.bat')}")
@@ -169,6 +179,7 @@ def recompile_plugin(ctx, only_dll, only_jsmblh):
                     dst = os.path.join(ROOT_PATH, 'mbplugin', 'dllplugin', pluginname + '.dll')
                     compile_bat = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile.bat')
                     if 'def' + ' get_balance(' in open(fn, encoding='utf8').read():
+                        breakpoint()
                         os.system(f'{compile_bat} {pluginname}')
                         shutil.move(src, dst)
                     if ctx.obj['VERBOSE']:
@@ -543,8 +554,9 @@ def check_ini(ctx):
 def check_plugin(ctx, bpoint, params, plugin, login, password):
     'Проверка работы плагина по заданному логину и паролю'
     name = 'check-plugin'
-    store.options('', mainparams=dict(params))
+    store.options('', mainparams=dict(params))  # Надо давать до turn_logging т.к. там могут быть настройки которые повлияют на логинг, например logconsole=1
     store.turn_logging()
+    logging.info(f'mainparams={dict(params)}')    
     echo(f'{plugin} {login} {password}')
     import httpserver_mobile
     if bpoint:

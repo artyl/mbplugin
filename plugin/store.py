@@ -220,7 +220,9 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     '''
     if not hasattr(options, 'mainparams'):
         options.mainparams = {}
-    options.mainparams.update({k.lower(): v for k, v in mainparams.items()})
+    if len(mainparams) > 0:
+        logging.info(f'Options add {mainparams=} to {options.mainparams}')
+        options.mainparams.update({k.lower(): v for k, v in mainparams.items()})
     if not hasattr(options, 'mbplugin_ini') or flush:
         options.mbplugin_ini = None
         options.phones = None
@@ -550,6 +552,7 @@ def turn_logging(httplog=False, logginglevel=None):
         console_out = logging.StreamHandler()
         handlers = (file_log, console_out)
     logging.basicConfig(
+        force=True,
         handlers=handlers,
         level=logginglevel,
         format=options('loggingformat'))

@@ -272,7 +272,7 @@ def prepare_log_personal(prefix):
 
 def getreport(param=[]):
     'Делает html отчет balance.html'
-    def pp_field(pkey, he, el, hover, unwanted=False):
+    def pp_field(pkey, he, el, hover, unwanted=False, link=''):
         'форматирует поле, красит, выкидывает None и нули в полях баланса - возвращает готовый тэг th или tr'
         'he - header'
         'el - element'
@@ -296,6 +296,8 @@ def getreport(param=[]):
             el = f'{el:.2f}'  # round(el, 2)
         if hover != '':
             el = f'<div class="item">{el}<div class="hoverHistory">{hover}</div></div>'
+        if link != '':
+            el = f'<div class="operatorlink"><a href="{link}" target="_blank" rel="noopener noreferrer">{el}</a></div>'
         return f'<{"th" if he=="NN" else "td"} id="{he}"{mark}>{el}</td>'
     store.options('logginglevel', flush=True)  # Запускаем, чтобы сбросить кэш и перечитать ini
     template_page = settings.table_template['page']
@@ -328,7 +330,10 @@ def getreport(param=[]):
         for he in header:
             if he not in line:
                 continue
-            hover = ''
+            hover, link = '', ''
+            if he == 'Alias':
+                if str(store.options('htmlreportoperatorlink')) == '1':
+                    link = settings.operator_link.get(line['Operator'], '')
             if he == 'UslugiOn':  # На услуги вешаем hover со списком услуг
                 if uslugi != '':
                     h_html_header = f'<th id="hUsluga" class="p_n">Услуга</th><th id="hPrice" class="p_n">р/мес</th>'
@@ -351,7 +356,7 @@ def getreport(param=[]):
                         h_html_line = ''.join([pp_field(pkey, h, v, '') for h, v in h_line.items()])
                         h_html_table.append(f'<tr id="row" class="n">{h_html_line}</tr>')
                     hover = template_history.format(h_header=f"История запросов по {line['Alias']}", html_header=h_html_header, html_table='\n'.join(h_html_table))
-            html_line.append(pp_field(pkey, he, line[he], hover, unwanted=(len(unwanted_kw) > 0)))  # append <td>...</td>
+            html_line.append(pp_field(pkey, he, line[he], hover, unwanted=(len(unwanted_kw) > 0), link=link))  # append <td>...</td>
         classflag = 'n'  # красим строки - с ошибкой красным, текущий - зеленым, еще в очереди - серым и т.д.
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('error'):
             classflag = 'e_us'

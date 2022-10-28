@@ -104,6 +104,9 @@ ini = {
         # Создавать файл html отчета, после получения данных
         'createhtmlreport_': {'descr': 'Создавать файл html отчета, после получения данных', 'type': 'checkbox'},
         'createhtmlreport': '0',
+        # Создавать файл html отчета, после получения данных
+        'htmlreportoperatorlink_': {'descr': 'В файле html отчета колонку псевдоним делать ссылкой на оператора', 'type': 'checkbox'},
+        'htmlreportoperatorlink': '1',
         # Сколько раз повторно опрашивать балансы, которые опросились неудачно
         'retry_failed_': {'descr': 'Сколько раз повторно опрашивать балансы, которые опросились неудачно', 'type': 'text', 'validate': lambda i: i.isdigit()},
         'retry_failed': '2',
@@ -332,6 +335,42 @@ ini = {
     },
 }
 
+# TODO Пока не придумал в каком видe держать операторские линки, оставлю пока здесь
+# Пока вручную выгружаем и вставляем, список операторов не так часто меняется
+# ./mbp recompile-plugin --skip-dll --skip-jsmblh --prepare-link
+# можно выключить опцией htmlreportoperatorlink=0
+operator_link = {
+    'p_a1by': 'https://my.a1.by/work.html',
+    'p_avtodor-tr': 'https://avtodor-tr.ru/account/login',
+    'p_beeline': 'https://my.beeline.ru',
+    'p_beeline_uz': 'https://beeline.uz/ru/signin',
+    'p_beget': 'https://api.beget.com',
+    'p_cardtel': 'https://my.cardtel.ru/home',
+    'p_chailand': 'https://chailand.ru/balance',
+    'p_currency': 'https://cbr.ru/currency_base/daily',
+    'p_east': 'https://debet.east.ru/lk',
+    'p_lifeby': 'https://life.com.by/id',
+    'p_lovit': 'https://lk.lovit.ru/login',
+    'p_mangooffice': 'https://auth.mango-office.ru/auth/vpbx',
+    'p_megafon': 'https://lk.megafon.ru/',
+    'p_megafonb2b': 'https://b2blk.megafon.ru/dashboard',
+    'p_mgts': 'https://auth.mgts.ru/login/b2c',
+    'p_mosenergosbyt': 'https://my.mosenergosbyt.ru/auth',
+    'p_mts': 'https://login.mts.ru/amserver/UI/Login',
+    'p_ntvplus': 'https://service.ntvplus.ru/account/action/quick-check-action',
+    'p_onlime': 'https://my.rt.ru',
+    'p_sipnet': 'https://www.sipnet.ru/cabinet/index',
+    'p_smile-net': 'https://lk.virginconnect.ru/login',
+    'p_tele2': 'https://msk.tele2.ru/lk',
+    'p_test3': 'https://lk.saures.ru/dashboard',
+    'p_test5_yota2': 'https://my.yota.ru/selfcare/devices',
+    'p_uminet': 'https://lk.uminet.ru/',
+    'p_vscale': 'https://vds.selectel.ru/panel/login/',
+    'p_yoomoney': 'https://yoomoney.ru/actions',
+    'p_yota': 'https://my.yota.ru/selfcare/devices',
+    'p_zadarma': 'https://my.zadarma.com/auth/'
+}
+
 header_html = '''
 <!DOCTYPE html>
 <html>
@@ -366,7 +405,7 @@ main_html = r'''
 <b>Обратная связь.</b><br>
 Оптимальный способ обратной связи - <a href=https://github.com/artyl/mbplugin/issues>оставить issue на github</a> (для создания issue нужно зарегистрироваться)<br>
 Также обсуждение работы проходит в <a href=https://4pda.to/forum/index.php?showtopic=985296>форуме 4pda посвященном программе MobileBalance</a><br>
-Или <a href=https://t.me/mbplugin>в канале телеграмм</a><br>
+Или <a href=https://t.me/mbplugin>в канале телеграмм</a> также для личной связи и передачи непубличных данных есть <a href=https://t.me/artyl_mbplugin_bot>бот для связи с автором</a><br>
 </body>
 <script>
 %(script)s
