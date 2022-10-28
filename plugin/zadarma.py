@@ -20,8 +20,8 @@ def get_balance(login, password, storename=None, **kwargs):
     user_agent = store.options('user_agent', pkey=store.get_pkey(login, plugin_name=__name__))
     if user_agent.strip() == '':
         user_agent = settings.default_user_agent
-    headers = {'Connection': 'keep-alive', 'User-Agent': user_agent,}
-    data = { 'answer': 'json', 'email': login, 'password': password,}
+    headers = {'Connection': 'keep-alive', 'User-Agent': user_agent}
+    data = {'answer': 'json', 'email': login, 'password': password}
     session = store.Session(storename, headers=headers)
     response3 = session.get('https://my.zadarma.com/')
     if re.search(re_balance, response3.text):
@@ -44,7 +44,7 @@ def get_balance(login, password, storename=None, **kwargs):
         to_dates = re.findall(r'действует до (\d\d\.\d\d\.\d\d\d\d)', response3.text)
         if len(to_dates) > 0:
             nd = min([time.mktime(time.strptime(d, '%d.%m.%Y')) for d in to_dates])
-            result['TurnOff'] = int((nd - time.time())/86400)
+            result['TurnOff'] = int((nd - time.time()) / 86400)
             result['TurnOffStr'] = time.strftime('%d.%m.%Y', time.localtime(nd))
     except Exception:
         logging.info(f"Couldn't take TurnOff")

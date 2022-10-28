@@ -165,9 +165,9 @@ def recompile_plugin(ctx, skip_dll, skip_jsmblh, prepare_link):
             compile_bat = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile.bat')
             body = open(fn, encoding='utf8').read()
             if 'def' + ' get_balance(' in body and 'login_url = ' in body:
-                matchs = re.findall(r"(?usi)login_url = '(.*?)'", body)
-                if len(matchs) > 0:
-                    links[pluginname] = matchs[0]
+                matches = re.findall(r"(?usi)login_url = '(.*?)'", body)
+                if len(matches) > 0:
+                    links[pluginname] = matches[0]
         click.echo(pprint.PrettyPrinter(indent=4).pformat(links))
     if sys.platform == 'win32':
         if not skip_dll:  # Пересобираем DLL plugin
@@ -556,7 +556,7 @@ def check_plugin(ctx, bpoint, params, plugin, login, password):
     name = 'check-plugin'
     store.options('', mainparams=dict(params))  # Надо давать до turn_logging т.к. там могут быть настройки которые повлияют на логинг, например logconsole=1
     store.turn_logging()
-    logging.info(f'mainparams={dict(params)}')    
+    logging.info(f'mainparams={dict(params)}')
     echo(f'{plugin} {login} {password}')
     import httpserver_mobile
     if bpoint:
