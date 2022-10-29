@@ -179,7 +179,6 @@ def recompile_plugin(ctx, skip_dll, skip_jsmblh, prepare_link):
                     dst = os.path.join(ROOT_PATH, 'mbplugin', 'dllplugin', pluginname + '.dll')
                     compile_bat = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile.bat')
                     if 'def' + ' get_balance(' in open(fn, encoding='utf8').read():
-                        breakpoint()
                         os.system(f'{compile_bat} {pluginname}')
                         shutil.move(src, dst)
                     if ctx.obj['VERBOSE']:
