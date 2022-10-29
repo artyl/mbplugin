@@ -1,5 +1,5 @@
 import pytest
-import os, sys, shutil, logging, threading
+import os, sys, shutil, logging, threading, importlib.util
 import conftest  # type: ignore # ignore import error
 import dbengine, store, settings  # pylint: disable=import-error
 import test1
@@ -69,13 +69,16 @@ class Test:
         assert len(dbengine.responses()) == 0
         self.change_ini('sqlitestore', '1')
 
+    @pytest.mark.slow
     def test_mdb_import(self):
-        if sys.platform == 'win32':
-            with pytest.raises(Exception) as e_info:
-                dbengine.update_sqlite_from_mdb_core(os.path.join(conftest.data_path, 'aaabbb.mdb'))
-            assert dbengine.update_sqlite_from_mdb(os.path.join(conftest.data_path, 'aaabbb.mdb')) is False
-            dbengine.update_sqlite_from_mdb(os.path.join(conftest.data_path, 'BalanceHistory_test.mdb'))
-            assert self.db.cur_execute_00('select count(*) from phones') == 9
+        if sys.platform == 'win32' and importlib.util.find_spec('pyodbc') is not None:
+            import pyodbc
+            if 'Driver do Microsoft Access (*.mdb)' in pyodbc.drivers():
+                with pytest.raises(Exception) as e_info:
+                    dbengine.update_sqlite_from_mdb_core(os.path.join(conftest.data_path, 'aaabbb.mdb'))
+                assert dbengine.update_sqlite_from_mdb(os.path.join(conftest.data_path, 'aaabbb.mdb')) is False
+                dbengine.update_sqlite_from_mdb(os.path.join(conftest.data_path, 'BalanceHistory_test.mdb'))
+                assert self.db.cur_execute_00('select count(*) from phones') == 9
 
     def test_flags(self):
         dbengine.flags('set', 'key1', 'val1')
