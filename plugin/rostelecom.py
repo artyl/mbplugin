@@ -65,7 +65,7 @@ class browserengine(browsercontroller.BrowserController):
             logging.info(f'Use api.rt.ru/start/accounts')
             self.wait_params(params=[
                 {'name': 'Balance', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': r"data.data[0].balance.amount/100"},
-                {'name': 'UserName', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': r"Object.values(data.data[0].client).join(' ')"},
+                {'name': 'UserName', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': "((e=data.data[0].client)=>''+e.last_name+' '+e.first_name+' '+e.middle_name)().replace('undefined', '').trim()"},
                 {'name': 'BlockStatus', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': r"data.data[0].status.id"},
                 {'name': 'LicSchet', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': r"data.data[0].id"},
             ])
