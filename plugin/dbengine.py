@@ -533,6 +533,8 @@ def responses() -> typing.Dict[str, str]:
 
 if __name__ == '__main__':
     print('This is module dbengine')
+    if settings.mode != settings.MODE_MB:
+        store.switch_to_mb_mode()
     if 'update_sqlite_from_mdb_all' in sys.argv:
         store.turn_logging(logginglevel=logging.DEBUG)
         update_sqlite_from_mdb(deep=10000)

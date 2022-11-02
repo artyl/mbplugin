@@ -1,5 +1,5 @@
 ''' Работа с браузером через синхронный вариант библиотеки playwright python '''
-import glob, json, logging, os, re, shutil, subprocess, sys, time
+import glob, json, logging, os, re, shutil, subprocess, sys, time, tempfile
 from playwright.sync_api import sync_playwright
 try:
     from playwright_stealth import stealth_sync
@@ -252,14 +252,21 @@ class BalanceOverPlaywright():
         self.password = password
         self.login_ori, self.acc_num = login, ''
         self.login = login
-        self.storefolder = self.options('storefolder')
+        if settings.mode == settings.MODE_MB:
+            self.storefolder = self.options('storefolder')
+        else:
+            self.storefolder = tempfile.gettempdir()
+        if storename is None:
+            lang = 'p'
+            storename = re.sub(r'\W', '_', f"{lang}_{self.plugin_name}_{login}")
         self.storename = storename
         self.login_url = login_url
         self.user_selectors = user_selectors
         self.ss_counter = 0  # Счетчик скриншотов
         # Удаляем скриншоты с прошлых разов
-        for fn in glob.glob(store.abspath_join(self.options('loggingfolder'), self.storename + '*.png')):
-            os.remove(fn)
+        if settings.mode == settings.MODE_MB:
+            for fn in glob.glob(store.abspath_join(self.options('loggingfolder'), self.storename + '*.png')):
+                os.remove(fn)
         # headless ТОЛЬКО если отключен показ капчи, pause, и ТОЛЬКО если не стоит show_chrome=0
         # иначе мы видимость браузера из headless уже не вернем и капчу показать не сможем
         if type(headless) == bool:
@@ -393,7 +400,7 @@ class BalanceOverPlaywright():
         return self.page.content()
 
     def page_screenshot(self, path='', number=-1, suffix=''):
-        if str(self.options('log_responses')) != '1' and self.options('logginglevel') != 'DEBUG':
+        if str(self.options('log_responses')) != '1' and self.options('logginglevel') != 'DEBUG' or settings.mode != settings.MODE_MB:
             return
         if number == -1 and suffix == '':
             suffix = self.ss_counter
@@ -790,13 +797,15 @@ class BalanceOverPlaywright():
             logging.debug(f'Data ready {self.result.keys()}')
             if str(self.options('playwright_pause')) == '1':
                 self.page.pause()
-            if str(self.options('log_responses')) == '1' or self.options('logginglevel') == 'DEBUG':
-                import pprint
-                text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
-                                    for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
-                with open(store.abspath_join(self.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
-                    f.write(text)
+            if settings.mode == settings.MODE_MB:
+                if str(self.options('log_responses')) == '1' or self.options('logginglevel') == 'DEBUG':
+                    import pprint
+                    text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
+                                        for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
+                    with open(store.abspath_join(self.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
+                        f.write(text)
             self.browser_close()
+        self.sync_pw.stop()
         kill_chrome()  # Добиваем все наши незакрытые хромы, чтобы не появлялось кучи зависших
         clear_cache(self.storefolder, self.storename)
         time.sleep(2)  # Даем время закрыться

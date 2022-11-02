@@ -1,7 +1,6 @@
 # -*- coding: utf8 -*-
 'Модуль для обновления версии'
 import base64, collections, re, hashlib, glob, os, sys, time, typing, zipfile, shutil
-from typing_extensions import runtime
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 import cryptography.exceptions

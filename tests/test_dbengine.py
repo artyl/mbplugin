@@ -1,5 +1,5 @@
 import pytest
-import os, sys, shutil, logging, threading, importlib.util
+import os, sys, re, shutil, logging, threading, importlib.util
 import conftest  # type: ignore # ignore import error
 import dbengine, store, settings  # pylint: disable=import-error
 import test1
@@ -21,11 +21,11 @@ class Test:
     def teardown_method(self, test_method=None):
         # tear down self.attribute
         self.db.conn.close()
-        if 'mbplugin\\tests\\data' in self.db.dbname:
+        # os.path.join('mbplugin', 'tests', 'data') in self.db.dbname:
+        if re.match(f'^.*mbplugin.?\w*.tests.data$', os.path.split(self.db.dbname)[0]) and os.path.exists(self.db.dbname):
             os.remove(self.db.dbname)
             if os.path.exists(self.dbname_copy):
                 os.remove(self.dbname_copy)
-            os.remove(self.ini_path)
 
     def change_ini(self, option, value):
         ini = store.ini()

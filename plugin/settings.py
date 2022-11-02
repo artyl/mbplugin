@@ -15,37 +15,16 @@ UNIT = {'TB': 1073741824, 'ТБ': 1073741824, 'TByte': 1073741824, 'TBYTE': 1073
 PHONE_INI_KEYS = ['Region', 'Monitor', 'Alias', 'Number', 'Password', 'mdOperation', 'mdConstant', 'PauseBeforeRequest', 'ShowInBallon', 'Password2']
 PHONE_INI_KEYS_LOWER = ['region', 'monitor', 'alias', 'number', 'password', 'mdoperation', 'mdconstant', 'pausebeforerequest', 'showinballon', 'password2']
 
-def find_file_up(folder, filename):
-    'Нужен для совместимости со старым подходом, когда папка mbplugin могла находится на несколько уровней вложенности вниз'
-    folder = os.path.abspath(folder)
-    if os.path.exists(os.path.join(folder, filename)):
-        return folder
-    levels = [os.sep.join(folder.split(os.sep)[:i]) for i in range(len(folder.split(os.sep)), 1, -1)]
-    for path in levels:
-        if os.path.exists(os.path.join(path, filename)):
-            return path
-    return folder
+MODE_LIB = 'lib'
+MODE_MB = 'mb'
+mode = MODE_LIB
+mbplugin_root_path = None
+mbplugin_ini_path = None
+logging_on = False
 
 # имя ini файла
 mbplugin_ini = 'mbplugin.ini'
-# По умолчанию вычисляем эту папку как папку на 2 уровня выше папки с этим скриптом
-# Этот путь используем когда обращаемся к подпапкам папки mbplugin
-mbplugin_root_path = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', '..'))
-# Для пути с симлинками в unix-like системах приходится идти на трюки:
-# Исходим из того что скрипт mbp привет нас в правильный корень
-# https://stackoverflow.com/questions/54665065/python-getcwd-and-pwd-if-directory-is-a-symbolic-link-give-different-results
-if sys.platform != 'win32':
-    # В докере с симлинком другая проблема - нет $PWD, но зато os.getcwd() ведет нас в /mbstandalone
-    pwd = os.environ.get('PWD', os.getcwd())
-    if os.path.exists(os.path.abspath(os.path.join(pwd, 'mbplugin', 'plugin', 'util.py'))):
-        mbplugin_root_path = pwd
-    elif os.path.exists(os.path.abspath(os.path.join(pwd, '..', 'mbplugin', 'plugin', 'util.py'))):
-        mbplugin_root_path = os.path.abspath(os.path.join(pwd, '..'))
-    elif os.path.exists(os.path.abspath(os.path.join(pwd, '..', '..', 'mbplugin', 'plugin', 'util.py'))):
-        mbplugin_root_path = os.path.abspath(os.path.join(pwd, '..', '..'))
-# Папка в которой по умолчанию находится mbplugin.ini, phones.ini, база
-# т.к. раньше допускалось что папка mbplugin может находится на несколько уровней вложенности вниз ищем вверх phones.ini
-mbplugin_ini_path = find_file_up(mbplugin_root_path, 'phones.ini')
+
 # Кодировка для windows cp1251, для остальных utf-8
 ini_codepage = locale.getpreferredencoding()
 # В нормальном случае mbplugin_root_path и mbplugin_ini_path - одна и та же папка

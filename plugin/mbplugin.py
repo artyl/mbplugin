@@ -91,4 +91,6 @@ def main():
 if __name__ == '__main__':
     # todo mbplugin.py plugin  (RequestVariable=<Request>\n<ParentWindow>007F09DA</ParentWindow>\n<Login>p_test_1234567</Login>\n<Password>pass1234</Password>\n</Request>)
     # todo mbplugin.py plugin login password (нужен для отладки)
+    if settings.mode != settings.MODE_MB:
+        store.switch_to_mb_mode()
     main()

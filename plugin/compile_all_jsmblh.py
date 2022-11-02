@@ -2,7 +2,11 @@ import os, sys, re, glob
 import settings, store
 
 
-def recompile(pluginpath=store.abspath_join(os.path.split(sys.argv[0])[0]), verbose=False):
+def recompile(pluginpath=None, verbose=False):
+    if settings.mode != settings.MODE_MB:
+        raise RuntimeError(f'Work only {settings.MODE_MB}. You in {settings.mode}')
+    if pluginpath is None:
+        pluginpath = store.abspath_join(os.path.split(sys.argv[0])[0])
     sys.path.insert(0, pluginpath)
     port = store.options('port', section='HttpServer')
     tmpl = open(store.abspath_join(pluginpath, '..', 'jsmblhplugin', '_template_localweb.jsmb'), encoding='cp1251').read()

@@ -41,21 +41,23 @@ createhtmlreport = 1<br>
 '''
 
 # TODO в командах для traymeny используется os.system(f'start ... это будет работать только в windows, но пока пофигу, т.к. сам pystray работает только в windows
-TRAY_MENU = (
-    {'text': "Main page", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/main'), 'show': True},
-    {'text': "View report", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/report'), 'show': True},
-    {'text': "Edit config", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/editcfg'), 'show': str(store.options('HttpConfigEdit')) == '1'},
-    {'text': "View log", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log?lines=40'), 'show': True},
-    {'text': "View screenshot log", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log/list'), 'show': True},
-    {'text': "Get balance request", 'cmd': lambda: threading.Thread(target=getbalance_standalone, name='Getbalance', daemon=True).start(), 'show': True},
-    {'text': "Flush log", 'cmd': lambda: store.logging_restart(), 'show': True},
-    {'text': "Reload schedule", 'cmd': lambda: Scheduler().reload(), 'show': True},
-    {'text': "Recompile jsmblh plugin", 'cmd': lambda: compile_all_jsmblh.recompile(), 'show': True},
-    # {'text': "Version update", 'cmd': lambda: run_update(), 'show': True},  # TODO продумать как это показывать
-    {'text': "Cancel the balance request", 'cmd': lambda: cancel_query(reason='tray icon command'), 'show': True},
-    {'text': "Restart server", 'cmd': lambda: restart_program(reason='tray icon command'), 'show': True},
-    {'text': "Exit program", 'cmd': lambda: restart_program(reason='Tray icon exit', exit_only=True), 'show': True}
-)
+# т.к. импортируем до включения MODE_MB пришлось завернуть это в функцию
+def tray_menu():
+    return (
+        {'text': "Main page", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/main'), 'show': True},
+        {'text': "View report", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/report'), 'show': True},
+        {'text': "Edit config", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/editcfg'), 'show': str(store.options('HttpConfigEdit')) == '1'},
+        {'text': "View log", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log?lines=40'), 'show': True},
+        {'text': "View screenshot log", 'cmd': lambda: os.system(f'start http://localhost:{store.options("port", section="HttpServer")}/log/list'), 'show': True},
+        {'text': "Get balance request", 'cmd': lambda: threading.Thread(target=getbalance_standalone, name='Getbalance', daemon=True).start(), 'show': True},
+        {'text': "Flush log", 'cmd': lambda: store.logging_restart(), 'show': True},
+        {'text': "Reload schedule", 'cmd': lambda: Scheduler().reload(), 'show': True},
+        {'text': "Recompile jsmblh plugin", 'cmd': lambda: compile_all_jsmblh.recompile(), 'show': True},
+        # {'text': "Version update", 'cmd': lambda: run_update(), 'show': True},  # TODO продумать как это показывать
+        {'text': "Cancel the balance request", 'cmd': lambda: cancel_query(reason='tray icon command'), 'show': True},
+        {'text': "Restart server", 'cmd': lambda: restart_program(reason='tray icon command'), 'show': True},
+        {'text': "Exit program", 'cmd': lambda: restart_program(reason='Tray icon exit', exit_only=True), 'show': True}
+    )
 
 
 def getbalance_standalone_one_pass(filter: list = [], only_failed: bool = False):
@@ -603,7 +605,7 @@ class TrayIcon:
         icon_fn = store.abspath_join('mbplugin', 'plugin', 'httpserver.ico')
         self.image = PIL.Image.open(icon_fn)
         items = []
-        for item in TRAY_MENU:
+        for item in tray_menu():
             if item['show']:
                 items.append(pystray.MenuItem(item['text'], item['cmd'], default=(len(items) + 1 == int(store.options('tray_default')))))
         self.menu = pystray.Menu(*items)
@@ -1463,4 +1465,6 @@ def main():
 
 
 if __name__ == '__main__':
+    if settings.mode != settings.MODE_MB:
+        store.switch_to_mb_mode()
     main()

@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import browsercontroller
+import browsercontroller, store, settings
 
 login_url = 'https://lk.saures.ru/dashboard'
 user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",
@@ -23,6 +23,15 @@ class browserengine(browsercontroller.BrowserController):
 
 def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
+    # TODO !!! вынести в store.py
+    for key, val in kwargs.items():
+        if key in settings.ini['Options']:
+            settings.ini['Options'][key] = val
+            valid, msg = store.option_validate(key, 'Options')
+            if not valid:
+                raise RuntimeError(msg)
+            settings.ini['Options'][key] = val
+    store.turn_logging()
     return browserengine(login, password, storename, plugin_name=__name__).main()
 
 

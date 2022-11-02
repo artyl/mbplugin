@@ -1,11 +1,13 @@
 import pytest
-import logging, sys, os
+import logging, sys, os, shutil, re
 sys.path.insert(0, os.path.abspath('plugin'))
 
 import settings  # pylint: disable=import-error # noqa
 
+
 data_path = os.path.abspath(os.path.join('tests', 'data'))
 logging.basicConfig(filename=os.path.abspath(os.path.join('log', 'pytest.log')), level=logging.DEBUG)
+settings.mode = settings.MODE_MB
 settings.mbplugin_root_path = data_path
 settings.mbplugin_ini_path = data_path
 settings.ini_codepage = 'cp1251'
@@ -33,6 +35,24 @@ def ini_compare(fn1, fn2):
         data1 = f1.read().replace('\r\n', '\n')
         data2 = f2.read().replace('\r\n', '\n')
     return data1 == data2
+
+@pytest.fixture()
+def prepare_ini(request):
+    def fin():
+        print('\nprepare_ini.fin')
+        ini_path = os.path.join(data_path, 'mbplugin.ini')
+        if re.match('^.*mbplugin.?\w*.tests.data.mbplugin.ini$', ini_path) and os.path.exists(ini_path):
+            os.remove(ini_path)
+    shutil.copyfile(os.path.join(settings.mbplugin_ini_path, 'mbplugin.ini.ori'), os.path.join(settings.mbplugin_ini_path, 'mbplugin.ini'))
+    request.addfinalizer(fin)
+
+@pytest.fixture(scope="session", autouse=True)
+def final_remove_ini(request):
+    def fin():
+        ini_path = os.path.join(data_path, 'mbplugin.ini')
+        if re.match('^.*mbplugin.?\w*.tests.data.mbplugin.ini$', ini_path) and os.path.exists(ini_path):
+            os.remove(ini_path)
+    request.addfinalizer(fin)
 
 # https://habr.com/ru/post/448782
 # debug insert assert 0 and use py.test --pdb

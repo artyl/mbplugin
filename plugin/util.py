@@ -20,11 +20,11 @@ STANDALONE_PATH = ROOT_PATH
 EMB_PYTHON_PATH = os.path.abspath(os.path.join(PLUGIN_PATH, os.path.join('..', 'python')))
 SYS_PATH_ORIGIN = sys.path[:]  # Оригинальное значение sys.path
 try:
-    import store
+    import store, settings
 except ModuleNotFoundError:
     click.echo(f'Not found plugin folder use\n  {sys.argv[0]} fix-embedded-python-path')
     sys.path.insert(0, PLUGIN_PATH)
-    import store
+    import store, settings
 
 def echo(msg: str):
     'Обертка, для click.echo чтобы можно было завернуть запись в файл диагностики параллельно с выводом на экран'
@@ -918,6 +918,8 @@ def mbplugin_dockerfile_version():
             f.write(dockerfile)
 
 if __name__ == '__main__':
+    if settings.mode != settings.MODE_MB:
+        store.switch_to_mb_mode()
     cli(obj={})
 
 # ..\python\python -c "import updateengine;updateengine.create_signature()"

@@ -44,6 +44,39 @@ def path_split_all(path):
             res.insert(0, p2)
     return res
 
+def find_file_up(folder, filename):
+    'Нужен для совместимости со старым подходом, когда папка mbplugin могла находится на несколько уровней вложенности вниз'
+    folder = os.path.abspath(folder)
+    if os.path.exists(os.path.join(folder, filename)):
+        return folder
+    levels = [os.sep.join(folder.split(os.sep)[:i]) for i in range(len(folder.split(os.sep)), 1, -1)]
+    for path in levels:
+        if os.path.exists(os.path.join(path, filename)):
+            return path
+    return folder
+
+def switch_to_mb_mode():
+    'Переключаемся в режим mbplugin находим ini в корне и т.п.'
+    settings.mode = settings.MODE_MB
+    # По умолчанию вычисляем эту папку как папку на 2 уровня выше папки с этим скриптом
+    # Этот путь используем когда обращаемся к подпапкам папки mbplugin
+    settings.mbplugin_root_path = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', '..'))
+    # Для пути с симлинками в unix-like системах приходится идти на трюки:
+    # Исходим из того что скрипт mbp привет нас в правильный корень
+    # https://stackoverflow.com/questions/54665065/python-getcwd-and-pwd-if-directory-is-a-symbolic-link-give-different-results
+    if sys.platform != 'win32':
+        # В докере с симлинком другая проблема - нет $PWD, но зато os.getcwd() ведет нас в /mbstandalone
+        pwd = os.environ.get('PWD', os.getcwd())
+        if os.path.exists(os.path.abspath(os.path.join(pwd, 'mbplugin', 'plugin', 'util.py'))):
+            mbplugin_root_path = pwd
+        elif os.path.exists(os.path.abspath(os.path.join(pwd, '..', 'mbplugin', 'plugin', 'util.py'))):
+            mbplugin_root_path = os.path.abspath(os.path.join(pwd, '..'))
+        elif os.path.exists(os.path.abspath(os.path.join(pwd, '..', '..', 'mbplugin', 'plugin', 'util.py'))):
+            mbplugin_root_path = os.path.abspath(os.path.join(pwd, '..', '..'))
+    # Папка в которой по умолчанию находится mbplugin.ini, phones.ini, база
+    # т.к. раньше допускалось что папка mbplugin может находится на несколько уровней вложенности вниз ищем вверх phones.ini
+    settings.mbplugin_ini_path = find_file_up(settings.mbplugin_root_path, 'phones.ini')
+
 def validate_json(data):
     'Проверяем строку на то что это валидный json'
     try:
@@ -148,14 +181,14 @@ class Session():
 
     def save_session(self):
         'Сохраняем сессию в файл'
-        if self.storename is None:
+        if self.storename is None or settings.mode != settings.MODE_MB:
             return
         with open(abspath_join(self.storefolder, self.storename), 'wb') as f:
             pickle.dump(self._session, f)
 
     def save_response(self, url, response, save_text=False):
         'debug сохранение по умолчанию только response.json() или если указано отдельно сохраняем text'
-        if self.storename is None:
+        if self.storename is None or settings.mode != settings.MODE_MB:
             return
         # Сохраняем по старинке в режиме DEBUG каждую страницу в один файл
         if not hasattr(response, 'content'):
@@ -218,6 +251,8 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     Приоритет:
     mbplugin.ini < phones.ini < mainparam(cmd -p options)
     '''
+    if settings.mode != settings.MODE_MB:
+        return settings.ini[section][param]
     if not hasattr(options, 'mainparams'):
         options.mainparams = {}
     if len(mainparams) > 0:
@@ -536,21 +571,28 @@ def ini_by_expression(expression):
     return f'set {key}={options(key, section=section)}'
 
 
-def turn_logging(httplog=False, logginglevel=None):
+def turn_logging(httplog=False, logginglevel=None, force_turn=False):
     'Включение логирования и дополнительные инициализации'
     # Выставляем переменные, если они заданы в настройках
+    if settings.logging_on and not force_turn:
+        return  # если лог уже включен, то повторные вызовы игнорим если не force
+    settings.logging_on = True
+    # TODO WTF почему это здесь ?
     if options('node_tls_reject_unauthorized') != '':
         os.environ['NODE_TLS_REJECT_UNAUTHORIZED'] = options('node_tls_reject_unauthorized')
     if options('playwright_browsers_path') != '':
         os.environ['PLAYWRIGHT_BROWSERS_PATH'] = options('playwright_browsers_path')
     # logging.getLogger().handlers[0].stream.name
-    file_log = logging.FileHandler(abspath_join(options('logginghttpfilename' if httplog else 'loggingfilename')))
     if logginglevel is None:
         logginglevel = options('logginglevel')
-    handlers = (file_log,)
+    handlers = []
+    if settings.mode == settings.MODE_MB:
+        # Магия с предустановлеными именами логов из ini только в MODE_MB
+        file_log = logging.FileHandler(abspath_join(options('logginghttpfilename' if httplog else 'loggingfilename')))
+        handlers.append(file_log)
     if str(options('logconsole')) == '1':
         console_out = logging.StreamHandler()
-        handlers = (file_log, console_out)
+        handlers.append(console_out)
     logging.basicConfig(
         force=True,
         handlers=handlers,

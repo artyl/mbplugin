@@ -9,8 +9,9 @@ plugins: list = []
 
 for fn in glob.glob(os.path.join('plugin', '*.py')):
     plugin = os.path.splitext(os.path.split(fn)[-1])[0]
-    if 'def' + ' get_balance(' in open(fn, encoding='utf8').read():
-        plugins.append(plugin)
+    with open(fn, encoding='utf8') as f:
+        if 'def' + ' get_balance(' in f.read():
+            plugins.append(plugin)
 
 @pytest.mark.parametrize("plugin", plugins)
 def NO_test_logon_url(plugin):
