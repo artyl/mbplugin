@@ -14,7 +14,9 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('#account_info_block
                   'password_clear_js': "document.querySelector('#password').value=''",
                   'login_selector': '#username',
                   'password_selector': '#password',
-                  'submit_js': 'document.querySelector("#kc-login").click()'
+                  'submit_js': 'document.querySelector("#kc-login").click()',
+                  'captcha_checker': "document.querySelector(('.rt-captcha__image'))!=null",
+                  'captcha_focus': "document.getElementById('captcha').focus()"
                   }
 
 class browserengine(browsercontroller.BrowserController):

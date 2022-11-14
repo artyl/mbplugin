@@ -6,7 +6,7 @@ FROM python:3.9.2-buster
 RUN apt-get update && \
     apt-get install -y \
     chromium=89.0.4389.114-1~deb10u1 \
-    nodejs=10.24.0~dfsg-1~deb10u1
+    nodejs=10.24.0~dfsg-1~deb10u2
 
 WORKDIR /app
 
