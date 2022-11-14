@@ -59,7 +59,7 @@ if [ -f $util_path ]; then
         tag=`sed -n -e 's/## mbplugin v\([1-9]\.[^ ]*\).*/\1/p' mbplugin/changelist.md | tail -n 1`
         # Use separate Dockerfile for arm platform
         dfparam=""
-        if [ $(uname -p) == "aarch64" ]; then
+        if [ $(uname -m) == "aarch64" ]; then
             dfparam="-f mbplugin/docker/Dockerfile_arm"
         fi
         # Build image for playwright if not exists
