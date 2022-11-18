@@ -209,6 +209,7 @@ def getbalance_plugin(method, param_source):
                 logging.info(f'Jitter {j_time:.2f} seconds')
                 time.sleep(j_time)
             result = module.get_balance(param['login'], param['password'], storename, pkey=pkey)
+            result = store.correct_result(result)
             if type(result) != dict or 'Balance' not in result:
                 raise RuntimeError(f'В result отсутствует баланс')
             text = store.result_to_html(result)

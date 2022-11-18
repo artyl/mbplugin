@@ -85,6 +85,17 @@ def validate_json(data):
         return False  # Invalid JSON
     return True  # Valid JSON
 
+def correct_result(result):
+    'Дополнительные коррекции после проверки'
+    if type(result) != dict:
+        return result
+    if 'Balance' in result and 'Balance2' in result:
+        if options('balance2') == 'swap':
+            result['Balance'], result['Balance2'] = result['Balance2'], result['Balance']
+        elif options('balance2') == 'add':
+            result['Balance'] = result['Balance'] + result['Balance2']
+    return result
+
 class Feedback():
     '''Класс для создания функции обратной связи, используется чтобы откуда угодно кидать сообщения
     по ходу выполнения процесса например в телегу

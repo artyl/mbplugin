@@ -569,13 +569,14 @@ def check_plugin(ctx, bpoint, params, plugin, login, password):
         pdbpdb.set_break(module.__file__, bpoint)
         # module.get_balance(login,  password, storename)
         _ = login, password, storename  # dummy linter - use in pdbpdb.run
-        res = pdbpdb.run("module.get_balance(login,  password, storename)", globals(), locals())
+        result = pdbpdb.run("module.get_balance(login,  password, storename)", globals(), locals())
+        result = store.correct_result(result)
         # res = exec("httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])", globals(), locals())
         # breakpoint()
     else:
-        res = httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])
-    echo(f'{name}:\n{res}')
-    sys.exit(0 if 'Balance' in repr(res) else 1)
+        result = httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])
+    echo(f'{name}:\n{result}')
+    sys.exit(0 if 'Balance' in repr(result) else 1)
 
 
 @cli.command()
@@ -875,7 +876,7 @@ def browser(ctx, url):
 
 def mbplugin_ini_md_gen():
     'Генерирует mbplugin_ini.md с актуальным описанием ключей'
-    fn_md = store.abspath_join(store.settings.mbplugin_root_path, 'mbplugin', 'mbplugin_ini.md')
+    fn_md = os.path.join(os.path.split(os.path.abspath(__file__))[0], '..', 'mbplugin_ini.md')
     import settings
     data = []
     for sec in settings.ini:

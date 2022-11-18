@@ -51,6 +51,7 @@ def main():
         storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
         pkey = (login, f'{lang}_{plugin}')  # Пара (номер, оператор)
         result = module.get_balance(login, password, storename, pkey=pkey)
+        result = store.correct_result(result)
         if 'Balance' not in result:
             raise RuntimeError(f'В result отсутствует баланс')
     except Exception:
