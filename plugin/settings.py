@@ -354,7 +354,7 @@ operator_link = {
     'p_vscale': 'https://vds.selectel.ru/panel/login/',
     'p_yoomoney': 'https://yoomoney.ru/actions',
     'p_yota': 'https://my.yota.ru/selfcare/devices',
-    'p_zadarma': 'https://my.zadarma.com/auth/'
+    'p_zadarma': 'https://my.novofon.com/auth/'
 }
 
 header_html = '''
