@@ -2,7 +2,7 @@ import pytest, importlib, traceback, os, sys, shutil, time
 import conftest  # type: ignore # ignore import error
 from playwright.sync_api import sync_playwright
 from playwright_stealth import stealth_sync
-import store, browsercontroller
+import browsercontroller, store
 
 def page_evaluate(page, eval_string, default=None, args=[]):
     ''' page_evaluate из browsercontroller '''

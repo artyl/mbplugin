@@ -48,6 +48,9 @@ icon = '789C8D936B2CD5611CC73F6EB15CCA9AADB250C64E8C5C72ACCE4C6ED3668419725FD8B0
 login_url = 'https://cbr.ru/currency_base/daily'
 
 def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     result = {}
     user_agent = store.options('user_agent', pkey=store.get_pkey(login, plugin_name=__name__))
     if user_agent.strip() == '':

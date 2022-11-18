@@ -9,6 +9,9 @@ icon = '789C73F235636100033320D600620128666450804840E5918182BCF2A0C04A8AAA38E574
 api_url = f'https://sodexo.gift-cards.ru/api/1/'
 
 def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     result = {}
     cardno = login
     session = store.Session(storename, headers={'X-Requested-With': 'XMLHttpRequest'})

@@ -15,6 +15,9 @@ login_url = 'https://my.zadarma.com/auth/'
 login_checkers = ['<input[^>]*name="email"[^>]*', '<input[^>]*name="password"[^>]*', '<button[^>]*type="submit"[^>]*']
 
 def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()    
     logging.info(f'start get_balance {login}')
     result = {}
     user_agent = store.options('user_agent', pkey=store.get_pkey(login, plugin_name=__name__))

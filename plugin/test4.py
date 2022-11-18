@@ -2,7 +2,7 @@
 # -*- coding: utf8 -*-
 ''' пример плагина почти на чистом playwright без упрощенной логики '''
 import time, re, json, logging, os
-import browsercontroller
+import browsercontroller, store
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
@@ -35,6 +35,8 @@ class browserengine(browsercontroller.BrowserController):
 
 def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     return browserengine(login, password, storename, plugin_name=__name__).main()
 
 if __name__ == '__main__':

@@ -248,7 +248,7 @@ class Session():
         return response
 
 def get_pkey(login, plugin_name):
-    'Все взятия pkey через эту функцию, чтобы в случае чего нестыковки исправить здесь '
+    'Все взятия pkey - пары (логин, плагин) через эту функцию, чтобы в случае чего нестыковки исправить здесь '
     lang = 'p'
     return (login, f'{lang}_{plugin_name}')
 
@@ -580,6 +580,16 @@ def ini_by_expression(expression):
     else:
         _, section, key = path.split('\\')
     return f'set {key}={options(key, section=section)}'
+
+
+def update_settings(kwargs):
+    for key, val in kwargs.items():
+        if key in settings.ini['Options']:
+            settings.ini['Options'][key] = val
+            valid, msg = option_validate(key, 'Options')
+            if not valid:
+                raise RuntimeError(msg)
+            settings.ini['Options'][key] = val
 
 
 def turn_logging(httplog=False, logginglevel=None, force_turn=False):

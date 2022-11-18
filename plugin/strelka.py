@@ -23,6 +23,9 @@ def get_card_info(cardnum):
 
 
 def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     result = {}
     card_info = get_card_info(login)
     result['Balance'] = card_info['balance']/100.

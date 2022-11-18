@@ -101,6 +101,8 @@ def get_moex(market, security, cnt, qu=None, **kwargs):
 
 
 def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+
     def thread_call_market(market, security, cnt, qu):
         logging.debug(f'Collect {market}:{security}')
         try:
@@ -151,6 +153,8 @@ def get_balance(login, password, storename=None, **kwargs):
             data.append({'security': '_'+val, 'price': round(k[val], 2), 'value': round(k[val], 2), 'cnt': cnt, 'currency': val, 'value_priv': round(k[val]*cnt, 2)})
         return data
 
+    store.update_settings(kwargs)
+    store.turn_logging()
     result = {}
     user_agent = store.options('user_agent', pkey=store.get_pkey(login, plugin_name=__name__))
     session = store.Session(storename)  # Используем костылем для хранения предыдущих данных

@@ -15,6 +15,9 @@ re_balance = r'(?usi)info-value">(.*?)</div'
 re_prod_id = r'(?usi)data-product-id="(.*?)"'
 
 def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     logging.info(f'start get_balance {login}')
     result = {}
     session = store.Session(storename)

@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import browsercontroller
+import browsercontroller, store
 
 icon = '789c73f235636100033320d600620128666450804800e58ff041300cfcffff1f37dee5f59f20a6a77e5c62c35d3fb9614b2ca6461ce21327643e3e75a4e81fcaf653224f41fc02005a870287'
 
@@ -26,9 +26,10 @@ class browserengine(browsercontroller.BrowserController):
             ])
 
 
-
 def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     return browserengine(login, password, storename, plugin_name=__name__).main()
 
 if __name__ == '__main__':

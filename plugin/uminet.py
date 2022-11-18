@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import browsercontroller
+import browsercontroller, store
 
 login_url = 'https://lk.uminet.ru/'
 user_selectors = {'chk_lk_page_js': "document.querySelector('form input[id=bootstrap-password]') == null",
@@ -31,6 +31,8 @@ class browserengine(browsercontroller.BrowserController):
 
 def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     return browserengine(login, password, storename, plugin_name=__name__).main()
 
 

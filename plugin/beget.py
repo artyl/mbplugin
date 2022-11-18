@@ -18,6 +18,9 @@ def is_json(myjson):
     return True
 
 def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     logging.info(f'start get_balance {login}')
     baseurl = 'https://api.beget.com'
     url = 'https://api.beget.com/api/user/getAccountInfo?login=' + login + '&passwd=' + password + '&output_format=json'

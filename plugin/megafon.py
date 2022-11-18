@@ -165,6 +165,9 @@ def get_balance_api(login, password, storename=None, **kwargs):
     return result
 
 def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     pkey = store.get_pkey(login, plugin_name=__name__)
     if store.options('plugin_mode', pkey=pkey).upper() == 'WEB':
         return get_balance_browser(login, password, storename)

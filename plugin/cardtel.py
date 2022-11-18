@@ -12,6 +12,9 @@ login_url = 'https://my.cardtel.ru/home'
 login_checkers = ['<input[^>]*name="authpwd"[^>]*', '<input[^>]*name="authpwd2"[^>]*', '<input[^>]*name="authlogin"[^>]*', '<input[^>]*type="button"[^>]*']
 
 def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     logging.info(f'start get_balance {login}')
     result = {}
     session = store.Session(storename)

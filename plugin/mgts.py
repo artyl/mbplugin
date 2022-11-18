@@ -8,20 +8,20 @@ icon = '789c73f235636100033320d600620128666450804800e58ff041300c9c6c669801c49f80
 # Для тестов выносим параметры наружу, чтобы их можно было взять тестами
 login_url = 'https://auth.mgts.ru/login/b2c'
 # login_url = 'http://localhost:9000/'  # for debug
-user_selectors={
-                'chk_lk_page_js': "document.getElementById('loginform-username')==null && document.getElementById('loginform-password')==null",
-                'chk_login_page_js': "document.getElementById('loginform-username')!=null || document.getElementById('loginform-password')!=null",
-                'chk_submit_after_login_js': "document.getElementById('loginform-username')!=null && document.getElementById('loginform-password')==null",
-                'submit_after_login_js': "document.getElementById('submit').click()", # js для нажатия на далее после логона
-                'login_clear_js': "document.getElementById('loginform-username').value",
-                'login_selector': '#loginform-username',
-                }
+user_selectors = {
+    'chk_lk_page_js': "document.getElementById('loginform-username')==null && document.getElementById('loginform-password')==null",
+    'chk_login_page_js': "document.getElementById('loginform-username')!=null || document.getElementById('loginform-password')!=null",
+    'chk_submit_after_login_js': "document.getElementById('loginform-username')!=null && document.getElementById('loginform-password')==null",
+    'submit_after_login_js': "document.getElementById('submit').click()", # js для нажатия на далее после логона
+    'login_clear_js': "document.getElementById('loginform-username').value",
+    'login_selector': '#loginform-username',
+}
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
-        self.sleep(3*self.force)
-        balance  = self.page_evaluate("document.querySelector('.account-info_balance_value').innerText.replace(/[^0-9,\.-]/g,'').replace(',','.')")
+        self.sleep(3 * self.force)
+        balance = self.page_evaluate("document.querySelector('.account-info_balance_value').innerText.replace(/[^0-9,\.-]/g,'').replace(',','.')")
         self.result['Balance'] = float(balance)
         self.responses[f'GET URL:{self.page.url}$'] = self.page.content()  # т.к. мы парсим страницу, то для лога интересно ее содержимое
         try:
@@ -33,6 +33,8 @@ class browserengine(browsercontroller.BrowserController):
 
 def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     return browserengine(login, password, storename, plugin_name=__name__).main()
 
 if __name__ == '__main__':

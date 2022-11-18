@@ -33,6 +33,9 @@ def find_by_regexp(text, param, regexp, join=False, uslugi_list=False, uslugi_on
         return {}
 
 def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     logging.info(f'start get_balance {login}')
     result = {}
     session = store.Session(storename)
@@ -41,7 +44,7 @@ def get_balance(login, password, storename=None, **kwargs):
         raise RuntimeError(f'POST Login page {login_url} error: status_code {response0.status_code}')
     try:
         response0.json()["load"]
-    except:
+    except Exception:
         raise RuntimeError(f'POST Login page {login_url} error: not found load {store.exception_text}')        
     url = f'https://service.ntvplus.ru{response0.json()["load"]}'
     response = session.get(url)

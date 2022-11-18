@@ -6,7 +6,11 @@ import store
 
 def get_balance(login, password, storename=None, wait=True, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     result = {}
+    logging.info('Start')
+    logging.warning('Start warning')
     session = store.Session(storename)
     result = {
         'Balance': 124.45 + random.randint(1, 5),  # double
@@ -41,6 +45,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     # Если мы получаем несколько результатов в секунду, то у нас ломаются отчеты.
     # Так что чтобы не чинить что не сломано просто чуть подождем
     time.sleep(1 if wait else 0)
+    logging.info('End')
     return result
 
 

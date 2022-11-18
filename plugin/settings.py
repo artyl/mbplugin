@@ -68,7 +68,7 @@ ini = {
         # Уровень логирования
         'logginglevel_': {'descr': 'Уровень логирования', 'type': 'select', 'variants': 'DEBUG INFO WARNING ERROR CRITICAL'},
         'logginglevel': 'INFO',
-        # Кидать логи в консоль, удобно для докера (чтобы работал docker log), при использовании с MobileBalance должно быть выключено
+        # Кидать логи в консоль (это дополнительный логгер), удобно для докера (чтобы работал docker log), при использовании с MobileBalance должно быть выключено
         'logconsole_': {'descr': 'Вести дополнительное логирование в консоль', 'type': 'checkbox'},
         'logconsole': '0',
         # Папка для хранения сессий

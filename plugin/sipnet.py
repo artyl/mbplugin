@@ -17,6 +17,9 @@ re_tariff = r'(?usi)status-work.*?>.*?>.*?>(.*?)<'
 re_sipid = r'(?usi)SIP ID.*?>.*?>(.*?)<'  # SIP ID (лицевой счет)
 
 def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     logging.info(f'start get_balance {login}')
     result = {}
     session = store.Session(storename)
