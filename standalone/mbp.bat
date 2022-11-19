@@ -1,6 +1,5 @@
 @echo OFF
-%~d0 
-cd "%~dp0"
+cd /D "%~dp0"
 
 if "%mbpluginpythonpath%"=="" SET mbpluginpythonpath=mbplugin\python
 

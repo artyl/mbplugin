@@ -1,6 +1,5 @@
 @echo OFF
-%~d0 
-cd "%~dp0\.."
+cd /D "%~dp0\.."
 set MBPLUGIN_WRITE_DIAG=YES
 if EXIST mbplugin\log\setup_diag.txt del mbplugin\log\setup_diag.txt 
 
