@@ -40,27 +40,31 @@ def test_ini_class_phones_ini_write():
 
 
 @pytest.fixture(scope="function", params=[
-    ({'Balance': 124.45, 'SMS': 43, 'Min': 222}, '<Response><Balance>124.45</Balance><SMS>43</SMS><Min>222</Min></Response>'),
-    ({'Balance': 124.45, 'SMS': '43', 'Min': '222'}, '<Response><Balance>124.45</Balance><SMS>43</SMS><Min>222</Min></Response>'),
+    ({'Balance': 123.45, 'SMS': 43, 'Min': 222}, '<Response><Balance>123.45</Balance><SMS>43</SMS><Min>222</Min></Response>'),
+    ({'Balance': -224.45, 'SMS': 53.3, 'Min': 333.3}, '<Response><Balance>-224.45</Balance><SMS>53</SMS><Min>333</Min></Response>'),
+    ({'Balance': 324.45, 'SMS': '63', 'Min': '444'}, '<Response><Balance>324.45</Balance><SMS>63</SMS><Min>444</Min></Response>'),
 ])
 def param_test_result_to_xml(request):
     return request.param
 
 def test_result_to_xml(param_test_result_to_xml):
     (input, expected_result) = param_test_result_to_xml
-    result = store.result_to_xml(input)
+    input_prep = store.fix_num_params(input, int_params=['SMS', 'Min'])
+    result = store.result_to_xml(input_prep)
     print(f"input={input} result={result} expected_result={expected_result}")
     assert result == expected_result
 
 @pytest.fixture(scope="function", params=[
-    ({'Balance': 124.45, 'SMS': 43, 'Min': 222}, '<html><meta charset="windows-1251"><p id=response>{"Balance": 124.45, "SMS": 43, "Min": 222}</p></html>'),
-    ({'Balance': 124.45, 'SMS': '43', 'Min': '222'}, '<html><meta charset="windows-1251"><p id=response>{"Balance": 124.45, "SMS": 43, "Min": 222}</p></html>'),
+    ({'Balance': 424.45, 'SMS': 43, 'Min': 222}, '<html><meta charset="windows-1251"><p id=response>{"Balance": 424.45, "SMS": 43, "Min": 222}</p></html>'),
+    ({'Balance': -524.45, 'SMS': 53.0, 'Min': 333.0}, '<html><meta charset="windows-1251"><p id=response>{"Balance": -524.45, "SMS": 53, "Min": 333}</p></html>'),
+    ({'Balance': 624.45, 'SMS': '63', 'Min': '444'}, '<html><meta charset="windows-1251"><p id=response>{"Balance": 624.45, "SMS": 63, "Min": 444}</p></html>'),
 ])
 def param_test_result_to_html(request):
     return request.param
 
 def test_result_to_html(param_test_result_to_html):
     (input, expected_result) = param_test_result_to_html
-    result = store.result_to_html(input)
+    input_prep = store.fix_num_params(input, int_params=['SMS', 'Min'])
+    result = store.result_to_html(input_prep)
     print(f"input={input} result={result} expected_result={expected_result}")
     assert result == expected_result
