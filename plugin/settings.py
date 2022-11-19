@@ -18,7 +18,9 @@ PHONE_INI_KEYS_LOWER = ['region', 'monitor', 'alias', 'number', 'password', 'mdo
 MODE_LIB = 'lib'
 MODE_MB = 'mb'
 mode = MODE_LIB
+# папка, в которой лежит папка mblugin и по дефолту там будет ini, база и т.п.
 mbplugin_root_path = None
+# путь к mbplugin.ini по дефолту он находится в папке mbplugin_root_path
 mbplugin_ini_path = None
 logging_on = False
 
@@ -27,7 +29,6 @@ mbplugin_ini = 'mbplugin.ini'
 
 # Кодировка для windows cp1251, для остальных utf-8
 ini_codepage = locale.getpreferredencoding()
-# В нормальном случае mbplugin_root_path и mbplugin_ini_path - одна и та же папка
 # Список открытых ключей для подписи файла контрольных сумм для проверки при обновлении из интернета
 public_keys = [b'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtD5e5dyS4dmHWLL1tx2ZfBoqCY5G72sRYllLvWMX0R sign-key-20210818']
 # сюда пропишем сразу возможные варианты для пути хрома

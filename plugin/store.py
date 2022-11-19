@@ -11,7 +11,10 @@ def abspath_join(*argv):
     'собираем в путь все переданные куски, если получившийся не абсолютный, то приделываем к нему путь до корня'
     path = os.path.join(*argv)
     if not os.path.isabs(path):
-        path = os.path.abspath(os.path.join(settings.mbplugin_root_path, path))
+        root = settings.mbplugin_root_path
+        if root is None:
+            root = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', '..'))
+        path = os.path.abspath(os.path.join(root, path))
     return path
 
 def session_folder(storename):

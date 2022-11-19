@@ -11,7 +11,7 @@ import click
 PLUGIN_PATH = os.path.abspath(os.path.split(__file__)[0])
 # Папка корня standalone версии на 2 уровня вверх (оно же settings.mbplugin_root_path)
 ROOT_PATH = os.path.abspath(os.path.join(PLUGIN_PATH, '..', '..'))
-# Для пути с симлинками в unix-like системах приходится идти на трюки (см комментарий к блоку в settings):
+# Для пути с симлинками в unix-like системах приходится идти на трюки (см комментарий в store.switch_to_mb_mode):
 if sys.platform != 'win32' and 'PWD' in os.environ:
     if os.path.exists(os.path.abspath(os.path.join(os.environ['PWD'], 'mbplugin', 'plugin', 'util.py'))):
         ROOT_PATH = os.environ['PWD']
