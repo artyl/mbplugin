@@ -103,15 +103,15 @@ def fix_num_params(result, int_params):
             result[k] = round(v, 2)  # Чтобы не было паразитных микрокопеек
     return result
 
-def correct_result(result):
+def correct_result(result, pkey):
     'Дополнительные коррекции после проверки'
     if type(result) != dict:
         return result
     result = fix_num_params(result, int_params=['SMS', 'Min'])
     if 'Balance' in result and 'Balance2' in result:
-        if options('balance2') == 'swap':
+        if options('balance2', pkey=pkey) == 'swap':
             result['Balance'], result['Balance2'] = result['Balance2'], result['Balance']
-        elif options('balance2') == 'add':
+        elif options('balance2', pkey=pkey) == 'add':
             result['Balance'] = result['Balance'] + result['Balance2']
     return result
 
@@ -267,8 +267,11 @@ class Session():
         return response
 
 def get_pkey(login, plugin_name):
-    'Все взятия pkey - пары (логин, плагин) через эту функцию, чтобы в случае чего нестыковки исправить здесь '
+    '''Все взятия pkey - пары (логин, p_плагин) через эту функцию, чтобы в случае чего
+    нестыковки исправить здесь, если у плагина уже есть префикс p_ то второй раз не прибавляем '''
     lang = 'p'
+    if plugin_name.startswith(f'{lang}_'):
+        return (login, plugin_name)
     return (login, f'{lang}_{plugin_name}')
 
 def options(param, default=None, section='Options', listparam=False, mainparams={}, pkey=None, flush=False):

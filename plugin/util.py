@@ -528,7 +528,7 @@ def check_ini(ctx):
             if not nn.isdigit():
                 phones_ini_mess.append(f'Invalid section number [{nn}]')
                 continue
-            pkey = (phones_ini.ini[nn]['number'], phones_ini.ini[nn]['region'])
+            pkey = store.get_pkey(phones_ini.ini[nn]['number'], phones_ini.ini[nn]['region'])
             for key in phones_ini.ini[nn].keys():
                 valid, msg = store.option_validate(key, pkey=pkey)
                 if not valid:
@@ -570,7 +570,8 @@ def check_plugin(ctx, bpoint, params, plugin, login, password):
         # module.get_balance(login,  password, storename)
         _ = login, password, storename  # dummy linter - use in pdbpdb.run
         result = pdbpdb.run("module.get_balance(login,  password, storename)", globals(), locals())
-        result = store.correct_result(result)
+        pkey = store.get_pkey(login, plugin)
+        result = store.correct_result(result, pkey)
         # res = exec("httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])", globals(), locals())
         # breakpoint()
     else:

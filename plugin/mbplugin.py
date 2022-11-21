@@ -49,9 +49,9 @@ def main():
     dbengine.flags('setunic', f'{lang}_{plugin}_{login}', 'start')  # выставляем флаг о начале запроса
     try:
         storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
-        pkey = (login, f'{lang}_{plugin}')  # Пара (номер, оператор)
+        pkey = store.get_pkey(login, plugin)  # Пара (номер, оператор)
         result = module.get_balance(login, password, storename, pkey=pkey)
-        result = store.correct_result(result)
+        result = store.correct_result(result, pkey=pkey)
         if 'Balance' not in result:
             raise RuntimeError(f'В result отсутствует баланс')
     except Exception:

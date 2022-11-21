@@ -180,7 +180,7 @@ def getbalance_plugin(method, param_source):
         param['fplugin'] = param['plugin']  # наш параметр plugin на самом деле fplugin
     else:
         logging.error(f'Unknown method {method}')
-    pkey = (param['login'], param['fplugin'])
+    pkey = store.get_pkey(param['login'], param['fplugin'])  # (param['login'], param['fplugin'])
     store.options('logginglevel', flush=True)  # Запускаем, чтобы сбросить кэш и перечитать ini
     phone_items = store.ini('phones.ini').phones().get(pkey, {}).items()
     individual = ','.join([f'{k}={v}' for k, v in phone_items if k.lower() in store.settings.ini['Options'].keys()])
@@ -209,7 +209,7 @@ def getbalance_plugin(method, param_source):
                 logging.info(f'Jitter {j_time:.2f} seconds')
                 time.sleep(j_time)
             result = module.get_balance(param['login'], param['password'], storename, pkey=pkey)
-            result = store.correct_result(result)
+            result = store.correct_result(result, pkey=pkey)
             if type(result) != dict or 'Balance' not in result:
                 raise RuntimeError(f'В result отсутствует баланс')
             text = store.result_to_html(result)
@@ -326,7 +326,7 @@ def getreport(param=[]):
     html_table = []
     for line in table:
         html_line = []
-        pkey = (line['PhoneNumber'], line['Operator'])
+        pkey = store.get_pkey(line['PhoneNumber'], line['Operator'])
         uslugi = json.loads(responses.get(f"{line['Operator']}_{line['PhoneNumber']}", '{}')).get('UslugiList', '')
         subscription_keyword = [i.strip() for i in store.options('subscription_keyword', pkey=pkey).lower().split(',')]
         unwanted_kw = [kw for kw in subscription_keyword if kw in uslugi.lower()]  # встретившиеся нежелательные
@@ -454,7 +454,7 @@ def prepare_balance_mobilebalance(filter: str = 'FULL', params: typing.Dict = {}
 def prepare_balance_sqlite(filter: str = 'FULL', params: typing.Dict = {}):
     'Готовим данные для отчета из sqlite базы'
     def alert_suffix(line):
-        pkey = (line['PhoneNumber'], line['Operator'])
+        pkey = store.get_pkey(line['PhoneNumber'], line['Operator'])
         uslugi = json.loads(responses.get(f"{line['Operator']}_{line['PhoneNumber']}", '{}')).get('UslugiList', '')
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('error'):
             return f'<b> ! последняя попытка получить баланс завершилась ошибкой !</b>'
