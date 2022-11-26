@@ -109,10 +109,12 @@ def correct_result(result, pkey):
         return result
     result = fix_num_params(result, int_params=['SMS', 'Min'])
     if 'Balance' in result and 'Balance2' in result:
+        b, b2 = result['Balance'], result['Balance2']
         if options('balance2', pkey=pkey) == 'swap':
             result['Balance'], result['Balance2'] = result['Balance2'], result['Balance']
         elif options('balance2', pkey=pkey) == 'add':
             result['Balance'] = result['Balance'] + result['Balance2']
+        logging.info(f"Balance correct by option.Balance2={options('balance2', pkey=pkey)} {b},{b2} -> {result['Balance']}{result['Balance2']}")
     return result
 
 class Feedback():
@@ -505,14 +507,17 @@ class ini():
         data = {}
         for secnum, el in self.read().items():
             if secnum.isnumeric() and 'Monitor' in el:
-                key = (re.sub(r' #\d+', '', el['Number']), el['Region'])  # (1234567#1, mts) -> (1234567, mts)
-                data[key] = dict(el)
-                data[key]['NN'] = data[key]['nn'] = int(secnum)
-                data[key]['Alias'] = el.get('Alias', '')
-                data[key]['Region'] = el.get('Region', '')
-                data[key]['Number'] = el.get('Number', '')
-                data[key]['Monitor'] = el.get('Monitor', '')
-                data[key]['Password2'] = el.get('Password2', '')
+                try:
+                    key = (re.sub(r' #\d+', '', el['Number']), el['Region'])  # (1234567#1, mts) -> (1234567, mts)
+                    data[key] = dict(el)
+                    data[key]['NN'] = data[key]['nn'] = int(secnum)
+                    data[key]['Alias'] = el.get('Alias', '')
+                    data[key]['Region'] = el.get('Region', '')
+                    data[key]['Number'] = el.get('Number', '')
+                    data[key]['Monitor'] = el.get('Monitor', '')
+                    data[key]['Password2'] = el.get('Password2', '')
+                except Exception:
+                    raise RuntimeError(f'Parse phones.ini error {exception_text()} in section{secnum}') from None
                 if secnum in phones_add:
                     try:
                         # Проблема - configparser возвращает ключи в lowercase - так что приходится перебирать
@@ -521,7 +526,7 @@ class ini():
                             for k, v in phones_add[secnum].items():
                                 data[key][k] = v
                     except Exception:
-                        raise RuntimeError(f'Parse phones_add.ini error in section{secnum}')
+                        raise RuntimeError(f'Parse phones_add.ini error {exception_text()} in section{secnum}') from None
                 # Выравниваем все значения, которые в CapitalCase присваивая им значения из lower case
                 for k in data[key]:
                     if k.lower() != k and k.lower() in data[key]:
