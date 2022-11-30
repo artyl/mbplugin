@@ -18,10 +18,16 @@ class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         # self.login = self.login[-9:]
         self.do_logon(url=login_url, user_selectors=user_selectors)
+
+        #кликаем "старая версия" f.user_input_3.value='1'; jumpTo('_next')
+        self.page_evaluate( '''f.user_input_3.value='1'; jumpTo('_next');''')
+        self.sleep(2)
+
         # Кликаем на '_root/PERSONAL_INFO' или на '_root/USER_INFO' т.е. '_root/...._INFO'
         self.page_evaluate('''document.querySelector('span[id^="_root/"][id$=INFO]').click()''')
         self.page_wait_for(loadstate=True)
         self.sleep(2)
+
         self.wait_params(params=[
             {'name': 'Balance', 'jsformula': r"parseFloat(document.querySelector('#balance, #BALANCE').innerText.replace('\u2012','-').replace(/[^\d\.,-]/g, '').replace(',','.'))"},
             {'name': 'TarifPlan', 'jsformula': "document.querySelector('#TRPL, #TPLAN').innerText"},
