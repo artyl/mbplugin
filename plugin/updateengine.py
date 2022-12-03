@@ -99,7 +99,7 @@ class UpdaterEngine():
         '''возвращает словарь release от указанной версии
         При первом обращении получаем информацию с github
         LATEST - ищем последний релиз согласно флагам prerelease и draft
-        Если указанный релиз не найден - падаем RuntimeError'''
+        Если указанный релиз не найден - падаем raise RuntimeError'''
         if len(self.releases) == 0:
             url = 'https://api.github.com/repos/artyl/mbplugin/releases'
             if 'ANOTHER' in os.environ.get('DEBUG_UPDATE', ''):

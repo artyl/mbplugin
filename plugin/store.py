@@ -110,11 +110,14 @@ def correct_result(result, pkey):
     result = fix_num_params(result, int_params=['SMS', 'Min'])
     if 'Balance' in result and 'Balance2' in result:
         b, b2 = result['Balance'], result['Balance2']
-        if options('balance2', pkey=pkey) == 'swap':
+        if options('balances', pkey=pkey) == 'swap':
             result['Balance'], result['Balance2'] = result['Balance2'], result['Balance']
-        elif options('balance2', pkey=pkey) == 'add':
-            result['Balance'] = result['Balance'] + result['Balance2']
-        logging.info(f"Balance correct by option.Balance2={options('balance2', pkey=pkey)} {b},{b2} -> {result['Balance']}{result['Balance2']}")
+        elif options('balances', pkey=pkey) == 'add':
+            try:
+                result['Balance'] = float(result['Balance']) + float(result['Balance2'])
+            except Exception:
+                logging.error(f"Addition error for {repr(result['Balance'])}+{repr(result['Balance2'])}: {exception_text()}")
+        logging.info(f"Balance correct by option.balances={options('balances', pkey=pkey)} {[b, b2]} -> {[result['Balance'], result['Balance2']]}")
     return result
 
 class Feedback():

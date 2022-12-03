@@ -175,9 +175,9 @@ ini = {
         # В каких единицах идет выдача по интернету (варианты - см UNIT в начале файла settings.py)
         'interunit_': {'descr': 'В каких единицах идет выдача по интернету', 'type': 'select', 'variants': 'TB GB MB KB'},
         'interunit': 'GB',
-        # Что делать с полем balance2. ничего/поменять местами с balance/прибавить к балансу
-        'balance2_': {'descr': 'Что делать с полем balance2', 'type': 'select', 'variants': 'nochange swap add'},
-        'balance2': 'nochange',
+        # Что делать с полями balance и balance2. ничего/(поменять местами с balance)/(прибавить к балансу)
+        'balances_': {'descr': 'Что делать с полем balances', 'type': 'select', 'variants': 'nochange swap add'},
+        'balances': 'nochange',
         # Слова, которые встречаются в названиях тарифов, про которые нужно выдать предупреждение и красить номер, нежелательные unwanted услуги
         'subscription_keyword_': {'descr': 'Признаки подписок, через запятую', 'type': 'text'},
         'subscription_keyword': '90 дней,TV Club,Услуга4,unwanted,нежелательная',
