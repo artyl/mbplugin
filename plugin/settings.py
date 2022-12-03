@@ -287,7 +287,9 @@ ini = {
     },
     'HttpServer': {  # Раздел mbplugin.ini [HttpServer]
         'start_http_': {'descr': 'Стартовать http сервер', 'type': 'checkbox'},
-        'start_http': 1,  # Стартовать http сервер
+        'start_http': 1,  # Стартовать http сервер - это полный запрет на запуск http сервера
+        'autostart_http_': {'descr': 'Записать http сервер в автозагрузку при установке', 'type': 'checkbox'},
+        'autostart_http': 1,  # Стартовать http сервер при старте OS
         'port_': {'descr': 'Порт http сервера', 'type': 'text', 'validate': lambda i: i.isdigit()},
         'port': '19777',  # порт http сервера с отчетами
         # host '127.0.0.1' - доступ только локально, '0.0.0.0' - разрешить доступ к по сети

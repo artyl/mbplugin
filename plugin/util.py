@@ -249,14 +249,15 @@ def web_server_autostart(ctx, turn):
             shortcut = shell.CreateShortCut(lnk_path)
             shortcut.Targetpath = os.path.join(ROOT_PATH, 'mbplugin', 'run_webserver.bat')
             shortcut.save()
-            if turn == 'on':
-                if str(store.options('start_http', section='HttpServer')) == '1':
-                    # %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
-                    shutil.copy(lnk_path, lnk_startup_path)
-                    os.system(f'"{lnk_startup_full_name}"')
-                else:
-                    echo(f'Start http server disabled in mbplugin.ini (start_http=0)')
-            if turn == 'off':
+            start_http = str(store.options('start_http', section='HttpServer'))
+            autostart_http = str(store.options('autostart_http', section='HttpServer'))
+            if turn == 'on' and start_http == '1' and autostart_http == '1':
+                # %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
+                shutil.copy(lnk_path, lnk_startup_path)
+                os.system(f'"{lnk_startup_full_name}"')
+            else:  # if turn == 'off':
+                if not (start_http == '1' and autostart_http == '1'):
+                    echo(f'Start http server disabled in mbplugin.ini ({start_http=}, {autostart_http=})')
                 if os.path.exists(lnk_startup_full_name):
                     os.remove(lnk_startup_full_name)
             time.sleep(4)
