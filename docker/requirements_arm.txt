@@ -11,7 +11,7 @@ colorama==0.4.4
 cryptography==3.4.8
 #greenlet==1.1.1 installed by playwright dependency
 idna==2.10
-Pillow==9.0.1
+Pillow==9.3.0
 #playwright==1.14.1 installed separately
 playwright-stealth==1.0.5
 psutil==5.8.0
