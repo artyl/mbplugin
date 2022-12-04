@@ -1,7 +1,6 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
 import os, sys, locale, time, io, re, json, pickle, requests, urllib.request, configparser, pprint, zipfile, logging, traceback, collections, typing
-from os.path import abspath
 import settings
 
 def exception_text():
@@ -61,6 +60,7 @@ def find_file_up(folder, filename):
 def switch_to_mb_mode():
     'Переключаемся в режим mbplugin находим ini в корне и т.п.'
     settings.mode = settings.MODE_MB
+    logging.info('Switch to MODE_MB')
     # По умолчанию вычисляем эту папку как папку на 2 уровня выше папки с этим скриптом
     # Этот путь используем когда обращаемся к подпапкам папки mbplugin
     settings.mbplugin_root_path = os.path.abspath(os.path.join(os.path.split(__file__)[0], '..', '..'))
@@ -290,7 +290,7 @@ def options(param, default=None, section='Options', listparam=False, mainparams=
     mbplugin.ini < phones.ini < mainparam(cmd -p options)
     '''
     if settings.mode != settings.MODE_MB:
-        return settings.ini[section][param]
+        return settings.ini.get(section, {}).get(param, default)
     if not hasattr(options, 'mainparams'):
         options.mainparams = {}
     if len(mainparams) > 0:
@@ -596,12 +596,15 @@ def ini_by_expression(expression):
 
 def update_settings(kwargs):
     for key, val in kwargs.items():
+        key = key.lower()
         if key in settings.ini['Options']:
             settings.ini['Options'][key] = val
             valid, msg = option_validate(key, 'Options')
             if not valid:
                 raise RuntimeError(msg)
             settings.ini['Options'][key] = val
+        else:
+            logging.error(f'Skip unknown key {key}={val}')
 
 
 def turn_logging(httplog=False, logginglevel=None, force_turn=False):

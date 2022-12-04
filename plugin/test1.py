@@ -9,7 +9,9 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     store.update_settings(kwargs)
     store.turn_logging()
     result = {}
-    logging.info('Start')
+    logging.info(f"Start show_chrome={store.options('show_chrome')}")
+    logging.info(f"Start {kwargs=}")
+
     logging.warning('Start warning')
     session = store.Session(storename)
     result = {
@@ -35,11 +37,17 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         'Expired': 'Дата истечения баланса/платежа',
         'ObPlat': 14,   # double Сумма обещанного платежа
         'Internet': 1234.45,  # double Кол-во оставшегося/потраченного трафика
-        # 'ErrorMsg':	'Сообщение об ошибке', # Если оо есть в Reponce то это ошибка
+        # 'ErrorMsg':	'Сообщение об ошибке', # Если оно есть в Response то это ошибка
         'UslugiOn': '2/8',
         # Это будет показано в hover, если включено
         'UslugiList': 'Услуга1\t10р\nУслуга2\t20р\nУслуга3\t30р\nУслуга4\t40р'
     }
+    # для теста можно передавать значения result как параметры
+    for key in result:
+        if store.options(key, None):
+            result[key] = store.options(key, None)
+        if key.lower() in kwargs:
+            result[key] = kwargs.get(key.lower(), None)
     session.save_session()
     # В реальном случае мы получаем баланс гораздо больше чем за секунду
     # Если мы получаем несколько результатов в секунду, то у нас ломаются отчеты.
