@@ -31,7 +31,11 @@ class browserengine(browsercontroller.BrowserController):
                 'jsformula': f'data.accounts.filter(el => el.number=="{self.acc_num}")[0].accountId',
                 # 'pformula': f"[el['accountId'] for el in data['accounts'] if el['number']=='{self.acc_num}']"
             }])  # Это промежуточные данные их не берем в результат
-            accountId = res1['#accountId']  # Нам нужен accountId чтобы искать остальные данные
+            try:
+                accountId = res1.get['#accountId']  # Нам нужен accountId чтобы искать остальные данные
+            except Exception:
+                logging.error(f'Not found #accountId: {store.exception_text()}')
+                return
         # Теперь со страницы client-api/getAccountBalanceV2 возьмем Balance (по accountId)
         # Есть несколько версий ЛК и в разных данные расположены на разных страницах ждем появления какого-нибудь
         for i in range(20):
@@ -41,7 +45,8 @@ class browserengine(browsercontroller.BrowserController):
             if v2_lk or api_lk:
                 break
         else:
-            raise RuntimeError(f'Not found page with balance')
+            logging.error(f'Not found page with balance')
+            return
         if v2_lk:
             logging.info(f'Use client-api/getAccountBalanceV2')
             self.wait_params(params=[
