@@ -460,3 +460,4 @@ ADD: Новая опция в секции HttpServer - autostart_http если 
 
 ## mbplugin v1.00.44 (04.12.22) 
 FIX: НЕ Исправлено залипание переменных при использовании плагинов как python module  
+FIX: rostelekom api lk 

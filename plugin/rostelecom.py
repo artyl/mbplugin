@@ -22,21 +22,6 @@ class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         accountId = 0
-        # Если в логине указан лицевой счет, то нам нужно узнать accountId чтобы запросить баланс по конкретному ЛС
-        if self.acc_num != '':
-            # Сначала из файла client-api/getAccounts получаем accountId по номеру лицевого счета
-            res1 = self.wait_params(params=[{
-                'name': '#accountId',  # Помечаем решеткой, потому что не берем в результат
-                'url_tag': ['client-api/getAccounts'],
-                'jsformula': f'data.accounts.filter(el => el.number=="{self.acc_num}")[0].accountId',
-                # 'pformula': f"[el['accountId'] for el in data['accounts'] if el['number']=='{self.acc_num}']"
-            }])  # Это промежуточные данные их не берем в результат
-            try:
-                accountId = res1.get['#accountId']  # Нам нужен accountId чтобы искать остальные данные
-            except Exception:
-                logging.error(f'Not found #accountId: {store.exception_text()}')
-                return
-        # Теперь со страницы client-api/getAccountBalanceV2 возьмем Balance (по accountId)
         # Есть несколько версий ЛК и в разных данные расположены на разных страницах ждем появления какого-нибудь
         for i in range(20):
             self.sleep(1)
@@ -47,6 +32,30 @@ class browserengine(browsercontroller.BrowserController):
         else:
             logging.error(f'Not found page with balance')
             return
+        # Если в логине указан лицевой счет, то нам нужно узнать accountId чтобы запросить баланс по конкретному ЛС
+        if self.acc_num != '':
+            # Сначала из файла client-api/getAccounts получаем accountId по номеру лицевого счета
+            if v2_lk:
+                res1 = self.wait_params(params=[{
+                    'name': '#accountId',  # Помечаем решеткой, потому что не берем в результат
+                    'url_tag': ['client-api/getAccounts'],
+                    'jsformula': f'data.accounts.filter(el => el.number=="{self.acc_num}")[0].accountId',
+                }])  # Это промежуточные данные их не берем в результат
+                try:
+                    accountId = res1.get['#accountId']  # Нам нужен accountId чтобы искать остальные данные
+                except Exception:
+                    logging.error(f'Not found #accountId: {store.exception_text()}')
+                    return
+            if api_lk:
+                # Т.к. этого варианта у меня нет, то понять как что брать из присланных примеров не смог а 
+                # баланс в таком варианте беру первый из присутствующих в л.к.
+                pass
+                # res1 = self.wait_params(params=[{
+                #    'name': '#accountId',  # Помечаем решеткой, потому что не берем в результат
+                #    'url_tag': ['users/current$'],
+                #    'jsformula': f'data.profile.accounts.filter(el=>el.id=="{self.acc_num}")[0].elk_account_id',
+                # }])  # Это промежуточные данные их не берем в результат
+        # Теперь со страницы client-api/getAccountBalanceV2 возьмем Balance (по accountId)
         if v2_lk:
             logging.info(f'Use client-api/getAccountBalanceV2')
             self.wait_params(params=[
