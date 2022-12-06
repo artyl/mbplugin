@@ -272,7 +272,7 @@ class Dbengine():
         qtimes = [line[qtimes_num] for line in dbdata]  # Список всех времен получения баланса
         qtimes_max = {max([k for k in qtimes if k.startswith(j)]) for j in {i.split()[0] for i in qtimes}}  # Последние даты получения баланса за сутки
         table = []  # результат - каждая строчка словарь элементов
-        fields = store.options('HoverHistoryFormat', pkey=pkey).split(',')
+        fields = [i.strip() for i in store.options('HoverHistoryFormat', pkey=pkey).split(',')]
         # выкидываем неинтересные колонки Там где только нули и None
         fields = [i for i in fields if i in dbheaders and dbdata_sets[dbheaders.index(i)] != set()]
         for line in dbdata:

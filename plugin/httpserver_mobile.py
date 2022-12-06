@@ -319,7 +319,7 @@ def getreport(param=[]):
         table_format = 'NN,Alias,' + table_format  # Если старый ini то этих столбцов нет - добавляем
     table = [i for i in table if i['Alias'] != 'Unknown']  # filter Unknown
     table.sort(key=lambda i: [i['NN'], i['Alias']])  # sort by NN, after by Alias
-    header = table_format.strip().split(',')
+    header = [i.strip() for i in table_format.split(',')]
     # классы для формата заголовка
     header_class = {'Balance': 'p_b', 'RealAverage': 'p_r', 'BalDelta': 'p_r', 'BalDeltaQuery': 'p_r', 'NoChangeDays': 'p_r', 'CalcTurnOff': 'p_r', 'MinAverage': 'p_r', }
     html_header = ''.join([f'<th id="h{h}" class="order {header_class.get(h,"p_n")}">{dbengine.PhonesHText.get(h, h)}</th>' for h in header])
@@ -482,7 +482,7 @@ def prepare_balance_sqlite(filter: str = 'FULL', params: typing.Dict = {}):
     # table_format = 'Alias,PhoneNumber,Operator,Balance'
     # Если формат задан как перечисление полей через запятую - переделываем под формат
     if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
-        table_format = ' '.join([f'{{{i}}}' for i in table_format.strip().split(',')])
+        table_format = ' '.join([f'{{{i.strip()}}}' for i in table_format.split(',')])
     table = [i for i in table if i['Alias'] != 'Unknown']  # filter Unknown
     table.sort(key=lambda i: [i['NN'], i['Alias']])  # sort by NN, after by Alias
     table = filter_balance(table, filter, params)
