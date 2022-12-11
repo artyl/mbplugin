@@ -28,6 +28,7 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'Balance2', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.bonusAccount.points"},
             {'name': 'LicSchet', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.accountInfo.AccountID"},
             {'name': 'Expired', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.accountInfo.daysToLock"},
+            {'name': 'UslugiOn', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.accountInfo.TommorowMonthPay"},
             {'name': 'AnyString', 'url_tag': ['api/lk/cabinet'], 'jsformula': "data.bonusAccount.tier"},
         ])
 
