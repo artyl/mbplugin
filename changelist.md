@@ -458,7 +458,7 @@ FIX: И еще одно исправление для работы опции ba
 ADD: Новая опция в секции HttpServer - autostart_http если мы хотим пользоваться веб сервером, но не хотим его прописывать в автозапуск  
 !!!: Опция balance2 переименована в balances, надеюсь это достаточно экзотичная опция и ей пока не стали массово пользоваться) исправьте у себя в настройках если уже начали пользоваться  
 
-## mbplugin v1.00.44 (04.12.22)  Fix rostelekom, add onlime monthly fee
+## mbplugin v1.00.44 (11.12.22)  Fix rostelekom, add onlime monthly fee
 FIX: ~~Исправлено залипание переменных при использовании плагинов как python module~~  
 FIX: rostelekom api lk  
 ADD: onlime Add monthly fee (from d1mdev)  
