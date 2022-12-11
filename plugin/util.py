@@ -529,6 +529,9 @@ def check_ini(ctx):
             if not nn.isdigit():
                 phones_ini_mess.append(f'Invalid section number [{nn}]')
                 continue
+            if phones_ini.ini[nn].get('monitor', 'false').lower() != 'true':
+                phones_ini_mess.append(f'Section [{nn}] is not Monitor = TRUE, skip')
+                continue
             pkey = store.get_pkey(phones_ini.ini[nn]['number'], phones_ini.ini[nn]['region'])
             for key in phones_ini.ini[nn].keys():
                 valid, msg = store.option_validate(key, pkey=pkey)
