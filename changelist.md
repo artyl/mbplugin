@@ -463,5 +463,5 @@ FIX: ~~Исправлено залипание переменных при ис�
 FIX: rostelekom api lk  
 ADD: onlime Add monthly fee (from d1mdev)  
 
-## mbplugin v1.00.45 (11.13.22)  Fix main page web-server  
+## mbplugin v1.00.45 (13.12.22)  Fix main page web-server  
 FIX: Fix main page web-server  
