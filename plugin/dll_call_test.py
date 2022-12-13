@@ -24,7 +24,7 @@ def dll_call(plugin, cmd, login, password):
 
 if __name__ == '__main__':
 
-    if len(sys.argv) != 1+4:
+    if len(sys.argv) != 1 + 4:
         print(f'usage: {sys.argv[0]} plugin cmd(Info or Execute) login passw')
         sys.exit()
     plugin = sys.argv[1]

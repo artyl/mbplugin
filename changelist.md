@@ -462,3 +462,6 @@ ADD: Новая опция в секции HttpServer - autostart_http если 
 FIX: ~~Исправлено залипание переменных при использовании плагинов как python module~~  
 FIX: rostelekom api lk  
 ADD: onlime Add monthly fee (from d1mdev)  
+
+## mbplugin v1.00.45 (11.13.22)  Fix main page web-server  
+FIX: Fix main page web-server  

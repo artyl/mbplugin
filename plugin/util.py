@@ -88,7 +88,7 @@ def fix_embedded_python_path(ctx):
     if PLUGIN_PATH not in SYS_PATH_ORIGIN:
         try:
             echo(f'Add current path to sys.path by default')
-            txt = '\nimport os, sys\nsys.path.insert(0,os.path.abspath(os.path.split(sys.argv[0])[0]))\n'
+            txt = '\nimport os, sys\nsys.path.insert(0,os.path.abspath(os.path.abspath(os.path.dirname(__file__))))\n'
             if os.path.isdir(EMB_PYTHON_PATH):
                 open(os.path.join(EMB_PYTHON_PATH, 'sitecustomize.py'), 'a').write(txt)
             echo(f'OK {name}')

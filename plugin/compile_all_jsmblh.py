@@ -6,7 +6,7 @@ def recompile(pluginpath=None, verbose=False):
     if settings.mode != settings.MODE_MB:
         raise RuntimeError(f'Work only {settings.MODE_MB}. You in {settings.mode}')
     if pluginpath is None:
-        pluginpath = store.abspath_join(os.path.split(sys.argv[0])[0])
+        pluginpath = store.abspath_join(os.path.abspath(os.path.dirname(__file__)))
     sys.path.insert(0, pluginpath)
     port = store.options('port', section='HttpServer')
     tmpl = open(store.abspath_join(pluginpath, '..', 'jsmblhplugin', '_template_localweb.jsmb'), encoding='cp1251').read()

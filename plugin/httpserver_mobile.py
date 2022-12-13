@@ -1391,7 +1391,7 @@ class WebServer():
                     ct, text = 'text/html', HTML_NO_REPORT
             elif cmd.lower() == 'main':  # главная страница
                 port = store.options('port', section='HttpServer')
-                info = f'Mbplugin {store.version()} run on {socket.gethostname()}:{port} from {os.path.split(store.abspath(sys.argv[0]))[0]}<br>'
+                info = f'Mbplugin {store.version()} run on {socket.gethostname()}:{port} from {os.path.abspath(os.path.dirname(__file__))}<br>'
                 script = ''
                 if str(store.options('HttpConfigEdit')) == '0':
                     script = 'document.getElementById("call_editor").style="display:none"'
