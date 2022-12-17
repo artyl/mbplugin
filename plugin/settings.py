@@ -403,9 +403,9 @@ main_html = r'''
 '''
 
 table_template = {
-    'page': '''
+    'page': '''<!DOCTYPE html>
     <html>
-<head><title>MobileBalance</title><meta http-equiv="content-type" content="text/html; charset=windows-1251"></head>{style}
+<head><link rel="shortcut icon" href="/favicon.png" type="image/png"><title>MobileBalance</title><meta http-equiv="content-type" content="text/html; charset=windows-1251"></head>{style}
 <body style="font-family: Verdana; cursor:default">
 <table class="BackgroundTable">
 <tr><td class="hdr">Информация о балансе телефонов - MobileBalance Mbplugin {title} (<a class="hdr" href=/main>Перейти на главную</a>)</td></tr>
