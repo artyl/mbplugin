@@ -517,6 +517,7 @@ def send_telegram_over_requests(text=None, auth_id=None, filter: str = 'FULL', p
     text - сообщение, если не указано, то это баланс для телефонов у которых он изменился
     auth_id - список id через запятую на которые слать, если не указано, то берется список из mbplugin.ini
     """
+    store.switch_to_mb_mode()
     store.turn_logging(httplog=True)  # Т.к. сюда можем придти извне, то включаем логирование здесь
     if text is None:
         text = prepare_balance(filter, params)
@@ -1466,6 +1467,5 @@ def main():
 
 
 if __name__ == '__main__':
-    if settings.mode != settings.MODE_MB:
-        store.switch_to_mb_mode()
+    store.switch_to_mb_mode()
     main()

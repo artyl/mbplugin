@@ -924,8 +924,7 @@ def mbplugin_dockerfile_version():
             f.write(dockerfile)
 
 if __name__ == '__main__':
-    if settings.mode != settings.MODE_MB:
-        store.switch_to_mb_mode()
+    store.switch_to_mb_mode()
     cli(obj={})
 
 # ..\python\python -c "import updateengine;updateengine.create_signature()"

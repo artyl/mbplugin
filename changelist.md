@@ -465,3 +465,6 @@ ADD: onlime Add monthly fee (from d1mdev)
 
 ## mbplugin v1.00.45 (13.12.22)  Fix main page web-server  
 FIX: Fix main page web-server  
+
+## mbplugin v1.00.46 (17.12.22)  Fix tg bat sender  
+FIX: Fix send_tgbalance_onlysend.bat  

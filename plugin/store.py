@@ -57,8 +57,10 @@ def find_file_up(folder, filename):
             return path
     return folder
 
-def switch_to_mb_mode():
+def switch_to_mb_mode(force=False):
     'Переключаемся в режим mbplugin находим ini в корне и т.п.'
+    if settings.mode == settings.MODE_MB and not force:
+        return  # Уже в MODE_MB
     settings.mode = settings.MODE_MB
     logging.info('Switch to MODE_MB')
     # По умолчанию вычисляем эту папку как папку на 2 уровня выше папки с этим скриптом
