@@ -466,5 +466,6 @@ ADD: onlime Add monthly fee (from d1mdev)
 ## mbplugin v1.00.45 (13.12.22)  Fix main page web-server  
 FIX: Fix main page web-server  
 
-## mbplugin v1.00.46 (17.12.22)  Fix tg bat sender  
+## mbplugin v1.00.46 (17.12.22)  Fix tg bat sender, megafone new_api by default  
 FIX: Fix send_tgbalance_onlysend.bat  
+CHANGE: В связи с кончиной старого ЛК в мегафоне по умолчанию включен вариант NEW_API  

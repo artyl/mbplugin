@@ -71,7 +71,7 @@ def get_balance_browser(login, password, storename=None, **kwargs):
 def get_balance_api(login, password, storename=None, **kwargs):
     result = {}
     session = store.Session(storename)
-    new_api = kwargs.get('new_api') is True
+    new_api = kwargs.get('new_api') is True or kwargs.get('new_api') is None
     if new_api:
         api_url = 'https://api.megafon.ru/mlk/'
         logging.info('Use NEW api {api_url}')
