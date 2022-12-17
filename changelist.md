@@ -469,3 +469,4 @@ FIX: Fix main page web-server
 ## mbplugin v1.00.46 (17.12.22)  Fix tg bat sender, megafone new_api by default  
 FIX: Fix send_tgbalance_onlysend.bat  
 CHANGE: В связи с кончиной старого ЛК в мегафоне по умолчанию включен вариант NEW_API  
+FIX: show favicon  
