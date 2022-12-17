@@ -2,7 +2,7 @@
 @REM clean:
 @REM git clean -fXd
 set "ptime= "
-where ptime >nul 2>1&
+where ptime >nul 2>&1
 if %errorlevel%==0 set ptime=ptime
 
 if NOT "%1"=="" goto %1
