@@ -363,7 +363,7 @@ operator_link = {
 header_html = '''
 <!DOCTYPE html>
 <html>
-<head><link rel="shortcut icon" href="/favicon.png" type="image/png"></head>
+<head><link rel="shortcut icon" href="/favicon.png" type="image/png"><title>MobileBalance</title><meta http-equiv="content-type" content="text/html; charset=windows-1251"></head>
 <body>
 <a class="hdr" href=/main>Перейти на главную</a><br>
 '''
@@ -371,7 +371,7 @@ header_html = '''
 main_html = r'''
 <!DOCTYPE html>
 <html>
-<head><link rel="shortcut icon" href="/favicon.png" type="image/png"></head>
+<head><link rel="shortcut icon" href="/favicon.png" type="image/png"><title>MobileBalance</title><meta http-equiv="content-type" content="text/html; charset=windows-1251"></head>
 <body>
 %(info)s
 <a href=/report>View report</a><br>
