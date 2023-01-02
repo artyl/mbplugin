@@ -360,17 +360,13 @@ operator_link = {
     'p_zadarma': 'https://my.novofon.com/auth/'
 }
 
-header_html = '''
-<!DOCTYPE html>
-<html>
+header_html = '''<html>
 <head><link rel="shortcut icon" href="/favicon.png" type="image/png"><title>MobileBalance</title><meta http-equiv="content-type" content="text/html; charset=windows-1251"></head>
 <body>
 <a class="hdr" href=/main>Перейти на главную</a><br>
 '''
 
-main_html = r'''
-<!DOCTYPE html>
-<html>
+main_html = r'''<html>
 <head><link rel="shortcut icon" href="/favicon.png" type="image/png"><title>MobileBalance</title><meta http-equiv="content-type" content="text/html; charset=windows-1251"></head>
 <body>
 %(info)s
@@ -403,8 +399,7 @@ main_html = r'''
 '''
 
 table_template = {
-    'page': '''<!DOCTYPE html>
-    <html>
+    'page': '''<html>
 <head><link rel="shortcut icon" href="/favicon.png" type="image/png"><title>MobileBalance</title><meta http-equiv="content-type" content="text/html; charset=windows-1251"></head>{style}
 <body style="font-family: Verdana; cursor:default">
 <table class="BackgroundTable">
@@ -510,9 +505,7 @@ a.hdr { color: #FFFFFF}
 '''
 }
 
-editor_html = r'''
-<!DOCTYPE html>
-<html>
+editor_html = r'''<html>
 <head>
     <title>Editor</title>
     <meta http-equiv="Content-Type" content="text/html; charset=cp1251">
