@@ -7,10 +7,8 @@ icon = '789C73F235636100033320D600620128666450804840E5A905989999F1CAB359A833B0DB
 login_url = 'https://my.rt.ru'
 user_selectors = {'chk_lk_page_js': "document.querySelector('#account_info_block') != null",
                   'chk_login_page_js': "['#standard_auth_btn', '#username'].filter(el=> document.querySelector(el)!=null).length > 0",
-                  'before_login_js': """b1=document.querySelector('#standard_auth_btn');
-                  if(b1!==null){b1.click()};
-                  """,
-                  'login_clear_js': "document.querySelector('#username').value=''",
+                  'before_login_js': "document.querySelectorAll('button#standard_auth_btn').forEach(el=>el.click());",
+                  'login_clear_js': "document.querySelectorAll('div#t-btn-tab-login').forEach(el=>el.click());document.querySelector('#username').value=''",
                   'password_clear_js': "document.querySelector('#password').value=''",
                   'login_selector': '#username',
                   'password_selector': '#password',
