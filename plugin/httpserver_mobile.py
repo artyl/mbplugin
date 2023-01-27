@@ -312,6 +312,7 @@ def getreport(param=[]):
     responses = dbengine.responses()  # все ответы по запросам
     # номера провайдеры и логины из phones.ini
     num_format = '' if len(param) == 0 or not param[0].isnumeric() else str(int(param[0]))
+    groups = [p.replace('group_', '').lower() for p in param if p.startswith('group_')]
     table_format = store.options('table_format' + num_format, default=store.options('table_format', section='HttpServer'), section='HttpServer')
     table = db.report()
     phones = store.ini('phones.ini').phones()
@@ -327,6 +328,9 @@ def getreport(param=[]):
     for line in table:
         html_line = []
         pkey = store.get_pkey(line['PhoneNumber'], line['Operator'])
+        # Group of numbers (Indication) - use /group_aaa/group_bbb in url
+        if len(groups) > 0 and phones[pkey].get('indication', '').lower() not in groups:
+            continue
         uslugi = json.loads(responses.get(f"{line['Operator']}_{line['PhoneNumber']}", '{}')).get('UslugiList', '')
         subscription_keyword = [i.strip() for i in store.options('subscription_keyword', pkey=pkey).lower().split(',')]
         unwanted_kw = [kw for kw in subscription_keyword if kw in uslugi.lower()]  # встретившиеся нежелательные
@@ -1393,10 +1397,13 @@ class WebServer():
             elif cmd.lower() == 'main':  # главная страница
                 port = store.options('port', section='HttpServer')
                 info = f'Mbplugin {store.version()} run on {socket.gethostname()}:{port} from {os.path.abspath(os.path.dirname(__file__))}<br>'
+                phones = store.ini('phones.ini').phones()
+                groups = sorted(set([p['indication'] for p in phones.values() if 'indication' in p]))
+                group_urls = ' '.join([f'<a href=/report/group_{g}>Group_{g}</a> ' for g in groups])
                 script = ''
                 if str(store.options('HttpConfigEdit')) == '0':
                     script = 'document.getElementById("call_editor").style="display:none"'
-                ct, text = 'text/html; charset=cp1251', [settings.main_html % {'info': info, 'script': script}]
+                ct, text = 'text/html; charset=cp1251', [settings.main_html % {'group_urls': group_urls, 'info': info, 'script': script}]
             elif cmd.lower() == 'editcfg':  # вариант через get запрос
                 if str(store.options('HttpConfigEdit')) == '1':
                     ct, text, status, add_headers = self.editor(environ)

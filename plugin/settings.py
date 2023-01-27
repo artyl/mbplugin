@@ -371,6 +371,7 @@ main_html = r'''<html>
 <body>
 %(info)s
 <a href=/report>View report</a><br>
+%(group_urls)s<br>
 <button onclick="fetch('/getbalance_standalone').then(function(response) {return response})">Get balance request</button><br>
 <br>
 <a href=/schedule>View schedule</a><br>
