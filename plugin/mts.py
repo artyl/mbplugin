@@ -95,6 +95,11 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'Balance2', 'url_tag': ['for=api/cashback/account'], 'jsformula': "parseFloat(data.data.balance).toFixed(2)"},
             {'name': '#counters', 'url_tag': ['for=api/sharing/counters'], 'jsformula': "data.data.counters"},
         ])
+        if 'Balance' in self.result and 'Balance2' in self.result:
+            try:
+                self.result['Balance3'] = float(self.result['Balance']) + float(self.result['Balance2'])
+            except Exception:
+                logging.info(f'Не смогли сложить балансы {store.exception_text()}')
         if '#counters' in res1 and type(res1['#counters']) == list and len(res1['#counters']) > 0:
             counters = res1['#counters']
             # deadlineDate

@@ -476,3 +476,6 @@ FIX: Личный кабинет билайна в вебе стал очень 
 
 ## mbplugin v1.00.48 (02.01.23) remove DOCTYPE html
 FIX: Убрал DOCTYPE html из кода html страницы, оказалось что это не такое безобидное изменение как мне казалось, спасибо pasha00000 что разобрался с этим и написал про это [issue #32](https://github.com/artyl/mbplugin/issues/32)  
+
+## mbplugin v1.00.49 (28.01.23) mts balance3
+ADD: Добавил для MTS в поле Balance3 сумму Balance и Balance2, правда с появлением этой фичи опция balances становится немного сбивающей с толку  
