@@ -1399,7 +1399,7 @@ class WebServer():
                 info = f'Mbplugin {store.version()} run on {socket.gethostname()}:{port} from {os.path.abspath(os.path.dirname(__file__))}<br>'
                 phones = store.ini('phones.ini').phones()
                 groups = sorted(set([p['indication'] for p in phones.values() if 'indication' in p]))
-                group_urls = ' '.join([f'<a href=/report/group_{g}>Group_{g}</a> ' for g in groups])
+                group_urls = '<br>'.join([f'<a href=/report/group_{g}>Group_{g}</a> ' for g in groups])
                 script = ''
                 if str(store.options('HttpConfigEdit')) == '0':
                     script = 'document.getElementById("call_editor").style="display:none"'
