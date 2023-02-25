@@ -4,9 +4,10 @@ FROM python:3.9.2-buster
 
 # Install Chromium and node.js for arm
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
     chromium=89.0.4389.114-1~deb10u1 \
-    nodejs=10.24.0~dfsg-1~deb10u2
+    nodejs=10.24.0~dfsg-1~deb10u2 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -19,7 +20,7 @@ ENV UID=$UID
 ENV GID=$GID
 #RUN usermod -u $UID node && groupmod -g $GID node
 #RUN groupadd --gid 2000 node && useradd --uid 2000 --gid node --shell /bin/bash --create-home node
-RUN groupadd -f --gid $GID $UNAME && (id -u $UNAME &>/dev/null || useradd --uid $UID --gid $UNAME --shell /bin/bash --create-home $UNAME)
+RUN groupadd -f --gid $GID $UNAME && (id -u $UNAME 1>/dev/null 2>/dev/null || useradd --uid $UID --gid $UNAME --shell /bin/bash --create-home $UNAME)
 
 RUN pip install --upgrade pip
 
