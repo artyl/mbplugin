@@ -37,7 +37,8 @@ default_logon_selectors = {
     'submit_after_login_selector': "",  # или через селектор
     'password_clear_js': "document.querySelector('form input[type=password]').value=''",  # команда на очистку поля пароля
     'password_selector': 'form input[type=password]',  # селектор для поля пароля
-    'remember_checker': "",  # "document.querySelector('form input[name=remember]').checked==false",  # Проверка что флаг remember me не выставлен
+    'remember_checker': "",  # "document.querySelector('form input[name=remember]').checked==false",  # Проверка что флаг remember me не выставлен,
+                             # если нужно просто выполнить remember_js поставьте remember_checker=true
     'remember_js': "",  # "document.querySelector('form input[name=remember]').click()",  # js для выставления remember me
     'remember_selector': "",  # 'form input[name=remember]',  # селектор для выставления remember me (не указывайте оба сразу а то может кликнуть два раза)
     'captcha_checker': "",  # проверка что на странице капча у MTS - document.querySelector("div[id=captcha-wrapper]")!=null

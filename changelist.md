@@ -482,5 +482,6 @@ ADD: Добавил для MTS в поле Balance3 сумму Balance и Balanc
 FIX: Попытка починить открывание правильной формы логина для onlime  
 ADD: Сделал группы для просмотра, это не совсем то что было описано в [issue #33](https://github.com/artyl/mbplugin/issues/33) но зато не потребовало больших усилий и минимальные изменения кода  
 
-## mbplugin v1.00.50 (25.02.23) fix smile-net
+## mbplugin v1.00.50 (14.03.23) fix smile-net and beeline_uz 
 FIX: Восстановил работу smile-net  
+FIX: Восстановлена работа beeline_uz  
