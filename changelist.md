@@ -485,3 +485,6 @@ ADD: Сделал группы для просмотра, это не совсе
 ## mbplugin v1.00.50 (14.03.23) fix smile-net and beeline_uz 
 FIX: Восстановил работу smile-net  
 FIX: Восстановлена работа beeline_uz  
+
+## mbplugin v1.00.51 (15.03.23) fix megafonb2b
+FIX: megafonb2b получает остатки SMS, Internet и Min  

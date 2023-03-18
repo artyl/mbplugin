@@ -16,10 +16,16 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
+        self.sleep(10)
+        self.result['Balance'] = 0
         self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': ['accounts/balance'], 'jsformula': "parseFloat(data.data.totalBalance).toFixed(2)"},
-            {'name': 'TarifPlan', 'url_tag': ['widget/subscribers'], 'jsformula': "data.data.tariffs[0].name"},
-            ])
+            {'name': 'Balance', 'wait': False, 'url_tag': ['accounts/balance'], 'jsformula': "parseFloat(data.data.totalBalance).toFixed(2)"},
+            # {'name': 'TarifPlan', 'wait': False, 'url_tag': ['widget/subscribers'], 'jsformula': "data.data.tariffs[0].name"},
+            {'name': 'TarifPlan', 'wait': False, 'url_tag': ['/info/tariff?'], 'jsformula': "data.data.ratePlan.name"},
+            {'name': 'Min', 'wait': False, 'url_tag': ['/info/tariff?'], 'jsformula': "data.data.discounts.filter(el=>el.label=='Минуты по тарифу').map(el=>parseInt(el.value)).reduce((x,y)=>x+y,0)"},
+            {'name': 'SMS', 'wait': False, 'url_tag': ['/info/tariff?'], 'jsformula': "data.data.discounts.filter(el=>el.label=='SMS и MMS').map(el=>parseInt(el.value)).reduce((x,y)=>x+y,0)"},
+            {'name': 'Internet', 'wait': False, 'url_tag': ['/info/tariff?'], 'jsformula': "data.data.discounts.filter(el=>el.label=='Интернет на любые сервисы').map(el=>parseFloat(el.value)).reduce((x,y)=>x+y,0)"},
+        ])
 
 def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
