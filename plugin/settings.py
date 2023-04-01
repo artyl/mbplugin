@@ -12,8 +12,8 @@ UNIT = {'TB': 1073741824, 'ТБ': 1073741824, 'TByte': 1073741824, 'TBYTE': 1073
         'day': 30, 'dayly': 30, 'month': 1,
         }
 
-PHONE_INI_KEYS = ['Region', 'Monitor', 'Alias', 'Number', 'Password', 'mdOperation', 'mdConstant', 'PauseBeforeRequest', 'ShowInBallon', 'Password2']
-PHONE_INI_KEYS_LOWER = ['region', 'monitor', 'alias', 'number', 'password', 'mdoperation', 'mdconstant', 'pausebeforerequest', 'showinballon', 'password2']
+PHONE_INI_KEYS = ['Region', 'Monitor', 'Alias', 'Number', 'Password', 'mdOperation', 'mdConstant', 'PauseBeforeRequest', 'ShowInBallon', 'Password2', 'Indication']
+PHONE_INI_KEYS_LOWER = ['region', 'monitor', 'alias', 'number', 'password', 'mdoperation', 'mdconstant', 'pausebeforerequest', 'showinballon', 'password2', 'indication']
 
 MODE_LIB = 'lib'
 MODE_MB = 'mb'
@@ -302,7 +302,7 @@ ini = {
         # Также можно сделать несколько альтернативных видов с разными наборами полей
         # они должны быть вида table_formatNNN где NNN произвольное число, которое не должно повторяться,
         # зайти на такие альтернативные report можно по ссылке http://localhost:19777/report/NNN
-        'table_format_': {'descr': 'Формат вывода по умолчанию, для страницы http://localhost:19777/report', 'type': 'text', 'size': 200, 'validate': lambda i: re.match(r'^(\w+,)*\w+$', str(i))},
+        'table_format_': {'descr': 'Формат вывода по умолчанию, для страницы http://localhost:19777/report', 'type': 'text', 'size': 200, 'validate': lambda i: re.match(r'^(\w+ *, *)*\w+$', str(i))},
         'table_format': 'PhoneNumber,Operator,UslugiOn,Balance,RealAverage,BalDelta,BalDeltaQuery,NoChangeDays,CalcTurnOff,SpendMin,SMS,Internet,Minutes,TarifPlan,BlockStatus,QueryDateTime',  # ? UserName
         # расписание опросов, строк может быть несколько scheduler= ... scheduler1=... и т.д как сделано с table_format
         # расписание имеет вид:

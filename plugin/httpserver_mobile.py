@@ -60,33 +60,12 @@ def tray_menu():
     )
 
 
-def getbalance_standalone_one_pass(filter: list = [], only_failed: bool = False):
+def getbalance_standalone_one_pass(queue):
     ''' Получаем балансы самостоятельно без mobilebalance ОДИН ПРОХОД
-    Если filter пустой то по всем номерам из phones.ini
-    Если не пустой - то логин/алиас/оператор или его часть
-    для автономной версии в поле Password2 находится незашифрованный пароль
-    ВНИМАНИЕ! при редактировании файла phones.ini через MobileBalance строки с паролями будут удалены
-    для совместного использования с MobileBalance храните пароли password2 и другие специфичные опции
-    для Standalone версии в файле phones_add.ini
-    only_failed=True - делать запросы только по тем номерам, по которым прошлый запрос был неудачный
+    по списку queue_balance
     '''
     result: typing.Dict = {}
-    phones = store.ini('phones.ini').phones()
-    queue_balance = []  # Очередь телефонов на получение баланса
-    for val in phones.values():
-        if val['monitor'].upper() != 'TRUE':
-            continue  # только те у кого включен мониторинг
-        keypair = f"{val['Region']}_{val['Number']}"
-        # Проверяем все у кого задан плагин, логин и пароль пароль
-        if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
-            if len(filter) == 0 or [1 for i in filter if i.lower() in f"__{keypair}__{val['Alias']}".lower()] != []:
-                if not only_failed or only_failed and str(dbengine.flags('get', keypair)).startswith('error'):
-                    # Формируем очередь на получение балансов и размечаем балансы из очереди в таблице flags чтобы красить их по другому
-                    queue_balance.append(val)
-                    logging.info(f'getbalance_standalone queued: {keypair}')
-                    dbengine.flags('set', f'{keypair}', 'queue')  # выставляем флаг о постановке в очередь
-    store.feedback.text(f'Queued {len(queue_balance)} numbers')
-    for val in queue_balance:
+    for val in queue:
         # TODO пока дергаем метод от веб сервера там уже все есть, потом может вынесем отдельно
         keypair = f"{val['Region']}_{val['Number']}"
         try:
@@ -106,22 +85,46 @@ def getbalance_standalone_one_pass(filter: list = [], only_failed: bool = False)
     return result
 
 
-def getbalance_standalone(filter: list = [], only_failed: bool = False, retry: int = -1, params=None):
+def getbalance_standalone(filter: list = [], only_failed: bool = False, retry: int = -1, **kwargs):
     ''' Получаем балансы делая несколько проходов по неудачным
     retry=N количество повторов по неудачным попыткам, после запроса по всем (повторы только при only_failed=False)
-    params добавлен чтобы унифицировать вызовы
-    Результаты сохраняются в базу'''
+    kwargs добавлен чтобы забрать из _run все лишние параметры
+    Результаты сохраняются в базу
+    Если filter пустой то по всем номерам из phones.ini
+    Если не пустой - то логин/алиас/оператор или его часть
+    для автономной версии в поле Password2 находится незашифрованный пароль
+    ВНИМАНИЕ! при редактировании файла phones.ini через MobileBalance строки с паролями будут удалены
+    для совместного использования с MobileBalance храните пароли password2 и другие специфичные опции
+    для Standalone версии в файле phones_add.ini
+    only_failed=True - делать запросы только по тем номерам, по которым прошлый запрос был неудачный
+    '''
     store.turn_logging(httplog=True)  # Т.к. сюда можем придти извне, то включаем логирование здесь
     logging.info(f'getbalance_standalone: filter={filter}')
+    phones = store.ini('phones.ini').phones()
+    queue_balance = []  # Очередь телефонов на получение баланса
+    for val in phones.values():
+        if val['monitor'].upper() != 'TRUE':
+            continue  # только те у кого включен мониторинг
+        keypair = f"{val['Region']}_{val['Number']}"
+        # Проверяем все у кого задан плагин, логин и пароль пароль
+        if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
+            if len(filter) == 0 or [1 for i in filter if i.lower() in f"__{keypair}__{val['Alias']}".lower()] != []:
+                # Формируем очередь на получение балансов и размечаем балансы из очереди в таблице flags чтобы красить их по другому
+                queue_balance.append(val)
+                logging.info(f'getbalance_standalone queued: {keypair}')
+                dbengine.flags('set', f'{keypair}', 'queue')  # выставляем флаг о постановке в очередь
+    store.feedback.text(f'Queued {len(queue_balance)} numbers')
     if retry == -1:
         retry = int(store.options('retry_failed', flush=True))
     result = {}
     if only_failed:
-        result.update(getbalance_standalone_one_pass(filter=filter, only_failed=True))
+        queue_fail = [val for val in queue_balance if str(dbengine.flags('get', f"{val['Region']}_{val['Number']}")).startswith('error')]
+        getbalance_standalone_one_pass(queue_fail)
     else:
-        result.update(getbalance_standalone_one_pass(filter=filter, only_failed=False))
+        result.update(getbalance_standalone_one_pass(queue_balance))
         for i in range(retry):
-            result.update(getbalance_standalone_one_pass(filter=filter, only_failed=True))
+            queue_fail = [val for val in queue_balance if str(dbengine.flags('get', f"{val['Region']}_{val['Number']}")).startswith('error')]
+            result.update(getbalance_standalone_one_pass(queue_fail))
     return result
 
 

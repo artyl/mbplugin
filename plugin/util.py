@@ -8,6 +8,7 @@ import click
 
 # Т.к. мы меняем текущую папку, то sys.argv[0] будет смотреть не туда, пользоваться можно только
 # папка где плагины
+CRLF = '\n'
 PLUGIN_PATH = os.path.abspath(os.path.split(__file__)[0])
 # Папка корня standalone версии на 2 уровня вверх (оно же settings.mbplugin_root_path)
 ROOT_PATH = os.path.abspath(os.path.join(PLUGIN_PATH, '..', '..'))
@@ -504,23 +505,24 @@ def check_ini(ctx):
         mbplugin_ini = store.ini()
         mbplugin_ini.read()
         mbplugin_ini_mess = []
+        mbplugin_ini_status = 'OK'
         if 'Telegram' in mbplugin_ini.ini:
             if len([i for i in mbplugin_ini.ini['Telegram'].keys() if i.startswith('subscrib' + 'tion')]):
                 msg = f'Warning {name} mbplugin.ini - subsri_B_tion key found in ini'
                 mbplugin_ini_mess.append(msg)
+                mbplugin_ini_status = 'Fail'
         for sec in store.settings.ini.keys():
             for key in store.settings.ini[sec]:
                 if not key.endswith('_'):
                     valid, msg = store.option_validate(key, section=sec)
                     if not valid:
                         mbplugin_ini_mess.append(f'Section [{sec}]: ' + msg)
+                        mbplugin_ini_status = 'Fail'
         jobs = httpserver_mobile.Scheduler(check_only=True).read_from_ini()
         mbplugin_ini_mess.extend([f'{job.err_msg}\n{job.job_str}' for job in jobs if job.err_msg != ''])
-        if len(mbplugin_ini_mess):
-            echo(f'Fail {name} mbplugin.ini\n' + '\n'.join(mbplugin_ini_mess))
-        else:
-            echo(f'OK {name} mbplugin.ini')
+        echo(f'{mbplugin_ini_status} {name} mbplugin.ini {CRLF + CRLF.join(mbplugin_ini_mess)}'.strip())
         phones_ini_mess = []
+        phones_ini_status = 'OK'
         phones_ini = store.ini('phones.ini')
         phones_ini.read()
         for nn in phones_ini.ini.keys():
@@ -528,6 +530,7 @@ def check_ini(ctx):
                 continue
             if not nn.isdigit():
                 phones_ini_mess.append(f'Invalid section number [{nn}]')
+                phones_ini_status = 'Fail'
                 continue
             if phones_ini.ini[nn].get('monitor', 'false').lower() != 'true':
                 phones_ini_mess.append(f'Section [{nn}] is not Monitor = TRUE, skip')
@@ -537,12 +540,11 @@ def check_ini(ctx):
                 valid, msg = store.option_validate(key, pkey=pkey)
                 if not valid:
                     phones_ini_mess.append(f'Section [Phone] #{nn} ' + msg)
+                    phones_ini_status = 'Fail'
                 if key.lower() not in store.settings.ini['Options'] and key.lower() not in store.settings.PHONE_INI_KEYS_LOWER and key.lower() not in ('phone_orig', 'region_orig'):
                     phones_ini_mess.append(f'Section [Phone] #{nn} has unused {key}')
-        if len(phones_ini_mess):
-            echo(f'Fail {name} phones.ini\n' + '\n'.join(phones_ini_mess))
-        else:
-            echo(f'OK {name} phones.ini')
+                    phones_ini_status = 'Fail'
+        echo(f'{phones_ini_status} {name} phones.ini {CRLF +  CRLF.join(phones_ini_mess)}'.strip())
     except Exception:
         echo(f'Fail {name}:\n{store.exception_text()}')
 
