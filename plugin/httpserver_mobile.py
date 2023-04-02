@@ -726,14 +726,17 @@ class Scheduler():
     def _validate_sched(self, sched) -> schedule.Job:
         'Проверяет одно расписание на валидность и возвращает в виде job'
         # every(4).day.at("10:30")
-        m = re.match(r'^every\((?P<every>\d*)\)\.(?P<interval>\w*)(\.at\("(?P<at>.*)"\))?$', sched.strip())
+        m = re.match(r'^every\((?P<every>\d*)\)(\.to\((?P<to>\d+)\))?\.(?P<interval>\w*)(\.at\("(?P<at>.*)"\))?$', sched.strip())
         try:
             if not m:
                 raise
             # every(4).hours,mts,beeline -> {'every': '4', 'interval': 'hours', 'at': None}
             param = m.groupdict()
             param['every'] = int(param['every']) if param['every'].isdigit() else 1
-            job = getattr(schedule.every(int(param['every'])), param.get('interval', ''))
+            job = schedule.every(int(param['every']))
+            if param['to'] is not None:
+                job = job.to(int(param['to']))
+            job = getattr(job, param.get('interval', ''))
             if param['at'] is not None:
                 job = job.at(param['at'])
             return job
