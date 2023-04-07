@@ -486,5 +486,7 @@ ADD: Сделал группы для просмотра, это не совсе
 FIX: Восстановил работу smile-net  
 FIX: Восстановлена работа beeline_uz  
 
-## mbplugin v1.00.51 (15.03.23) fix megafonb2b
+## mbplugin v1.00.51 (07.04.23) fix megafonb2b
 FIX: megafonb2b получает остатки SMS, Internet и Min  
+FIX: avtodor-tr информация по абонементу (travel_cards) from Pavel  
+CHANGE: из requirements*.txt удалил неявные зависимости, по факту получается что от их присутствия больше вреда чем пользы  
