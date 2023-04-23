@@ -1,114 +1,333 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
 import logging, os, sys, re, time, datetime, json, random
+from typing import List, Dict
+import json
+import requests
+import traceback, os, sys, time, gc, socket, websocket, logging, datetime, pprint
+import threading
+import base64, random
+import psutil
 import browsercontroller, store, settings
 
 icon = '789C75524D4F5341143D84B6A8C0EB2BAD856A4B0BE5E301A508A9F8158DC18498A889896E8C3B638C31F147B83171E34E4388AE5C68E246A3C68D0B5DA82180B5B40A5A94B6F651DA423F012D2DE09D79CF4A207DC949A733F79C39F7CC1D3A37A801FF060912415451058772A09E6FFD04CD18F4DA09C267C214210051FB857EFFC1AFEEB3F3495E2F68DEA35EF396F086F6BCBC46D47E257C2304A1D7045157350DA13A80FA6A1F6AAB7CB4F6AB5A5E08DA71D2F840FC772AEF3B44DD0F1874215A87D1DA34871B57658CDE4F1212B87E2504BBD94F5A01D5938F7B16341F8937CB79C65DBF60DA2DC3E594F1FAE532D64B1BD8DCDCE428D1FAC5B30CDAAD33E483799C2E6B187411E245D124CC63BF18C3DD3BB9326F3B6EDF4A506FB3C49FE5BE99C6DE3D32F6E9636836C671A0631153DEB58AFCC9F155EA4DE951D40579CE8C6B37C5693F895347D388C9EB15F9D148119E1E190D3551F23DC7F366F73A2D4974DA52183E9E831CADCC0F878A38E88AC15C3B4F1A119E5D8B39814EEB125CAD199CF0E4C97FA9227F7CAC809E96382CE4D9489989BA9F7092EF2E7B8A7ACF62D0B58C278F8A15F90F4656D0D29880D5B0C07363EFD6665944B72385012947FC15DCBC56403EB7939BCD6CE0F2852CF193B0352C500F8C1F267EB2CC3FEC5EA10CFFE0D5F39D193C7D5C80BB2DCDEFDBCADFEEFF58FF2A2E9D2FC0F7E9BFC6C45809A74FE62035A778BDE23FCAFD3B28BF0EEB22E597E61E0EF52EE348DF2A2E9EFD8D87236B18BD57C099A13CE596E639B37AF6E66C5E597ECC0B7B7BA97909BDCE0CFA3BB3F074E73906A43CFADA73FC6DBAD4BB597D63DD3C0C35CA0C59049A3D933203926D89DFE3261D779B0217FD67DA2C273667AC9ECDBB323F33F80B823D9864'
 
 # login_url 'https://login.mts.ru/amserver/UI/Login'  # - другая форма логина - там оба поля на одной странице, и можно запомнить сессию
 login_url = 'https://lk.mts.ru/'  # а на этой запомнить сессию нельзя, но другой больше нет
-user_selectors = {
-    # Возможно 2 разных формы логина, кроме того при заходе через мобильный МТС форма будет отличаться поэтому в выражении предусмотрены все варианты
-    'chk_lk_page_js': "['form input[name=login]','form input[id=phoneInput]','form input[id=password]','form button[value=Ignore]','enter-with-phone-form'].filter(el => document.querySelector(el)!== null).length==0",
-    # obsolete 'lk_page_url': 'login/userInfo', # не считаем что зашли в ЛК пока не прогрузим этот url
-    # У нас форма из двух последовательных окон (хотя иногда бывает и одно, у МТС две разных формы логона)
-    'chk_login_page_js': "['form input[name=login]','form input[id=phoneInput]','form input[id=password]','form button[value=Ignore]','enter-with-phone-form'].filter(el => document.querySelector(el)!== null).length>0",
-    # Если мы зашли с интернета МТС то предлагается вариант зайти под номером владельца (есть два варианта этой формы), надо нажать кнопку проигнорить этот вариант
-    'before_login_js': """b1=document.querySelector('button[value=Ignore]');
-                          if(b1!==null){b1.click()};
-                          b2=document.getElementById('enter-with-phone-form');
-                          i2=document.getElementById('IDButton');
-                          if(b2!==null && i2!==null){i2.value='Ignore';b2.submit.click();}
-                        """,
-    'login_clear_js': "document.querySelector('form input[type=tel]').value=''",
-    'login_selector': 'form input[type=tel]',
-    # проверка нужен ли submit после логина (если поле пароля уже есть то не нужен, иначе нужен)
-    'chk_submit_after_login_js': "document.querySelector('form input[type=tel]')!=null || document.querySelector('form input[id=password]')==null",
-    'submit_after_login_js': "document.querySelectorAll('form [type=submit]').forEach(el => el.click())",  # js для нажатия на далее после логона
-    'submit_js': "document.querySelectorAll('form [type=submit]').forEach(el => el.click())",  # js для нажатия на финальный submit
-    'remember_checker': "document.querySelector('form input[name=rememberme]')!=null && document.querySelector('form input[name=rememberme]').checked==false",  # Проверка что флаг remember me не выставлен
-    'remember_js': "document.querySelector('form input[name=rememberme]').click()",  # js для выставления remember me
-    'captcha_checker': "document.querySelector('img[id=captchaImage]')!=null||document.querySelector('div[id=captcha-wrapper]')!=null||document.body.innerText.startsWith('This question is for testing whether you are a human visitor and to prevent automated spam submission.')",
-    'captcha_focus': "[document.getElementById('ans'),document.getElementById('password'),document.getElementById('captchaInput')].filter(s => s!=null).map(s=>s.focus())",
-    'fatal': "d=document.querySelector('.descr');d===null?false:/Доступ к сайту login.mts.ru запрещен./.test(d.innerText)"
-}
 
-class browserengine(browsercontroller.BrowserController):
-    def data_collector(self):
-        mts_usedbyme = self.options('mts_usedbyme')
-        self.do_logon(url=login_url, user_selectors=user_selectors)
+def get_free_port() -> int:
+    """Get free port."""
+    sock = socket.socket()
+    sock.bind(('localhost', 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    del sock
+    gc.collect()
+    return port
 
-        if self.page_evaluate('Array.from(document.querySelectorAll("h1")).filter(el=>el.innerText=="Добавьте почту").length==1'):
-            self.page_click("button:has-text('Пропустить')")  # Skip
-            # self.page_press("button:has-text('Пропустить')", ' ')  # Skip
-        # ни дня без приключений - теперь у нас снова новый личный кабинет, пока переходим в старый, будет время переделаем
-        # self.page_evaluate(f"Array.from(document.querySelectorAll('button')).filter(el=>el.innerText=='Вернуться в старый'||el.innerText=='В старый Личный кабинет').forEach(el=>el.click())")
+def exception_text():
+    return "".join(traceback.format_exception(*sys.exc_info())).encode('cp1251', 'ignore').decode('cp1251', 'ignore')
 
-        # TODO close banner # document.querySelectorAll('div[class=popup__close]').forEach(s=>s.click())
-        if self.login_ori != self.login and self.acc_num.isdigit():  # это финт для захода через другой номер
-            # если заход через другой номер то переключаемся на нужный номер
-            # TODO возможно с прошлого раза может сохраниться переключенный но вроде работает и так
-            # New LK '.mts-multi-account' old LK [id=ng-header__account-phone_desktop]
-            self.page_wait_for(expression="document.querySelector('.mts-multi-account')!=null || document.querySelector('[id=ng-header__account-phone_desktop]')!=null")
 
-            self.responses = {}  # Сбрасываем все загруженные данные - там данные по материнскому телефону
-            # Теперь сразу кликаем на нужный блок, если и это сломают - будем кликать playwright
-            # Старый ЛК
-            if self.page_evaluate("document.querySelector('[id=ng-header__account-phone_desktop]')!=null", False):
-                self.page_evaluate(rf"Array.from(document.querySelectorAll('a.user-block__content')).filter(el => el.querySelector('.user-block__phone').innerText.replace(/\D/g,'').endsWith('{self.acc_num}'))[0].click()")
-            # Новый ЛК
-            if self.page_evaluate("document.querySelector('.mts-multi-account')!=null", False):
-                self.page_evaluate(rf"Array.from(document.querySelectorAll('.mts-multi-account .account-badge')).filter(el => el.querySelector('.account-badge__phone').innerText.replace(/\D/g,'').endsWith('{self.acc_num}'))[0].click()")
-            # !!! Раньше я на каждой странице при таком заходе проверял что номер тот, сейчас проверяю только на старте
-            for _ in range(10):
-                self.sleep(1)
-                numb = ''
-                if self.page_evaluate("document.querySelector('[id=ng-header__account-phone_desktop]')!=null", False):
-                    numb = self.page_evaluate("document.getElementById('ng-header__account-phone_desktop').innerText", None)
-                if self.page_evaluate("document.querySelector('.mts-multi-account')!=null", False):
-                    numb = self.page_evaluate("document.querySelectorAll('.mts-multi-account .account-badge.active .account-badge__phone')[0].innerText", None)
-                if numb is not None and numb != '':
-                    break
-            else:
-                return  # номера на странице так и нет - уходим
-            numb = re.sub(r'(?:\+7|\D)', '', numb)
-            logging.info(f'PHONE {numb}')
-            if numb != self.acc_num:
-                return  # Если номер не наш - уходим
+class PureBrowserDebug():
 
-        # 'api/login/userInfo' старый ЛК, 'api/login/user-info' новый ЛК остальное крое amount одинаковое
-        api_login_userinfo = 'api/login/user-info'
-        if self.page_evaluate("document.querySelector('[id=ng-header__account-phone_desktop]')!=null", False):
-            api_login_userinfo = 'api/login/userInfo'
-        # Для начала только баланс быстрым способом (может запаздывать)
-        self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': [api_login_userinfo], 'jsformula': "parseFloat(data.userProfile.balance).toFixed(2)"},
-            # Закрываем банеры (для эстетики)
-            {'name': '#banner1', 'url_tag': [api_login_userinfo], 'jsformula': "document.querySelectorAll('mts-dialog div[class=popup__close]').forEach(s=>s.click())==null", 'wait':False},
-        ])
-
-        # Потом все остальное
-        res1 = self.wait_params(params=[
-            {'name': 'TarifPlan', 'url_tag': [api_login_userinfo], 'jsformula': "data.userProfile.tariff.replace('(МАСС) (SCP)','')"},
-            {'name': 'UserName', 'url_tag': [api_login_userinfo], 'jsformula': "data.userProfile.displayName"},
-            {'name': 'Balance', 'url_tag': ['for=api/accountInfo/mscpBalance'], 'jsformula': "parseFloat(data.data==null ? data.amount : data.data.amount).toFixed(2)"},
-            {'name': 'Balance2', 'url_tag': ['for=api/cashback/account'], 'jsformula': "parseFloat(data.data.balance).toFixed(2)"},
-            {'name': '#counters', 'url_tag': ['for=api/sharing/counters'], 'jsformula': "data.data.counters"},
-        ])
-        if 'Balance' in self.result and 'Balance2' in self.result:
+    def __init__(self, user_data_dir, response_store_path=None) -> None:
+        self.user_data_dir = user_data_dir
+        self.response_store_path = response_store_path
+        self.port = get_free_port()
+        self._data: List[dict] = []
+        self.responses: Dict[str, dict] = {}  # [f'{response.request.method}:{post} URL:{response.request.url}$'] = data
+        self.ws_id = 0
+        self.fix_crash_banner()
+        self.br_thread = threading.Thread(target=self.chromium_thread_runner, daemon=True)
+        self.br_thread.start()
+        time.sleep(0.5)
+        for n_nry in range(5):
+            # children and children's children
+            children = psutil.Process().children() + sum([p.children() for p in psutil.Process().children()], [])
+            if not self.br_thread.is_alive():
+                # browser not started kill all remote and exit
+                [p.kill() for p in psutil.process_iter() if p.name() == 'chrome.exe' and '--remote-debugging-port' in str(p.cmdline())]
+                raise RuntimeError("Chromium did't start, kill remote")
             try:
-                self.result['Balance3'] = float(self.result['Balance']) + float(self.result['Balance2'])
+                self.chrome_proc = [p for p in children if 'chrome' in p.name().lower()][0]
+                r1 = requests.get(f'http://localhost:{self.port}/json/list')
+                logging.info(r1.json()[0])
+                self.ws_url = [el.get('webSocketDebuggerUrl') for el in r1.json() if el.get('type') == 'page'][0]
+                self.ws = websocket.WebSocket()
+                self.ws.connect(self.ws_url)
+                self.ws.settimeout(1)
+                break
             except Exception:
-                logging.info(f'Не смогли сложить балансы {store.exception_text()}')
-        if '#counters' in res1 and type(res1['#counters']) == list and len(res1['#counters']) > 0:
-            counters = res1['#counters']
+                logging.info(exception_text())
+                logging.info('Next try')
+                time.sleep(1)
+        else:
+            raise RuntimeError("Chromium did't start after 5 retry")
+        self.send("Network.enable")
+
+    def fix_crash_banner(self):
+        'Исправляем Preferences чтобы убрать баннер Работа Chrome была завершена некорректно'
+        fn_pref = os.path.join(self.user_data_dir, 'Default', 'Preferences')
+        if not os.path.exists(fn_pref):
+            return  # Нет Preferences - выходим
+        with open(fn_pref, encoding='utf8') as f:
+            data = f.read()
+        data1 = data.replace('"exit_type":"Crashed"', '"exit_type":"Normal"').replace('"exited_cleanly":false', '"exited_cleanly":true')
+        if data != data1:
+            logging.info(f'Fix chrome crash banner')
+            open(fn_pref, encoding='utf8', mode='w').write(data1)
+
+    def chromium_thread_runner(self):
+        # --remote-debugging-pipe
+        # %LOCALAPPDATA%\ms-playwright\chromium-1055\chrome-win\chrome.exe --user-data-dir=C:\mbstandalone\storetmp --remote-debugging-port=9222
+        # self.fix_crash_banner(storefolder, storename)
+        # self.cmd = fr'''%LOCALAPPDATA%\ms-playwright\chromium-1055\chrome-win\chrome.exe --user-data-dir=C:\mbstandalone\storetmp                         --remote-debugging-port={self.port} --disable-save-password-bubble --no-default-browser-check --disable-component-update --disable-extensions --disable-sync --no-first-run --no-service-autorun'''
+        # self.cmd = fr'''%LOCALAPPDATA%\ms-playwright\chromium-1055\chrome-win\chrome.exe --user-data-dir={os.path.join(storefolder, headless, storename)} --remote-debugging-port={self.port} --disable-save-password-bubble --no-default-browser-check --disable-component-update --disable-extensions --disable-sync --no-first-run --no-service-autorun --remote-allow-origins=http://localhost:{self.port}'''
+        # with sync_playwright() as pl:
+        #    self.browser_path = pl.chromium.executable_path
+        # https://playwright.azureedge.net/builds/chromium/1055/chromium-win64.zip
+        self.browser_path = r'%LOCALAPPDATA%\ms-playwright\chromium-1055\chrome-win\chrome.exe'
+        self.cmd = fr'''{self.browser_path} --user-data-dir={self.user_data_dir} --remote-debugging-port={self.port} --disable-save-password-bubble --no-default-browser-check --disable-component-update --disable-extensions --disable-sync --no-first-run --no-service-autorun --remote-allow-origins=http://localhost:{self.port}'''
+        os.system(self.cmd)
+
+    def send(self, method, params=None):
+        if params is None:
+            params = {}
+        self.ws_id += 1
+        logging.info(f'send:{method} {params}')
+        self.ws.send(json.dumps({"id": self.ws_id, "method": method, "params": params}))
+        return self.ws_id
+
+    def collect(self, id=None):
+        while True:
+            # print(f'{len(self._data)}     ', end='\r')
+            try:
+                res = json.loads(self.ws.recv())
+                self._data.append(res)
+                if id is not None and res.get('id') == id:
+                    if 'result' in res:
+                        return res['result']
+                    logging.info(res.get('error'))
+            except websocket.WebSocketTimeoutException:
+                break
+            except Exception:
+                logging.info(exception_text())
+                break
+        return None
+
+    def get(self, method, param):
+        id = self.send(method, param)
+        res = self.collect(id)
+        return res
+
+    def tget(self, js, chain):
+        '''get by tree chain tget(js, 'params.request.url') -> js['params']['request']['url']'''
+        res = js
+        chain_list = chain.split('.')
+        for el in chain_list[:-1]:
+            res = res.get(el, {})
+        return res.get(chain_list[-1], '')
+
+    def browser_close(self):
+        try:
+            res = self.send('Browser.close')
+            for i in range(50):
+                if not self.chrome_proc.is_running():
+                    break
+                time.sleep(0.1)
+            else:
+                self.chrome_proc.kill()
+        except Exception:
+            logging.info(exception_text())
+
+    def __del__(self):
+        if self.chrome_proc.is_running():
+            self.browser_close()
+
+    def get_response_by_id(self, request_id):
+        'wrapper for Network.getResponseBody + ws.recv for debug'
+        id = self.send('Network.getResponseBody', {"requestId": request_id})
+        res = self.collect(id)
+        return res
+
+    def get_response_body(self, url, partitial=True, ctype=''):
+        'wrapper for Network.getResponseBody + ws.recv, add $ if need strongly end of url'
+        self.collect()  # Прежде чем искать по response нужно собрать последние
+        if partitial:
+            request_id_list = [
+                el['params']['requestId'] for el in self._data
+                if url in (el.get('params', {}).get('response', {}).get('url', '') + '$')
+                and ctype in el.get('params', {}).get('response', {}).get('headers', {}).get('Content-Type', '')
+                and el.get('params', {}).get('response', {}).get('status', 0) not in [204, 400, 404]
+            ]
+        else:
+            request_id_list = [el['params']['requestId'] for el in self._data if el.get('params', {}).get('response', {}).get('url', '') == url]
+        if len(request_id_list) == 0:
+            logging.info(f'Url {url} with {ctype=} not found in data')
+            return None
+        id = self.send('Network.getResponseBody', {"requestId": request_id_list[-1]})
+        res = self.collect(id)
+        if res is None:
+            return ''
+        if res.get('base64Encoded', True):
+            return base64.b64decode(res.get('body', ''))
+        else:
+            return res.get('body', '')
+
+    def get_response_body_json(self, url, partitial=True):
+        'get_response_body + json.dumps if the result is not json retry every second until the timeout expiries'
+        try:
+            res = json.loads(self.get_response_body(url, partitial=partitial, ctype='json'))
+            key = f'{url}_{len(self.responses)}'
+            self.responses[key] = res
+            try:
+                if self.response_store_path is not None:
+                    text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k, v in self.responses.items()])
+                    open(self.response_store_path, 'w', encoding='utf8', errors='ignore').write(text)
+            except Exception:
+                logging.info(f'json decode error')
+            return res
+        except Exception:  # json.decoder.JSONDecodeError:
+            logging.info(f'json decode error')
+            return {}
+
+    def jsformula(self, url, formula):
+        'get json from url and evaluate as data'
+        response_result = self.get_response_body_json(url)
+        return self.page_eval(f"(()=>{{data={json.dumps(response_result,ensure_ascii=False)};return {formula};}})()")
+
+    def capture_screenshot(self, filename):
+        try:
+            res = self.get('Page.captureScreenshot', {'format': 'png', 'quality': 80, 'fromSurface': True})
+            open(filename, 'wb').write(base64.b64decode(res['data']))
+        except Exception:
+            logging.info(exception_text())
+
+    def press_key(self, key):
+        # do i need this ???  self.send('Runtime.evaluate', {'expression':'document.evaluate("//*[@id=\'login\']",document,null,XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,null).snapshotItem(0).focus()'})
+        res = self.get('Input.dispatchKeyEvent', {'type': 'char', 'text': key})
+        return res
+
+    def check_selector(self, selector):
+        'Checks for the presence of a selector on the page'
+        res = self.get('Runtime.evaluate', {'expression': f"document.querySelector('{selector}')"})
+        if type(res) is dict:
+            return 'objectId' in res['result']
+        else:
+            return False
+
+    def wait_selector(self, selector, timeout=30):
+        'Waits for the selector to appear on the page'
+        for i in range(timeout):
+            self.check_selector(selector)
+        else:
+            logging.info(f'The waiting time has expired for {selector}')
+
+    def page_fill(self, selector, text, delay=0.1):
+        'enter text'
+        # 'form input[type=tel]'
+        res_1 = self.get('Runtime.evaluate', {'expression': f"document.querySelector('{selector}').focus()"})
+        if 'exceptionDetails' in res_1:
+            return
+        res_2 = self.get('Runtime.evaluate', {'expression': f"document.querySelector('{selector}').value=''"})
+        for ch in text:
+            time.sleep(delay * random.random())
+            res_ch = self.get('Input.dispatchKeyEvent', {'type': 'char', 'text': ch})
+        return True
+
+    def page_click(self, selector):
+        self.get('Runtime.evaluate', {'expression': f"document.querySelectorAll('{selector}').forEach(el => el.click())"})
+
+    def page_eval_ext(self, expression):
+        # 'document.title'  'document.location.href'
+        res = self.get('Runtime.evaluate', {'expression': expression})
+        return res
+
+    def page_eval(self, expression):
+        # 'document.title'  'document.location.href'
+        res = self.get('Runtime.evaluate', {'expression': expression}).get('result', {}).get('value', '')
+        return res
+
+
+def get_balance(login, password, storename=None, wait=True, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+
+    def options(param):
+        ''' Обертка вокруг store.options чтобы передать в нее пару (номер, плагин) для вытаскивания индивидуальных параметров'''
+        pkey = store.get_pkey(login, plugin_name)
+        return store.options(param, pkey=pkey)
+
+    plugin_name = __name__
+    login_ori, acc_num = login, ''
+    if '/' in login:
+        login, acc_num = login_ori.split('/')
+    mts_usedbyme = options('mts_usedbyme')
+
+    store.turn_logging()
+    session = store.Session(storename)
+    result = {}
+    logging.info(f"Start {kwargs=}")
+    storefolder = options('storefolder')
+    user_data_dir = store.abspath_join(storefolder, 'headless', login)
+    response_store_path = None
+    if storename is not None:
+        response_store_path = store.abspath_join(options('loggingfolder'), storename + '.log')
+    pd = PureBrowserDebug(user_data_dir, response_store_path)
+    # 1 Is login ???
+    pd.send('Page.navigate', {'url': 'https://lk.mts.ru'})
+    time.sleep(3)
+    pd.collect()
+    cc = pd.browser_close
+    # self, cc = pd, pd.browser_close
+
+    if pd.check_selector('form input[type=tel]'):
+        pd.page_fill('form input[type=tel]', login)
+        pd.page_click('form [type=submit]')
+        time.sleep(2)
+
+    if pd.check_selector('form input[id=password]'):
+        pd.page_fill('form input[id=password]', password)
+        pd.page_click('form [type=submit]')
+        time.sleep(2)
+
+    if pd.page_eval("document.getElementsByTagName('mts-lk-root').length == 1"):
+        user_info = pd.get_response_body_json('api/login/user-info')
+        user_profile = user_info.get('userProfile', {})
+        # rich.print(ui)
+        # parseFloat(data.userProfile.balance).toFixed(2)
+        result['Balance'] = round(user_profile.get('balance', 0), 2)
+        # Закрываем банеры (для эстетики)
+        pd.page_eval("document.querySelectorAll('mts-dialog div[class=popup__close]').forEach(s=>s.click())==null")
+        # Потом все остальное
+        result['TarifPlan'] = user_profile.get('tariff', '').replace('(МАСС) (SCP)', '')
+        result['UserName'] = user_profile.get('displayName', '')
+        # ждем longtask тормозную страницу
+        logging.info(f'Wait mscpBalance and counters')
+        for cnt in range(30):
+            if pd.get_response_body('for=api/accountInfo/mscpBalance') is not None and pd.get_response_body('for=api/sharing/counters') is not None:
+                break
+            time.sleep(1)
+        mccsp_balance = pd.get_response_body_json('for=api/accountInfo/mscpBalance')
+        # pd.jsformula('for=api/accountInfo/mscpBalance', "parseFloat(data.data==null ? data.amount : data.data.amount).toFixed(2)")
+        result['Balance'] = round(mccsp_balance.get('amount', 0), 2)
+        cashback = pd.get_response_body_json('for=api/cashback/account')
+        # pd.jsformula('for=api/cashback/account', "parseFloat(data.data.balance).toFixed(2)")
+        result['Balance2'] = round(cashback.get('data', {}).get('balance', 0), 2)
+        counters = pd.get_response_body_json('for=api/sharing/counters').get('data', {}).get('counters', [])
+        if 'Balance' in result and 'Balance2' in result:
+            try:
+                result['Balance3'] = float(result['Balance']) + float(result['Balance2'])
+            except Exception:
+                logging.info(f'Не смогли сложить балансы {exception_text()}')
+        if type(counters) == list and len(counters) > 0:
             # deadlineDate
             deadline_dates = set([i['deadlineDate'] for i in counters if 'deadlineDate' in i])
             if len(deadline_dates) > 0:
                 deadline_date = min(deadline_dates)
                 delta = datetime.datetime.fromisoformat(deadline_date) - datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(seconds=10800)))
-                self.result['TurnOff'] = delta.days
-                self.result['TurnOffStr'] = deadline_date.split('T')[0]
+                result['TurnOff'] = delta.days
+                result['TurnOffStr'] = deadline_date.split('T')[0]
             # Минуты
             calling = [i for i in counters if i['packageType'] == 'Calling']
             if calling != []:
@@ -116,361 +335,115 @@ class browserengine(browsercontroller.BrowserController):
                 nonused = [i['amount'] for i in calling[0]['parts'] if i['partType'] == 'NonUsed']
                 usedbyme = [i['amount'] for i in calling[0]['parts'] if i['partType'] == 'UsedByMe']
                 if nonused != []:
-                    self.result['Min'] = int(nonused[0] / unit)
+                    result['Min'] = int(nonused[0] / unit)
                 if usedbyme != []:
-                    self.result['SpendMin'] = int(usedbyme[0] / unit)
+                    result['SpendMin'] = int(usedbyme[0] / unit)
             # SMS
             messaging = [i for i in counters if i['packageType'] == 'Messaging']
             if messaging != []:
                 nonused = [i['amount'] for i in messaging[0]['parts'] if i['partType'] == 'NonUsed']
                 usedbyme = [i['amount'] for i in messaging[0]['parts'] if i['partType'] == 'UsedByMe']
-                if (mts_usedbyme == '0' or self.login not in mts_usedbyme.split(',')) and nonused != []:
-                    self.result['SMS'] = int(nonused[0])
-                if (mts_usedbyme == '1' or self.login in mts_usedbyme.split(',')) and usedbyme != []:
-                    self.result['SMS'] = int(usedbyme[0])
+                if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
+                    result['SMS'] = int(nonused[0])
+                if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
+                    result['SMS'] = int(usedbyme[0])
             # Интернет
             internet = [i for i in counters if i['packageType'] == 'Internet']
             if internet != []:
                 unitMult = settings.UNIT.get(internet[0]['unitType'], 1)
-                unitDiv = settings.UNIT.get(self.options('interUnit'), 1)
+                unitDiv = settings.UNIT.get(options('interUnit'), 1)
                 nonused = [i['amount'] for i in internet[0]['parts'] if i['partType'] == 'NonUsed']
                 usedbyme = [i['amount'] for i in internet[0]['parts'] if i['partType'] == 'UsedByMe']
-                if (mts_usedbyme == '0' or self.login not in mts_usedbyme.split(',')) and nonused != []:
-                    self.result['Internet'] = round(nonused[0] * unitMult / unitDiv, 2)
-                if (mts_usedbyme == '1' or self.login in mts_usedbyme.split(',')) and usedbyme != []:
-                    self.result['Internet'] = round(usedbyme[0] * unitMult / unitDiv, 2)
+                if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
+                    result['Internet'] = round(nonused[0] * unitMult / unitDiv, 2)
+                if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
+                    result['Internet'] = round(usedbyme[0] * unitMult / unitDiv, 2)
 
-        self.page_goto('https://lk.mts.ru/uslugi/podklyuchennye')
-        res2 = self.wait_params(params=[
-            {
-                'name': '#services', 'url_tag': ['for=api/services/list/active$'],
-                'jsformula': "data.data.services.map(s=>[s.name,!!s.subscriptionFee.value?s.subscriptionFee.value*(s.subscriptionFee.unitOfMeasureRaw=='DAY'?30:1):0])"
-            },
-            {
-                'name': 'BlockStatus', 'url_tag': ['for=api/services/list/active'],
-                'jsformula': "data.data.accountBlockStatus == 'Unblocked' ? '' : data.data.accountBlockStatus"
-            },
-        ])
+        pd.send('Page.navigate', {'url': 'https://lk.mts.ru/uslugi/podklyuchennye'})
+        # ждем longtask тормозную страницу
+        for cnt in range(30):
+            if pd.get_response_body('for=api/services/list/active$') is not None:
+                break
+            time.sleep(1)
+        # services = pd.jsformula('for=api/services/list/active$', "data.data.services.map(s=>[s.name,!!s.subscriptionFee.value?s.subscriptionFee.value*(s.subscriptionFee.unitOfMeasureRaw=='DAY'?30:1):0])")
+        active = pd.get_response_body_json('for=api/services/list/active$')
+        # (name, cost, period)
+        services_ = [(e.get('name', ''), e.get('subscriptionFee', {}).get('value', 0), e.get('subscriptionFee', {}).get('unitOfMeasureRaw', ''))
+                    for e in active.get('data', {}).get('services', [])]
+        services_2 = [(s, c * (30 if p == 'DAY' else 1)) for s, c, p in services_]
+        result['BlockStatus'] = active.get('data', {}).get('accountBlockStatus', '')
         try:
-            services = sorted(res2['#services'], key=lambda i: (-i[1], i[0]))
+            services = sorted(services_2, key=lambda i: (-i[1], i[0]))
             free = len([a for a, b in services if b == 0 and (a, b) != ('Ежемесячная плата за тариф', 0)])
             paid = len([a for a, b in services if b != 0])
             paid_sum = round(sum([b for a, b in services if b != 0]), 2)
-            self.result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
-            self.result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
+            result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
+            result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
         except Exception:
-            logging.info(f'Ошибка при получении списка услуг {store.exception_text()}')
+            logging.info(f'Ошибка при получении списка услуг {exception_text()}')
 
         # Идем и пытаемся взять инфу со страницы https://lk.mts.ru/obshchiy_paket
         # Теперь это на https://lk.ssl.mts.ru/sharing
         # Но только если телефон в списке в поле mts_usedbyme или для всех телефонов если там 1
-        if mts_usedbyme == '1' or self.login in mts_usedbyme.split(',') or self.acc_num.lower().startswith('common'):
+        if mts_usedbyme == '1' or login in mts_usedbyme.split(',') or acc_num.lower().startswith('common'):
             # 24.08.2021 иногда возвращается легальная страница, но вместо информации там сообщение об ошибке - тогда перегружаем и повторяем
-            for i in range(3):
-                res3_alt = self.wait_params(params=[{'name': '#checktask', 'url_tag': ['for=api/sharing/counters', '/longtask/'], 'jsformula': "data"}])
-                if 'Donor' in str(res3_alt) or 'Acceptor' in str(res3_alt):
-                    break  # Новый вариант аккумуляторов
-                if i == 1:  # Аккумуляторы теперь приходят с первоначальной страницей, но если вдруг их нет пробуем ткнуться в страницу с аккумуляторами
-                    self.page_goto('https://lk.ssl.mts.ru/sharing')
-                logging.info(f'mts_usedbyme: GetUserClaims вернул claim_error - reload')
-                self.page_reload()
-                self.sleep(5)
-            else:
-                logging.info(f'mts_usedbyme: GetUserClaims за три попытки так и не дал результат. Уходим')
-                self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных (claim_error)'}
-                return
+            pd.send('Page.navigate', {'url': 'https://lk.mts.ru/sharing'})
+            for cnt in range(30):
+                if pd.get_response_body('for=api/sharing/counters') is not None:
+                    break
+                time.sleep(1)
+            # pd.jsformula('for=api/sharing/counters', 'data')
+            res3_alt = pd.get_response_body_json('for=api/sharing/counters').get('data', {})
+            # logging.info(f'mts_usedbyme: GetUserClaims за три попытки так и не дал результат. Уходим')
+            # self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных (claim_error)'}
+            # return
             try:
                 # Обработка по новому варианту страницы api/sharing/counters
-                if res3_alt.get('#checktask', {}).get('data', {}).get('subscriberType', '') == 'Donor':
+                if res3_alt.get('subscriberType', '') == 'Donor':
                     logging.info(f'mts_usedbyme: Donor')
-                    for el in res3_alt.get('#checktask', {}).get('data', {}).get('counters', []):  # data.counters. ...
+                    for el in res3_alt.get('counters', []):  # data.counters. ...
                         if el.get('packageType', '') == 'Calling':
-                            self.result['SpendMin'] = int((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) / 60)
+                            result['SpendMin'] = int((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) / 60)
                         if el.get('packageType', '') == 'Messaging':
-                            self.result['SMS'] = el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)
+                            result['SMS'] = el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)
                         if el.get('packageType', '') == 'Internet':
-                            self.result['Internet'] = round((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) / 1024 / 1024, 3)
-                if res3_alt.get('#checktask', {}).get('data', {}).get('subscriberType', '') == 'Acceptor':
+                            result['Internet'] = round((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) / 1024 / 1024, 3)
+                if res3_alt.get('subscriberType', '') == 'Acceptor':
                     logging.info(f'mts_usedbyme: Acceptor')
-                    for el in res3_alt.get('#checktask', {}).get('data', {}).get('counters', []):  # data.counters. ...
+                    for el in res3_alt.get('counters', []):  # data.counters. ...
                         if el.get('packageType', '') == 'Calling':
-                            self.result['SpendMin'] = int(el.get('usedAmount', 0) / 60)
+                            result['SpendMin'] = int(el.get('usedAmount', 0) / 60)
                         if el.get('packageType', '') == 'Messaging':
-                            self.result['SMS'] = el.get('usedAmount', 0)
+                            result['SMS'] = el.get('usedAmount', 0)
                         if el.get('packageType', '') == 'Internet':
-                            self.result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)
+                            result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)
                 # Спецверсия для общего пакета, работает только для Donor
-                if self.acc_num.lower().startswith('common'):
+                if acc_num.lower().startswith('common'):
                     # Обработка по новому варианту страницы api/sharing/counters
-                    if res3_alt.get('#checktask', {}).get('data', {}).get('subscriberType', '') == 'Donor':
+                    if res3_alt.get('subscriberType', '') == 'Donor':
                         logging.info(f'mts_usedbyme: Common for donor')
-                        for el in res3_alt.get('#checktask', {}).get('data', {}).get('counters', []):  # data.counters. ...
+                        for el in res3_alt.get('counters', []):  # data.counters. ...
                             if el.get('packageType', '') == 'Calling':
-                                self.result['Min'] = int((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 60)  # осталось минут
-                                self.result['SpendMin'] = int((el.get('usedAmount', 0)) / 60)  # Потрачено минут
+                                result['Min'] = int((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 60)  # осталось минут
+                                result['SpendMin'] = int((el.get('usedAmount', 0)) / 60)  # Потрачено минут
                             if el.get('packageType', '') == 'Messaging':
-                                if 'rest' in self.acc_num:  # common_rest - общие остатки
-                                    self.result['SMS'] = el.get('totalAmount', 0) - el.get('usedAmount', 0)
+                                if 'rest' in acc_num:  # common_rest - общие остатки
+                                    result['SMS'] = el.get('totalAmount', 0) - el.get('usedAmount', 0)
                                 else:                       # потрачено
-                                    self.result['SMS'] = el.get('usedAmount', 0)
+                                    result['SMS'] = el.get('usedAmount', 0)
                             if el.get('packageType', '') == 'Internet':
-                                if 'rest' in self.acc_num:  # common_rest - общие остатки
-                                    self.result['Internet'] = round((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 1024 / 1024, 3)
+                                if 'rest' in acc_num:  # common_rest - общие остатки
+                                    result['Internet'] = round((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 1024 / 1024, 3)
                                 else:                       # потрачено
-                                    self.result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)
+                                    result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)
                     else:  # Со страницы общего пакета не отдали данные, чистим все, иначе будут кривые графики. ТОЛЬКО для common
                         raise RuntimeError(f'Страница общего пакета не возвращает данных')
             except Exception:
-                logging.info(f'Ошибка при получении obshchiy_paket {store.exception_text()}')
-                if self.acc_num.lower().startswith('common'):
-                    self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных'}
-
-
-# задействуем https://github.com/svetlyak40wt/mobile-balance
-def get_balance_api(login, password, storename, plugin_name=__name__, fast_api=False):
-    'plugin_name нужен для корректного доставания параметров из phones.ini, т.к. можем придти сюда из другого плагина mts2, fast_api=True - balance only'
-
-    def get_tokens(response):
-        csrf_token = re.search(r'name="csrf.sign" value="(.*?)"', response.text)
-        csrf_ts_token = re.search(r'name="csrf.ts" value="(.*?)"', response.text)
-        if csrf_token is None:
-            raise_msg = "CSRF token not found"
-            logging.error(raise_msg)
-            raise RuntimeError(raise_msg, response)
-        return csrf_token.group(1), csrf_ts_token.group(1)
-
-    def check_status_code(response, expected_code):
-        result_code = response.status_code
-        if result_code != expected_code:
-            raise_msg = f'{response.request.method} to {response.url} resulted in {result_code} status code instead of {expected_code}'
-            logging.error(raise_msg)
-            raise RuntimeError(raise_msg, response)
-
-    def do_login():
-        url = "http://login.mts.ru/amserver/UI/Login"
-        user_agent = store.options('user_agent', pkey=store.get_pkey(login, plugin_name=__name__))
-        if user_agent.strip() == '':
-            user_agent = settings.default_user_agent
-        headers = {"User-Agent": user_agent, }
-        session = store.Session(storename, headers=headers)
-        response = session.get(url, headers=headers)
-        check_status_code(response, 200)
-        # 1
-        csrf_token, csrf_ts_token = get_tokens(response)
-        headers["Referer"] = url
-        response = session.post(
-            url,
-            data={"IDToken1": login, "IDButton": "Submit", "encoded": "false", "loginURL": "?service=default", "csrf.sign": csrf_token, "csrf.ts": csrf_ts_token, },
-            headers=headers,
-        )
-        check_status_code(response, 200)
-        csrf_token, csrf_ts_token = get_tokens(response)
-        # 2
-        fonts = 'cursive;monospace;serif;sans-serif;default;Arial;Arial Black;Arial Narrow;Bookman Old Style;Bradley Hand ITC;Century;Century Gothic;Comic Sans MS;Courier;Courier New;Georgia;Impact;Lucida Console;Papyrus;Tahoma;Times;Times New Roman;Trebuchet MS;Verdana;'
-        fonts_l = fonts.split(';')
-        fonts = ';'.join(fonts_l[:random.randint(5, len(fonts_l))])
-        id_token_2 = {
-            'screen': {'screenWidth': 1920, 'screenHeight': 1080, 'screenColourDepth': 24},
-            'platform': 'Win32',
-            'language': 'ru',
-            'timezone': {'timezone': -180},
-            'plugins': {'installedPlugins': ''},
-            'fonts': {'installedFonts': fonts},
-            'userAgent': user_agent,
-            'appName': 'Netscape',
-            'appCodeName': user_agent.split('/', 1)[0],
-            'appVersion': user_agent.split('/', 1)[1],
-            'buildID': '20220101000000',
-            'oscpu': 'Windows NT 6.1; Win64; x64',
-            'product': 'Gecko',
-            'productSub': '20100101'
-        }
-        response = session.post(
-            url,
-            data={
-                "IDToken2": json.dumps(id_token_2),
-                "csrf.sign": csrf_token,
-                "csrf.ts": csrf_ts_token,
-            },
-            headers=headers,
-        )
-        # 3
-        csrf_token, csrf_ts_token = get_tokens(response)
-        response = session.post(
-            url,
-            data={"IDToken1": login, "IDToken2": password, "IDButton": "Check", "encoded": "false", "loginURL": "?service=default", "csrf.sign": csrf_token, "csrf.ts": csrf_ts_token, },
-            headers=headers,
-            allow_redirects=False,
-        )
-        check_status_code(response, 200)
-        # 4
-        csrf_token, csrf_ts_token = get_tokens(response)
-        response = session.post(
-            url,
-            data={"IDButton": "Login", "encoded": "false", "csrf.sign": csrf_token, "csrf.ts": csrf_ts_token, },
-            headers=headers,
-            allow_redirects=False,
-        )
-        check_status_code(response, 302)
-        return session
-
-    def get_api_json(api, longtask=False):
-        '''у МТС некоторые операции делаются в два приема (longtask==True), сначала берется одноразовый токен,
-        а затем с этим токеном выдается страничка, иногда если слишком быстро попросить ответ  вместо нужного json
-        возвращает json {'loginStatus':'InProgress'}  '''
-        url = f'https://lk.mts.ru/{api}'
-        if api.startswith('amserver/api'):
-            longtask = False
-            url = f'https://login.mts.ru/{api}'
-        if longtask:
-            logging.info(url)
-            response1 = session.get(url + '?overwriteCache=false')
-            logging.info(f'{response1.status_code}')
-            token = response1.json()
-            url = f'https://lk.mts.ru/api/longtask/check/{token}?for={api}'
-        for l_try in range(10):  # 10 попыток TODO вынести в settings
-            if longtask or l_try > 0:  # для не longtask запросов на первой итерации не ждем
-                logging.info(f'Wait longtask')
-                time.sleep(2)
-            logging.info(f'{url}')
-            response2 = session.get(url)
-            logging.info(f'{response2.status_code}')
-            if response2.status_code >= 400:
-                return {}  # Вернули ошибку, продолжать нет смысла
-            if response2.status_code == 204:  # No Content - wait
-                continue
-            if response2.status_code != 200:
-                continue  # Надо чуть подождать (бывает что и 6 секунд можно прождать)
-            if 'json' in response2.headers.get('content-type'):
-                # если у json есть 'loginStatus'=='InProgress' уходим на дополнительный круг
-                if response2.json().get('loginStatus', '') != 'InProgress':
-                    return response2.json()  # результат есть выходим из цикла
-            else:
-                logging.info(f"Not json:{response2.headers.get('content-type')}")
-                # ответ есть и это не json - выходим
-                return {}
-        else:
-            logging.info(f'Limit retry for {url}')
-        return {}
-
-    def options(param):
-        ''' Обертка вокруг store.options чтобы передать в нее пару (номер, плагин) для вытаскивания индивидуальных параметров'''
-        pkey = store.get_pkey(login, plugin_name)
-        return store.options(param, pkey=pkey)
-
-    mts_usedbyme = options('mts_usedbyme')
-    session = store.Session(storename)
-    user_info = get_api_json('api/login/userInfo', longtask=False)
-    # Залогинены - если нет логинимся
-    if 'userProfile' not in user_info:
-        logging.info('userInfo not return json try relogin')
-        session.drop_and_create()
-        session = do_login()
-        user_info = get_api_json('api/login/userInfo', longtask=False)
-    result = {}
-
-    # p_response = session.get("https://login.mts.ru/amserver/api/profile")
-    profile = get_api_json('amserver/api/profile', longtask=False)
-    result['Balance'] = round(float(profile.get("mobile:balance", 0)), 2)
-    result['TarifPlan'] = profile.get('mobile:tariff', '')
-    result['UserName'] = profile.get('profile:name', '')
-    if fast_api:
-        session.save_session()
-        return result
-
-    try:
-        aib = get_api_json('api/accountInfo/mscpBalance', longtask=True)
-        sla = get_api_json('api/services/list/active', longtask=True)
-        sc = get_api_json('api/sharing/counters', longtask=True)
-        cb = get_api_json('api/cashback/account', longtask=True)
-
-        if 'amount' in aib:
-            result['Balance'] = round(float(aib.get('data', {}).get('amount', 0)), 2)
-        else:
-            logging.info(f'не смогли взять баланс с api/accountInfo/mscpBalance')
-        result['Balance2'] = cb.get('data', {}).get('balance', 0)
-        # Услуги
-        sla_services = sla.get('data', {}).get('services', [])
-        # services = [(i['name'], i.get('subscriptionFee', {}).get('value', 0)) for i in sla_services]
-        # [(i['name'], i.get('subscriptionFee', {}).get('value', 0)*settings.UNIT.get(i.get('subscriptionFee', {}).get('unitOfMeasureRaw', 0), 1)) for i in sla_services]
-        services = []
-        for el in sla_services:
-            name = el['name']
-            subscription_fee = el.get('subscriptionFee', {})
-            fee = subscription_fee.get('value', 0)
-            unit = settings.UNIT.get(subscription_fee.get('unitOfMeasureRaw', 0), 1)
-            services.append([name, fee * unit])
-        free = len([a for a, b in services if b == 0 and (a, b) != ('Ежемесячная плата за тариф', 0)])
-        paid = len([a for a, b in services if b != 0])
-        paid_sum = round(sum([b for a, b in services if b != 0]), 2)
-        services.sort(key=lambda i: (-i[1], i[0]))
-        result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
-        result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
-        # Counters
-        sc_counters = sc.get('data', {}).get('counters', [])
-        # Минуты
-        calling = [i for i in sc_counters if i['packageType'] == 'Calling']
-        if calling != []:
-            unit = {'Second': 60, 'Minute': 1}.get(calling[0]['unitType'], 1)
-            nonused = [i['amount'] for i in calling[0]['parts'] if i['partType'] == 'NonUsed']
-            usedbyme = [i['amount'] for i in calling[0]['parts'] if i['partType'] == 'UsedByMe']
-            if nonused != []:
-                result['Min'] = int(nonused[0] / unit)
-            if usedbyme != []:
-                result['SpendMin'] = int(usedbyme[0] / unit)
-        # SMS
-        messaging = [i for i in sc_counters if i['packageType'] == 'Messaging']
-        if messaging != []:
-            nonused = [i['amount'] for i in messaging[0]['parts'] if i['partType'] == 'NonUsed']
-            usedbyme = [i['amount'] for i in messaging[0]['parts'] if i['partType'] == 'UsedByMe']
-            if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
-                result['SMS'] = int(nonused[0])
-            if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
-                result['SMS'] = int(usedbyme[0])
-        # Интернет
-        internet = [i for i in sc_counters if i['packageType'] == 'Internet']
-        if internet != []:
-            unitMult = settings.UNIT.get(internet[0]['unitType'], 1)
-            unitDiv = settings.UNIT.get(options('interUnit'), 1)
-            nonused = [i['amount'] for i in internet[0]['parts'] if i['partType'] == 'NonUsed']
-            usedbyme = [i['amount'] for i in internet[0]['parts'] if i['partType'] == 'UsedByMe']
-            if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
-                result['Internet'] = round(nonused[0] * unitMult / unitDiv, 2)
-            if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
-                result['Internet'] = round(usedbyme[0] * unitMult / unitDiv, 2)
-
-    except Exception:
-        exception_text = f'Ошибка при получении дополнительных данных {store.exception_text()}'
-        logging.error(exception_text)
-
-    session.save_session()
+                logging.info(f'Ошибка при получении obshchiy_paket {exception_text()}')
+                if acc_num.lower().startswith('common'):
+                    result = {'ErrorMsg': 'Страница общего пакета не возвращает данных'}
+    pd.browser_close()
     return result
-
-
-def get_balance(login, password, storename=None, **kwargs):
-    ''' На вход логин и пароль, на выходе словарь с результатами
-    есть три режима работы (задается параметром plugin_mode):
-    WEB - работа через браузер, забираем все возможные параметры (по умолчанию)
-    API - работа через API забираем все возможные параметры
-    FASTAPI - работа через API забираем только баланс
-    '''
-    store.update_settings(kwargs)
-    store.turn_logging()    
-    # т.к. для совместимости остался приходящий сюда плагин mts2 пришлось пойти на трюк
-    plugin_name = kwargs.get('plugin_name', __name__)
-    pkey = store.get_pkey(login, plugin_name=plugin_name)
-    plugin_mode = store.options('plugin_mode', pkey=pkey).upper()
-    # Поменять дефолт если будут проблемы с playwright != 'WEB':
-    if False:  # API вариант не работает plugin_mode in ('API', 'FASTAPI'):
-        fast_api = (plugin_mode == 'FASTAPI')
-        return get_balance_api(login, password, storename, plugin_name=plugin_name, fast_api=fast_api)
-    else:
-        be = browserengine(login, password, storename, plugin_name=plugin_name)
-        if str(store.options('show_captcha', pkey=pkey)) == '1':
-            # если включен показ браузера в случае капчи то отключаем headless chrome - в нем видимость браузера не вернуть
-            be.launch_config['headless'] = False
-        return be.main()
-
 
 if __name__ == '__main__':
     print('This is module mts on browser (mts)')
