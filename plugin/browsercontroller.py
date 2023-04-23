@@ -289,10 +289,12 @@ class BalanceOverPlaywright():
         self.responses = {}
         self.hide_chrome_flag = str(self.options('show_chrome')) == '0' and self.options('logginglevel') != 'DEBUG'
         self.profile_directory = self.storename
-        self.launch_config_args = [
-            '--log-level=3',  # no logging
-            "--window-position=-2000,-2000" if self.hide_chrome_flag else "--window-position=80,80",
-            "--window-size=800,900"]
+        self.launch_config_args = []
+        if self.options('browsertype') == 'chromium':  # FIXME don't work in firefox
+            self.launch_config_args = [
+                '--log-level=3',  # no logging
+                "--window-position=-2000,-2000" if self.hide_chrome_flag else "--window-position=80,80",
+                "--window-size=800,900"]
         # if self.headless:
         # В Headless chrome не работают профили, в Firefox их вообще нет, так что многопрофильность не используем
         self.user_data_dir = store.abspath_join(self.storefolder, 'headless', self.profile_directory)
