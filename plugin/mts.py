@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import logging, os, sys, re, time, datetime, json, random
+import logging, os, sys, re, time, datetime, json, random, glob
 from typing import List, Dict
 import json
 import requests
@@ -41,6 +41,7 @@ class PureBrowserDebug():
         self.fix_crash_banner()
         self.br_thread = threading.Thread(target=self.chromium_thread_runner, daemon=True)
         self.br_thread.start()
+        self.capture_screenshot(init=True)
         time.sleep(0.5)
         for n_nry in range(5):
             # children and children's children
@@ -87,7 +88,7 @@ class PureBrowserDebug():
         # with sync_playwright() as pl:
         #    self.browser_path = pl.chromium.executable_path
         # https://playwright.azureedge.net/builds/chromium/1055/chromium-win64.zip
-        self.browser_path = r'%LOCALAPPDATA%\ms-playwright\chromium-1055\chrome-win\chrome.exe'
+        self.browser_path = r'%LOCALAPPDATA%\chromium-1055\chrome-win\chrome.exe'
         self.cmd = fr'''{self.browser_path} --user-data-dir={self.user_data_dir} --remote-debugging-port={self.port} --disable-save-password-bubble --no-default-browser-check --disable-component-update --disable-extensions --disable-sync --no-first-run --no-service-autorun --remote-allow-origins=http://localhost:{self.port}'''
         os.system(self.cmd)
 
@@ -197,10 +198,23 @@ class PureBrowserDebug():
         response_result = self.get_response_body_json(url)
         return self.page_eval(f"(()=>{{data={json.dumps(response_result,ensure_ascii=False)};return {formula};}})()")
 
-    def capture_screenshot(self, filename):
+    def capture_screenshot(self, filename=None, init=False, comment=''):
+        if filename is None and self.response_store_path is None:
+            return
+        if filename is None:
+            preffix = os.path.splitext(self.response_store_path)[0]
+            mask = f'{preffix}*.png'
+            num = len(glob.glob(mask)) + 1
+            if len(comment) > 0:
+                comment = '_' + comment
+            filename = f'{preffix}_{num}{comment}.png'
+            if init:
+                for fn in glob.glob(mask):
+                    os.remove(fn)
         try:
             res = self.get('Page.captureScreenshot', {'format': 'png', 'quality': 80, 'fromSurface': True})
             open(filename, 'wb').write(base64.b64decode(res['data']))
+            logging.info(f'Screenshot {filename}')
         except Exception:
             logging.info(exception_text())
 
@@ -278,6 +292,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     pd.send('Page.navigate', {'url': 'https://lk.mts.ru'})
     time.sleep(3)
     pd.collect()
+    pd.capture_screenshot()
     cc = pd.browser_close
     # self, cc = pd, pd.browser_close
 
@@ -285,11 +300,13 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         pd.page_fill('form input[type=tel]', login)
         pd.page_click('form [type=submit]')
         time.sleep(2)
+        pd.capture_screenshot()
 
     if pd.check_selector('form input[id=password]'):
         pd.page_fill('form input[id=password]', password)
         pd.page_click('form [type=submit]')
         time.sleep(2)
+        pd.capture_screenshot()
 
     if pd.page_eval("document.getElementsByTagName('mts-lk-root').length == 1"):
         user_info = pd.get_response_body_json('api/login/user-info')
@@ -308,6 +325,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             if pd.get_response_body('for=api/accountInfo/mscpBalance') is not None and pd.get_response_body('for=api/sharing/counters') is not None:
                 break
             time.sleep(1)
+        pd.capture_screenshot()
         mccsp_balance = pd.get_response_body_json('for=api/accountInfo/mscpBalance')
         # pd.jsformula('for=api/accountInfo/mscpBalance', "parseFloat(data.data==null ? data.amount : data.data.amount).toFixed(2)")
         result['Balance'] = round(mccsp_balance.get('amount', 0), 2)
@@ -365,13 +383,14 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             if pd.get_response_body('for=api/services/list/active$') is not None:
                 break
             time.sleep(1)
+        pd.capture_screenshot()
         # services = pd.jsformula('for=api/services/list/active$', "data.data.services.map(s=>[s.name,!!s.subscriptionFee.value?s.subscriptionFee.value*(s.subscriptionFee.unitOfMeasureRaw=='DAY'?30:1):0])")
         active = pd.get_response_body_json('for=api/services/list/active$')
         # (name, cost, period)
         services_ = [(e.get('name', ''), e.get('subscriptionFee', {}).get('value', 0), e.get('subscriptionFee', {}).get('unitOfMeasureRaw', ''))
                     for e in active.get('data', {}).get('services', [])]
         services_2 = [(s, c * (30 if p == 'DAY' else 1)) for s, c, p in services_]
-        result['BlockStatus'] = active.get('data', {}).get('accountBlockStatus', '')
+        result['BlockStatus'] = active.get('data', {}).get('accountBlockStatus', '').replace('Unblocked', '')
         try:
             services = sorted(services_2, key=lambda i: (-i[1], i[0]))
             free = len([a for a, b in services if b == 0 and (a, b) != ('Ежемесячная плата за тариф', 0)])
@@ -392,6 +411,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                 if pd.get_response_body('for=api/sharing/counters') is not None:
                     break
                 time.sleep(1)
+            pd.capture_screenshot()
             # pd.jsformula('for=api/sharing/counters', 'data')
             res3_alt = pd.get_response_body_json('for=api/sharing/counters').get('data', {})
             # logging.info(f'mts_usedbyme: GetUserClaims за три попытки так и не дал результат. Уходим')
@@ -442,6 +462,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                 logging.info(f'Ошибка при получении obshchiy_paket {exception_text()}')
                 if acc_num.lower().startswith('common'):
                     result = {'ErrorMsg': 'Страница общего пакета не возвращает данных'}
+    pd.capture_screenshot()
     pd.browser_close()
     return result
 
