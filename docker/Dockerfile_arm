@@ -4,10 +4,9 @@ FROM python:3.9.2-buster
 
 # Install Chromium and node.js for arm
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    chromium=112.0.5615.49-2~deb11u2  \
-    nodejs=10.24.0~dfsg-1~deb10u2 \
-    && rm -rf /var/lib/apt/lists/*
+    apt-get install -y \
+    chromium=89.0.4389.114-1~deb10u1 \
+    nodejs=10.24.0~dfsg-1~deb10u2
 
 WORKDIR /app
 
@@ -20,23 +19,23 @@ ENV UID=$UID
 ENV GID=$GID
 #RUN usermod -u $UID node && groupmod -g $GID node
 #RUN groupadd --gid 2000 node && useradd --uid 2000 --gid node --shell /bin/bash --create-home node
-RUN groupadd -f --gid $GID $UNAME && (id -u $UNAME 1>/dev/null 2>/dev/null || useradd --uid $UID --gid $UNAME --shell /bin/bash --create-home $UNAME)
+RUN groupadd -f --gid $GID $UNAME && (id -u $UNAME &>/dev/null || useradd --uid $UID --gid $UNAME --shell /bin/bash --create-home $UNAME)
 
 RUN pip install --upgrade pip
 
 # Download playwright for linux x86_64, rename it so that it can be installed on arm and install
-RUN wget https://files.pythonhosted.org/packages/d2/b6/e6c73bc0ac5d3cf62ca2a9e3e9bbee49131411fd4414e867c37cf55512db/playwright-1.32.1-py3-none-manylinux1_x86_64.whl && \
-    mv playwright-1.32.1-py3-none-manylinux1_x86_64.whl playwright-1.32.1-py3-none-any.whl && \
-    pip install playwright-1.32.1-py3-none-any.whl
+RUN wget https://files.pythonhosted.org/packages/78/e7/3e0cb3362c7d90b10457cc9a40fca4bfd9b5dcbe526be3f478d660436916/playwright-1.14.1-py3-none-manylinux1_x86_64.whl && \
+    mv playwright-1.14.1-py3-none-manylinux1_x86_64.whl playwright-1.14.1-py3-none-any.whl && \
+    pip install playwright-1.14.1-py3-none-any.whl
 
 # replace the node binary provided by playwright with a symlink to the version we just installed.
 RUN rm /usr/local/lib/python3.9/site-packages/playwright/driver/node && \
     ln -s /usr/bin/node /usr/local/lib/python3.9/site-packages/playwright/driver/node
 
 # create the hierarchy expected by playwright to find chrome
-RUN mkdir -p /app/pw-browser/chromium-1055/chrome-linux
+RUN mkdir -p /app/pw-browser/chromium-907428/chrome-linux
 # Add a symlink to the chromium binary we just installed.
-RUN ln -s /usr/bin/chromium /app/pw-browser/chromium-1055/chrome-linux/chrome
+RUN ln -s /usr/bin/chromium /app/pw-browser/chromium-907428/chrome-linux/chrome
 # ask playwright to search chrome in this folder
 ENV PLAYWRIGHT_BROWSERS_PATH=/app/pw-browser
 
