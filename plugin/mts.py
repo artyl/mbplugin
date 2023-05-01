@@ -378,11 +378,11 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         logging.error('Сработала защита, попробуйте запустить в режиме show_chrome=0')
         return
 
-    if pd.check_selector('form input[type=tel]') and int(options('login_pause')) > 0:
-        login_pause = int(options('login_pause'))
+    login_pause = int(options('login_pause'))
+    if not pd.page_eval("document.getElementsByTagName('mts-lk-root').length == 1") and login_pause > 0:
         logging.info(f'Login pause {login_pause}')
         for i in range(login_pause):
-            if not pd.check_selector('form input[type=tel]'):
+            if pd.page_eval("document.getElementsByTagName('mts-lk-root').length == 1"):
                 break
             time.sleep(1)
 
