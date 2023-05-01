@@ -361,9 +361,11 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     if storename is not None:
         response_store_path = store.abspath_join(options('loggingfolder'), storename + '.log')
     headless_chrome = (str(options('headless_chrome')) == '1') and (str(options('show_chrome')) == '0')  # headless if headless and NOT show_chrome
+    show_chrome = str(options('show_chrome')) == '1'
     result = {}
     headless_chrome = False  # FIX !!! МТС в headless не работает
-    pd = PureBrowserDebug(user_data_dir, response_store_path, headless_chrome=headless_chrome, show_chrome=(str(options('show_chrome')) == '1'))
+    show_chrome = True  # FIX !!! МТС без show_chrome не работает
+    pd = PureBrowserDebug(user_data_dir, response_store_path, headless_chrome=headless_chrome, show_chrome=show_chrome)
     # 1 Is login ???
     pd.send('Page.navigate', {'url': 'https://lk.mts.ru'})
     time.sleep(3)
@@ -375,6 +377,14 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     if 'Доступ к сайту login.mts.ru запрещен.' in pd.page_eval('document.body.textContent'):
         logging.error('Сработала защита, попробуйте запустить в режиме show_chrome=0')
         return
+
+    if pd.check_selector('form input[type=tel]') and int(options('login_pause')) > 0:
+        login_pause = int(options('login_pause'))
+        logging.info(f'Login pause {login_pause}')
+        for i in range(login_pause):
+            if not pd.check_selector('form input[type=tel]'):
+                break
+            time.sleep(1)
 
     if pd.check_selector('form input[type=tel]'):
         pd.page_fill('form input[type=tel]', login)
