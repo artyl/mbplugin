@@ -1,14 +1,17 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import logging, os, sys, re, time, datetime, json, random, glob
 from typing import List, Dict
-import json
-import requests
-import traceback, os, sys, time, gc, socket, websocket, logging, datetime, pprint
-import threading
-import base64, random
-import psutil
+import base64, datetime, gc, glob, json, logging, os, pathlib, pprint, random, re, socket, sys, threading, time, traceback, subprocess
+import psutil, requests, playwright
 import browsercontroller, store, settings
+# костыль для тех у кого нет пакета websocket
+try:
+    import websocket
+except Exception:
+    os.system(f'{sys.executable} -m pip install websocket-client==1.5.1 psutil==5.9.5')
+    import websocket
+if sys.platform == 'win32':
+    import win32gui, win32process
 
 icon = '789C75524D4F5341143D84B6A8C0EB2BAD856A4B0BE5E301A508A9F8158DC18498A889896E8C3B638C31F147B83171E34E4388AE5C68E246A3C68D0B5DA82180B5B40A5A94B6F651DA423F012D2DE09D79CF4A207DC949A733F79C39F7CC1D3A37A801FF060912415451058772A09E6FFD04CD18F4DA09C267C214210051FB857EFFC1AFEEB3F3495E2F68DEA35EF396F086F6BCBC46D47E257C2304A1D7045157350DA13A80FA6A1F6AAB7CB4F6AB5A5E08DA71D2F840FC772AEF3B44DD0F1874215A87D1DA34871B57658CDE4F1212B87E2504BBD94F5A01D5938F7B16341F8937CB79C65DBF60DA2DC3E594F1FAE532D64B1BD8DCDCE428D1FAC5B30CDAAD33E483799C2E6B187411E245D124CC63BF18C3DD3BB9326F3B6EDF4A506FB3C49FE5BE99C6DE3D32F6E9636836C671A0631153DEB58AFCC9F155EA4DE951D40579CE8C6B37C5693F895347D388C9EB15F9D148119E1E190D3551F23DC7F366F73A2D4974DA52183E9E831CADCC0F878A38E88AC15C3B4F1A119E5D8B39814EEB125CAD199CF0E4C97FA9227F7CAC809E96382CE4D9489989BA9F7092EF2E7B8A7ACF62D0B58C278F8A15F90F4656D0D29880D5B0C07363EFD6665944B72385012947FC15DCBC56403EB7939BCD6CE0F2852CF193B0352C500F8C1F267EB2CC3FEC5EA10CFFE0D5F39D193C7D5C80BB2DCDEFDBCADFEEFF58FF2A2E9D2FC0F7E9BFC6C45809A74FE62035A778BDE23FCAFD3B28BF0EEB22E597E61E0EF52EE348DF2A2E9EFD8D87236B18BD57C099A13CE596E639B37AF6E66C5E597ECC0B7B7BA97909BDCE0CFA3BB3F074E73906A43CFADA73FC6DBAD4BB597D63DD3C0C35CA0C59049A3D933203926D89DFE3261D779B0217FD67DA2C273667AC9ECDBB323F33F80B823D9864'
 
@@ -31,27 +34,33 @@ def exception_text():
 
 class PureBrowserDebug():
 
-    def __init__(self, user_data_dir, response_store_path=None) -> None:
-        self.user_data_dir = user_data_dir
-        self.response_store_path = response_store_path
-        self.port = get_free_port()
-        self._data: List[dict] = []
+    def __init__(self, user_data_dir, response_store_path=None, headless_chrome=False, show_chrome=True) -> None:
+        self.user_data_dir = user_data_dir  # chrome profile path
+        self.response_store_path = response_store_path  # path for file log, screenshot store fith same name but png extension
+        self.headless = headless_chrome  # for mts headles is broken headless_chrome always False
+        self.show_chrome = show_chrome
+        self.port = get_free_port()  # port for CDP
+        self._data: List[dict] = []  # store all winsocket reply
+        self.chrome_hwnd: List[int] = []  # store chrome visible windows handle (windows only)
         self.responses: Dict[str, dict] = {}  # [f'{response.request.method}:{post} URL:{response.request.url}$'] = data
-        self.ws_id = 0
+        self.ws_id = 0  # id counter for ws query
         self.fix_crash_banner()
-        self.br_thread = threading.Thread(target=self.chromium_thread_runner, daemon=True)
-        self.br_thread.start()
-        self.capture_screenshot(init=True)
+        self.br_subp = self.run_chromium()  # run browser subprocess
         time.sleep(0.5)
         for n_nry in range(5):
-            # children and children's children
-            children = psutil.Process().children() + sum([p.children() for p in psutil.Process().children()], [])
-            if not self.br_thread.is_alive():
+            if self.br_subp.poll() is not None:  # chrome is not alive ?
                 # browser not started kill all remote and exit
-                [p.kill() for p in psutil.process_iter() if p.name() == 'chrome.exe' and '--remote-debugging-port' in str(p.cmdline())]
-                raise RuntimeError("Chromium did't start, kill remote")
+                try:
+                    [p.kill() for p in psutil.process_iter() if p.name() == 'chrome.exe' and '--remote-debugging-port' in str(p.cmdline())]
+                except Exception:
+                    logging.info(f'kill old chrome: {exception_text()}')
+                raise RuntimeError("Chromium did't start, kill all remote browsers")
             try:
-                self.chrome_proc = [p for p in children if 'chrome' in p.name().lower()][0]
+                for i in range(50):  # wait while chrome started
+                    self.chrome_proc = self.chrome_children()
+                    if len(self.chrome_proc) > 3:
+                        break
+                    time.sleep(0.02)
                 r1 = requests.get(f'http://localhost:{self.port}/json/list')
                 logging.info(r1.json()[0])
                 self.ws_url = [el.get('webSocketDebuggerUrl') for el in r1.json() if el.get('type') == 'page'][0]
@@ -65,6 +74,7 @@ class PureBrowserDebug():
                 time.sleep(1)
         else:
             raise RuntimeError("Chromium did't start after 5 retry")
+        self.capture_screenshot(init=True)
         self.send("Network.enable")
 
     def fix_crash_banner(self):
@@ -79,28 +89,82 @@ class PureBrowserDebug():
             logging.info(f'Fix chrome crash banner')
             open(fn_pref, encoding='utf8', mode='w').write(data1)
 
-    def chromium_thread_runner(self):
-        # --remote-debugging-pipe
-        # %LOCALAPPDATA%\ms-playwright\chromium-1055\chrome-win\chrome.exe --user-data-dir=C:\mbstandalone\storetmp --remote-debugging-port=9222
-        # self.fix_crash_banner(storefolder, storename)
-        # self.cmd = fr'''%LOCALAPPDATA%\ms-playwright\chromium-1055\chrome-win\chrome.exe --user-data-dir=C:\mbstandalone\storetmp                         --remote-debugging-port={self.port} --disable-save-password-bubble --no-default-browser-check --disable-component-update --disable-extensions --disable-sync --no-first-run --no-service-autorun'''
-        # self.cmd = fr'''%LOCALAPPDATA%\ms-playwright\chromium-1055\chrome-win\chrome.exe --user-data-dir={os.path.join(storefolder, headless, storename)} --remote-debugging-port={self.port} --disable-save-password-bubble --no-default-browser-check --disable-component-update --disable-extensions --disable-sync --no-first-run --no-service-autorun --remote-allow-origins=http://localhost:{self.port}'''
-        # with sync_playwright() as pl:
-        #    self.browser_path = pl.chromium.executable_path
-        # https://playwright.azureedge.net/builds/chromium/1055/chromium-win64.zip
-        self.browser_path = r'%LOCALAPPDATA%\chromium-1055\chrome-win\chrome.exe'
-        self.cmd = fr'''{self.browser_path} --user-data-dir={self.user_data_dir} --remote-debugging-port={self.port} --disable-save-password-bubble --no-default-browser-check --disable-component-update --disable-extensions --disable-sync --no-first-run --no-service-autorun --remote-allow-origins=http://localhost:{self.port}'''
-        os.system(self.cmd)
+    def chrome_children(self):
+        'get children and subchildren procs'
+        try:
+            children = psutil.Process().children() + sum([p.children() for p in psutil.Process().children()], [])
+        except Exception:
+            logging.error(f'chrome_children:v{exception_text()}')
+            return []
+        return [p for p in children if p.name() == 'chrome.exe']
+
+    def run_chromium(self):
+        try:
+            browsers_json = json.load(open(os.path.join(os.path.split(playwright.__file__)[0], 'driver', 'package', 'browsers.json')))
+            revision = [e for e in browsers_json['browsers'] if e['name'] == 'chromium'][0]['revision']
+            if sys.platform == 'win32':
+                self.browser_path = os.path.join(os.environ.get('LOCALAPPDATA'), 'ms-playwright', f'chromium-{revision}', 'chrome-win', 'chrome.exe')
+            elif sys.platform == 'linux':
+                self.browser_path = os.path.join(pathlib.Path.home(), '.cache', 'ms-playwright', f'chromium-{revision}', 'chrome-win', 'chrome')
+            elif sys.platform == 'darwin':
+                self.browser_path = os.path.join(pathlib.Path.home(), 'Library', 'Caches', 'ms-playwright', f'chromium-{revision}', 'chrome-win', 'chrome')
+                self.browser_path = 'Library', 'Caches'
+            else:
+                raise RuntimeError(f'Unknown platform {sys.platform} Chromium not found')
+            if not os.path.exists(self.browser_path):
+                raise RuntimeError('Chromium not found')
+        except Exception:
+            logging.error(exception_text())
+            raise RuntimeError('Chromium not found')
+        self.cmd = [self.browser_path, f'--user-data-dir={self.user_data_dir}', f'--remote-debugging-port={self.port}', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-save-password-bubble', '--no-default-browser-check', ' --disable-component-update', '--disable-extensions', '--disable-sync', '--no-first-run', '--no-service-autorun', f'--remote-allow-origins=http://localhost:{self.port}']
+        # ??? ' --headless --no-sandbox about:blank'
+        fg_hwnd = None
+        if sys.platform == 'win32' and not self.show_chrome:
+            fg_hwnd = win32gui.GetForegroundWindow()
+        logging.info(f'Browser start: {" ".join(self.cmd)}')
+        proc = subprocess.Popen(self.cmd)
+        if sys.platform == 'win32' and not self.show_chrome:
+            while True:
+                self.chrome_hwnd = self.get_visible_hwnd([p.pid for p in self.chrome_children()])
+                if win32gui.GetForegroundWindow() in self.chrome_hwnd:
+                    win32gui.SetForegroundWindow(fg_hwnd)
+                try:
+                    [win32gui.ShowWindow(hwnd, False) for hwnd in self.chrome_hwnd]
+                except Exception:
+                    logging.error(f'While hiding the window an exception occurred: {exception_text()}')
+                if len(self.chrome_hwnd) > 0:
+                    break
+                time.sleep(0.05)
+        return proc
+
+    def get_visible_hwnd(self, pids):
+        def enumWindowFunc(hwnd, windowList):
+            """ win32gui.EnumWindows() callback """
+            text = win32gui.GetWindowText(hwnd)
+            className = win32gui.GetClassName(hwnd)
+            tid, pid = win32process.GetWindowThreadProcessId(hwnd)
+            windowList.append((hwnd, text, className, tid, pid))
+        if sys.platform != 'win32':
+            return []
+        try:
+            myWindows = []
+            win32gui.EnumWindows(enumWindowFunc, myWindows)
+            # GWL_STYLE=-16 WS_VISIBLE = 268435456
+            visible_hwnd = [wn[0] for wn in myWindows if wn[4] in pids and (win32gui.GetWindowLong(wn[0], -16) & 268435456)]
+            return visible_hwnd
+        except Exception:
+            logging.error(f'While enumerate the window an exception occurred: {exception_text()}')
 
     def send(self, method, params=None):
         if params is None:
             params = {}
         self.ws_id += 1
-        logging.info(f'send:{method} {params}')
+        logging.info(f'send {self.ws_id}: {method} {params}')
         self.ws.send(json.dumps({"id": self.ws_id, "method": method, "params": params}))
         return self.ws_id
 
     def collect(self, id=None):
+        id_countdown_timeout = 10  # FIXME make constant
         while True:
             # print(f'{len(self._data)}     ', end='\r')
             try:
@@ -110,8 +174,13 @@ class PureBrowserDebug():
                     if 'result' in res:
                         return res['result']
                     logging.info(res.get('error'))
+                    return None
             except websocket.WebSocketTimeoutException:
-                break
+                id_countdown_timeout -= 1
+                if id is not None:
+                    logging.info(f'Timeout for {id} (number {id_countdown_timeout}) was expired')
+                if id is None or id_countdown_timeout < 0:
+                    break
             except Exception:
                 logging.info(exception_text())
                 break
@@ -134,16 +203,16 @@ class PureBrowserDebug():
         try:
             res = self.send('Browser.close')
             for i in range(50):
-                if not self.chrome_proc.is_running():
+                if self.br_subp.poll() is not None:  # chrome finished ?
                     break
                 time.sleep(0.1)
             else:
-                self.chrome_proc.kill()
+                self.br_subp.kill()
         except Exception:
             logging.info(exception_text())
 
     def __del__(self):
-        if self.chrome_proc.is_running():
+        if self.br_subp.poll() is None:  # browser is running ?
             self.browser_close()
 
     def get_response_by_id(self, request_id):
@@ -199,6 +268,7 @@ class PureBrowserDebug():
         return self.page_eval(f"(()=>{{data={json.dumps(response_result,ensure_ascii=False)};return {formula};}})()")
 
     def capture_screenshot(self, filename=None, init=False, comment=''):
+        'use filename or _1, _2, .... init=True - only delete old screenshot'
         if filename is None and self.response_store_path is None:
             return
         if filename is None:
@@ -211,8 +281,12 @@ class PureBrowserDebug():
             if init:
                 for fn in glob.glob(mask):
                     os.remove(fn)
+                return
         try:
             res = self.get('Page.captureScreenshot', {'format': 'png', 'quality': 80, 'fromSurface': True})
+            if res is None:
+                logging.info('Screenshot is None')
+                return
             open(filename, 'wb').write(base64.b64decode(res['data']))
             logging.info(f'Screenshot {filename}')
         except Exception:
@@ -280,21 +354,27 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
 
     store.turn_logging()
     session = store.Session(storename)
-    result = {}
     logging.info(f"Start {kwargs=}")
     storefolder = options('storefolder')
-    user_data_dir = store.abspath_join(storefolder, 'headless', login)
+    user_data_dir = store.abspath_join(storefolder, 'headless', f'p_{__name__}_{login}')
     response_store_path = None
     if storename is not None:
         response_store_path = store.abspath_join(options('loggingfolder'), storename + '.log')
-    pd = PureBrowserDebug(user_data_dir, response_store_path)
+    headless_chrome = (str(options('headless_chrome')) == '1') and (str(options('show_chrome')) == '0')  # headless if headless and NOT show_chrome
+    result = {}
+    headless_chrome = False  # FIX !!! МТС в headless не работает
+    pd = PureBrowserDebug(user_data_dir, response_store_path, headless_chrome=headless_chrome, show_chrome=(str(options('show_chrome')) == '1'))
     # 1 Is login ???
     pd.send('Page.navigate', {'url': 'https://lk.mts.ru'})
     time.sleep(3)
     pd.collect()
     pd.capture_screenshot()
-    cc = pd.browser_close
+    # cc = pd.browser_close
     # self, cc = pd, pd.browser_close
+
+    if 'Доступ к сайту login.mts.ru запрещен.' in pd.page_eval('document.body.textContent'):
+        logging.error('Сработала защита, попробуйте запустить в режиме show_chrome=0')
+        return
 
     if pd.check_selector('form input[type=tel]'):
         pd.page_fill('form input[type=tel]', login)
