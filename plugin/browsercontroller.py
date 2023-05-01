@@ -132,7 +132,7 @@ def hide_chrome(hide=True, foreground=False):
 @safe_run_decorator
 def kill_chrome():
     '''Киляем бажный хром если вдруг какой-то висит, т.к. народ умудряется запускать не только хром, то имя exe возьмем из пути '''
-    # TODO получилось как-то сложно пока убиваем то что начинается на chrome и имеет remote-debugging-port в cmdline
+    # TODO получилось как-то сложно пока убиваем то что начинается на chrome и имеет remote-debugging-port or pipe в cmdline
     pname = 'chrome'  # chrome or chrome.exe # os.path.split(chrome_executable_path)[-1].lower()
     # TODO в сложном случае когда мы запускаем встроенный у нас может получиться что имя exe которое мы берем из chrome_executable_path
     # не совпадет с тем что мы реально запускаем, тогда мы можем не достать запущенные хромы
@@ -140,9 +140,10 @@ def kill_chrome():
     # но по правильному имя браузера мы должны взять из self.sync_pw.chromium.executable_path
     for p in psutil.process_iter():
         try:
-            if p.name().lower().startswith(pname) and 'remote-debugging-port' in ''.join(p.cmdline()):
+            if p.name().lower().startswith(pname) and '--remote-debugging-p' in ' '.join(p.cmdline()):
                 p.kill()
         except Exception:
+            logging.info(f'While chrome {p} was killing an exception occured: {store.exception_text()}')
             pass
 
 @safe_run_decorator
