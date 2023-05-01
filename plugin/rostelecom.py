@@ -7,12 +7,13 @@ icon = '789CA5D4B171DB401484E1A719050E5D024257A078C7B97BB852B614041ED7B1B16A7080
 
 login_url = 'https://lk.rt.ru'
 user_selectors = {
-    'before_login_js': "document.querySelectorAll('div[data-tab=login]').forEach(e => e.click())",  # Сначала кликаем по Логин
+    'before_login_js': "document.querySelectorAll('button[name=standard_auth_btn]').forEach(e => e.click());document.querySelectorAll('div[data-tab=login]').forEach(e => e.click())",  # Сначала кликаем по Логин
     'chk_lk_page_js': "document.querySelector('#root')!=null",  # true если мы в личном кабинете
-    'lk_page_url': 'client-api/getAccounts',  # не считаем что зашли в ЛК пока не прогрузим этот url
-    'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",  # true если мы в окне логина
+    # 'lk_page_url': 'client-api/getAccounts',  # не считаем что зашли в ЛК пока не прогрузим этот url
+    'chk_login_page_js': "document.getElementById('standard_auth_btn')!== null || document.getElementById('otp_get_code')!== null || document.querySelector('form input[type=password]') !== null ",  # true если мы в окне логина
     'login_clear_js': "document.querySelector('form input[id=username]').value=''",  # Уточняем поле для логина чтобы не промахнуться
     'login_selector': 'form input[id=username]',
+    'submit_js': "document.querySelector('form [type=submit][id=kc-login]').click()",
     'remember_checker': "document.querySelector('form input[name=rememberMe]').checked==false",  # Галка rememberMe почему-то нажимается только через js
     'remember_js': "document.querySelector('form input[name=rememberMe]').click()",
 }
@@ -22,67 +23,13 @@ class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         accountId = 0
-        # Есть несколько версий ЛК и в разных данные расположены на разных страницах ждем появления какого-нибудь
-        for i in range(20):
-            self.sleep(1)
-            v2_lk = any([i for i in self.responses if 'client-api/getAccountBalanceV2' in i])
-            api_lk = any([i for i in self.responses if 'api.rt.ru' in i])
-            if v2_lk or api_lk:
-                break
-        else:
-            logging.error(f'Not found page with balance')
-            return
-        # Если в логине указан лицевой счет, то нам нужно узнать accountId чтобы запросить баланс по конкретному ЛС
-        if self.acc_num != '':
-            # Сначала из файла client-api/getAccounts получаем accountId по номеру лицевого счета
-            if v2_lk:
-                res1 = self.wait_params(params=[{
-                    'name': '#accountId',  # Помечаем решеткой, потому что не берем в результат
-                    'url_tag': ['client-api/getAccounts'],
-                    'jsformula': f'data.accounts.filter(el => el.number=="{self.acc_num}")[0].accountId',
-                }])  # Это промежуточные данные их не берем в результат
-                try:
-                    accountId = res1.get['#accountId']  # Нам нужен accountId чтобы искать остальные данные
-                except Exception:
-                    logging.error(f'Not found #accountId: {store.exception_text()}')
-                    return
-            if api_lk:
-                # Т.к. этого варианта у меня нет, то понять как что брать из присланных примеров не смог а 
-                # баланс в таком варианте беру первый из присутствующих в л.к.
-                pass
-                # res1 = self.wait_params(params=[{
-                #    'name': '#accountId',  # Помечаем решеткой, потому что не берем в результат
-                #    'url_tag': ['users/current$'],
-                #    'jsformula': f'data.profile.accounts.filter(el=>el.id=="{self.acc_num}")[0].elk_account_id',
-                # }])  # Это промежуточные данные их не берем в результат
-        # Теперь со страницы client-api/getAccountBalanceV2 возьмем Balance (по accountId)
-        if v2_lk:
-            logging.info(f'Use client-api/getAccountBalanceV2')
-            self.wait_params(params=[
-                {
-                    'name': 'Balance',
-                    'url_tag': ['client-api/getAccountBalanceV2'] + ([str(accountId)] if self.acc_num != '' else []),
-                    'jsformula': r"data.balance/100",
-                },
-                # со страницы client-api/getAccountServicesMainInfo возьмем сумму всех месячных плат и назовем это тарифным планом (тоже по accountId)
-                {
-                    'name': 'TarifPlan',
-                    'url_tag': ['client-api/getAccountServicesMainInfo'] + ([str(accountId)] if self.acc_num != '' else []),
-                    'pformula': r"','.join([i['fee'][:-2] for i in data['services'].values()])",
-                },
-                # и со страницы client-api/getProfile соберем UserName (для него не нужен accountId)
-                {'name': 'UserName', 'url_tag': ['client-api/getProfile'], 'jsformula': 'data.lastName+" "+data.name+" "+data.middleName'},
-                # и со страницы client-api/getFplStatus соберем в Balance2 бонусы (для него не нужен accountId)
-                {'name': 'Balance2', 'url_tag': ['client-api/getFplStatus'], 'jsformula': 'data.balance'}
-            ])
-        elif api_lk:
-            logging.info(f'Use api.rt.ru/start/accounts')
-            self.wait_params(params=[
-                {'name': 'Balance', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': r"data.data[0].balance.amount/100"},
-                {'name': 'UserName', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': "((e=data.data[0].client)=>''+e.last_name+' '+e.first_name+' '+e.middle_name)().replace('undefined', '').trim()"},
-                {'name': 'BlockStatus', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': r"data.data[0].status.id"},
-                {'name': 'LicSchet', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': r"data.data[0].id"},
-            ])
+        logging.info(f'Use api.rt.ru/start/accounts')
+        self.wait_params(params=[
+            {'name': 'Balance', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': f"data.data.filter(el=>el['id']=={self.acc_num}||{self.acc_num}=='')[0].balance.amount/100"},
+            {'name': 'UserName', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': f"((e=data.data.filter(el=>el['id']=={self.acc_num}||{self.acc_num}=='')[0].client)=>''+e.last_name+' '+e.first_name+' '+e.middle_name)().replace('undefined', '').trim()"},
+            {'name': 'BlockStatus', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': f"data.data.filter(el=>el['id']=={self.acc_num}||{self.acc_num}=='')[0].status.id"},
+            {'name': 'LicSchet', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': f"data.data.filter(el=>el['id']=={self.acc_num}||{self.acc_num}=='')[0].id"},
+        ])
 
 
 class browserengine_qiwi(browsercontroller.BrowserController):
