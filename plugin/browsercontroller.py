@@ -609,6 +609,14 @@ class BalanceOverPlaywright():
             self.sleep(1 * self.force if not is_bad_chk_lk_page_js else 5)
             self.page_wait_for(loadstate=True)
         self.page_screenshot()
+        if self.page_evaluate(selectors['chk_login_page_js']) and self.options('login_pause') != '0':
+            # Если на экране форма ввода пароля и login_pause >0 ждем чтобы можно было авторизоваться через SMS или еще как-то
+            login_pause = int(self.options('login_pause'))
+            logging.info(f'Login pause {login_pause}')
+            for i in range(login_pause):
+                if not self.page_evaluate(selectors['chk_login_page_js']):
+                    break
+                self.sleep(1)
         for countdown in range(self.wait_loop):
             if self.page_evaluate(selectors['fatal'], False):
                 self.page_screenshot(suffix='fatal')
