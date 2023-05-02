@@ -103,38 +103,25 @@ class PureBrowserDebug():
             browsers_json = json.load(open(os.path.join(os.path.split(playwright.__file__)[0], 'driver', 'package', 'browsers.json')))
             revision = [e for e in browsers_json['browsers'] if e['name'] == 'chromium'][0]['revision']
             if sys.platform == 'win32':
-                self.browser_path = os.path.join(os.environ.get('LOCALAPPDATA'), 'ms-playwright', f'chromium-{revision}', 'chrome-win', 'chrome.exe')
+                pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', os.path.join(os.environ.get('LOCALAPPDATA'), 'ms-playwright'))
+                self.browser_path = os.path.join(pbp, f'chromium-{revision}', 'chrome-win', 'chrome.exe')
             elif sys.platform == 'linux':
-                self.browser_path = os.path.join(pathlib.Path.home(), '.cache', 'ms-playwright', f'chromium-{revision}', 'chrome-win', 'chrome')
+                pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', os.path.join(pathlib.Path.home(), '.cache', 'ms-playwright'))
+                self.browser_path = os.path.join(pbp, f'chromium-{revision}', 'chrome-win', 'chrome')
             elif sys.platform == 'darwin':
-                self.browser_path = os.path.join(pathlib.Path.home(), 'Library', 'Caches', 'ms-playwright', f'chromium-{revision}', 'chrome-win', 'chrome')
-                self.browser_path = 'Library', 'Caches'
+                pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', os.path.join(pathlib.Path.home(), 'Library', 'Caches', 'ms-playwright'))
+                self.browser_path = os.path.join(pbp, f'chromium-{revision}', 'chrome-win', 'chrome')
             else:
                 raise RuntimeError(f'Unknown platform {sys.platform} Chromium not found')
             if not os.path.exists(self.browser_path):
-                raise RuntimeError('Chromium not found')
+                raise RuntimeError(f'Chromium not found by path {self.browser_path}')
         except Exception:
             logging.error(exception_text())
             raise RuntimeError('Chromium not found')
         self.cmd = [self.browser_path, f'--user-data-dir={self.user_data_dir}', f'--remote-debugging-port={self.port}', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-save-password-bubble', '--no-default-browser-check', ' --disable-component-update', '--disable-extensions', '--disable-sync', '--no-first-run', '--no-service-autorun', f'--remote-allow-origins=http://localhost:{self.port}']
         # ??? ' --headless --no-sandbox about:blank'
-        fg_hwnd = None
-        if sys.platform == 'win32' and not self.show_chrome:
-            fg_hwnd = win32gui.GetForegroundWindow()
         logging.info(f'Browser start: {" ".join(self.cmd)}')
         proc = subprocess.Popen(self.cmd)
-        if sys.platform == 'win32' and not self.show_chrome:
-            while True:
-                self.chrome_hwnd = self.get_visible_hwnd([p.pid for p in self.chrome_children()])
-                if win32gui.GetForegroundWindow() in self.chrome_hwnd:
-                    win32gui.SetForegroundWindow(fg_hwnd)
-                try:
-                    [win32gui.ShowWindow(hwnd, False) for hwnd in self.chrome_hwnd]
-                except Exception:
-                    logging.error(f'While hiding the window an exception occurred: {exception_text()}')
-                if len(self.chrome_hwnd) > 0:
-                    break
-                time.sleep(0.05)
         return proc
 
     def get_visible_hwnd(self, pids):
@@ -346,12 +333,35 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         pkey = store.get_pkey(login, plugin_name)
         return store.options(param, pkey=pkey)
 
+    def wait_state(timeout=30):
+        'Состояние в котором находимся'
+        state = 'unknown'
+        time.sleep(1)
+        for i in range(timeout):
+            if pd.check_selector('.footer .guru'):
+                state = 'qrator'
+            elif pd.check_selector('form input[type=tel]'):
+                state = 'login'
+            elif pd.check_selector('div[data-test-id=verify-otp]'):
+                state = 'sms'
+            elif pd.check_selector('form input[id=password]'):
+                state = 'password'
+            elif pd.check_selector('mts-lk-root'):
+                state = 'lk'
+            else:
+                time.sleep(1)
+                continue
+            logging.info(f'state={state}')
+            break
+        else:
+            logging.error('Не дождались никакого известного состояния')
+        return state
+
     plugin_name = __name__
     login_ori, acc_num = login, ''
     if '/' in login:
         login, acc_num = login_ori.split('/')
     mts_usedbyme = options('mts_usedbyme')
-
     store.turn_logging()
     session = store.Session(storename)
     logging.info(f"Start {kwargs=}")
@@ -370,35 +380,38 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     pd.send('Page.navigate', {'url': 'https://lk.mts.ru'})
     time.sleep(3)
     pd.collect()
+    state = wait_state()
     pd.capture_screenshot()
     # cc = pd.browser_close
     # self, cc = pd, pd.browser_close
 
-    if 'Доступ к сайту login.mts.ru запрещен.' in pd.page_eval('document.body.textContent'):
+    if state == 'qrator':
         logging.error('Сработала защита, попробуйте запустить в режиме show_chrome=0')
         return
 
     login_pause = int(options('login_pause'))
-    if not pd.page_eval("document.getElementsByTagName('mts-lk-root').length == 1") and login_pause > 0:
+    if state != 'lk' and login_pause > 0:
         logging.info(f'Login pause {login_pause}')
         for i in range(login_pause):
-            if pd.page_eval("document.getElementsByTagName('mts-lk-root').length == 1"):
+            if wait_state(1) == 'lk':
                 break
-            time.sleep(1)
 
-    if pd.check_selector('form input[type=tel]'):
+    state = wait_state()
+    if state == 'login':
         pd.page_fill('form input[type=tel]', login)
         pd.page_click('form [type=submit]')
-        time.sleep(2)
+        state = wait_state()
         pd.capture_screenshot()
 
-    if pd.check_selector('form input[id=password]'):
+    state = wait_state()
+    if state == 'password':
         pd.page_fill('form input[id=password]', password)
         pd.page_click('form [type=submit]')
-        time.sleep(2)
+        state = wait_state()
         pd.capture_screenshot()
 
-    if pd.page_eval("document.getElementsByTagName('mts-lk-root').length == 1"):
+    state = wait_state()
+    if state == 'lk':
         user_info = pd.get_response_body_json('api/login/user-info')
         user_profile = user_info.get('userProfile', {})
         # rich.print(ui)

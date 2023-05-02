@@ -161,7 +161,7 @@ ini = {
         'playwright_pause_': {'descr': 'остановить браузер после получения данных и включить отладку. ВНИМАНИЕ!!!. Это отладочная опция, ее включение останавливает получение балансов', 'type': 'checkbox'},
         'playwright_pause': '0',
         # login_pause - остановить браузер перед вводом пароля на N секунд, пока на экране форма ввода пароля
-        'login_pause_': {'descr': 'пауза перед вводам пароля при работе браузера в секундах - будет полезна при проблемах с логоном', 'type': 'text', 'validate': lambda i: i.isdigit()},
+        'login_pause_': {'descr': 'пауза перед вводом пароля при работе браузера в секундах - будет полезна при проблемах с логоном', 'type': 'text', 'validate': lambda i: i.isdigit()},
         'login_pause': '0',
         # Путь к хрому - можно прописать явно в ini, иначе поищет из вариантов chrome_executable_path_alternate
         'chrome_executable_path_': {'descr': 'Путь к хрому', 'type': 'text', 'size': 100, 'validate': lambda i: (i == '' or os.path.exists(i))},
