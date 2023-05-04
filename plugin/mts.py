@@ -199,7 +199,7 @@ class PureBrowserDebug():
             logging.info(exception_text())
 
     def __del__(self):
-        if self.br_subp.poll() is None:  # browser is running ?
+        if hasattr(self, 'br_subp') and self.br_subp.poll() is None:  # browser is running ?
             self.browser_close()
 
     def get_response_by_id(self, request_id):
@@ -416,7 +416,8 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         user_profile = user_info.get('userProfile', {})
         # rich.print(ui)
         # parseFloat(data.userProfile.balance).toFixed(2)
-        result['Balance'] = round(user_profile.get('balance', 0), 2)
+        if 'balance' in user_profile:
+            result['Balance'] = round(user_profile['balance'], 2)
         # Закрываем банеры (для эстетики)
         pd.page_eval("document.querySelectorAll('mts-dialog div[class=popup__close]').forEach(s=>s.click())==null")
         # Потом все остальное
@@ -431,7 +432,8 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         pd.capture_screenshot()
         mccsp_balance = pd.get_response_body_json('for=api/accountInfo/mscpBalance')
         # pd.jsformula('for=api/accountInfo/mscpBalance', "parseFloat(data.data==null ? data.amount : data.data.amount).toFixed(2)")
-        result['Balance'] = round(mccsp_balance.get('amount', 0), 2)
+        if 'ammount' in mccsp_balance:
+            result['Balance'] = round(mccsp_balance['amount'], 2)
         cashback = pd.get_response_body_json('for=api/cashback/account')
         # pd.jsformula('for=api/cashback/account', "parseFloat(data.data.balance).toFixed(2)")
         result['Balance2'] = round(cashback.get('data', {}).get('balance', 0), 2)
