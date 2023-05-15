@@ -66,6 +66,11 @@ def getbalance_standalone_one_pass(queue):
     '''
     result: typing.Dict = {}
     for val in queue:
+        keypair = f"{val['Region']}_{val['Number']}"
+        prev_state = str(dbengine.flags('get', keypair))
+        if not prev_state.endswith('queue'):
+            dbengine.flags('set', keypair, f'{prev_state} queue')  # выставляем флаг о постановке в очередь в КОНЕЦ строки
+    for val in queue:
         # TODO пока дергаем метод от веб сервера там уже все есть, потом может вынесем отдельно
         keypair = f"{val['Region']}_{val['Number']}"
         try:
@@ -112,7 +117,6 @@ def getbalance_standalone(filter: list = [], only_failed: bool = False, retry: i
                 # Формируем очередь на получение балансов и размечаем балансы из очереди в таблице flags чтобы красить их по другому
                 queue_balance.append(val)
                 logging.info(f'getbalance_standalone queued: {keypair}')
-                dbengine.flags('set', f'{keypair}', 'queue')  # выставляем флаг о постановке в очередь
     store.feedback.text(f'Queued {len(queue_balance)} numbers')
     if retry == -1:
         retry = int(store.options('retry_failed', flush=True))
@@ -218,7 +222,7 @@ def getbalance_plugin(method, param_source):
             text = store.result_to_html(result)
         except Exception:
             logging.info(f'{plugin} fail: {store.exception_text()}')
-            dbengine.flags('set', f"{lang}_{plugin}_{param['login']}", 'error call')  # выставляем флаг о ошибке вызова
+            dbengine.flags('set', f"{lang}_{plugin}_{param['login']}", f'error call {time.asctime()}')  # выставляем флаг о ошибке вызова
             return 'text/html', [f"<html>Error call {param['fplugin']}</html>"]
         dbengine.flags('delete', f"{lang}_{plugin}_{param['login']}", 'start')  # запрос завершился успешно - сбрасываем флаг
         try:
@@ -372,7 +376,7 @@ def getreport(param=[]):
             classflag = 'e_us'
         if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('start'):
             classflag = 's_us'
-        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').startswith('queue'):
+        if flags.get(f"{line['Operator']}_{line['PhoneNumber']}", '').endswith('queue'):
             classflag = 'n_us'
         html_table.append(f'<tr id="row" class="order {classflag}">{"".join(html_line)}</tr>')
     template_style = template_style.replace('{HoverCss}', store.options('HoverCss'))  # HoverCss общий на всю страницу, поэтому берем без pkey

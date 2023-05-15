@@ -58,7 +58,7 @@ def main():
         exception_text = f'Ошибка при вызове модуля \n{plugin}: {store.exception_text()}'
         logging.error(exception_text)
         sys.stdout.write(exception_text)
-        dbengine.flags('set', f'{lang}_{plugin}_{login}', 'error call')  # выставляем флаг о ошибке вызова
+        dbengine.flags('set', f'{lang}_{plugin}_{login}', f'error call {time.asctime()}')  # выставляем флаг о ошибке вызова
         return -1
     # Готовим результат
     try:

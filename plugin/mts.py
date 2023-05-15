@@ -377,15 +377,17 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     show_chrome = True  # FIX !!! МТС без show_chrome не работает
     pd = PureBrowserDebug(user_data_dir, response_store_path, headless_chrome=headless_chrome, show_chrome=show_chrome)
     # 1 Is login ???
-    pd.send('Page.navigate', {'url': 'https://lk.mts.ru'})
-    time.sleep(3)
-    pd.collect()
+    store.feedback.text(f"Run browser", append=True)
+    pd.send('Page.navigate', {'url': login_url})
     state = wait_state()
+    if state == 'unknown':
+        pd.capture_screenshot()
+        pd.send('Page.navigate', {'url': login_url})
+        state = wait_state()
     pd.capture_screenshot()
-    # cc = pd.browser_close
-    # self, cc = pd, pd.browser_close
 
     if state == 'qrator':
+        store.feedback.text(f"Qrator", append=True)
         logging.error('Сработала защита, попробуйте запустить в режиме show_chrome=0')
         return
 
@@ -398,6 +400,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
 
     state = wait_state()
     if state == 'login':
+        store.feedback.text(f"Login", append=True)
         pd.page_fill('form input[type=tel]', login)
         pd.page_click('form [type=submit]')
         state = wait_state()
@@ -405,6 +408,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
 
     state = wait_state()
     if state == 'password':
+        store.feedback.text(f"Password", append=True)
         pd.page_fill('form input[id=password]', password)
         pd.page_click('form [type=submit]')
         state = wait_state()
@@ -412,6 +416,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
 
     state = wait_state()
     if state == 'lk':
+        store.feedback.text(f"User info", append=True)
         user_info = pd.get_response_body_json('api/login/user-info')
         user_profile = user_info.get('userProfile', {})
         # rich.print(ui)
@@ -482,6 +487,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                 if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
                     result['Internet'] = round(usedbyme[0] * unitMult / unitDiv, 2)
 
+        store.feedback.text(f"Uslugi", append=True)
         pd.send('Page.navigate', {'url': 'https://lk.mts.ru/uslugi/podklyuchennye'})
         # ждем longtask тормозную страницу
         for cnt in range(30):
@@ -493,7 +499,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         active = pd.get_response_body_json('for=api/services/list/active$')
         # (name, cost, period)
         services_ = [(e.get('name', ''), e.get('subscriptionFee', {}).get('value', 0), e.get('subscriptionFee', {}).get('unitOfMeasureRaw', ''))
-                    for e in active.get('data', {}).get('services', [])]
+                     for e in active.get('data', {}).get('services', [])]
         services_2 = [(s, c * (30 if p == 'DAY' else 1)) for s, c, p in services_]
         result['BlockStatus'] = active.get('data', {}).get('accountBlockStatus', '').replace('Unblocked', '')
         try:
@@ -511,6 +517,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         # Но только если телефон в списке в поле mts_usedbyme или для всех телефонов если там 1
         if mts_usedbyme == '1' or login in mts_usedbyme.split(',') or acc_num.lower().startswith('common'):
             # 24.08.2021 иногда возвращается легальная страница, но вместо информации там сообщение об ошибке - тогда перегружаем и повторяем
+            store.feedback.text(f"Sharing", append=True)
             pd.send('Page.navigate', {'url': 'https://lk.mts.ru/sharing'})
             for cnt in range(30):
                 if pd.get_response_body('for=api/sharing/counters') is not None:
@@ -568,6 +575,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                 if acc_num.lower().startswith('common'):
                     result = {'ErrorMsg': 'Страница общего пакета не возвращает данных'}
     pd.capture_screenshot()
+    store.feedback.text(f"Done", append=True)
     pd.browser_close()
     return result
 
