@@ -431,7 +431,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         # ждем longtask тормозную страницу
         logging.info(f'Wait mscpBalance and counters')
         for cnt in range(30):
-            if pd.get_response_body('for=api/accountInfo/mscpBalance') is not None and pd.get_response_body('for=api/sharing/counters') is not None:
+            if pd.get_response_body('for=api/accountInfo/mscpBalance') != '' and pd.get_response_body('for=api/sharing/counters') != '':
                 break
             time.sleep(1)
         pd.capture_screenshot()
@@ -491,7 +491,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         pd.send('Page.navigate', {'url': 'https://lk.mts.ru/uslugi/podklyuchennye'})
         # ждем longtask тормозную страницу
         for cnt in range(30):
-            if pd.get_response_body('for=api/services/list/active$') is not None:
+            if pd.get_response_body('for=api/services/list/active$') != '':
                 break
             time.sleep(1)
         pd.capture_screenshot()
@@ -508,7 +508,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             paid = len([a for a, b in services if b != 0])
             paid_sum = round(sum([b for a, b in services if b != 0]), 2)
             result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
-            result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
+            result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services]).replace('&nbsp;', ' ')
         except Exception:
             logging.info(f'Ошибка при получении списка услуг {exception_text()}')
 
@@ -520,7 +520,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             store.feedback.text(f"Sharing", append=True)
             pd.send('Page.navigate', {'url': 'https://lk.mts.ru/sharing'})
             for cnt in range(30):
-                if pd.get_response_body('for=api/sharing/counters') is not None:
+                if pd.get_response_body('for=api/sharing/counters') != '':
                     break
                 time.sleep(1)
             pd.capture_screenshot()
