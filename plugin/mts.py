@@ -437,8 +437,8 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         pd.capture_screenshot()
         mccsp_balance = pd.get_response_body_json('for=api/accountInfo/mscpBalance')
         # pd.jsformula('for=api/accountInfo/mscpBalance', "parseFloat(data.data==null ? data.amount : data.data.amount).toFixed(2)")
-        if 'ammount' in mccsp_balance:
-            result['Balance'] = round(mccsp_balance['amount'], 2)
+        # if 'amount' in mccsp_balance:  # !!! оказалось я ошибочно не брал это значение, но может и к лучшему, т.к. оно здесь криво округленное, пока закоментировал совсем
+        #     result['Balance'] = round(mccsp_balance['amount'], 2)
         cashback = pd.get_response_body_json('for=api/cashback/account')
         # pd.jsformula('for=api/cashback/account', "parseFloat(data.data.balance).toFixed(2)")
         result['Balance2'] = round(cashback.get('data', {}).get('balance', 0), 2)
@@ -476,7 +476,8 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                 if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
                     result['SMS'] = int(usedbyme[0])
             # Интернет
-            internet = [i for i in counters if i['packageType'] == 'Internet']
+            internet = ([i for i in counters if i['packageType'] == 'Internet' and i.get('packageGroup') == 'Main'] +
+                        [i for i in counters if i['packageType'] == 'Internet' and i.get('packageGroup') != 'Main'])
             if internet != []:
                 unitMult = settings.UNIT.get(internet[0]['unitType'], 1)
                 unitDiv = settings.UNIT.get(options('interUnit'), 1)
