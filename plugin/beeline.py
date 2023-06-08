@@ -33,17 +33,29 @@ class browserengine(browsercontroller.BrowserController):
             self.sleep(5)
         else:
             raise RuntimeError(f'Так и не получили страницу с балансом {profile_tag}')
-        # Приходится снаячала долго ждать страницу, а затем конга она пришла получить ее точный url чтобы отфильтроваться от остальных запросов с похожим url
-        bal_data_url = [k for k, v in self.responses.items() if profile_tag in k and 'balance' in v][-1]
-        self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': [bal_data_url], 'jsformula': "parseFloat(data.balance.data.balance).toFixed(2)"},
-            {'name': 'TarifPlan', 'url_tag': [bal_data_url], 'jsformula': "data.profileSummary.data.tariffName"},
-            {'name': 'Internet', 'url_tag': [bal_data_url], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='KBYTE'?el.rest:0)))"},
-            {'name': 'Min', 'url_tag': [bal_data_url], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='SECONDS'?el.rest/60:0))).toFixed(0)"},
-            {'name': 'SMS', 'url_tag': [bal_data_url], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='SMS'?el.rest:0)))"},
-            {'name': 'BlockStatus', 'url_tag': [bal_data_url], 'jsformula': "data.status.data.status"},
-            {'name': 'LicSchet', 'url_tag': [bal_data_url], 'jsformula': "data.profileSummary.data.ctn"},
-        ])
+        # Приходится сначала долго ждать страницу, а затем когда она пришла получить ее точный url чтобы отфильтроваться от остальных запросов с похожим url
+        bal_data_url, bal_data = [[k, v] for k, v in self.responses.items() if profile_tag in k and 'balance' in v][-1]
+        self.result['Balance'] = bal_data.get('balance', {}).get('data', {})['balance']
+        self.result['TarifPlan'] = bal_data.get('profileSummary', {}).get('data', {}).get('tariffName','')
+        # ??? self.result['Internet'] = ??? {'name': 'Internet', 'url_tag': [bal_data_url], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='KBYTE'?el.rest:0)))"},
+        # ??? self.result['Min'] = ??? {'name': 'Min', 'url_tag': [bal_data_url], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='SECONDS'?el.rest/60:0))).toFixed(0)"},
+        # ??? self.result['SMS'] = {'name': 'SMS', 'url_tag': [bal_data_url], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='SMS'?el.rest:0)))"},
+        self.result['BlockStatus'] = bal_data.get('status', {}).get('data', {}).get('status', '')
+        self.result['LicSchet'] = bal_data.get('profileSummary', {}).get('data', {}).get('ctn', '')
+        # аккумуляторы тарифа Простой ?
+        try:
+            accumulators2_tag = 'api/uni-profile-mobile/blocks'
+            # все страницы попадающие под описание
+            accumulators2_all = [v for k, v in self.responses.items() if accumulators2_tag in k and 'accumulators' in v]
+            if len(accumulators2_all) > 0:  # Нашли что нибудь?
+                acc2_list = accumulators2_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items
+                acc2_dict = {el.get('unit'): el.get('rest', 0) for el in acc2_list}
+                self.result['Internet'] = self.result.get('Internet', 0) + acc2_dict.get('KBYTE', 0)
+                self.result['Min'] = self.result.get('Internet', 0) + acc2_dict.get('SECONDS', 0)
+                self.result['SMS'] = self.result.get('Internet', 0) + acc2_dict.get('SMS', 0)
+        except Exception:
+            exception_text = f'Ошибка при получении accumulators2 {store.exception_text()}'
+            logging.error(exception_text)
         self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
         try:
             self.page_goto(direct_lk_url)
