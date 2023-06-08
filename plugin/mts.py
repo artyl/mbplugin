@@ -438,7 +438,6 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         mccsp_balance = pd.get_response_body_json('for=api/accountInfo/mscpBalance')
         # amount брать нельзя т.к. он здесь криво округленный под показ на странице
         # но если баланс нулевой а amount не нулевой то нам вернули кривой баланс и мы его выкидываем
-        breakpoint()
         if 'amount' in mccsp_balance and 'Balance' in result:
             if mccsp_balance['amount'] > 0 and result['Balance'] == 0:
                 del result['Balance']
