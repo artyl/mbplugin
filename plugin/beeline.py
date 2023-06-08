@@ -51,8 +51,8 @@ class browserengine(browsercontroller.BrowserController):
                 acc2_list = accumulators2_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items
                 acc2_dict = {el.get('unit'): el.get('rest', 0) for el in acc2_list}
                 self.result['Internet'] = self.result.get('Internet', 0) + acc2_dict.get('KBYTE', 0)
-                self.result['Min'] = self.result.get('Internet', 0) + acc2_dict.get('SECONDS', 0)
-                self.result['SMS'] = self.result.get('Internet', 0) + acc2_dict.get('SMS', 0)
+                self.result['Min'] = self.result.get('Min', 0) + acc2_dict.get('SECONDS', 0)
+                self.result['SMS'] = self.result.get('SMS', 0) + acc2_dict.get('SMS', 0)
         except Exception:
             exception_text = f'Ошибка при получении accumulators2 {store.exception_text()}'
             logging.error(exception_text)
