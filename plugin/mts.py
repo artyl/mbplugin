@@ -436,9 +436,11 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             time.sleep(1)
         pd.capture_screenshot()
         mccsp_balance = pd.get_response_body_json('for=api/accountInfo/mscpBalance')
-        # pd.jsformula('for=api/accountInfo/mscpBalance', "parseFloat(data.data==null ? data.amount : data.data.amount).toFixed(2)")
-        # if 'amount' in mccsp_balance:  # !!! оказалось я ошибочно не брал это значение, но может и к лучшему, т.к. оно здесь криво округленное, пока закоментировал совсем
-        #     result['Balance'] = round(mccsp_balance['amount'], 2)
+        # amount брать нельзя т.к. он здесь криво округленный под показ на странице
+        # но если баланс нулевой а amount не нулевой то нам вернули кривой баланс и мы его выкидываем
+        if 'amount' in mccsp_balance and 'Balance' in result: 
+            if mccsp_balance['amount'] > 0:
+                del result['Balance']
         cashback = pd.get_response_body_json('for=api/cashback/account')
         # pd.jsformula('for=api/cashback/account', "parseFloat(data.data.balance).toFixed(2)")
         result['Balance2'] = round(cashback.get('data', {}).get('balance', 0), 2)
