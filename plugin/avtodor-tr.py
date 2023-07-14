@@ -62,7 +62,7 @@ def get_balance(login, password, storename=None, **kwargs):
         response4 = session.get(f"https://lk.avtodor-tr.ru/api/client/contracts/{str(client.get('main_contract_id', ''))}/travel_cards")
         data_travel_cards = response4.json()
         travel_cards = data_travel_cards.get('travel_cards', [])
-        if len(travel_cards) > 0:
+        if len(travel_cards) > 0 and travel_cards[0].get('travel_card_status_id') == 1:
             result['UslugiOn'] = f"{travel_cards[0].get('travels_left', '')}/{travel_cards[0].get('travels_num', '')}"
         else:
             logging.info(f'Not found travel_cards')
