@@ -339,7 +339,7 @@ operator_link = {
     'p_east': 'https://debet.east.ru/lk',
     'p_lifeby': 'https://life.com.by/id',
     'p_lovit': 'https://lk.lovit.ru/login',
-    'p_mangooffice': 'https://auth.mango-office.ru/auth/vpbx',
+    'p_mangooffice': 'https://lk.mango-office.ru',
     'p_megafon': 'https://lk.megafon.ru/',
     'p_megafonb2b': 'https://b2blk.megafon.ru/dashboard',
     'p_mgts': 'https://auth.mgts.ru/login/b2c',
