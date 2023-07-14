@@ -9,7 +9,7 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
                   'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",
                   'login_clear_js': "document.querySelector('form input[name=username]').value=''",
                   'login_selector': 'form input[name=username]',
-                  'submit_js': "document.querySelector('button[data-button=buttonSubmitAuthform]').click()",
+                  'submit_js': "document.querySelector('button[type=submit]').click()",
                   'pause_press_submit': '5',
                   }
 
