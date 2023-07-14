@@ -345,7 +345,6 @@ operator_link = {
     'p_mgts': 'https://auth.mgts.ru/login/b2c',
     'p_mosenergosbyt': 'https://my.mosenergosbyt.ru/auth',
     'p_mts': 'https://lk.mts.ru/',
-    'p_mts2': 'https://lk.mts.ru/',
     'p_ntvplus': 'https://service.ntvplus.ru/account/action/quick-check-action',
     'p_onlime': 'https://my.rt.ru',
     'p_rostelecom': 'https://lk.rt.ru',
