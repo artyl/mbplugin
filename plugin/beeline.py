@@ -8,8 +8,8 @@ login_url = 'https://my.beeline.ru'
 # если залогинены, то попадем сразу в ЛК, иначе попадем ХЗ куда
 direct_lk_url = 'https://beeline.ru/customers/products/elk/tab/mobile-connection'
 profile_url = 'https://beeline.ru/customers/products/mobile/profile/'
-user_selectors = {'chk_lk_page_js': "document.querySelector('form input.TBWrdb')== null && document.querySelector('form input[type=password]')== null",
-                  'chk_login_page_js': "!(document.querySelector('form input.TBWrdb')== null && document.querySelector('form input[type=password]')== null)",
+user_selectors = {'chk_lk_page_js': "document.querySelector('div.initial-form')==null && document.querySelector('form input[type=password]')== null",
+                  'chk_login_page_js': "!(document.querySelector('div.initial-form')==null && document.querySelector('form input[type=password]')== null)",
                   'login_clear_js': "document.querySelector('form input[type=text]').value=''",
                   'login_selector': 'form input[type=text]',
                   'password_clear_js': "document.querySelector('form input[type=password][role=textbox]').value=''",
@@ -32,19 +32,19 @@ class browserengine(browsercontroller.BrowserController):
             # Ждем пока появтся accumulators2_tag и services_tag
             if len([v for k, v in self.responses.items() if accumulators2_tag in k and 'accumulators' in v or services_tag in k]) >= 2:
                 break
-        # Если не попали внутрь ЛК - тогда пытаемся логиниться
-        if self.page_evaluate("document.querySelector('form input.TBWrdb')== null && document.querySelector('form input[type=password]')== null"):
+        # Если не попали внутрь ЛК (попали на новую форму логина) - тогда пытаемся логиниться
+        if self.page_evaluate(user_selectors['chk_login_page_js']):
             self.do_logon(url=login_url, user_selectors=user_selectors)
             self.page_goto(direct_lk_url)
             self.sleep(10)
         logging.info(f'Before call self.page_goto({profile_url})')
         self.page_goto(profile_url)
         # TODO костыль - сайт очень медленно открывается тупо долго ждем
-        for _ in range(0, 180, 1):
+        for _ in range(0, 180, 5):
             logging.info(f'Wait page {profile_tag} {len(self.responses)}')
             if any([k for k, v in self.responses.items() if profile_tag in k and 'balance' in v]):
                 break
-            self.sleep(1)
+            self.sleep(5)
         else:
             raise RuntimeError(f'Так и не получили страницу с балансом {profile_tag}')
         # Приходится сначала долго ждать страницу, а затем когда она пришла получить ее точный url чтобы отфильтроваться от остальных запросов с похожим url
