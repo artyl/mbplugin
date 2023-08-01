@@ -7,36 +7,50 @@ icon = '789C7D93CB6B135114C6BF79C4BC66924993D0269926D3247DD8579A5A92D61A5B84B628
 login_url = 'https://my.beeline.ru'
 # если залогинены, то попадем сразу в ЛК, иначе попадем ХЗ куда
 direct_lk_url = 'https://beeline.ru/customers/products/elk/tab/mobile-connection'
-user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=password][role=textbox]') == null",
-                  'chk_login_page_js': "document.querySelector('form input[type=password][role=textbox]') !== null",
+profile_url = 'https://beeline.ru/customers/products/mobile/profile/'
+user_selectors = {'chk_lk_page_js': "document.querySelector('form input.TBWrdb')== null && document.querySelector('form input[type=password]')== null",
+                  'chk_login_page_js': "!(document.querySelector('form input.TBWrdb')== null && document.querySelector('form input[type=password]')== null)",
                   'login_clear_js': "document.querySelector('form input[type=text]').value=''",
                   'login_selector': 'form input[type=text]',
                   'password_clear_js': "document.querySelector('form input[type=password][role=textbox]').value=''",
                   'password_selector': 'form input[type=password][role=textbox]',
                   'submit_js': "document.querySelector('form [type=button]').click()",
-                  }
+                 }
+profile_tag = 'api/profile/userinfo/data/?noTimeout'
+accumulators2_tag = 'api/uni-profile-mobile/blocks'
+services_tag = '/api/uni-profile-mobile/services/'
+subscribtions_tag = '/api/uni-profile-mobile/subscriptions/'
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
+        logging.info(f'Before call self.page_goto({direct_lk_url})')
         self.page_goto(direct_lk_url)
-        self.sleep(2)
+        # оптимистичный сценарий если залогинены стараемся побыстрому все забрать
+        for _ in range(10):
+            self.sleep(1)
+            logging.info(f'Wait page {accumulators2_tag} and {services_tag}')
+            # Ждем пока появтся accumulators2_tag и services_tag
+            if len([v for k, v in self.responses.items() if accumulators2_tag in k and 'accumulators' in v or services_tag in k]) >= 2:
+                break
         # Если не попали внутрь ЛК - тогда пытаемся логиниться
-        if self.page_evaluate("document.querySelector('form input[name=userName]') != null"):
+        if self.page_evaluate("document.querySelector('form input.TBWrdb')== null && document.querySelector('form input[type=password]')== null"):
             self.do_logon(url=login_url, user_selectors=user_selectors)
-        self.page_goto('https://beeline.ru/customers/products/mobile/profile/')
-        profile_tag = 'api/profile/userinfo/data/?noTimeout'
+            self.page_goto(direct_lk_url)
+            self.sleep(10)
+        logging.info(f'Before call self.page_goto({profile_url})')
+        self.page_goto(profile_url)
         # TODO костыль - сайт очень медленно открывается тупо долго ждем
-        for _ in range(0, 180, 5):
+        for _ in range(0, 180, 1):
             logging.info(f'Wait page {profile_tag} {len(self.responses)}')
             if any([k for k, v in self.responses.items() if profile_tag in k and 'balance' in v]):
                 break
-            self.sleep(5)
+            self.sleep(1)
         else:
             raise RuntimeError(f'Так и не получили страницу с балансом {profile_tag}')
         # Приходится сначала долго ждать страницу, а затем когда она пришла получить ее точный url чтобы отфильтроваться от остальных запросов с похожим url
         bal_data_url, bal_data = [[k, v] for k, v in self.responses.items() if profile_tag in k and 'balance' in v][-1]
         self.result['Balance'] = bal_data.get('balance', {}).get('data', {})['balance']
-        self.result['TarifPlan'] = bal_data.get('profileSummary', {}).get('data', {}).get('tariffName','')
+        self.result['TarifPlan'] = bal_data.get('profileSummary', {}).get('data', {}).get('tariffName', '')
         # ??? self.result['Internet'] = ??? {'name': 'Internet', 'url_tag': [bal_data_url], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='KBYTE'?el.rest:0)))"},
         # ??? self.result['Min'] = ??? {'name': 'Min', 'url_tag': [bal_data_url], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='SECONDS'?el.rest/60:0))).toFixed(0)"},
         # ??? self.result['SMS'] = {'name': 'SMS', 'url_tag': [bal_data_url], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='SMS'?el.rest:0)))"},
@@ -44,24 +58,21 @@ class browserengine(browsercontroller.BrowserController):
         self.result['LicSchet'] = bal_data.get('profileSummary', {}).get('data', {}).get('ctn', '')
         # аккумуляторы тарифа Простой ?
         try:
-            accumulators2_tag = 'api/uni-profile-mobile/blocks'
             # все страницы попадающие под описание
             accumulators2_all = [v for k, v in self.responses.items() if accumulators2_tag in k and 'accumulators' in v]
             if len(accumulators2_all) > 0:  # Нашли что нибудь?
                 acc2_list = accumulators2_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items
                 acc2_dict = {el.get('unit'): el.get('rest', 0) for el in acc2_list}
                 self.result['Internet'] = self.result.get('Internet', 0) + acc2_dict.get('KBYTE', 0)
+                self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
                 self.result['Min'] = self.result.get('Min', 0) + acc2_dict.get('SECONDS', 0)
                 self.result['SMS'] = self.result.get('SMS', 0) + acc2_dict.get('SMS', 0)
         except Exception:
             exception_text = f'Ошибка при получении accumulators2 {store.exception_text()}'
             logging.error(exception_text)
-        self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
         try:
-            self.page_goto(direct_lk_url)
-            self.sleep(5)
-            services = [v for k, v in self.responses.items() if '/api/uni-profile-mobile/services/' in k][0]
-            subscribtions = [v for k, v in self.responses.items() if '/api/uni-profile-mobile/subscriptions/' in k][0]
+            services = [v for k, v in self.responses.items() if services_tag in k][0]
+            subscribtions = [v for k, v in self.responses.items() if subscribtions_tag in k][0]
             uslugi = [[ln.get('title', 'xxx'), ln.get('rcRate', 0) * (1 if ln.get('rcRatePeriod') == 'Mounthly' else 1)] for ln in services]
             # у меня этого нет - строчка ниже написана в слепую
             uslugi.extend([[ln.get('title', 'xxx'), ln.get('rcRate', 0) * (1 if ln.get('rcRatePeriod') == 'Mounthly' else 1)] for ln in subscribtions])
