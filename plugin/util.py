@@ -577,7 +577,7 @@ def check_plugin(ctx, bpoint, params, plugin, login, password):
         _ = login, password, storename  # dummy linter - use in pdbpdb.run
         result = pdbpdb.run("module.get_balance(login,  password, storename)", globals(), locals())
         pkey = store.get_pkey(login, plugin)
-        result = store.correct_result(result, pkey)
+        result = store.correct_and_check_result(result, pkey)
         # res = exec("httpserver_mobile.getbalance_plugin('url', [plugin, login, password, '123'])", globals(), locals())
         # breakpoint()
     else:

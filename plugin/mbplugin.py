@@ -51,9 +51,7 @@ def main():
         storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
         pkey = store.get_pkey(login, plugin)  # Пара (номер, оператор)
         result = module.get_balance(login, password, storename, pkey=pkey)
-        result = store.correct_result(result, pkey=pkey)
-        if 'Balance' not in result:
-            raise RuntimeError(f'В result отсутствует баланс')
+        result = store.correct_and_check_result(result, pkey=pkey)
     except Exception:
         exception_text = f'Ошибка при вызове модуля \n{plugin}: {store.exception_text()}'
         logging.error(exception_text)

@@ -34,11 +34,12 @@ def exception_text():
 
 class PureBrowserDebug():
 
-    def __init__(self, user_data_dir, response_store_path=None, headless_chrome=False, show_chrome=True) -> None:
+    def __init__(self, user_data_dir, response_store_path=None, headless_chrome=False, show_chrome=True, chrome_args=None) -> None:
         self.user_data_dir = user_data_dir  # chrome profile path
         self.response_store_path = response_store_path  # path for file log, screenshot store fith same name but png extension
         self.headless = headless_chrome  # for mts headles is broken headless_chrome always False
         self.show_chrome = show_chrome
+        self.chrome_args = chrome_args if type(chrome_args) == list else []  # additional cmd argements for chrome
         self.port = get_free_port()  # port for CDP
         self._data: List[dict] = []  # store all winsocket reply
         self.chrome_hwnd: List[int] = []  # store chrome visible windows handle (windows only)
@@ -107,10 +108,10 @@ class PureBrowserDebug():
                 self.browser_path = os.path.join(pbp, f'chromium-{revision}', 'chrome-win', 'chrome.exe')
             elif sys.platform == 'linux':
                 pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', os.path.join(pathlib.Path.home(), '.cache', 'ms-playwright'))
-                self.browser_path = os.path.join(pbp, f'chromium-{revision}', 'chrome-win', 'chrome')
+                self.browser_path = os.path.join(pbp, f'chromium-{revision}', 'chrome-linux', 'chrome')
             elif sys.platform == 'darwin':
                 pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', os.path.join(pathlib.Path.home(), 'Library', 'Caches', 'ms-playwright'))
-                self.browser_path = os.path.join(pbp, f'chromium-{revision}', 'chrome-win', 'chrome')
+                self.browser_path = os.path.join(pbp, f'chromium-{revision}', 'chrome-mac', 'chrome')
             else:
                 raise RuntimeError(f'Unknown platform {sys.platform} Chromium not found')
             if not os.path.exists(self.browser_path):
@@ -119,6 +120,7 @@ class PureBrowserDebug():
             logging.error(exception_text())
             raise RuntimeError('Chromium not found')
         self.cmd = [self.browser_path, f'--user-data-dir={self.user_data_dir}', f'--remote-debugging-port={self.port}', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-save-password-bubble', '--no-default-browser-check', ' --disable-component-update', '--disable-extensions', '--disable-sync', '--no-first-run', '--no-service-autorun', f'--remote-allow-origins=http://localhost:{self.port}']
+        self.cmd.extend(self.chrome_args)
         # ??? ' --headless --no-sandbox about:blank'
         logging.info(f'Browser start: {" ".join(self.cmd)}')
         proc = subprocess.Popen(self.cmd)
@@ -375,7 +377,10 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     result = {}
     headless_chrome = False  # FIX !!! МТС в headless не работает
     show_chrome = True  # FIX !!! МТС без show_chrome не работает
-    pd = PureBrowserDebug(user_data_dir, response_store_path, headless_chrome=headless_chrome, show_chrome=show_chrome)
+    chrome_args = []
+    if options('browser_proxy').strip() != '':
+        chrome_args.append(f'--proxy-server={options("browser_proxy").strip()}')
+    pd = PureBrowserDebug(user_data_dir, response_store_path, headless_chrome=headless_chrome, show_chrome=show_chrome, chrome_args=chrome_args)
     # 1 Is login ???
     store.feedback.text(f"Run browser", append=True)
     pd.send('Page.navigate', {'url': login_url})

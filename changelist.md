@@ -524,5 +524,8 @@ FIX: исправил нажатие на submit на megafonb2b
 FIX: pasha00000 прислал добавление по проверку на окончания срока действия абонемента avtodor-tr  
 FIX: pasha00000 прислал PR на исправление работы mangooffice  
 
-## mbplugin v1.00.59 (01.08.23) fix beeline web
+## mbplugin v1.00.59 (03.08.23) fix beeline web, mts proxy, null_is_error option
 FIX: еще раз (похоже не в последний) починил и ускорил работу WEB версии Beeline (напомню что по умолчанию по прежнему API)  
+ADD: Опция null_is_error - считать нулевой баланс ошибкой, может быть использована как глобально, так и для конкретного телефона  
+FIX: Исправлена работа через proxy на МТС и запуск хрома на linix и mac (issues 38 from yoman88111)  
+ADD: Добавил утилиту csv_to_phones_ini.py из issue 36  

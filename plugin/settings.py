@@ -181,6 +181,9 @@ ini = {
         # Что делать с полями balance и balance2. ничего/(поменять местами с balance)/(прибавить к балансу)
         'balances_': {'descr': 'Что делать с полем balances', 'type': 'select', 'variants': 'nochange swap add'},
         'balances': 'nochange',
+        # Считать нулевой баланс ошибкой (если включен balances=swap то ошибка будет если нулевой Balance2)
+        'null_is_error_': {'descr': 'Что делать с полем balances', 'type': 'checkbox'},
+        'null_is_error': '0',
         # Слова, которые встречаются в названиях тарифов, про которые нужно выдать предупреждение и красить номер, нежелательные unwanted услуги
         'subscription_keyword_': {'descr': 'Признаки подписок, через запятую', 'type': 'text'},
         'subscription_keyword': '90 дней,TV Club,Услуга4,unwanted,нежелательная',

@@ -105,8 +105,8 @@ def fix_num_params(result, int_params):
             result[k] = round(v, 2)  # Чтобы не было паразитных микрокопеек
     return result
 
-def correct_result(result, pkey):
-    'Дополнительные коррекции после проверки'
+def correct_and_check_result(result, pkey):
+    'Дополнительные коррекции после проверки и проверка результата на валидность'
     if type(result) != dict:
         return result
     result = fix_num_params(result, int_params=['SMS', 'Min'])
@@ -120,6 +120,10 @@ def correct_result(result, pkey):
             except Exception:
                 logging.error(f"Addition error for {repr(result['Balance'])}+{repr(result['Balance2'])}: {exception_text()}")
         logging.info(f"Balance correct by option.balances={options('balances', pkey=pkey)} {[b, b2]} -> {[result['Balance'], result['Balance2']]}")
+    if type(result) != dict or 'Balance' not in result:
+        raise RuntimeError(f'В result отсутствует баланс')
+    if str(options('null_is_error', pkey=pkey)) == '1' and str(result['Balance']) == '0':
+        raise RuntimeError(f'Нулевой баланс считаем ошибкой. В result отсутствует баланс')
     return result
 
 class Feedback():

@@ -216,14 +216,12 @@ def getbalance_plugin(method, param_source):
                 logging.info(f'Jitter {j_time:.2f} seconds')
                 time.sleep(j_time)
             result = module.get_balance(param['login'], param['password'], storename, pkey=pkey)
-            result = store.correct_result(result, pkey=pkey)
-            if type(result) != dict or 'Balance' not in result:
-                raise RuntimeError(f'В result отсутствует баланс')
+            result = store.correct_and_check_result(result, pkey=pkey)
             text = store.result_to_html(result)
         except Exception:
             logging.info(f'{plugin} fail: {store.exception_text()}')
             dbengine.flags('set', f"{lang}_{plugin}_{param['login']}", f'error call {time.asctime()}')  # выставляем флаг о ошибке вызова
-            return 'text/html', [f"<html>Error call {param['fplugin']}</html>"]
+            return 'text/html', [f"<html>Error call {param['fplugin']}<br><pre>{store.exception_text()}</pre></html>"]
         dbengine.flags('delete', f"{lang}_{plugin}_{param['login']}", 'start')  # запрос завершился успешно - сбрасываем флаг
         try:
             # пишем в базу
