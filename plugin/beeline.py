@@ -15,7 +15,7 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('div.initial-form')=
                   'password_clear_js': "document.querySelector('form input[type=password][role=textbox]').value=''",
                   'password_selector': 'form input[type=password][role=textbox]',
                   'submit_js': "document.querySelector('form [type=button]').click()",
-                 }
+                  }
 profile_tag = 'api/profile/userinfo/data/?noTimeout'
 accumulators2_tag = 'api/uni-profile-mobile/blocks'
 services_tag = '/api/uni-profile-mobile/services/'
@@ -65,7 +65,7 @@ class browserengine(browsercontroller.BrowserController):
                 acc2_dict = {el.get('unit'): el.get('rest', 0) for el in acc2_list}
                 self.result['Internet'] = self.result.get('Internet', 0) + acc2_dict.get('KBYTE', 0)
                 self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
-                self.result['Min'] = self.result.get('Min', 0) + acc2_dict.get('SECONDS', 0)
+                self.result['Min'] = self.result.get('Min', 0) + acc2_dict.get('SECONDS', 0) / 60
                 self.result['SMS'] = self.result.get('SMS', 0) + acc2_dict.get('SMS', 0)
         except Exception:
             exception_text = f'Ошибка при получении accumulators2 {store.exception_text()}'
