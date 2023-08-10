@@ -446,9 +446,11 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         if 'amount' in mccsp_balance and 'Balance' in result:
             if mccsp_balance['amount'] > 0 and result['Balance'] == 0:
                 del result['Balance']
-        cashback = pd.get_response_body_json('for=api/cashback/account')
+        cashback_page = pd.get_response_body_json('for=api/cashback/account')
         # pd.jsformula('for=api/cashback/account', "parseFloat(data.data.balance).toFixed(2)")
-        result['Balance2'] = round(cashback.get('data', {}).get('balance', 0), 2)
+        cashback_data = cashback_page.get('data', {})
+        if 'balance' in cashback_data:
+            result['Balance2'] = round(cashback_data['balance'], 2)
         counters = pd.get_response_body_json('for=api/sharing/counters').get('data', {}).get('counters', [])
         if 'Balance' in result and 'Balance2' in result:
             try:

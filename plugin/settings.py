@@ -182,7 +182,7 @@ ini = {
         'balances_': {'descr': 'Что делать с полем balances', 'type': 'select', 'variants': 'nochange swap add'},
         'balances': 'nochange',
         # Считать нулевой баланс ошибкой (если включен balances=swap то ошибка будет если нулевой Balance2)
-        'null_is_error_': {'descr': 'Что делать с полем balances', 'type': 'checkbox'},
+        'null_is_error_': {'descr': 'Считать нулевой баланс ошибкой', 'type': 'checkbox'},
         'null_is_error': '0',
         # Слова, которые встречаются в названиях тарифов, про которые нужно выдать предупреждение и красить номер, нежелательные unwanted услуги
         'subscription_keyword_': {'descr': 'Признаки подписок, через запятую', 'type': 'text'},

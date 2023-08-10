@@ -110,15 +110,18 @@ def correct_and_check_result(result, pkey):
     if type(result) != dict:
         return result
     result = fix_num_params(result, int_params=['SMS', 'Min'])
-    if 'Balance' in result and 'Balance2' in result:
-        b, b2 = result['Balance'], result['Balance2']
+    if options('balances', pkey=pkey) != 'nochange':
+        b, b2 = result.get('Balance', None), result.get('Balance2', None)
         if options('balances', pkey=pkey) == 'swap':
-            result['Balance'], result['Balance2'] = result['Balance2'], result['Balance']
+            try:
+                result['Balance'], result['Balance2'] = result['Balance2'], result['Balance']
+            except Exception:
+                raise RuntimeError(f"Swap error for Balance and Balance2 {exception_text()}")
         elif options('balances', pkey=pkey) == 'add':
             try:
-                result['Balance'] = float(result['Balance']) + float(result['Balance2'])
+                result['Balance'] = round(float(result['Balance']) + float(result['Balance2']), 2)
             except Exception:
-                logging.error(f"Addition error for {repr(result['Balance'])}+{repr(result['Balance2'])}: {exception_text()}")
+                raise RuntimeError(f"Addition error for Balance + Balance2 {exception_text()}")
         logging.info(f"Balance correct by option.balances={options('balances', pkey=pkey)} {[b, b2]} -> {[result['Balance'], result['Balance2']]}")
     if type(result) != dict or 'Balance' not in result:
         raise RuntimeError(f'В result отсутствует баланс')
