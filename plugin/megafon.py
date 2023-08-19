@@ -43,15 +43,25 @@ class browserengine(browsercontroller.BrowserController):
             logging.error(f'Internet calculation fail:{store.exception_text()}')
             del self.result['Internet']
         try:
-            url_tag = 'api/options/list/current'
+            self.page_goto('https://lk.megafon.ru/options/connected/paid')  # ??? https://lk.megafon.ru/options
+            self.sleep(5)
+            url_tag = 'api/services/currentServices/list'
             resps = [v for k, v in self.responses.items() if url_tag in k]
             if len(resps) > 0:
-                o_list = resps[-1]
-                services = [(i['optionName'], i['monthRate'] * (1 if i['monthly'] else 30)) for i in o_list.get('paid', [])]
-                services += [(i['optionName'], i['monthRate'] * (1 if i['monthly'] else 30)) for i in o_list.get('free', [])]
+                o_list_free = resps[-1].get('free', [])  # бесплатные
+                services_free = [(el.get('optionName', ''), 0) for el in o_list_free]
+                # !!! т.к. у меня нет информации как выглядят строчки платных услуг - просто беру все что не free и символично ставлю 1 рубль за услугу
+                o_list_non_free = sum([v for k, v in resps[-1].items() if k != 'free'], [])  # платные (все что не free)
+                services_non_free = [(el.get('optionName', ''), 1) for el in o_list_non_free]
+                # услугу Абонентская плата за Сохранение номера в списке услуг нет, она видна только ва выписке
+                url_expenses = 'api/reports/expenses'
+                resp_exp = [v for k, v in self.responses.items() if url_expenses in k]
+                if re.search(r'(?usi)Абонентская\W+плата\W+за\W+Сохранение\W+номера', str(resp_exp)):
+                    services_non_free += [('Абонентская плата за Сохранение номера нежелательная', 5)]
+                services = services_free + services_non_free
                 services.sort(key=lambda i: (-i[1], i[0]))
-                free = len([a for a, b in services if b == 0])  # бесплатные
-                paid = len([a for a, b in services if b != 0])  # платные
+                free = len(services_free)  # бесплатные
+                paid = len(services_non_free)  # платные
                 paid_sum = round(sum([b for a, b in services]), 2)
                 self.result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
                 self.result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
