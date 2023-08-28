@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
 from typing import List, Dict
-import base64, datetime, gc, glob, json, logging, os, pathlib, pprint, random, re, socket, sys, threading, time, traceback, subprocess
+import base64, datetime, gc, glob, json, logging, os, pathlib, pprint, random, re, socket, sys, threading, time, subprocess
 import psutil, requests, playwright
 import browsercontroller, store, settings
 # костыль для тех у кого нет пакета websocket
@@ -28,9 +28,6 @@ def get_free_port() -> int:
     gc.collect()
     return port
 
-def exception_text():
-    return "".join(traceback.format_exception(*sys.exc_info())).encode('cp1251', 'ignore').decode('cp1251', 'ignore')
-
 
 class PureBrowserDebug():
 
@@ -54,7 +51,7 @@ class PureBrowserDebug():
                 try:
                     [p.kill() for p in psutil.process_iter() if p.name() == 'chrome.exe' and '--remote-debugging-port' in str(p.cmdline())]
                 except Exception:
-                    logging.info(f'kill old chrome: {exception_text()}')
+                    logging.info(f'kill old chrome: {store.exception_text()}')
                 raise RuntimeError("Chromium did't start, kill all remote browsers")
             try:
                 for i in range(50):  # wait while chrome started
@@ -70,7 +67,7 @@ class PureBrowserDebug():
                 self.ws.settimeout(1)
                 break
             except Exception:
-                logging.info(exception_text())
+                logging.info(store.exception_text())
                 logging.info('Next try')
                 time.sleep(1)
         else:
@@ -95,7 +92,7 @@ class PureBrowserDebug():
         try:
             children = psutil.Process().children() + sum([p.children() for p in psutil.Process().children()], [])
         except Exception:
-            logging.error(f'chrome_children:v{exception_text()}')
+            logging.error(f'chrome_children:v{store.exception_text()}')
             return []
         return [p for p in children if p.name() == 'chrome.exe']
 
@@ -117,7 +114,7 @@ class PureBrowserDebug():
             if not os.path.exists(self.browser_path):
                 raise RuntimeError(f'Chromium not found by path {self.browser_path}')
         except Exception:
-            logging.error(exception_text())
+            logging.error(store.exception_text())
             raise RuntimeError('Chromium not found')
         self.cmd = [self.browser_path, f'--user-data-dir={self.user_data_dir}', f'--remote-debugging-port={self.port}', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-save-password-bubble', '--no-default-browser-check', ' --disable-component-update', '--disable-extensions', '--disable-sync', '--no-first-run', '--no-service-autorun', f'--remote-allow-origins=http://localhost:{self.port}']
         self.cmd.extend(self.chrome_args)
@@ -142,7 +139,7 @@ class PureBrowserDebug():
             visible_hwnd = [wn[0] for wn in myWindows if wn[4] in pids and (win32gui.GetWindowLong(wn[0], -16) & 268435456)]
             return visible_hwnd
         except Exception:
-            logging.error(f'While enumerate the window an exception occurred: {exception_text()}')
+            logging.error(f'While enumerate the window an exception occurred: {store.exception_text()}')
 
     def send(self, method, params=None):
         if params is None:
@@ -171,7 +168,7 @@ class PureBrowserDebug():
                 if id is None or id_countdown_timeout < 0:
                     break
             except Exception:
-                logging.info(exception_text())
+                logging.info(store.exception_text())
                 break
         return None
 
@@ -198,7 +195,7 @@ class PureBrowserDebug():
             else:
                 self.br_subp.kill()
         except Exception:
-            logging.info(exception_text())
+            logging.info(store.exception_text())
 
     def __del__(self):
         if hasattr(self, 'br_subp') and self.br_subp.poll() is None:  # browser is running ?
@@ -279,7 +276,7 @@ class PureBrowserDebug():
             open(filename, 'wb').write(base64.b64decode(res['data']))
             logging.info(f'Screenshot {filename}')
         except Exception:
-            logging.info(exception_text())
+            logging.info(store.exception_text())
 
     def press_key(self, key):
         # do i need this ???  self.send('Runtime.evaluate', {'expression':'document.evaluate("//*[@id=\'login\']",document,null,XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,null).snapshotItem(0).focus()'})
@@ -456,7 +453,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             try:
                 result['Balance3'] = float(result['Balance']) + float(result['Balance2'])
             except Exception:
-                logging.info(f'Не смогли сложить балансы {exception_text()}')
+                logging.info(f'Не смогли сложить балансы {store.exception_text()}')
         if type(counters) == list and len(counters) > 0:
             # deadlineDate
             deadline_dates = set([i['deadlineDate'] for i in counters if 'deadlineDate' in i])
@@ -520,7 +517,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
             result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services]).replace('&nbsp;', ' ')
         except Exception:
-            logging.info(f'Ошибка при получении списка услуг {exception_text()}')
+            logging.info(f'Ошибка при получении списка услуг {store.exception_text()}')
 
         # Идем и пытаемся взять инфу со страницы https://lk.mts.ru/obshchiy_paket
         # Теперь это на https://lk.ssl.mts.ru/sharing
@@ -581,7 +578,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                     else:  # Со страницы общего пакета не отдали данные, чистим все, иначе будут кривые графики. ТОЛЬКО для common
                         raise RuntimeError(f'Страница общего пакета не возвращает данных')
             except Exception:
-                logging.info(f'Ошибка при получении obshchiy_paket {exception_text()}')
+                logging.info(f'Ошибка при получении obshchiy_paket {store.exception_text()}')
                 if acc_num.lower().startswith('common'):
                     result = {'ErrorMsg': 'Страница общего пакета не возвращает данных'}
     pd.capture_screenshot()
