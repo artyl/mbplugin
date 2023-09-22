@@ -484,6 +484,8 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             # Интернет
             internet = ([i for i in counters if i['packageType'] == 'Internet' and i.get('packageGroup') == 'Main'] +
                         [i for i in counters if i['packageType'] == 'Internet' and i.get('packageGroup') != 'Main'])
+            # by https://github.com/artyl/mbplugin/issues/39
+            internet.sort(key=lambda el: (el.get('packageGroup') == 'Main', el.get('priority', 0)), reverse=True)
             if internet != []:
                 unitMult = settings.UNIT.get(internet[0]['unitType'], 1)
                 unitDiv = settings.UNIT.get(options('interUnit'), 1)
