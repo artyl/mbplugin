@@ -540,3 +540,7 @@ FIX: Небольшие изменения в логике получения к
 FIX: Коррекция показа услуг мегафон  
 FIX: Коррекция работы окна логина beeline в web версии  
 FIX: Выбор остатков по интернету с максимальным приоритетом (спасибо Gl0) issue #39 и увеличил таймаут по ожиданию страниц МТС  
+
+## mbplugin v1.00.62 (??.10.23) fix avtodor-tr, mts page timeout param
+FIX: avtodor-tr абонемент from pasha00000  
+FIX: MTS internet exclude Tethering  

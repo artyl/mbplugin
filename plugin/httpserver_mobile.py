@@ -54,7 +54,7 @@ def tray_menu():
         {'text': "Reload schedule", 'cmd': lambda: Scheduler().reload(), 'show': True},
         {'text': "Recompile jsmblh plugin", 'cmd': lambda: compile_all_jsmblh.recompile(), 'show': True},
         # {'text': "Version update", 'cmd': lambda: run_update(), 'show': True},  # TODO продумать как это показывать
-        {'text': "Cancel the balance request", 'cmd': lambda: cancel_query(reason='tray icon command'), 'show': True},
+        {'text': "Cancel balance request", 'cmd': lambda: cancel_query(reason='tray icon command'), 'show': True},
         {'text': "Restart server", 'cmd': lambda: restart_program(reason='tray icon command'), 'show': True},
         {'text': "Exit program", 'cmd': lambda: restart_program(reason='Tray icon exit', exit_only=True), 'show': True}
     )

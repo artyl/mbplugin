@@ -533,16 +533,14 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                     break
                 time.sleep(1)
             pd.capture_screenshot()
-            # pd.jsformula('for=api/sharing/counters', 'data')
             res3_alt = pd.get_response_body_json('for=api/sharing/counters').get('data', {})
-            # logging.info(f'mts_usedbyme: GetUserClaims за три попытки так и не дал результат. Уходим')
-            # self.result = {'ErrorMsg': 'Страница общего пакета не возвращает данных (claim_error)'}
-            # return
+            # Пока просто исключаем Tethering, потом посмотрим как быть если варианты появяться
+            counters = [el for el in res3_alt.get('counters', []) if el.get('packageGroup', '') not in ['Tethering']]
             try:
                 # Обработка по новому варианту страницы api/sharing/counters
                 if res3_alt.get('subscriberType', '') == 'Donor':
                     logging.info(f'mts_usedbyme: Donor')
-                    for el in res3_alt.get('counters', []):  # data.counters. ...
+                    for el in counters:  # data.counters. ...
                         if el.get('packageType', '') == 'Calling':
                             result['SpendMin'] = int((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) / 60)
                         if el.get('packageType', '') == 'Messaging':
@@ -551,7 +549,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                             result['Internet'] = round((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) / 1024 / 1024, 3)
                 if res3_alt.get('subscriberType', '') == 'Acceptor':
                     logging.info(f'mts_usedbyme: Acceptor')
-                    for el in res3_alt.get('counters', []):  # data.counters. ...
+                    for el in counters:  # data.counters. ...
                         if el.get('packageType', '') == 'Calling':
                             result['SpendMin'] = int(el.get('usedAmount', 0) / 60)
                         if el.get('packageType', '') == 'Messaging':
@@ -563,7 +561,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                     # Обработка по новому варианту страницы api/sharing/counters
                     if res3_alt.get('subscriberType', '') == 'Donor':
                         logging.info(f'mts_usedbyme: Common for donor')
-                        for el in res3_alt.get('counters', []):  # data.counters. ...
+                        for el in counters:  # data.counters. ...
                             if el.get('packageType', '') == 'Calling':
                                 result['Min'] = int((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 60)  # осталось минут
                                 result['SpendMin'] = int((el.get('usedAmount', 0)) / 60)  # Потрачено минут
