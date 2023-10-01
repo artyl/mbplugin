@@ -46,6 +46,10 @@ def get_balance(login, password, storename=None, **kwargs):
         result['TurnOff'] = data['user_days_to_block']
     except Exception:
         logging.info(f'Not found TurnOff')
+    try:
+        result['AnyString'] = ("Заполнено " + str(data['user_quota']) + " из " + str(data['plan_quota']))
+    except Exception:
+        logging.info(f'Not found UserQuota')
 
     session.save_session()
     time.sleep(1)  # Запрос отрабатывающий меньше секунды ломает логику, поэтому ставим задержку
