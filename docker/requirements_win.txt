@@ -12,7 +12,7 @@ greenlet==1.1.1
 idna==2.10
 markdown-it-py==2.2.0
 mdurl==0.1.2
-Pillow==9.3.0
+Pillow==10.0.1
 playwright==1.14.1
 playwright-stealth==1.0.5
 psutil==5.9.5
@@ -35,6 +35,6 @@ soupsieve==2.2.1
 typing_extensions==4.5.0
 tzdata==2021.1
 tzlocal==3.0
-urllib3==1.26.6
+urllib3==1.26.17
 websocket-client==1.5.1
 websockets==9.1
