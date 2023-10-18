@@ -541,8 +541,10 @@ FIX: Коррекция показа услуг мегафон
 FIX: Коррекция работы окна логина beeline в web версии  
 FIX: Выбор остатков по интернету с максимальным приоритетом (спасибо Gl0) issue #39 и увеличил таймаут по ожиданию страниц МТС  
 
-## mbplugin v1.00.62 (??.10.23) fix avtodor-tr abonement, mts exclude tethering from internet, beget disk usage,  MTS page timeout param  
+## mbplugin v1.00.62 (18.10.23) new nashdom, fix avtodor-tr abonement, mts exclude tethering from internet, beget disk usage, MTS timeout
+ADD: Новый плагин, nashdom (https://rkc-m.ru НашДомРУ) from d1mdev  
 FIX: avtodor-tr абонемент from pasha00000  
 FIX: MTS internet exclude Tethering  
+FIX: MTS id_countdown_timeout поменял с 30 на 20 оказалось что при 30 и неудаче в процессе опроса процесс длится слишком долго у некоторых, пока идет опрос MobileBalance успевает решить что все плохо и отстрелить процесс, хотя при меньшем значении баланс забирался, а переделать и вынести в переменные руки пока не дошли.  
 ADD: beget.py Расход дисковой квоты в произвольное поле PR #41 from d1mdev  
 FIX: Восстановлена работа beeline_uz  

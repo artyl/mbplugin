@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор d1mas
-проверка зодолженности по услугам ЖКХ РКЦ Наш Дом
+проверка задолженности по услугам ЖКХ РКЦ Наш Дом
 https://rkc-m.ru'''
 
 import browsercontroller, store, settings

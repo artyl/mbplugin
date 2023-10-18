@@ -150,7 +150,7 @@ class PureBrowserDebug():
         return self.ws_id
 
     def collect(self, id=None):
-        id_countdown_timeout = 30  # FIXME make constant
+        id_countdown_timeout = 20  # FIXME make constant
         while True:
             # print(f'{len(self._data)}     ', end='\r')
             try:
