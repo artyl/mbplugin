@@ -6,9 +6,9 @@ icon = '789C7D93CB6B135114C6BF79C4BC66924993D0269926D3247DD8579A5A92D61A5B84B628
 
 login_url = 'https://beeline.uz/ru'
 user_selectors = {
-    'chk_lk_page_js': "Array.from(document.querySelectorAll('button')).filter(el=>el.innerText.startsWith('+998')||el.innerText==('Главная')).length>0",
-    'chk_login_page_js': "Array.from(document.querySelectorAll('button.gray')).filter(el=>el.innerText=='Войти').length>0",
-    'before_login_js': "document.querySelectorAll('button').forEach(el=>el.innerText=='Войти'?el.click():0);document.querySelectorAll('button').forEach(el=>el.innerText=='Вход по паролю'?el.click():0);",
+    'chk_login_page_js': "Array.from(document.querySelectorAll('button')).filter(el=>el.innerText.startsWith('Войти')).length>0",
+    'chk_lk_page_js': "Array.from(document.querySelectorAll('a')).filter(el=>el.innerText.startsWith('личный кабинет')||el.innerText==('Главная')).length>0",
+    'before_login_js': "document.querySelectorAll('button').forEach(el=>el.innerText=='Войти'?el.click():0);setTimeout(()=>document.querySelectorAll('button').forEach(el=>el.innerText=='Вход по паролю'?el.click():0),1000)",
     'login_clear_js': "document.querySelector('#auth-form-phone').value=''",
     'login_selector': "#auth-form-phone",
     'password_clear_js': "document.querySelector('input[type=password]').value=''",
@@ -21,7 +21,8 @@ user_selectors = {
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
-        self.page_evaluate("document.querySelectorAll('button').forEach(el=>el.innerText.startsWith('+998')?el.click():0)")
+        self.page_evaluate("document.querySelectorAll('button').forEach(el=>el.innerText.startsWith('+998')?el.click():0)")  # удалить, этого вроде не нужно уже?
+        self.page_evaluate("document.querySelectorAll('a').forEach(el=>el.innerText.startsWith('личный кабинет')?el.click():0)")
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['/dashboard-updated$'], 'jsformula': "parseFloat(data.subUsers[0].balance).toFixed(2)"},
             {'name': 'TarifPlan', 'url_tag': ['/dashboard-updated$'], 'jsformula': "data.subUsers[0].pricePlan.ru"},

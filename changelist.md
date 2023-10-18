@@ -545,3 +545,4 @@ FIX: Выбор остатков по интернету с максимальн
 FIX: avtodor-tr абонемент from pasha00000  
 FIX: MTS internet exclude Tethering  
 ADD: beget.py Расход дисковой квоты в произвольное поле PR #41 from d1mdev  
+FIX: Восстановлена работа beeline_uz  
