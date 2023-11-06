@@ -495,6 +495,7 @@ def prepare_balance_sqlite(filter: str = 'FULL', params: typing.Dict = {}):
     table = [i for i in table if i['Alias'] != 'Unknown']  # filter Unknown
     table.sort(key=lambda i: [i['NN'], i['Alias']])  # sort by NN, after by Alias
     table = filter_balance(table, filter, params)
+    table = [{k:(0 if v is None else v) for k,v in line.items()} for line in table] # convert None to 0
     res = [table_format.format(**line) + alert_suffix(line) for line in table]
     return '\n'.join(res)
 
