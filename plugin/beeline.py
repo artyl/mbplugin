@@ -62,6 +62,16 @@ class browserengine(browsercontroller.BrowserController):
             # все страницы попадающие под описание
             accumulators2_all = [v for k, v in self.responses.items() if accumulators2_tag in k and 'accumulators' in v]
             if len(accumulators2_all) > 0:  # Нашли что нибудь?
+                try: 
+                    add_bal = bal_data['additionalBalances']['data'][0]['data']
+                    dates = sorted([el.get('dueDate','') for el in add_bal])  # Все даты истечения балансов - сортируем по возрастанию
+                    self.result['TurnOffStr'] = dates[0].split('T')[0]
+                    self.result['TurnOff'] = int((time.mktime(time.strptime(self.result['TurnOffStr'], '%Y-%m-%d'))-time.time()) / 86400)
+                    if self.result['TurnOff'] < 0 : 
+                        self.result['TurnOff'] = 0
+                except:
+                    exception_text = f'Ошибка при получении TurnOff {store.exception_text()}'
+                    logging.error(exception_text)
                 acc2_list = accumulators2_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items
                 acc2_dict = {el.get('unit'): el.get('rest', 0) for el in acc2_list}
                 self.result['Internet'] = self.result.get('Internet', 0) + acc2_dict.get('KBYTE', 0)
