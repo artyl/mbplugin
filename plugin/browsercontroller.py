@@ -371,15 +371,24 @@ class BalanceOverPlaywright():
                 logging.info(exception_text)
                 raise
 
-    def page_check_response_url(self, response_url):
-        ''' проверяем наличие response_url в загруженных url, если не задан или пустой то возвращаем True '''
-        if response_url is None or response_url == '':
-            return True
-        if len([i for i in self.responses.keys() if response_url in i]) > 0:
-            logging.info(f'Found an "{response_url}" in responses')
-            return True
-        else:
-            return False
+    def page_check_response_urls(self, response_urls):
+        ''' проверяем наличие response_urls в загруженных url, если не задан или пустой то возвращаем True 
+            response_urls словарь вида часть_url: текст_на_странице
+            если текст_на_странице is None то просто проверяется наличие url 
+        '''
+        logging.info(f'Wait page {response_urls} in {len(self.responses)} responses')
+        for response_url, ss  in response_urls.items():
+            if response_url is None or len(response_url) == 0:
+                continue
+            # текст не указал просто проверяем наличие
+            if ss is None and len([k for k in self.responses.keys() if response_url in k]) == 0:
+                logging.info(f'Not found "{response_url}" in {len(self.responses)} responses')
+                return False
+            if ss is not None and len([k for k, v in self.responses.items() if response_url in k and ss in v]) == 0:
+                logging.info(f'Not found "{response_url}" with "{ss}" in {len(self.responses)} responses')
+                return False
+        logging.info(f'Found all of "{response_urls}" in {len(self.responses)} responses')
+        return True
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
@@ -450,7 +459,7 @@ class BalanceOverPlaywright():
                 self.sleep(1)
         if response_url is not None and response_url != '':
             for cnt in range(self.max_timeout):
-                if self.page_check_response_url(response_url):
+                if self.page_check_response_urls({response_url: None}):
                     break
                 self.sleep(1)
 
@@ -625,7 +634,7 @@ class BalanceOverPlaywright():
                 raise RuntimeError(f'Fatal detected')
             if self.page_evaluate(selectors['captcha_checker'], False):
                 self.show_captcha(selectors['captcha_checker'], selectors['captcha_focus'])
-            if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_url(selectors['lk_page_url']):
+            if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_urls({selectors['lk_page_url']: None}):
                 logging.info(f'Already login')
                 break  # ВЫХОДИМ ИЗ ЦИКЛА - уже залогинины
             if self.page_evaluate(selectors['chk_login_page_js']):
@@ -660,7 +669,7 @@ class BalanceOverPlaywright():
                 # ждем появления личного кабинета, или проваливаемся по таймауту
                 self.page_wait_for(expression=selectors['chk_lk_page_js'], response_url=selectors['lk_page_url'])
                 self.sleep(1 * self.force if not is_bad_chk_lk_page_js else self.max_timeout)
-                if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_url(selectors['lk_page_url']):
+                if self.page_evaluate(selectors['chk_lk_page_js'], default=True) and self.page_check_response_urls({selectors['lk_page_url']: None}):
                     logging.info(f'Logged on')
                     break  # ВЫХОДИМ ИЗ ЦИКЛА - залогинились
                 self.sleep(1 * self.force)

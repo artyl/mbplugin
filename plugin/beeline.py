@@ -27,11 +27,10 @@ class browserengine(browsercontroller.BrowserController):
         logging.info(f'Before call self.page_goto({direct_lk_url})')
         self.page_goto(direct_lk_url)
         # оптимистичный сценарий если залогинены стараемся побыстрому все забрать
-        for _ in range(10):
-            self.sleep(1)
-            logging.info(f'Wait page {accumulators2_tag} and {services_tag}')
+        for w in range(5):  # 10s=sum(range(5))
+            self.sleep(w)
             # Ждем пока появтся accumulators2_tag и services_tag
-            if len([v for k, v in self.responses.items() if accumulators2_tag in k and 'accumulators' in v or services_tag in k]) >= 2:
+            if self.page_check_response_urls({profile_tag: 'balance', accumulators2_tag: 'accumulators', services_tag:None}):
                 break
         # Если не попали внутрь ЛК (попали на новую форму логина) - тогда пытаемся логиниться
         if self.page_evaluate(user_selectors['chk_login_page_js']):
@@ -41,11 +40,10 @@ class browserengine(browsercontroller.BrowserController):
         logging.info(f'Before call self.page_goto({profile_url})')
         self.page_goto(profile_url)
         # TODO костыль - сайт очень медленно открывается тупо долго ждем
-        for _ in range(0, 180, 5):
-            logging.info(f'Wait page {profile_tag} {len(self.responses)}')
-            if any([k for k, v in self.responses.items() if profile_tag in k and 'balance' in v]):
+        for w in range(12):  # 66s=sum(range(12))
+            if self.page_check_response_urls({profile_tag: 'balance', accumulators2_tag: 'accumulators', services_tag:None}):
                 break
-            self.sleep(5)
+            self.sleep(w)
         else:
             raise RuntimeError(f'Так и не получили страницу с балансом {profile_tag}')
         # Приходится сначала долго ждать страницу, а затем когда она пришла получить ее точный url чтобы отфильтроваться от остальных запросов с похожим url

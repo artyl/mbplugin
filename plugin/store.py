@@ -606,7 +606,7 @@ def ini_by_expression(expression):
 def update_settings(kwargs):
     for key, val in kwargs.items():
         key = key.lower()
-        if key in settings.ini['Options']:
+        if key in settings.ini['Options'] or key in ['pkey']:
             settings.ini['Options'][key] = val
             valid, msg = option_validate(key, 'Options')
             if not valid:

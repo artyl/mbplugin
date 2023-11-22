@@ -3,7 +3,7 @@
 для того чтобы не писать утилиты два раза для windows и linux все переносим сюда, а
 непосредственно в bat и sh скриптах оставляем вызов этого скрипта
 '''
-import os, sys, re, time, subprocess, shutil, glob, logging, pprint, importlib, zipfile
+import os, sys, re, time, subprocess, shutil, glob, pathlib, logging, pprint, importlib, zipfile
 import click
 
 # Т.к. мы меняем текущую папку, то sys.argv[0] будет смотреть не туда, пользоваться можно только
@@ -138,14 +138,19 @@ def pip_update(ctx, quiet):
 
 
 @cli.command()
+@click.option('--soft', is_flag=True, help='Мягкая очистка, освободить место, но сохранить сессии, по умолчанию полная очистка со сбросом сессий')
 @click.pass_context
-def clear_browser_cache(ctx):
+def clear_browser_cache(ctx, soft):
     '''Очищаем кэш браузера'''
     name = 'clear_browser_cache'
     try:
-        [os.remove(fn) for fn in glob.glob(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'p_*'))]
-        shutil.rmtree(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'puppeteer'), ignore_errors=True)
-        shutil.rmtree(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'headless'), ignore_errors=True)
+        if soft:
+            path = pathlib.Path(ROOT_PATH, 'mbplugin', 'store', 'headless')
+            [(shutil.rmtree(fl) if fl.is_dir() else fl.unlink()) for fl in path.rglob('*') if 'Cache' in fl.name or fl.name.startswith('BrowserMetrics') or fl.name in ['History', 'Favicons', 'Visited Links']]
+        else:
+            [os.remove(fn) for fn in glob.glob(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'p_*'))]
+            shutil.rmtree(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'puppeteer'), ignore_errors=True)
+            shutil.rmtree(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'headless'), ignore_errors=True)
         echo(f'OK {name}')
     except Exception:
         echo(f'Fail {name}: {store.exception_text()}')
