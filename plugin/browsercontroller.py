@@ -795,6 +795,7 @@ class BalanceOverPlaywright():
             os.system('export DISPLAY=:99')  # On linux and headless:False use Xvfb
             os.environ['DISPLAY'] = ':99'
         store.feedback.text(f'Запуск браузера', append=True)
+        fail_flag = False  # Должны пройти до конца
         with sync_playwright() as self.sync_pw:
             browsertype_text = self.options('browsertype')
             self.browsertype: playwright.sync_api._generated.BrowserType = getattr(self.sync_pw, browsertype_text)
@@ -804,7 +805,7 @@ class BalanceOverPlaywright():
                     self.data_collector()
                 except Exception:
                     logging.error(f'Exception in data_collector: {store.exception_text()}')
-                    raise
+                    fail_flag = True
             elif run == CHECK_LOGON:
                 self.check_logon_selectors_prepare()
                 self.check_logon_selectors()
@@ -830,6 +831,8 @@ class BalanceOverPlaywright():
         kill_chrome()  # Добиваем все наши незакрытые хромы, чтобы не появлялось кучи зависших
         clear_cache(self.storefolder, self.storename)
         time.sleep(2)  # Даем время закрыться
+        if fail_flag:
+            raise RuntimeError('Fail flag')
         return self.result
 
 class BrowserController(BalanceOverPlaywright):
