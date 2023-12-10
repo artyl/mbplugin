@@ -245,6 +245,9 @@ class BalanceOverPlaywright():
         если все проверки заданы качественно - можно указать force=0
         plugin_name - нужен для поиска индивидуальных параметров в phones.ini'''
         self.browser, self.page = None, None  # откроем браузер - заполним
+        self.chrome_executable_path = None
+        self.sync_pw = None
+        self.browsertype = None
         self.browser_open = True  # флаг что браузер работает
         self.wait_loop = wait_loop  # TODO подобрать параметр
         self.max_timeout = max_timeout
@@ -308,8 +311,8 @@ class BalanceOverPlaywright():
         fix_crash_banner(self.storefolder, self.storename)
 
     def response_worker(self, response):
-        'Response Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)'
-        'Проходящие запросы, которые json сохраняем в responses'
+        '''Response Worker вызывается на каждый url который открывается при загрузке страницы (т.е. список тот же что на вкладке сеть в хроме)
+        Проходящие запросы, которые json сохраняем в responses'''
         if response.status == 200:
             try:
                 data = response.json()  # Берем только json
@@ -780,11 +783,9 @@ class BalanceOverPlaywright():
 
     def check_logon_selectors_prepare(self):
         'Метод для подготовки к тестированию'
-        pass
 
     def data_collector(self):
         'Переопределите для своего плагина'
-        pass
 
     @safe_run_decorator
     def main(self, run=NORMAL) -> dict:

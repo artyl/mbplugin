@@ -549,7 +549,9 @@ FIX: MTS id_countdown_timeout поменял с 30 на 20 оказалось ч
 ADD: beget.py Расход дисковой квоты в произвольное поле PR #41 from d1mdev  
 FIX: Восстановлена работа beeline_uz  
 
-## mbplugin v1.00.63 (22.11.23) fix beeline_uz
-FIX: Восстановлена работа beeline_uz  
+## mbplugin v1.00.63 (10.12.23) fix beeline_uz
+FIX: Восстановлена работа beeline_uz (исправлены тэги окна логона)  
 ADD: для опции tg_format None конвертируется в 0  
 ADD: опция soft для mbp clear-browser-cache - очистка хранилища без удаления сессий, только кэш  
+FIX: a1by.py восстановлена работа плагина (исправлены тэги окна логона)  
+FIX: очередная попытка починить beeline web  

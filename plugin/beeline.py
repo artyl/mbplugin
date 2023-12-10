@@ -6,8 +6,13 @@ import store, settings, browsercontroller
 icon = '789C7D93CB6B135114C6BF79C4BC66924993D0269926D3247DD8579A5A92D61A5B84B6282816AC8FADB890BAB3E24E37EE15D48505F11FD045C54AC577B1540AC5A255B1B4A2958AF85AE9C23E92F8CD344A15F4901FDF9D7BE79C09E7BB67C7EE8C0C2B32A48E68250418EB07A5F3FF45454505CACBCBE1F3F9204912445182D7EB4520184490FC2B3C5E0F227A04A220941021992A8A10A842692F180C4051953F72BD9A86B2AA66A8B12628B14628C63AEEAA46A8550D50889AA026EAE149D6A38C6BD5ABFDCE8F1C3D0F5C2F02770BC03875823A459D26B3E42599E7DE5BEA12799F8776E6A295AB376D012E7F07AEFD004696811B2BC02D726F15784026F2C063324D9EB2C67332CFF5B365045ADA103A3E0CDCE4F31D729F678F587FB2F4ED19F2827BAFA8AFC922F9403E93AF79F8CF0DA332D50E776D3BD41A6A5D164EE2DA9C85BB210BA521034F6316BEE60E78531D50F9AE92CEC0D5DA0E676B16C18616C8A20C4114D86BD1EAAF60F94DB8762B2AC2E13092890489731DB27A2F0A1264D31F7A63936DD6B359E39777FCC1ED70221AD5D19A4E23B77D1B72B91CD22D2984F5305C7607BFCB7C4940B47B2F94ADFBA012676E006EE2EC1A40B0E720D20347D03B7812FD43A7D07FE2347A8E0D2175E830427B0EC0BE6B3FFCDD7D080F5D0246D9E7DB66FFA8E3D4C95548336B48CEADA16BB180BEA53C7AD9B7EE8F45843E156037FBF7A580E0D96118CD6DC0956FC0557A364246C9D88A55273E9547E76C013BE75863BE884E7A1059A01F0BE6BD584679BACDBA0389C10BF49FDE8F9977883C5CF7D0F1A48824BD6BE1FB29DE9D38FD93DFF1EC4D1E81D2FD3143E3ACE891045C6521B87CC41F81C35F014F4847D848C048D6C0A8AE41C888C3138EC2AFC7E0D1B48D23004DF3A2BAB6D69A1769C30CC9928C4DECB7CD66A75F326246CC9AB57F85611888C562F42ECA1C1B6459E27F8B40AFD42DFE8E9F8F93C73F'
 login_url = 'https://beeline.ru/login'
 # если залогинены, то попадем сразу в ЛК, иначе попадем ХЗ куда
-direct_lk_url = 'https://beeline.ru/customers/products/elk/tab/mobile-connection'
-profile_url = 'https://beeline.ru/customers/products/mobile/profile/'
+direct_lk_url = 'https://beeline.ru/customers/products/elk'
+accumulators_tag = 'api/uni-profile-mobile/blocks'
+profile_url = 'https://beeline.ru/customers/products/mobile/profile'
+profile_tag = 'api/profile/userinfo/data/?noTimeout'
+services_url = 'https://beeline.ru/customers/products/elk/tab/mobile-connection'
+services_tag = '/api/uni-profile-mobile/services/'
+subscribtions_tag = '/api/uni-profile-mobile/subscriptions/'
 user_selectors = {'chk_lk_page_js': "document.querySelector('div.initial-form')==null && document.querySelector('form input[type=password]')== null",
                   'chk_login_page_js': "!(document.querySelector('div.initial-form')==null && document.querySelector('form input[type=password]')== null)",
                   'before_login_js': "document.querySelectorAll('button').forEach(el=>el.innerText=='С постоянным паролем'?el.click():0);",
@@ -17,10 +22,6 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('div.initial-form')=
                   'password_selector': 'div.initial-form input[name=password]',
                   'submit_js': "document.querySelector('button[type=submit]').click()",
                   }
-profile_tag = 'api/profile/userinfo/data/?noTimeout'
-accumulators2_tag = 'api/uni-profile-mobile/blocks'
-services_tag = '/api/uni-profile-mobile/services/'
-subscribtions_tag = '/api/uni-profile-mobile/subscriptions/'
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
@@ -29,23 +30,51 @@ class browserengine(browsercontroller.BrowserController):
         # оптимистичный сценарий если залогинены стараемся побыстрому все забрать
         for w in range(5):  # 10s=sum(range(5))
             self.sleep(w)
-            # Ждем пока появтся accumulators2_tag и services_tag
-            if self.page_check_response_urls({profile_tag: 'balance', accumulators2_tag: 'accumulators', services_tag:None}):
+            logging.info(f'{len(self.responses)=}')
+            # На странице окно логона - ждать нечего
+            if self.page_evaluate(user_selectors['chk_login_page_js']):
+                logging.info(f'Login page detected')
+                break
+            # Ждем пока появится profile_tag
+            if self.page_check_response_urls({accumulators_tag: 'accumulators'}):
+                logging.info('{accumulators_tag=} found in responses')
                 break
         # Если не попали внутрь ЛК (попали на новую форму логина) - тогда пытаемся логиниться
         if self.page_evaluate(user_selectors['chk_login_page_js']):
             self.do_logon(url=login_url, user_selectors=user_selectors)
-            self.page_goto(direct_lk_url)
-            self.sleep(10)
-        logging.info(f'Before call self.page_goto({profile_url})')
+
+        self.page_screenshot()
+        ### direct_lk_url
+        logging.info(f'Сall self.page_goto({direct_lk_url})')
+        self.page_goto(direct_lk_url)
+        for w in range(9):  # 28s=sum(range(8))
+            if self.page_check_response_urls({accumulators_tag: 'accumulators'}):
+                break
+            self.sleep(w)
+        else:
+            logging.info(f'Так и не получили страницу с accumulators {accumulators_tag}, но идем дальше')
+        self.page_screenshot()
+        ### profile_url
+        logging.info(f'Сall self.page_goto({profile_url})')
         self.page_goto(profile_url)
-        # TODO костыль - сайт очень медленно открывается тупо долго ждем
-        for w in range(12):  # 66s=sum(range(12))
-            if self.page_check_response_urls({profile_tag: 'balance', accumulators2_tag: 'accumulators', services_tag:None}):
+        for w in range(9):  # 66s=sum(range(12))
+            if self.page_check_response_urls({profile_tag: 'balance'}):
                 break
             self.sleep(w)
         else:
             raise RuntimeError(f'Так и не получили страницу с балансом {profile_tag}')
+        self.page_screenshot()
+        ### services_url
+        logging.info(f'Сall self.page_goto({services_url})')
+        self.page_goto(services_url)
+        for w in range(9):  # 28s=sum(range(8))
+            if self.page_check_response_urls({services_tag:None, subscribtions_tag: None}):
+                break
+            self.sleep(w)
+        else:
+            logging.info(f'Так и не получили страницу с accumulators {services_tag} или {subscribtions_tag}, но идем дальше')
+
+        self.page_screenshot()
         # Приходится сначала долго ждать страницу, а затем когда она пришла получить ее точный url чтобы отфильтроваться от остальных запросов с похожим url
         bal_data_url, bal_data = [[k, v] for k, v in self.responses.items() if profile_tag in k and 'balance' in v][-1]
         self.result['Balance'] = bal_data.get('balance', {}).get('data', {})['balance']
@@ -58,8 +87,8 @@ class browserengine(browsercontroller.BrowserController):
         # аккумуляторы тарифа Простой ?
         try:
             # все страницы попадающие под описание
-            accumulators2_all = [v for k, v in self.responses.items() if accumulators2_tag in k and 'accumulators' in v]
-            if len(accumulators2_all) > 0:  # Нашли что нибудь?
+            accumulators_all = [v for k, v in self.responses.items() if accumulators_tag in k and 'accumulators' in v]
+            if len(accumulators_all) > 0:  # Нашли что нибудь?
                 try: 
                     add_bal = bal_data['additionalBalances']['data'][0]['data']
                     dates = sorted([el.get('dueDate','') for el in add_bal])  # Все даты истечения балансов - сортируем по возрастанию
@@ -67,17 +96,17 @@ class browserengine(browsercontroller.BrowserController):
                     self.result['TurnOff'] = int((time.mktime(time.strptime(self.result['TurnOffStr'], '%Y-%m-%d'))-time.time()) / 86400)
                     if self.result['TurnOff'] < 0 : 
                         self.result['TurnOff'] = 0
-                except:
-                    exception_text = f'Ошибка при получении TurnOff {store.exception_text()}'
+                except Exception:
+                    exception_text = f'Ошибка при получении TurnOff {store.exception_text()}, идем дальше'
                     logging.error(exception_text)
-                acc2_list = accumulators2_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items
+                acc2_list = accumulators_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items
                 acc2_dict = {el.get('unit'): el.get('rest', 0) for el in acc2_list}
                 self.result['Internet'] = self.result.get('Internet', 0) + acc2_dict.get('KBYTE', 0)
                 self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
                 self.result['Min'] = self.result.get('Min', 0) + acc2_dict.get('SECONDS', 0) / 60
                 self.result['SMS'] = self.result.get('SMS', 0) + acc2_dict.get('SMS', 0)
         except Exception:
-            exception_text = f'Ошибка при получении accumulators2 {store.exception_text()}'
+            exception_text = f'Ошибка при получении accumulators {store.exception_text()} , идем дальше'
             logging.error(exception_text)
         try:
             services = [v for k, v in self.responses.items() if services_tag in k][0]

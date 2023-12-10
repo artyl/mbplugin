@@ -4,7 +4,7 @@ import os, sys, locale, time, io, re, json, pickle, requests, urllib.request, co
 import settings
 
 def exception_text():
-    return "".join(traceback.format_exception(*sys.exc_info())).encode('cp1251', 'ignore').decode('cp1251', 'ignore')
+    return "".join(traceback.format_exception(*sys.exc_info())).encode('cp1251', 'ignore').decode('cp1251', 'ignore').strip()
 
 def abspath_join(*argv):
     'собираем в путь все переданные куски, если получившийся не абсолютный, то приделываем к нему путь до корня'
