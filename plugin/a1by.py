@@ -8,7 +8,7 @@ login_url = 'https://myaccount.a1.by/tariff'
 user_selectors = {
     'chk_lk_page_js': """document.querySelector('form input[type=text][value*="375"]') == null""",
     'chk_login_page_js': """document.querySelector('form input[type=text][value*="375"]') != null""",
-    'before_login_js': "document.querySelector('[type=radio][value=password]').click()",
+    'before_login_js': "Array.from(document.querySelectorAll('button[type=button]')).filter(el=>el.innerText=='Пароль').forEach(el=>el.click()) ",
     'login_clear_js': """document.querySelector('form input[type=text][value*="375"]').value=''""",
     'login_selector': """form input[type=text][value*="375"]""",
     'submit_js': "document.querySelector('form [type=submit]').click()",
