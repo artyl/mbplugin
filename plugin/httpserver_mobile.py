@@ -963,13 +963,14 @@ class TelegramBot():
         # message or message.message  пока не пойму зачем так было сделано, оставил в таком виде
         effective_message: telebot.types.Message = message.json.get('message', message)
         if effective_message is not None:
-            acmd, *aargs = re.split(r'\s+', effective_message.text)
+            acmd = '/' + telebot.util.extract_command(effective_message.text)
+            aargs = telebot.util.extract_arguments(effective_message.text).split()
             if acmd in self.commands and type(self.commands[acmd].func) == str:
                 logging.info(f'TG catch alias:{effective_message.chat.id} {effective_message.text}')
                 alias = self.commands[acmd]
                 # реальный text который уйдет в команду, реальная команда и реальные аргументы
                 real_text = ' '.join([alias.func] + aargs)
-                rcmd, *rargs = re.split(r'\s+', real_text)
+                rcmd = '/' + telebot.util.extract_command(real_text)
                 if rcmd not in self.commands:
                     logging.info(f'TG for alias {acmd} not found command {alias.func}')
                     return
@@ -985,14 +986,14 @@ class TelegramBot():
         """Send help. only auth user"""
         help_text = [f'{cmd.name} - {cmd.description}' for cmd in self.commands.values()]
         args = telebot.util.extract_arguments(message.text)
-        if args != []:
+        if args != '':
             help_text.insert(0, repr(args))
         self.put_text(message, '\n'.join(help_text).strip())
 
     @auth_decorator()
     def get_balancetext(self, message: telebot.types.Message):
         """Send balance only auth user."""
-        baltxt = prepare_balance('FULL', params={'include': ','.join(message.text.split()[1:])})
+        baltxt = prepare_balance('FULL', params={'include': ','.join(telebot.util.extract_arguments(message.text).split())})
         self.put_text(message, baltxt)
 
     @auth_decorator()
@@ -1021,7 +1022,7 @@ class TelegramBot():
         """
         def feedback_func(txt):
             self.put_text(message, txt, msg_type='edit_message_text')
-        args = message.text.split()[1:]
+        args = telebot.util.extract_arguments(message.text).split()
         filtertext = '' if len(args) == 0 else f", with filter by {' '.join(args)}"
         self.put_text(message, f'Request all number{filtertext}. Wait...', msg_type='reply_to')
         # Если запросили плохие - то просто запрашиваем плохие
@@ -1047,7 +1048,6 @@ class TelegramBot():
         /checkone - получаем баланс
         /getone - показываем"""
         # Заданы аргументы? Тогда спросим по ним.
-        ### breakpoint()
         if not hasattr(src, 'data'):  # это запрос ?
             query: telebot.types.CallbackQuery = None
             message: telebot.types.Message = src
@@ -1055,9 +1055,9 @@ class TelegramBot():
             query:telebot.types.CallbackQuery = src
             message: telebot.types.Message = query.message
         if query is None:  # это запрос ?
-            args = ' '.join(message.text.split()[1:]).lower()
+            args = telebot.util.extract_arguments(message.text).lower()
             if args != '':  # запрос с аргументами ? например /getone p_test3
-                cmd = (message.text[1:]).split(' ')[0]
+                cmd = telebot.util.extract_command(message.text)
                 filtered = [v for k, v in store.ini('phones.ini').phones().items() if v['number'].lower() == args or v['alias'].lower() == args]
                 message1 = self.put_text(message, f'You have chosen {args}')
                 if len(filtered) > 0:
@@ -1074,7 +1074,7 @@ class TelegramBot():
             # Запрос без аргументов - создаем клавиатуру
             phones = store.ini('phones.ini').phones()
             keyboard: typing.List = []
-            cmd = message.text[1:].split(' ')[0]  # checkone или getone
+            cmd = telebot.util.extract_command(message.text)  # checkone или getone
             for val in list(phones.values()) + [{'Alias': 'Cancel', 'Region': 'Cancel', 'Number': 'Cancel'}]:
                 # ключом для calback у нас команда_Region_Number
                 btn = InlineKeyboardButton(val['Alias'], callback_data=f"{cmd}_{val['Region']}_{val['Number']}")
@@ -1110,7 +1110,7 @@ class TelegramBot():
             query:telebot.types.CallbackQuery = src
             message: telebot.types.Message = query.message
         if query is None:  # это запрос ?            
-            args = ' '.join(message.text.split()[1:]).lower()
+            args = telebot.util.extract_arguments(message.text).lower()
             # Заданы аргументы? Тогда спросим по ним.
             # запрашиваем по заданному аргументу
             if args != '':
