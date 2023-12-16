@@ -12,11 +12,10 @@ try:
 except Exception:
     print('No pystray installed or other error, no tray icon')
 try:
-    import telegram
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-    from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, callbackcontext
+    import telebot
+    from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 except ModuleNotFoundError:
-    print('No telegram installed, no telegram bot')
+    print('No telebot module installed, no telegram bot')
 
 lang = 'p'  # Для плагинов на python префикс lang всегда 'p'
 
@@ -559,7 +558,8 @@ def restart_program(reason='', exit_only=False, delay=0):
             os.remove(filename_pid)
     if not exit_only:
         subprocess.Popen(cmd)  # Cross platform run process
-    psutil.Process().kill()
+    # TODO ??? для coverage выключил, возможно он нужен когда нужно выходить во время работающего хрома
+    # psutil.Process().kill()  
     if Q_CMD_EXIT not in cmdqueue.queue:  # Если есть то второй раз не кладем
         cmdqueue.put(Q_CMD_EXIT)  # Если kill не сработал (для pid=1 не сработает) - шлем сигнал
 
@@ -809,21 +809,22 @@ class Scheduler():
 def auth_decorator(errmsg=None, nonauth: typing.Callable = None):
     'Если хотим не залогиненому выдать сообщение об ошибке - указываем его в errmsg, если без авторизации хотим вызвать другой метод - указываем его в nonauth'
     def decorator(func):  # pylint: disable=no-self-argument
-        def wrapper(self, update: telegram.update.Update, context):
+        def wrapper(self, message: telebot.types.Message):
             # update.message.chat_id отсутствует у CallbackQueryHandler пробуем через update.effective_chat.id:
-            if update is None or update.effective_chat is None or update.effective_message is None:
-                return
-            if update.effective_chat.id in self.auth_id():
-                if update is not None and update.effective_message is not None:
-                    logging.info(f'TG auth:{update.effective_chat.id} {update.effective_message.text}')
-                res = func(self, update, context)  # pylint: disable=not-callable
+            # Т.к. мы приходим сюда из разных handler то message это может быть и Message и CallbackQuery и кто-нибудь еще
+            chat_id = message.json.get('chat', {}).get('id')
+            if chat_id is None:
+                chat_id = message.json.get('message', {}).get('chat', {}).get('id')
+            if chat_id in self.auth_id():
+                logging.info(f'TG auth:{chat_id} {func.__name__}')
+                res = func(self, message)  # pylint: disable=not-callable
                 return res
             elif nonauth is not None:
-                nonauth(self, update, context)
+                nonauth(self, message)
             else:
                 if errmsg is not None:
-                    update.effective_message.reply_text(errmsg)
-                logging.info(f'TG:{update.effective_chat.id} unauthorized {update.effective_message.text}')
+                    message.repl(errmsg)
+                logging.info(f'TG:{chat_id} unauthorized {func.__name__}')
         return wrapper
     return decorator
 
@@ -834,10 +835,10 @@ class TelegramBot():
     instance = None  # когда создадим класс сюда запишем ссылку на созданный экземпляр
 
     def __init__(self):
-        if 'telegram' not in sys.modules:
+        if 'telebot' not in sys.modules:
             return  # Нет модуля TG - просто выходим
         # TgCommand для команд type(func) != str , для cmd_alias type(func) == str
-        self.updater = None
+        self.bot = None
         TgCommand = collections.namedtuple('TgCommand', 'name, description, func')
         commands_list: typing.List[TgCommand] = [
             TgCommand('/help', 'справка', self.get_help),
@@ -872,23 +873,24 @@ class TelegramBot():
         request_kwargs = {}
         tg_proxy = store.options('tg_proxy', section='Telegram').strip()
         if tg_proxy.lower() == 'auto':
-            request_kwargs['proxy_url'] = urllib.request.getproxies().get('https', '')
+            telebot.apihelper.proxy = urllib.request.getproxies().get('https', None)
         elif tg_proxy != '' and tg_proxy.lower() != 'auto':
-            request_kwargs['proxy_url'] = tg_proxy
+            telebot.apihelper.proxy = tg_proxy
             # ??? Надо или не надо ?
             # request_kwargs['urllib3_proxy_kwargs'] = {'assert_hostname': 'False', 'cert_reqs': 'CERT_NONE'}
-        if api_token != '' and str(store.options('start_tgbot', section='Telegram')) == '1' and 'telegram' in sys.modules:
+        if api_token != '' and str(store.options('start_tgbot', section='Telegram')) == '1' and 'telebot' in sys.modules:
             try:
                 logging.info(f'Module telegram starting for id={self.auth_id()}')
-                self.updater = Updater(api_token, use_context=True, request_kwargs=request_kwargs)
-                logging.info(f'{self.updater}')
+                self.bot = telebot.TeleBot(api_token)
+                logging.info(f'{self.bot}')
                 for cmd in self.commands.values():
                     if type(cmd.func) != str:  # только команды
                         # В handler надо класть без слэша '/help' -> 'help' поэтому [1:]
-                        self.updater.dispatcher.add_handler(CommandHandler(cmd.name[1:], cmd.func))
-                self.updater.dispatcher.add_handler(CallbackQueryHandler(self.button))
-                self.updater.dispatcher.add_handler(MessageHandler(Filters.all, self.handle_catch_all))
-                self.updater.start_polling()  # Start the Bot
+                        self.bot.register_message_handler(cmd.func, commands=[cmd.name[1:]])
+                self.bot.register_callback_query_handler(self.button, func=lambda call: True)
+                self.bot.register_message_handler(self.handle_catch_all, func=lambda message: True)
+                # self.bot.infinity_polling()  # Start the Bot
+                threading.Thread(target=self.bot.infinity_polling, name='bot_infinity_polling', daemon=True).start()
                 logging.info('Telegram bot started')
                 TelegramBot.instance = self  # Запустили бота - прописываем инстанс singleton
                 if str(store.options('send_empty', section='Telegram')) == '1':
@@ -896,7 +898,7 @@ class TelegramBot():
             except Exception:
                 exception_text = f'Ошибка запуска telegram bot {store.exception_text()}'
                 logging.error(exception_text)
-        elif 'telegram' not in sys.modules:
+        elif 'telebot' not in sys.modules:
             logging.info('Module telegram not found')
         elif api_token == '':
             logging.info('Telegram api_token not found')
@@ -905,49 +907,65 @@ class TelegramBot():
 
     def add_bot_menu(self):
         'создает персональное меню бота [/] для всех id из auth_id из пунктов перечисленных в command_menu_list'
-        if self.updater is None:
+        if self.bot is None:
             return
         command_menu_list = store.options('command_menu_list', section='Telegram').strip().split(',')
         command_menu_list = [re.sub('^//', '/', f'/{i.strip()}') for i in command_menu_list]
-        for id in self.auth_id():
+        for aid in self.auth_id():
             # Перебираем команды из списка command_menu_list и те которые есть в command_menu_list вставляем в меню [/]
             cmds = [self.commands[c1] for c1 in command_menu_list if c1 in self.commands]
-            self.updater.bot.set_my_commands(
-                [telegram.bot.BotCommand(cmd.name, cmd.description) for cmd in cmds],
-                scope=telegram.BotCommandScopeChat(id))
+            self.bot.set_my_commands(
+                [telebot.types.BotCommand(cmd.name, cmd.description) for cmd in cmds],
+                scope=telebot.types.BotCommandScopeChat(aid))
 
-    def auth_id(self):
-        auth_id = store.options('auth_id', section='Telegram').strip()
-        if not re.match(r'(\d+,?)', auth_id):
-            logging.error(f'incorrect auth_id in ini: {auth_id}')
+    def auth_id(self) -> typing.List[int]:
+        'return auth id from ini'
+        auth_id_str = store.options('auth_id', section='Telegram').strip()
+        if not re.match(r'(\d+,?)', auth_id_str):
+            logging.error(f'incorrect auth_id in ini: {auth_id_str}')
             return []
-        return map(int, auth_id.split(','))
+        return map(int, auth_id_str.split(','))
 
-    def get_id(self, update, context):
+    def get_id(self, message: telebot.types.Message):
         """Echo chat id."""
-        logging.info(f'TG:{update.effective_message.chat_id} /id')
-        self.put_text(update.effective_message.reply_text, update.effective_chat.id)
+        logging.info(f'TG:{message.chat.id} /id')
+        self.put_text(message, message.chat.id)
 
-    def put_text(self, func: typing.Callable, text: str, parse_mode: str = telegram.ParseMode.HTML) -> typing.Optional[typing.Callable]:
+    def put_text(self, message: telebot.types.Message, text: str, msg_type=None, parse_mode='HTML') -> typing.Optional[telebot.types.Message]:
         '''Вызываем функцию для размещения текста'''
         try:
-            return func(text, parse_mode=parse_mode)
+            if msg_type is None:
+                return self.bot.send_message(message.chat.id, text, parse_mode=parse_mode)
+            elif msg_type == 'reply_to':
+                return self.bot.reply_to(message, text=text, parse_mode=parse_mode)
+            elif msg_type == 'edit_message_text':
+                return self.bot.edit_message_text(chat_id=message.chat.id, text=text, message_id=message.message_id)
         except Exception:
             try:
-                return func(text, parse_mode=None)
+                return self.bot.send_message(message.chat.id, text, parse_mode=None)
             except Exception:
                 exception_text = store.exception_text()
                 if 'Message is not modified' not in exception_text:
                     logging.info(f'Unsuccess tg send:{text} {exception_text}')
                 return None
 
-    def handle_catch_all(self, update, context):
+    def edit_text(self, message: telebot.types.Message, text: str, parse_mode='HTML') -> typing.Optional[telebot.types.Message]:
+        '''put_text(... msg_type='edit_message_text' ...)'''
+        return self.put_text(message, text, msg_type='edit_message_text', parse_mode=parse_mode)
+
+    def reply_text(self, message: telebot.types.Message, text: str, parse_mode='HTML') -> typing.Optional[telebot.types.Message]:
+        '''put_text(... msg_type='reply_to' ...)'''
+        return self.put_text(message, text, msg_type='reply_to', parse_mode=parse_mode)
+
+    def handle_catch_all(self, message: telebot.types.Message):
         '''catch-all handler - отрабатываем алиасы и логируем все остальное что не попало в фильтры,
         аутентификацию можно не отрабатывать - она отработает когда пойдем в вызванную по алиасу команду'''
-        if update is not None and update.effective_message is not None:
-            acmd, *aargs = re.split(r'\s+', update.effective_message.text)
+        # message or message.message  пока не пойму зачем так было сделано, оставил в таком виде
+        effective_message: telebot.types.Message = message.json.get('message', message)
+        if effective_message is not None:
+            acmd, *aargs = re.split(r'\s+', effective_message.text)
             if acmd in self.commands and type(self.commands[acmd].func) == str:
-                logging.info(f'TG catch alias:{update.effective_chat.id} {update.effective_message.text}')
+                logging.info(f'TG catch alias:{effective_message.chat.id} {effective_message.text}')
                 alias = self.commands[acmd]
                 # реальный text который уйдет в команду, реальная команда и реальные аргументы
                 real_text = ' '.join([alias.func] + aargs)
@@ -955,99 +973,108 @@ class TelegramBot():
                 if rcmd not in self.commands:
                     logging.info(f'TG for alias {acmd} not found command {alias.func}')
                     return
+                logging.info(f'TG run for alias {effective_message.text} command {real_text}')
                 cmd = self.commands[rcmd]
-                update.effective_message.text = real_text
-                context.args = rargs
-                cmd.func(update, context)
+                effective_message.text = real_text
+                cmd.func(message)
                 return
-            logging.info(f'TG catch-all:{update.effective_chat.id} {update.effective_message.text}')
+            logging.info(f'TG catch-all:{effective_message.chat.id} {effective_message.text}')
 
     @auth_decorator(errmsg='/help\n/id')
-    def get_help(self, update, context):
+    def get_help(self, message: telebot.types.Message):
         """Send help. only auth user"""
         help_text = [f'{cmd.name} - {cmd.description}' for cmd in self.commands.values()]
-        if context.args != []:
-            help_text.insert(0, repr(context.args))
-        self.put_text(update.effective_message.reply_text, '\n'.join(help_text).strip())
+        args = telebot.util.extract_arguments(message.text)
+        if args != []:
+            help_text.insert(0, repr(args))
+        self.put_text(message, '\n'.join(help_text).strip())
 
     @auth_decorator()
-    def get_balancetext(self, update, context):
+    def get_balancetext(self, message: telebot.types.Message):
         """Send balance only auth user."""
-        baltxt = prepare_balance('FULL', params={'include': ','.join(context.args)})
-        self.put_text(update.effective_message.reply_text, baltxt)
+        baltxt = prepare_balance('FULL', params={'include': ','.join(message.text.split()[1:])})
+        self.put_text(message, baltxt)
 
     @auth_decorator()
-    def get_balancefile(self, update, context):
+    def get_balancefile(self, message: telebot.types.Message):
         """Send balance html file only auth user."""
         _, res = getreport()
-        for id in self.auth_id():
-            self.updater.bot.send_document(chat_id=id, filename='balance.htm', document=io.BytesIO('\n'.join(res).strip().encode('cp1251')))
+        self.bot.send_document(chat_id=message.chat.id, visible_file_name='balance.htm', document=io.BytesIO('\n'.join(res).strip().encode('cp1251')))
 
     @auth_decorator()
-    def restartservice(self, update, context):
+    def restartservice(self, message: telebot.types.Message):
         """Hard reset service"""
-        self.put_text(update.effective_message.reply_text, 'Service will be restarted')
-        restart_program(reason=f'TG:{update.effective_message.chat_id} /restart {context.args}')
+        self.put_text(message, 'Service will be restarted')
+        restart_program(reason=f'TG:{message.chat.id} {message.text}')
 
     @auth_decorator()
-    def cancel(self, update, context):
+    def cancel(self, message: telebot.types.Message):
         """Send cancel signal to receive balance query"""
-        self.put_text(update.effective_message.reply_text, 'Query will be canceled')
-        cancel_query(reason=f'TG:{update.effective_message.chat_id} /cancel {context.args}')
+        self.put_text(message, 'Query will be canceled')
+        cancel_query(reason=f'TG:{message.chat.id} {message.text}')
 
     @auth_decorator()
-    def receivebalance(self, update, context):
+    def receivebalance(self, message: telebot.types.Message):
         """ Запросить балансы по всем номерам, only auth user.
         /receivebalance
         /receivebalancefailed
         """
         def feedback_func(txt):
-            self.put_text(msg.edit_text, txt)
-        filtertext = '' if len(context.args) == 0 else f", with filter by {' '.join(context.args)}"
-        msg = self.put_text(update.effective_message.reply_text, f'Request all number{filtertext}. Wait...')
+            self.put_text(message, txt, msg_type='edit_message_text')
+        args = message.text.split()[1:]
+        filtertext = '' if len(args) == 0 else f", with filter by {' '.join(args)}"
+        self.put_text(message, f'Request all number{filtertext}. Wait...', msg_type='reply_to')
         # Если запросили плохие - то просто запрашиваем плохие
         # Если запросили все - запрашиваем все, потом два раза только плохие
-        only_failed = (update.effective_message.text == "/receivebalancefailed")
-        params = {'include': None if context.args == [] else ','.join(context.args)}
-        Scheduler().run_once(cmd=CMD_CHECK, feedback_func=feedback_func, kwargs={'filter': context.args, 'params': params, 'only_failed': only_failed})
+        only_failed = (message.text == "/receivebalancefailed")
+        params = {'include': None if args == [] else ','.join(args)}
+        Scheduler().run_once(cmd=CMD_CHECK, feedback_func=feedback_func, kwargs={'filter': args, 'params': params, 'only_failed': only_failed})
 
     @auth_decorator()
-    def get_schedule(self, update, context):
+    def get_schedule(self, message: telebot.types.Message):
         """Show schedule only auth user.
         /schedule
         /schedulereload
         """
-        if update.effective_message.text == "/schedulereload":
+        if message.text == "/schedulereload":
             Scheduler().reload()
         text = Scheduler().view_txt()
-        self.put_text(update.effective_message.reply_text, text if text.strip() != '' else 'Empty')
+        self.put_text(message, text if text.strip() != '' else 'Empty')
 
     @auth_decorator()
-    def get_one(self, update, context: callbackcontext.CallbackContext):
+    def get_one(self, src):
         """Receive one balance with inline keyboard/args, only auth user.
         /checkone - получаем баланс
         /getone - показываем"""
         # Заданы аргументы? Тогда спросим по ним.
-        args = ' '.join(context.args if context.args is not None else []).lower()
-        if args != '' and update is not None:  # context.args
-            cmd = (update.effective_message.text[1:]).split(' ')[0]
-            filtered = [v for k, v in store.ini('phones.ini').phones().items() if v['number'].lower() == args or v['alias'].lower() == args]
-            message = self.put_text(update.effective_message.reply_text, f'You have chosen {args}')
-            if len(filtered) > 0:
-                val = filtered[0]
-                callback_data = f"{cmd}_{val['Region']}_{val['Number']}"
-                cmd, keypair = callback_data.split('_', 1)  # До _ команда, далее Region_Number
-            else:
-                self.put_text(message.edit_text, f'Not found {args}')  # type: ignore
+        ### breakpoint()
+        if not hasattr(src, 'data'):  # это запрос ?
+            query: telebot.types.CallbackQuery = None
+            message: telebot.types.Message = src
+        else:
+            query:telebot.types.CallbackQuery = src
+            message: telebot.types.Message = query.message
+        if query is None:  # это запрос ?
+            args = ' '.join(message.text.split()[1:]).lower()
+            if args != '':  # запрос с аргументами ? например /getone p_test3
+                cmd = (message.text[1:]).split(' ')[0]
+                filtered = [v for k, v in store.ini('phones.ini').phones().items() if v['number'].lower() == args or v['alias'].lower() == args]
+                message1 = self.put_text(message, f'You have chosen {args}')
+                if len(filtered) > 0:
+                    val = filtered[0]
+                    callback_data = f"{cmd}_{val['Region']}_{val['Number']}"
+                    cmd, keypair = callback_data.split('_', 1)  # До _ команда, далее Region_Number
+                else:
+                    self.put_text(message1, f'Not found {args}', msg_type='edit_message_text')  # type: ignore
+                    return
+                feedback_func = lambda txt: self.put_text(message1, txt, msg_type='edit_message_text')  # type: ignore
+                Scheduler().run_once(cmd=CMD_GET_ONE, feedback_func=feedback_func, kwargs={'keypair': keypair, 'check': cmd == 'checkone'})
                 return
-            feedback_func = lambda txt: self.put_text(message.edit_text, txt)  # type: ignore
-            Scheduler().run_once(cmd=CMD_GET_ONE, feedback_func=feedback_func, kwargs={'keypair': keypair, 'check': cmd == 'checkone'})
-            return
-        query: typing.Optional[telegram.callbackquery.CallbackQuery] = update.callback_query
-        if query is None:  # Создаем клавиатуру
+            #query = None  # ???? update.callback_query
+            # Запрос без аргументов - создаем клавиатуру
             phones = store.ini('phones.ini').phones()
             keyboard: typing.List = []
-            cmd = (update.effective_message.text[1:]).split(' ')[0]  # checkone или getone
+            cmd = message.text[1:].split(' ')[0]  # checkone или getone
             for val in list(phones.values()) + [{'Alias': 'Cancel', 'Region': 'Cancel', 'Number': 'Cancel'}]:
                 # ключом для calback у нас команда_Region_Number
                 btn = InlineKeyboardButton(val['Alias'], callback_data=f"{cmd}_{val['Region']}_{val['Number']}")
@@ -1056,44 +1083,47 @@ class TelegramBot():
                 else:
                     keyboard[-1].append(btn)
             reply_markup = InlineKeyboardMarkup(keyboard)
-            update.effective_message.reply_text('Please choose:', reply_markup=reply_markup)
+            self.bot.reply_to(message, 'Please choose:', reply_markup=reply_markup)
+            return 
         else:  # реагируем на клавиатуру
-            if query.data is None:
-                return
             cmd, keypair = query.data.split('_', 1)  # До _ команда, далее Region_Number
-            feedback_func = lambda txt: self.put_text(query.edit_message_text, txt)  # type: ignore
+            feedback_func = lambda txt: self.put_text(message, txt, msg_type='edit_message_text')  # type: ignore
             Scheduler().run_once(cmd=CMD_GET_ONE, feedback_func=feedback_func, kwargs={'keypair': keypair, 'check': cmd == 'checkone'})
 
     @auth_decorator()
-    def get_log(self, update: telegram.update.Update, context: callbackcontext.CallbackContext):
+    def get_log(self, src):
         """Receive one log with inline keyboard/param, only auth user.
         /getlog - лог по последнему запросу
         сюда приходим ДВА раза сначала чтобы создать клавиатуру(query=None),
         а потом чтобы отреагировать на нее
         """
         # reply(query.edit_message_text, query.message.reply_document, query.data)
-        def reply(edit_text, message, keypair):
-            self.put_text(edit_text, 'This is log')
+        def reply(message, keypair):
+            self.put_text(message, 'This is log', msg_type='edit_message_text')
             res = prepare_log_personal(keypair)
-            message.reply_document(filename=f'{keypair}_log.htm', document=io.BytesIO(res.strip().encode('cp1251')))
-        # Заданы аргументы? Тогда спросим по ним.
-        args = ' '.join(context.args if context.args is not None else []).lower()
-        # запрашиваем по заданному аргументу
-        if args != '' and update is not None:  # context.args
-            logs = prepare_loglist_personal()
-            filtered = [i for i in logs if args.lower() in i.lower()]
-            new_msg: telegram.message.Message = self.put_text(update.effective_message.reply_text, f'Info for {args}')  # type: ignore
-            if len(filtered) > 0 and new_msg is not None:
-                val = filtered[0]
-                reply(new_msg.edit_text, update.effective_message, val)
-            else:
-                self.put_text(new_msg.edit_text, f'Not found {args}')
-            return
-        query: typing.Optional[telegram.callbackquery.CallbackQuery] = update.callback_query
-        if query is None:  # Создаем клавиатуру
-            if update.effective_message is None:
+            self.bot.send_document(chat_id=message.chat.id, visible_file_name=f'{keypair}_log.htm', document=io.BytesIO(res.strip().encode('cp1251')))
+
+        if not hasattr(src, 'data'):  # это запрос ?
+            query: telebot.types.CallbackQuery = None
+            message: telebot.types.Message = src
+        else:
+            query:telebot.types.CallbackQuery = src
+            message: telebot.types.Message = query.message
+        if query is None:  # это запрос ?            
+            args = ' '.join(message.text.split()[1:]).lower()
+            # Заданы аргументы? Тогда спросим по ним.
+            # запрашиваем по заданному аргументу
+            if args != '':
+                logs = prepare_loglist_personal()
+                filtered = [i for i in logs if args.lower() in i.lower()]
+                new_msg = self.put_text(message, f'Info for {args}')
+                if len(filtered) > 0 and new_msg is not None:
+                    val = filtered[0]
+                    reply(new_msg, val)
+                else:
+                    self.put_text(new_msg, f'Not found {args}')
                 return
-            keyboard: typing.List[typing.List[InlineKeyboardButton]] = []
+            keyboard: typing.List = []
             logs = prepare_loglist_personal()
             for val in logs + ['Cancel']:
                 # ключом для calback у нас команда_Region_Number
@@ -1103,60 +1133,55 @@ class TelegramBot():
                 else:
                     keyboard[-1].append(btn)
             reply_markup = InlineKeyboardMarkup(keyboard)
-            update.effective_message.reply_text('Please choose:', reply_markup=reply_markup)
+            self.bot.reply_to(message, 'Please choose:', reply_markup=reply_markup)
         else:  # реагируем на клавиатуру
-            # ...
-            if query.message is None or query.data is None:
-                return
-            reply(query.edit_message_text, query.message, query.data.split('_', 1)[1])
+            reply(message, query.data.split('_', 1)[1])
 
     @auth_decorator()
-    def button(self, update, context) -> None:
+    def button(self, query: telebot.types.CallbackQuery) -> None:
         '''Клавиатура, здесь реакция на нажатие
         Определяем откуда пришли и бросаем обратно'''
-        query: typing.Optional[telegram.callbackquery.CallbackQuery] = update.callback_query
         if query is None or query.data is None:
             return
-        query.answer()
-        logging.info(f'TG:reply keyboard to {update.effective_chat.id} CHOICE:{query.data}')
+        logging.info(f'TG:reply keyboard to {query.message.chat.id} CHOICE:{query.data}')
         cmd, val = query.data.split('_', 1)  # До _ команда, далее кнопка, например Region_Number
         if val.startswith('Cancel'):
-            self.put_text(query.edit_message_text, 'Canceled')
+            self.put_text(query.message, 'Canceled', msg_type = 'edit_message_text')  # close keyboard
             return
-        self.put_text(query.edit_message_text, 'Request received. Wait...')
+        self.put_text(query.message, 'Request received. Wait...', msg_type = 'edit_message_text')
         # ключом для calback у нас 6 букв
         if cmd == 'getlog':  # /getlog - генерим лог и выходим
-            self.get_log(update, context)
+            self.get_log(query)
         if cmd in ['checkone', 'getone']:
-            self.get_one(update, context)
+            self.get_one(query)
 
-    def send_message(self, text: str, parse_mode=telegram.ParseMode.HTML, ids=None, **kwargs):
+    def send_message(self, text: str, parse_mode='HTML', ids=None, **kwargs):
         'Отправляем сообщение по списку ids, либо по списку auth_id из mbplugin.ini'
-        if self.updater is None or text == '':
+        if self.bot is None or text == '':
             return
         lst = self.auth_id() if ids is None else ids
         text = text if type(text) == str else str(text)
-        for id in lst:
+        for aid in lst:
             try:
-                self.updater.bot.sendMessage(chat_id=id, text=text, parse_mode=parse_mode, **kwargs)
+                self.bot.send_message(chat_id=aid, text=text, parse_mode=parse_mode, **kwargs)
             except Exception:
                 try:
-                    self.updater.bot.sendMessage(chat_id=id, text=text[:4000], parse_mode=None, **kwargs)
+                    self.bot.send_message(chat_id=aid, text=text[:4000], parse_mode=None, **kwargs)
                 except Exception:
-                    exception_text = f'Ошибка отправки сообщения {text} для {id} telegram bot {store.exception_text()}'
+                    exception_text = f'Ошибка отправки сообщения {text} для {aid} telegram bot {store.exception_text()}'
                     logging.error(exception_text)
 
     def send_balance(self):
         'Отправляем баланс'
-        if self.updater is None or str(store.options('send_balance_changes', section='Telegram')) == '0':
+        if self.bot is None or str(store.options('send_balance_changes', section='Telegram')) == '0':
             return
         baltxt = prepare_balance('LASTCHANGE')
-        self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML)
+        self.send_message(text=baltxt, parse_mode='HTML')
 
     def send_subscriptions(self):
         'Отправляем подписки - это строки из ini вида:'
         'subscriptionXXX = id:123456 include:1111,2222 exclude:6666'
-        if self.updater is None:
+        if self.bot is None:
             return
         subscriptions = store.options('subscription', section='Telegram', listparam=True)
         for subscr in subscriptions:
@@ -1164,12 +1189,12 @@ class TelegramBot():
             params = {k: v.strip() for k, v in [i.split(':', 1) for i in subscr.split(' ')]}
             baltxt = prepare_balance('LASTCHANGE', params)
             ids = [int(i) for i in params.get('id', '').split(',') if i.isdigit()]
-            self.send_message(text=baltxt, parse_mode=telegram.ParseMode.HTML, ids=ids)
+            self.send_message(text=baltxt, parse_mode='HTML', ids=ids)
 
     def stop(self):
         '''Stop bot'''
-        if self.updater is not None:
-            self.updater.stop()
+        if self.bot is not None:
+            self.bot.stop_bot()
 
 
 class Handler(wsgiref.simple_server.WSGIRequestHandler):
@@ -1215,7 +1240,7 @@ class WebServer():
             threading.Thread(target=self.httpd.serve_forever, name='httpd', daemon=True).start()
             if 'pystray' in sys.modules:  # Иконка в трее
                 self.tray_icon = TrayIcon()  # tray icon (он сам все запустит в threading)
-            if 'telegram' in sys.modules:  # telegram bot (он сам все запустит в threading)
+            if 'telebot' in sys.modules:  # telegram bot (он сам все запустит в threading)
                 self.telegram_bot = TelegramBot()
             if 'schedule' in sys.modules:  # Scheduler (он сам все запустит в threading)
                 self.scheduler = Scheduler()
@@ -1224,6 +1249,8 @@ class WebServer():
                 cmd = cmdqueue.get()
                 if cmd != Q_CMD_EXIT:  # если это не наша команда - кладем обратно.
                     cmdqueue.put(cmd)
+                else:
+                    return
                 time.sleep(1)
 
     def shutdown(self):

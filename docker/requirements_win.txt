@@ -23,7 +23,7 @@ pyodbc==4.0.32
 pyreadline3==3.4.1
 PySocks==1.7.1
 pystray==0.17.3
-pyTelegramBotAPI==4.11.0
+pyTelegramBotAPI==4.14.0
 python-telegram-bot==13.7
 pytz==2021.1
 pywin32==301
