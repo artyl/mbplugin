@@ -559,7 +559,8 @@ def restart_program(reason='', exit_only=False, delay=0):
     if not exit_only:
         subprocess.Popen(cmd)  # Cross platform run process
     # TODO ??? для coverage выключил, возможно он нужен когда нужно выходить во время работающего хрома
-    # psutil.Process().kill()  
+    if 'coverage' not in sys.modules:
+        psutil.Process().kill()
     if Q_CMD_EXIT not in cmdqueue.queue:  # Если есть то второй раз не кладем
         cmdqueue.put(Q_CMD_EXIT)  # Если kill не сработал (для pid=1 не сработает) - шлем сигнал
 
