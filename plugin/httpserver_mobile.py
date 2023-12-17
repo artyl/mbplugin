@@ -1,11 +1,12 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import typing, os, sys, io, random, re, time, json, threading, logging, importlib, queue, argparse, subprocess, glob, base64, collections
+# pylint: disable=multiple-imports, too-many-lines
+import typing, os, sys, io, random, re, time, json, threading, logging, importlib, queue, argparse, subprocess, glob, base64, collections, uuid
 import wsgiref.simple_server, socketserver, socket, urllib.parse, urllib.request
-import requests, psutil, bs4, uuid, PIL.Image, schedule
-import settings, store, dbengine, compile_all_jsmblh, updateengine  # pylint: disable=import-error
+import psutil, requests, bs4, PIL.Image, schedule
+import settings, dbengine, compile_all_jsmblh, updateengine, store  # pylint: disable=import-error
 try:
-    # TODO не смотря на декларированную кроссплатформенность pystray нормально заработал только на windows
+    # ??? не смотря на декларированную кроссплатформенность pystray нормально заработал только на windows
     # на ubuntu он работает странно а на маке вызывает падение уже дальше по коду
     if sys.platform == 'win32':
         import pystray
@@ -19,6 +20,12 @@ except ModuleNotFoundError:
 
 lang = 'p'  # Для плагинов на python префикс lang всегда 'p'
 
+# TODO fixme
+# pylint: disable=fixme
+# TODO ??? encoding
+# pylint: disable=unspecified-encoding
+# pylint: disable=missing-function-docstring, missing-class-docstring
+
 # Scheduler commands constants
 CMD_CHECK = 'check'
 CMD_CHECK_SEND = 'check_send'
@@ -27,7 +34,7 @@ CMD_PING = 'ping'
 CMD_GET_ONE = 'get_one'
 SCHED_CMDS = (CMD_CHECK, CMD_CHECK_NEW_VERSION, CMD_CHECK_SEND, CMD_GET_ONE, CMD_PING)
 
-Job = collections.namedtuple('Job', 'job_str job_sched cmd filter err_msg')
+Job = collections.namedtuple('Job', 'job_str job_sched cmd filter_tel err_msg')
 
 Q_CMD_EXIT = 'exit'
 Q_CMD_CANCEL = 'cancel'
@@ -59,24 +66,24 @@ def tray_menu():
     )
 
 
-def getbalance_standalone_one_pass(queue):
+def getbalance_standalone_one_pass(queue_tel):
     ''' Получаем балансы самостоятельно без mobilebalance ОДИН ПРОХОД
     по списку queue_balance
     '''
     result: typing.Dict = {}
-    for val in queue:
+    for val in queue_tel:
         keypair = f"{val['Region']}_{val['Number']}"
         prev_state = str(dbengine.flags('get', keypair))
         if not prev_state.endswith('queue'):
             dbengine.flags('set', keypair, f'{prev_state} queue')  # выставляем флаг о постановке в очередь в КОНЕЦ строки
-    for val in queue:
+    for val in queue_tel:
         # TODO пока дергаем метод от веб сервера там уже все есть, потом может вынесем отдельно
         keypair = f"{val['Region']}_{val['Number']}"
         try:
             # проверяем на сигнал Q_CMD_CANCEL, все остальное - кладем обратно
             if Q_CMD_CANCEL in cmdqueue.queue:
                 qu = [cmdqueue.get(block=False) for el in range(cmdqueue.qsize())]
-                [cmdqueue.put(el) for el in qu if el != Q_CMD_CANCEL]  # type: ignore
+                [cmdqueue.put(el) for el in qu if el != Q_CMD_CANCEL]  # pylint: disable=expression-not-assigned
                 logging.info(f'Receive cancel signal to query')
                 store.feedback.text(f"Receive cancel signal")
                 return result
@@ -89,12 +96,12 @@ def getbalance_standalone_one_pass(queue):
     return result
 
 
-def getbalance_standalone(filter: list = [], only_failed: bool = False, retry: int = -1, **kwargs):
+def getbalance_standalone(filter_tel: list = None, only_failed: bool = False, retry: int = -1, **kwargs):
     ''' Получаем балансы делая несколько проходов по неудачным
     retry=N количество повторов по неудачным попыткам, после запроса по всем (повторы только при only_failed=False)
     kwargs добавлен чтобы забрать из _run все лишние параметры
     Результаты сохраняются в базу
-    Если filter пустой то по всем номерам из phones.ini
+    Если filter_tel пустой то по всем номерам из phones.ini
     Если не пустой - то логин/алиас/оператор или его часть
     для автономной версии в поле Password2 находится незашифрованный пароль
     ВНИМАНИЕ! при редактировании файла phones.ini через MobileBalance строки с паролями будут удалены
@@ -102,8 +109,10 @@ def getbalance_standalone(filter: list = [], only_failed: bool = False, retry: i
     для Standalone версии в файле phones_add.ini
     only_failed=True - делать запросы только по тем номерам, по которым прошлый запрос был неудачный
     '''
+    _ = kwargs  # т.к. аргументы из Scheduler._run закидываются словарем, можем случайно закинуть лишнее
     store.turn_logging(httplog=True)  # Т.к. сюда можем придти извне, то включаем логирование здесь
-    logging.info(f'getbalance_standalone: filter={filter}')
+    filter_tel = [] if filter_tel is None else filter_tel
+    logging.info(f'getbalance_standalone: filter_tel={filter_tel}')
     phones = store.ini('phones.ini').phones()
     queue_balance = []  # Очередь телефонов на получение баланса
     for val in phones.values():
@@ -112,7 +121,7 @@ def getbalance_standalone(filter: list = [], only_failed: bool = False, retry: i
         keypair = f"{val['Region']}_{val['Number']}"
         # Проверяем все у кого задан плагин, логин и пароль пароль
         if val['Number'] != '' and val['Region'] != '' and val['Password2'] != '':
-            if len(filter) == 0 or [1 for i in filter if i.lower() in f"__{keypair}__{val['Alias']}".lower()] != []:
+            if len(filter_tel) == 0 or [1 for i in filter_tel if i.lower() in f"__{keypair}__{val['Alias']}".lower()] != []:
                 # Формируем очередь на получение балансов и размечаем балансы из очереди в таблице flags чтобы красить их по другому
                 queue_balance.append(val)
                 logging.info(f'getbalance_standalone queued: {keypair}')
@@ -137,7 +146,7 @@ def get_full_info_one_number(keypair: str, check: bool = False) -> str:
     check==True - запросить информацию по номеру перед возвратом
     '''
     if check:  # /checkone - получаем баланс /getone - только показываем
-        getbalance_standalone(filter=[f'__{keypair}__'])  # приходится добавлять подчеркивания чтобы исключить попадание по части строки
+        getbalance_standalone(filter_tel=[f'__{keypair}__'])  # приходится добавлять подчеркивания чтобы исключить попадание по части строки
     params = {'include': f'__{keypair}__'}
     baltxt = prepare_balance('FULL', params=params)
     store.feedback.text(baltxt)
@@ -149,7 +158,7 @@ def get_full_info_one_number(keypair: str, check: bool = False) -> str:
         logging.info(f'Not found response in responses for {keypair}')
         return baltxt
     # берем всю информацию по номеру
-    response = {k: (round(v, 2) if type(v) == float else v)for k, v in response.items()}
+    response = {k: (round(v, 2) if isinstance(v, float) else v)for k, v in response.items()}
     detailed = '\n'.join([f'{name} = {response[k]}' for k, name in dbengine.PhonesHText.items() if k in response])
     uslugi = ''
     if response.get('UslugiList', '') != '':
@@ -189,9 +198,9 @@ def getbalance_plugin(method, param_source):
     pkey = store.get_pkey(param['login'], param['fplugin'])  # (param['login'], param['fplugin'])
     store.options('logginglevel', flush=True)  # Запускаем, чтобы сбросить кэш и перечитать ini
     phone_items = store.ini('phones.ini').phones().get(pkey, {}).items()
-    individual = ','.join([f'{k}={v}' for k, v in phone_items if k.lower() in store.settings.ini['Options'].keys()])
+    individual = ','.join([f'{k}={v}' for k, v in phone_items if k.lower() in store.settings.ini['Options']])
     unused = ','.join([f'{k}={v}' for k, v in phone_items
-                       if all([k.lower() not in store.settings.ini['Options'].keys(),
+                       if all([k.lower() not in store.settings.ini['Options'],
                                k.lower() not in store.settings.PHONE_INI_KEYS_LOWER,
                                k.lower() != 'nn' and not k.lower().endswith('_orig')])
                        ])
@@ -249,7 +258,7 @@ def view_log(param):
         lines = 100
     fn = store.options('logginghttpfilename')
     res = open(fn).readlines()[-lines:]
-    for num in range(len(res)):
+    for num, _ in enumerate(res):
         # .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         if ' ERROR ' in res[num]:
             res[num] = f'<span style="color:red;background-color:white">{res[num]}</span>'
@@ -277,13 +286,13 @@ def prepare_log_personal(prefix):
     text = [f'<img src="data:image/jpeg;base64,{png_to_jpg_base64(fn)}"/><br>\n' for fn in ss]
     return '\n'.join(text)
 
-def getreport(param=[]):
+def getreport(param:list=None):
     'Делает html отчет balance.html'
     def pp_field(pkey, he, el, hover, unwanted=False, link=''):
-        'форматирует поле, красит, выкидывает None и нули в полях баланса - возвращает готовый тэг th или tr'
-        'he - header'
-        'el - element'
-        'pkey - пара (номер,оператор)'
+        '''форматирует поле, красит, выкидывает None и нули в полях баланса - возвращает готовый тэг th или tr
+        he - header
+        el - element
+        pkey - пара (номер,оператор)'''
         mark = ''  # class="mark"
         if he == 'Balance' and el is not None and el < float(store.options('BalanceLessThen', pkey=pkey)):
             mark = ' class="mark" '  # Красим когда мало денег
@@ -299,13 +308,15 @@ def getreport(param=[]):
             el = ''
         if he != 'Balance' and (el == 0.0 or el == 0) and mark == '':
             el = ''
-        if type(el) == float:
+        if isinstance(el, float):
             el = f'{el:.2f}'  # round(el, 2)
         if hover != '':
             el = f'<div class="item">{el}<div class="hoverHistory">{hover}</div></div>'
         if link != '':
             el = f'<div class="operatorlink"><a href="{link}" target="_blank" rel="noopener noreferrer">{el}</a></div>'
         return f'<{"th" if he=="NN" else "td"} id="{he}"{mark}>{el}</td>'
+    
+    param = [] if param is None else param
     store.options('logginglevel', flush=True)  # Запускаем, чтобы сбросить кэш и перечитать ini
     template_page = settings.table_template['page']
     template_history = settings.table_template['history']
@@ -322,7 +333,7 @@ def getreport(param=[]):
     phones = store.ini('phones.ini').phones()
     if 'Alias' not in table_format:
         table_format = 'NN,Alias,' + table_format  # Если старый ini то этих столбцов нет - добавляем
-    table = [i for i in table if i['Alias'] != 'Unknown']  # filter Unknown
+    table = [i for i in table if i['Alias'] != 'Unknown']  # filter_tel Unknown
     table.sort(key=lambda i: [i['NN'], i['Alias']])  # sort by NN, after by Alias
     header = [i.strip() for i in table_format.split(',')]
     # классы для формата заголовка
@@ -394,11 +405,12 @@ def write_report():
         logging.error(f'Ошибка генерации balance_html {store.exception_text()}')
 
 
-def filter_balance(table: typing.List[typing.Dict], filter: str = 'FULL', params: typing.Dict = {}) -> typing.List[typing.Dict]:
+def filter_balance(table: typing.List[typing.Dict], filter_tel: str = 'FULL', params: dict = None) -> typing.List[typing.Dict]:
     ''' Фильтруем данные для отчета
-    filter = FULL - Все телефоны, LASTDAYCHANGE - Изменившиеся за день, LASTCHANGE - Изменившиеся в последнем запросе
+    filter_tel = FULL - Все телефоны, LASTDAYCHANGE - Изменившиеся за день, LASTCHANGE - Изменившиеся в последнем запросе
     params['include'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для включения в результат
     params['exclude'] = None - все, либо список через запятую псевдонимы или логины или какая-то их уникальная часть для исключения из результата'''
+    params = {} if params is None else params
     flags = dbengine.flags('getall')
     # фильтр по filter_include - оставляем только строчки попавшие в фильтр
     # from send_subscriptions params like {'id':'123456', 'include':'1111,2222'}
@@ -409,7 +421,7 @@ def filter_balance(table: typing.List[typing.Dict], filter: str = 'FULL', params
     if params.get('exclude', None) is not None:
         filter_exclude = [re.sub(r'\W', '', el).lower() for el in params['exclude'].split(',')]
         table = [line for line in table if len([1 for i in filter_exclude if i in re.sub(r'\W', '', '_'.join(map(str, line.values())).lower())]) == 0]
-    if filter == 'LASTCHANGE':  # TODO сделать настройку в ini на счет line['Balance']
+    if filter_tel == 'LASTCHANGE':  # TODO сделать настройку в ini на счет line['Balance']
         # Balance==0 Это скорее всего глюк проверки, соответственно его исключаем
         # Также исключаем BalDeltaQuery==Balance - это возврат обратно с кривого нуля
         # BUG: line['Operator'] и line['PhoneNumber']в случае получения отчета через MobileBalance будет давать KeyError:
@@ -423,15 +435,16 @@ def filter_balance(table: typing.List[typing.Dict], filter: str = 'FULL', params
                           line['Balance'] != '']),
                      flags.get(f"{line.get('Operator', '')}_{line.get('PhoneNumber', '')}", '').startswith('error')])
                  ]
-    elif filter == 'LASTDAYCHANGE':
+    elif filter_tel == 'LASTDAYCHANGE':
         table = [line for line in table if line['BalDelta'] != 0 and line['Balance'] != 0]
         table = [line for line in table if line['BalDelta'] != '' and line['Balance'] != '']
     return table
 
 
-def prepare_balance_mobilebalance(filter: str = 'FULL', params: typing.Dict = {}):
+def prepare_balance_mobilebalance(filter_tel: str = 'FULL', params: dict = None):
     """Формируем текст для отправки в telegram из html файла полученного из web сервера mobilebalance
     """
+    params = {} if params is None else params
     phones = store.ini('phones.ini').phones()
     phones_by_num = {v['NN']: v for v in phones.values()}
     url = store.options('mobilebalance_http', section='Telegram')
@@ -443,10 +456,10 @@ def prepare_balance_mobilebalance(filter: str = 'FULL', params: typing.Dict = {}
         return res
     soup = bs4.BeautifulSoup(response1_text, 'html.parser')
     headers = [''.join(el.get('id')[1:]) for el in soup.find(id='header').findAll('th')]
-    if filter == 'LASTCHANGE' and 'BalDeltaQuery' not in headers:  # нет колонки Delta (запрос)
+    if filter_tel == 'LASTCHANGE' and 'BalDeltaQuery' not in headers:  # нет колонки Delta (запрос)
         res = 'Включите показ колонки Delta (запрос) в настройках mobilebalance'
         return res
-    elif filter == 'LASTDAYCHANGE' and 'BalDelta' not in headers:  # нет колонки Delta (день)
+    elif filter_tel == 'LASTDAYCHANGE' and 'BalDelta' not in headers:  # нет колонки Delta (день)
         res = 'Включите показ колонки Delta (день) в настройках mobilebalance'
         return res
     data = [[''.join(el.contents) for el in line.findAll(['th', 'td'])] for line in soup.findAll(id='row')]
@@ -454,12 +467,12 @@ def prepare_balance_mobilebalance(filter: str = 'FULL', params: typing.Dict = {}
     for line in table:  # Добавляем Region/Operator и  из phones.ini - нужен для фильтра
         line['Operator'] = line['Region'] = phones_by_num.get(int(line['NN']), '')['Region']
         line['PhoneNumber'] = phones_by_num.get(int(line['NN']), '')['Number'].split(' #')[0]  # Также отрезаем хвост <space>#num
-    table2 = filter_balance(table, filter, params)
+    table2 = filter_balance(table, filter_tel, params)
     res = [tgmb_format.format(**line) for line in table2]  # type: ignore
     return '\n'.join(res)
 
 
-def prepare_balance_sqlite(filter: str = 'FULL', params: typing.Dict = {}):
+def prepare_balance_sqlite(filter_tel: str = 'FULL', params: dict = None):
     'Готовим данные для отчета из sqlite базы'
     def alert_suffix(line):
         pkey = store.get_pkey(line['PhoneNumber'], line['Operator'])
@@ -481,6 +494,7 @@ def prepare_balance_sqlite(filter: str = 'FULL', params: typing.Dict = {}):
                 return f"<b> ! В списке услуг присутствуют нежелательные: {unwanted}!</b>"
         return ''
 
+    params = {} if params is None else params
     db = dbengine.Dbengine()
     table_format = store.options('tg_format', section='Telegram').replace('\\t', '\t').replace('\\n', '\n')
     phones = store.ini('phones.ini').phones()
@@ -491,25 +505,26 @@ def prepare_balance_sqlite(filter: str = 'FULL', params: typing.Dict = {}):
     # Если формат задан как перечисление полей через запятую - переделываем под формат
     if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
         table_format = ' '.join([f'{{{i.strip()}}}' for i in table_format.split(',')])
-    table = [i for i in table if i['Alias'] != 'Unknown']  # filter Unknown
+    table = [i for i in table if i['Alias'] != 'Unknown']  # filter_tel Unknown
     table.sort(key=lambda i: [i['NN'], i['Alias']])  # sort by NN, after by Alias
-    table = filter_balance(table, filter, params)
+    table = filter_balance(table, filter_tel, params)
     table = [{k:(0 if v is None else v) for k,v in line.items()} for line in table] # convert None to 0
     res = [table_format.format(**line) + alert_suffix(line) for line in table]
     return '\n'.join(res)
 
 
-def prepare_balance(filter: str = 'FULL', params: typing.Dict = {}):
+def prepare_balance(filter_tel: str = 'FULL', params: dict = None):
     """Готовим баланс для TG, смотрим параметр tg_from (sqlite или mobilebalance) и в зависимости от него кидаем на
     prepare_balance_sqlite - Готовим данные для отчета из sqlite базы
     prepare_balance_mobilebalance - Формируем текст для отправки в telegram из html файла полученного из web сервера mobilebalance
     """
+    params = {} if params is None else params
     try:
         baltxt = ''
         if store.options('tg_from', section='Telegram') == 'sqlite':
-            baltxt = prepare_balance_sqlite(filter, params)
+            baltxt = prepare_balance_sqlite(filter_tel, params)
         else:
-            baltxt = prepare_balance_mobilebalance(filter, params)
+            baltxt = prepare_balance_mobilebalance(filter_tel, params)
         if baltxt == '' and str(store.options('send_empty', section='Telegram')) == '1':
             baltxt = 'No changes'
         return baltxt
@@ -519,17 +534,18 @@ def prepare_balance(filter: str = 'FULL', params: typing.Dict = {}):
         return 'error'
 
 
-def send_telegram_over_requests(text=None, auth_id=None, filter: str = 'FULL', params: typing.Dict = {}):
+def send_telegram_over_requests(text=None, auth_id=None, filter_tel: str = 'FULL', params: dict = None):
     """Отправка сообщения в телеграм через requests без использования python-telegram-bot
     Может пригодится при каких-то проблемах с ботом или в ситуации когда на одной машине у нас крутится бот,
     а с другой в этого бота мы еще хотим засылать инфу
     text - сообщение, если не указано, то это баланс для телефонов у которых он изменился
     auth_id - список id через запятую на которые слать, если не указано, то берется список из mbplugin.ini
     """
+    params = {} if params is None else params
     store.switch_to_mb_mode()
     store.turn_logging(httplog=True)  # Т.к. сюда можем придти извне, то включаем логирование здесь
     if text is None:
-        text = prepare_balance(filter, params)
+        text = prepare_balance(filter_tel, params)
     api_token = store.options('api_token', section='Telegram', mainparams=params).strip()
     if len(api_token) == 0:
         logging.info('Telegram api_token not found')
@@ -569,7 +585,7 @@ def cancel_query(reason=''):
     logging.info(f'Press Cancel')
     if Q_CMD_CANCEL not in cmdqueue.queue:  # Если есть то второй раз не кладем
         cmdqueue.put(Q_CMD_CANCEL)
-        logging.info(f'Send cancel signal to query')
+        logging.info(f'Send cancel signal to query by {reason}')
 
 def send_http_signal(cmd, force=True):
     'Посылаем сигнал локальному веб-серверу'
@@ -585,12 +601,12 @@ def send_http_signal(cmd, force=True):
     # То что дальше - это вышибание процесса если web сервер не остановился
     if not (cmd == 'exit' and force):
         return
-    for i in range(50):  # Подождем пока сервер остановится
+    for _ in range(50):  # Подождем пока сервер остановится
         if os.path.exists(filename_pid):
             time.sleep(0.1)
     if os.path.exists(filename_pid):
         with open(filename_pid) as f:
-            pid = int(open(filename_pid).read())
+            pid = int(f.read())
         if not psutil.pid_exists(pid):
             return
         proc = psutil.Process(pid)
@@ -603,6 +619,7 @@ class TrayIcon:
     icon = None
 
     def __init__(self):
+        self.image, self.menu = None, None
         if str(store.options('show_tray_icon')) != '1' or 'pystray' not in sys.modules:
             return
         if TrayIcon.icon is None:
@@ -629,6 +646,7 @@ class TrayIcon:
         self.icon.run()
 
     def stop(self):
+        'Stop and remove icon'
         print('STOP')
         if self.icon is not None:
             self.icon.visible = False
@@ -638,19 +656,24 @@ class TrayIcon:
 class Scheduler():
     '''Класс для работы с расписанием
     check_only - если не хотим чтобы шедулер стартовал при первом вызове'''
-    instance = None
+    _self = None  # singleton
     # Форматы расписаний см https://schedule.readthedocs.io
     # schedule2 = every().day.at("10:30"),megafon
     # строк с заданиями может быть несколько и их можно пихать в ini как
     # scheduler= ... scheduler1=... и т.д как сделано с table_format
 
+    def __new__(cls):  # singleton class
+        if cls._self is None:
+            cls._self = super().__new__(cls)
+        return cls._self
+    
     def __init__(self, check_only=False) -> None:
-        if Scheduler.instance is None and not check_only:
+        self._scheduler_running = False  # Флаг, что шедулер НЕ работает
+        self._job_running = False  # Флаг что в текущий момент задание выполняется
+        if not check_only and not self._scheduler_running:
             self._scheduler_running = True  # Флаг, что шедулер работает
-            self._job_running = False  # Флаг что в текущий момент задание выполняется
             self.thread = threading.Thread(target=self._forever, name='Scheduler', daemon=True)
             self.thread.start()
-            Scheduler.instance = self
             logging.info('Scheduler started')
             self.reload()
 
@@ -664,11 +687,12 @@ class Scheduler():
             if not self._scheduler_running:
                 break
 
-    def _run(self, cmd, once=False, kwargs={}):
+    def _run(self, cmd, once=False, kwargs:dict=None):
         '''Запускаем задание, именно вызовы _run мы помещаем в очередь
         напрямую вызывать нельзя
         once - удалить задание после выполнения
         kwargs - передается сюда ИМЕННО как словарь без **'''
+        kwargs = {} if kwargs is None else kwargs
         self._job_running = True
         current_job = [job for job in schedule.jobs if job.should_run][0]
         if cmd.endswith('_once'):
@@ -680,21 +704,21 @@ class Scheduler():
                 baltxt = prepare_balance('FULL', params=kwargs.get('params', {}))
                 store.feedback.text(baltxt)
                 # Шлем по адресатам прописанным в ini
-                if TelegramBot.instance is not None and cmd == CMD_CHECK_SEND:
-                    TelegramBot.instance.send_balance()
-                    TelegramBot.instance.send_subscriptions()
+                if TelegramBot().is_running() and cmd == CMD_CHECK_SEND:
+                    TelegramBot().send_balance()
+                    TelegramBot().send_subscriptions()
             elif cmd == CMD_GET_ONE:
                 get_full_info_one_number(**kwargs)
             elif cmd == CMD_CHECK_NEW_VERSION:
-                if TelegramBot.instance is not None:
+                if TelegramBot().is_running():
                     ue = updateengine.UpdaterEngine()
                     if ue.check_update():
                         msg = f'Найдена новая версия\n' + '\n'.join(ue.latest_version_info(short=True))
-                        TelegramBot.instance.send_message(msg)
+                        TelegramBot().send_message_by_list(msg)
             elif cmd == CMD_PING:
-                if TelegramBot.instance is not None:
+                if TelegramBot().is_running():
                     msg = ' '.join(kwargs['filter']).strip()
-                    TelegramBot.instance.send_message('ping' if msg == '' else msg)
+                    TelegramBot().send_message_by_list('ping' if msg == '' else msg)
             else:
                 logging.error(f'Scheduler: Unknown command {cmd}: {store.exception_text()}')
             store.feedback.unset()  # После обработки задания отменяем
@@ -705,9 +729,9 @@ class Scheduler():
             return schedule.CancelJob
 
     def job_is_running(self):
-        return Scheduler.instance._job_running
+        return self._job_running
 
-    def run_once(self, cmd, delay: int = 1, feedback_func: typing.Callable = None, kwargs={}) -> bool:
+    def run_once(self, cmd, delay: int = 1, feedback_func: typing.Callable = None, kwargs:dict=None) -> bool:
         '''Запланировать команду на однократный запуск,
         cmd - команда для _run (check, check_send, get_one, check_new_version, ping и т.п.)
         delay - отложить старт на N секунд
@@ -716,9 +740,10 @@ class Scheduler():
         возвращаем True - если запланировали и False если заняты
         при планировании once сразу блокируем возможность запланировать на раз еще что-то
         чтобы не запутаться с feedback'''
-        if Scheduler.instance is not None and not Scheduler().job_is_running():
-            Scheduler.instance._job_running = True  # Сразу выставляем флаг что работаем, чтобы вдогонку не поставить второе
-            schedule.every(delay).seconds.do(Scheduler.instance._run, cmd=cmd, once=True, kwargs=kwargs)
+        kwargs = {} if kwargs is None else kwargs
+        if not Scheduler().job_is_running():
+            self._job_running = True  # Сразу выставляем флаг что работаем, чтобы вдогонку не поставить второе
+            schedule.every(delay).seconds.do(self._run, cmd=cmd, once=True, kwargs=kwargs)
             if feedback_func is not None:
                 store.feedback.set(feedback_func)
             return True
@@ -733,7 +758,7 @@ class Scheduler():
         m = re.match(r'^every\((?P<every>\d*)\)(\.to\((?P<to>\d+)\))?\.(?P<interval>\w*)(\.at\("(?P<at>.*)"\))?$', sched.strip())
         try:
             if not m:
-                raise
+                raise RuntimeError(f'Error parse {sched}')
             # every(4).hours,mts,beeline -> {'every': '4', 'interval': 'hours', 'at': None}
             param = m.groupdict()
             param['every'] = int(param['every']) if param['every'].isdigit() else 1
@@ -754,14 +779,14 @@ class Scheduler():
         for schedule_str in schedules:
             err_msg = []
             job_has_errors = False
-            cmd, filter = None, None
+            cmd, filter_tel = None, None
             if len(schedule_str.split(',')) < 2:
                 err_msg.append(f'Bad schedule "{schedule_str}", cmd not found skipped')
                 job_has_errors = True
             if not job_has_errors:
                 sched = schedule_str.split(',')[0].strip()
                 cmd = schedule_str.split(',')[1].strip().lower()
-                filter = [i.strip() for i in schedule_str.split(',')[2:]]
+                filter_tel = [i.strip() for i in schedule_str.split(',')[2:]]
                 job_sched = self._validate_sched(sched)
                 if job_sched is None:
                     err_msg.append(f'Bad schedule "{schedule_str}", error parse job, skipped')
@@ -771,7 +796,7 @@ class Scheduler():
                     job_has_errors = True
             if job_has_errors:
                 job_sched = None
-            jobs.append(Job(job_str=schedule_str, job_sched=job_sched, cmd=cmd, filter=filter, err_msg=', '.join(err_msg)))
+            jobs.append(Job(job_str=schedule_str, job_sched=job_sched, cmd=cmd, filter_tel=filter_tel, err_msg=', '.join(err_msg)))
         return jobs
 
     def _reload(self):
@@ -780,7 +805,7 @@ class Scheduler():
         jobs = self.read_from_ini()
         for job in jobs:
             if job.job_sched is not None:
-                job.job_sched.do(self._run, cmd=job.cmd, kwargs={'filter': job.filter})
+                job.job_sched.do(self._run, cmd=job.cmd, kwargs={'filter_tel': job.filter_tel})
             else:
                 logging.info(job.err_msg)
         logging.info('Schedule was reloaded')
@@ -788,7 +813,7 @@ class Scheduler():
 
     def reload(self):
         'Читает расписание из ini'
-        Scheduler.instance._reload()
+        self._reload()
 
     def view_html(self) -> typing.Tuple[str, typing.List[str]]:
         'все задания html страницей'
@@ -804,7 +829,7 @@ class Scheduler():
 
     def stop(self):
         'Останавливаем шедулер'
-        Scheduler.instance._scheduler_running = False
+        self._scheduler_running = False
 
 
 def auth_decorator(errmsg=None, nonauth: typing.Callable = None):
@@ -832,13 +857,18 @@ def auth_decorator(errmsg=None, nonauth: typing.Callable = None):
 
 class TelegramBot():
 
-    # TODO make singleton class with __new__
-    instance = None  # когда создадим класс сюда запишем ссылку на созданный экземпляр
+    _self = None  # singleton
+
+    def __new__(cls):  # singleton class
+        if cls._self is None:
+            cls._self = super().__new__(cls)
+        return cls._self
 
     def __init__(self):
         if 'telebot' not in sys.modules:
             return  # Нет модуля TG - просто выходим
         # TgCommand для команд type(func) != str , для cmd_alias type(func) == str
+        self._bot_running = False  # Флаг, что бот НЕ работает
         self.bot = None
         TgCommand = collections.namedtuple('TgCommand', 'name, description, func')
         commands_list: typing.List[TgCommand] = [
@@ -871,31 +901,29 @@ class TelegramBot():
     def start_bot(self):
         'Запускаем бота'
         api_token = store.options('api_token', section='Telegram').strip()
-        request_kwargs = {}
         tg_proxy = store.options('tg_proxy', section='Telegram').strip()
         if tg_proxy.lower() == 'auto':
             telebot.apihelper.proxy = urllib.request.getproxies().get('https', None)
         elif tg_proxy != '' and tg_proxy.lower() != 'auto':
             telebot.apihelper.proxy = tg_proxy
-            # ??? Надо или не надо ?
-            # request_kwargs['urllib3_proxy_kwargs'] = {'assert_hostname': 'False', 'cert_reqs': 'CERT_NONE'}
         if api_token != '' and str(store.options('start_tgbot', section='Telegram')) == '1' and 'telebot' in sys.modules:
             try:
                 logging.info(f'Module telegram starting for id={self.auth_id()}')
                 self.bot = telebot.TeleBot(api_token)
                 logging.info(f'{self.bot}')
                 for cmd in self.commands.values():
-                    if type(cmd.func) != str:  # только команды
+                    if not isinstance(cmd.func, str):  # только команды
                         # В handler надо класть без слэша '/help' -> 'help' поэтому [1:]
                         self.bot.register_message_handler(cmd.func, commands=[cmd.name[1:]])
                 self.bot.register_callback_query_handler(self.button, func=lambda call: True)
                 self.bot.register_message_handler(self.handle_catch_all, func=lambda message: True)
+                self.bot.register_edited_message_handler(self.handle_edited_message, func=lambda message: True)
                 # self.bot.infinity_polling()  # Start the Bot
                 threading.Thread(target=self.bot.infinity_polling, name='bot_infinity_polling', daemon=True).start()
                 logging.info('Telegram bot started')
-                TelegramBot.instance = self  # Запустили бота - прописываем инстанс singleton
                 if str(store.options('send_empty', section='Telegram')) == '1':
-                    self.send_message(text='Hey there!', disable_notification=True)
+                    self.send_message_by_list(text='Hey there!', disable_notification=True)
+                self._bot_running = True  # Флаг, что бот работает
             except Exception:
                 exception_text = f'Ошибка запуска telegram bot {store.exception_text()}'
                 logging.error(exception_text)
@@ -905,6 +933,9 @@ class TelegramBot():
             logging.info('Telegram api_token not found')
         elif str(store.options('start_tgbot', section='Telegram')) != '1':
             logging.info('Telegram bot start is disabled in mbplugin.ini (start_tgbot=0)')
+
+    def is_running(self):
+        return self._bot_running
 
     def add_bot_menu(self):
         'создает персональное меню бота [/] для всех id из auth_id из пунктов перечисленных в command_menu_list'
@@ -936,19 +967,25 @@ class TelegramBot():
         '''Вызываем функцию для размещения текста'''
         try:
             if msg_type is None:
-                return self.bot.send_message(message.chat.id, text, parse_mode=parse_mode)
+                try:
+                    return self.bot.send_message(message.chat.id, text, parse_mode=parse_mode)
+                except Exception:
+                    return self.bot.send_message(message.chat.id, text, parse_mode=None)
             elif msg_type == 'reply_to':
-                return self.bot.reply_to(message, text=text, parse_mode=parse_mode)
+                try:
+                    return self.bot.reply_to(message, text=text, parse_mode=parse_mode)
+                except Exception:
+                    return self.bot.reply_to(message, text=text, parse_mode=None)
             elif msg_type == 'edit_message_text':
-                return self.bot.edit_message_text(chat_id=message.chat.id, text=text, message_id=message.message_id)
+                try:
+                    return self.bot.edit_message_text(chat_id=message.chat.id, text=text, message_id=message.message_id, parse_mode=parse_mode)
+                except Exception:
+                    return self.bot.edit_message_text(chat_id=message.chat.id, text=text, message_id=message.message_id, parse_mode=None)
         except Exception:
-            try:
-                return self.bot.send_message(message.chat.id, text, parse_mode=None)
-            except Exception:
-                exception_text = store.exception_text()
-                if 'Message is not modified' not in exception_text:
-                    logging.info(f'Unsuccess tg send:{text} {exception_text}')
-                return None
+            exception_text = store.exception_text()
+            if 'Message is not modified' not in exception_text:
+                logging.info(f'Unsuccess tg send:{text} {exception_text}')
+            return None
 
     def edit_text(self, message: telebot.types.Message, text: str, parse_mode='HTML') -> typing.Optional[telebot.types.Message]:
         '''put_text(... msg_type='edit_message_text' ...)'''
@@ -958,29 +995,39 @@ class TelegramBot():
         '''put_text(... msg_type='reply_to' ...)'''
         return self.put_text(message, text, msg_type='reply_to', parse_mode=parse_mode)
 
+    def run_tg_command(self, message: telebot.types.Message):
+        'ручной запуск команды не через handler (нужен для alias и запуска из edit_message'
+        if message is None:
+            logging.info(f'TG catch :message is None')
+            return None
+        if not telebot.util.is_command(message.text):
+            logging.info(f'TG catch :{message.text} is not a command')
+            return None
+        cmd = '/' + telebot.util.extract_command(message.text)
+        args = telebot.util.extract_arguments(message.text)
+        if cmd not in self.commands:
+            logging.info(f'TG {cmd} not found in command')
+            return None
+        if isinstance(self.commands[cmd].func, str):  # alias ?
+            message.text = (self.commands[cmd].func + ' ' + args).strip()
+            return self.run_tg_command(message)
+        return self.commands[cmd].func(message)
+
     def handle_catch_all(self, message: telebot.types.Message):
         '''catch-all handler - отрабатываем алиасы и логируем все остальное что не попало в фильтры,
         аутентификацию можно не отрабатывать - она отработает когда пойдем в вызванную по алиасу команду'''
         # message or message.message  пока не пойму зачем так было сделано, оставил в таком виде
         effective_message: telebot.types.Message = message.json.get('message', message)
-        if effective_message is not None:
-            acmd = '/' + telebot.util.extract_command(effective_message.text)
-            aargs = telebot.util.extract_arguments(effective_message.text).split()
-            if acmd in self.commands and type(self.commands[acmd].func) == str:
-                logging.info(f'TG catch alias:{effective_message.chat.id} {effective_message.text}')
-                alias = self.commands[acmd]
-                # реальный text который уйдет в команду, реальная команда и реальные аргументы
-                real_text = ' '.join([alias.func] + aargs)
-                rcmd = '/' + telebot.util.extract_command(real_text)
-                if rcmd not in self.commands:
-                    logging.info(f'TG for alias {acmd} not found command {alias.func}')
-                    return
-                logging.info(f'TG run for alias {effective_message.text} command {real_text}')
-                cmd = self.commands[rcmd]
-                effective_message.text = real_text
-                cmd.func(message)
-                return
-            logging.info(f'TG catch-all:{effective_message.chat.id} {effective_message.text}')
+        logging.info(f'TG catch all:{effective_message.chat.id} {effective_message.text}')
+        return self.run_tg_command(effective_message)
+
+    def handle_edited_message(self, message: telebot.types.Message):
+        'redirect edit command to new command'
+        ### breakpoint()  ###
+        effective_message: telebot.types.Message = message.json.get('message', message)
+        logging.info(f'TG edit:{effective_message.chat.id} {effective_message.text}')
+        return self.run_tg_command(effective_message)
+            
 
     @auth_decorator(errmsg='/help\n/id')
     def get_help(self, message: telebot.types.Message):
@@ -1030,7 +1077,7 @@ class TelegramBot():
         # Если запросили все - запрашиваем все, потом два раза только плохие
         only_failed = (message.text == "/receivebalancefailed")
         params = {'include': None if args == [] else ','.join(args)}
-        Scheduler().run_once(cmd=CMD_CHECK, feedback_func=feedback_func, kwargs={'filter': args, 'params': params, 'only_failed': only_failed})
+        Scheduler().run_once(cmd=CMD_CHECK, feedback_func=feedback_func, kwargs={'filter_tel': args, 'params': params, 'only_failed': only_failed})
 
     @auth_decorator()
     def get_schedule(self, message: telebot.types.Message):
@@ -1068,7 +1115,7 @@ class TelegramBot():
                 else:
                     self.put_text(message1, f'Not found {args}', msg_type='edit_message_text')  # type: ignore
                     return
-                feedback_func = lambda txt: self.put_text(message1, txt, msg_type='edit_message_text')  # type: ignore
+                feedback_func = lambda txt: self.put_text(message1, txt, msg_type='edit_message_text')  # pylint: disable=unnecessary-lambda-assignment
                 Scheduler().run_once(cmd=CMD_GET_ONE, feedback_func=feedback_func, kwargs={'keypair': keypair, 'check': cmd == 'checkone'})
                 return
             #query = None  # ???? update.callback_query
@@ -1085,10 +1132,10 @@ class TelegramBot():
                     keyboard[-1].append(btn)
             reply_markup = InlineKeyboardMarkup(keyboard)
             self.bot.reply_to(message, 'Please choose:', reply_markup=reply_markup)
-            return 
+            return
         else:  # реагируем на клавиатуру
             cmd, keypair = query.data.split('_', 1)  # До _ команда, далее Region_Number
-            feedback_func = lambda txt: self.put_text(message, txt, msg_type='edit_message_text')  # type: ignore
+            feedback_func = lambda txt: self.put_text(message, txt, msg_type='edit_message_text')  # pylint: disable=unnecessary-lambda-assignment
             Scheduler().run_once(cmd=CMD_GET_ONE, feedback_func=feedback_func, kwargs={'keypair': keypair, 'check': cmd == 'checkone'})
 
     @auth_decorator()
@@ -1110,7 +1157,7 @@ class TelegramBot():
         else:
             query:telebot.types.CallbackQuery = src
             message: telebot.types.Message = query.message
-        if query is None:  # это запрос ?            
+        if query is None:  # это запрос ?
             args = telebot.util.extract_arguments(message.text).lower()
             # Заданы аргументы? Тогда спросим по ним.
             # запрашиваем по заданному аргументу
@@ -1156,12 +1203,12 @@ class TelegramBot():
         if cmd in ['checkone', 'getone']:
             self.get_one(query)
 
-    def send_message(self, text: str, parse_mode='HTML', ids=None, **kwargs):
+    def send_message_by_list(self, text: str, parse_mode='HTML', ids=None, **kwargs):
         'Отправляем сообщение по списку ids, либо по списку auth_id из mbplugin.ini'
         if self.bot is None or text == '':
             return
         lst = self.auth_id() if ids is None else ids
-        text = text if type(text) == str else str(text)
+        text = text if isinstance(text, str) else str(text)
         for aid in lst:
             try:
                 self.bot.send_message(chat_id=aid, text=text, parse_mode=parse_mode, **kwargs)
@@ -1177,11 +1224,11 @@ class TelegramBot():
         if self.bot is None or str(store.options('send_balance_changes', section='Telegram')) == '0':
             return
         baltxt = prepare_balance('LASTCHANGE')
-        self.send_message(text=baltxt, parse_mode='HTML')
+        self.send_message_by_list(text=baltxt, parse_mode='HTML')
 
     def send_subscriptions(self):
-        'Отправляем подписки - это строки из ini вида:'
-        'subscriptionXXX = id:123456 include:1111,2222 exclude:6666'
+        '''Отправляем подписки - это строки из ini вида:
+        subscriptionXXX = id:123456 include:1111,2222 exclude:6666'''
         if self.bot is None:
             return
         subscriptions = store.options('subscription', section='Telegram', listparam=True)
@@ -1190,7 +1237,7 @@ class TelegramBot():
             params = {k: v.strip() for k, v in [i.split(':', 1) for i in subscr.split(' ')]}
             baltxt = prepare_balance('LASTCHANGE', params)
             ids = [int(i) for i in params.get('id', '').split(',') if i.isdigit()]
-            self.send_message(text=baltxt, parse_mode='HTML', ids=ids)
+            self.send_message_by_list(text=baltxt, parse_mode='HTML', ids=ids)
 
     def stop(self):
         '''Stop bot'''
@@ -1203,7 +1250,7 @@ class Handler(wsgiref.simple_server.WSGIRequestHandler):
     def address_string(self):
         return str(self.client_address[0])
 
-    def log_message(self, format, *args):
+    def log_message(self, format, *args):  # pylint: disable=redefined-builtin
         # убираем пароль из лога
         args = re.sub('(/.*?/.*?/.*?/)(.*?)(/.*)', r'\1xxxxxxx\3', args[0]), *args[1:]
         args = re.sub('(&password=)(.*?)(&)', r'\1xxxxxxx\3', args[0]), *args[1:]
@@ -1222,6 +1269,7 @@ class WebServer():
         store.turn_logging(httplog=True)
         self.port = int(store.options('port', section='HttpServer'))
         self.host = store.options('host', section='HttpServer')
+        self.editini = None
         with socket.socket() as sock:
             sock.settimeout(0.2)  # this prevents a 2 second lag when starting the server
             if sock.connect_ex(('127.0.0.1', self.port)) == 0:
@@ -1445,7 +1493,7 @@ class WebServer():
                 if str(store.options('HttpConfigEdit')) == '1':
                     ct, text, status, add_headers = self.editor(environ)
             elif cmd == 'getbalance_standalone':  # start balance request
-                # TODO подумать над передачей параметров в fetch - filter=filter,only_failed=only_failed
+                # TODO подумать над передачей параметров в fetch - filter_tel=filter_tel,only_failed=only_failed
                 Scheduler().run_once(cmd=CMD_CHECK)
                 ct, text = 'text/html; charset=cp1251', ['OK']
             elif cmd == 'flushlog':  # Start new log
@@ -1497,10 +1545,10 @@ def run_update():
 
 def main():
     try:
-        ARGS = parse_arguments(sys.argv[1:])
-        if ARGS.cmd.lower() == 'start':
+        args = parse_arguments(sys.argv[1:])
+        if args.cmd.lower() == 'start':
             WebServer()
-        if ARGS.cmd.lower() == 'stop':
+        if args.cmd.lower() == 'stop':
             send_http_signal(cmd='exit')
     except Exception:
         exception_text = f'Ошибка запуска WebServer: {store.exception_text()}'
