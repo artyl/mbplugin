@@ -6,11 +6,11 @@ icon = '789c73f235636600033320d600620128666490804800e58ff041300cfc270b6cdc7868ca
 
 login_url = 'https://myaccount.a1.by/tariff'
 user_selectors = {
-    'chk_lk_page_js': """document.querySelector('form input[type=text][value*="375"]') == null""",
-    'chk_login_page_js': """document.querySelector('form input[type=text][value*="375"]') != null""",
+    'chk_lk_page_js': """document.querySelector('form input[type=tel][value*="375"]') == null""",
+    'chk_login_page_js': """document.querySelector('form input[type=tel][value*="375"]') != null""",
     'before_login_js': "Array.from(document.querySelectorAll('button[type=button]')).filter(el=>el.innerText=='Пароль').forEach(el=>el.click()) ",
-    'login_clear_js': """document.querySelector('form input[type=text][value*="375"]').value=''""",
-    'login_selector': """form input[type=text][value*="375"]""",
+    'login_clear_js': """document.querySelector('form input[type=tel][value*="375"]').value=''""",
+    'login_selector': """form input[type=tel][value*="375"]""",
     'submit_js': "document.querySelector('form [type=submit]').click()",
     'remember_checker': '',
 }
