@@ -20,9 +20,9 @@ def setup():
 
 def test_stock(prepare_ini):
     assert stock.get_yahoo('YAHOO', 'TSLA', 1)['price'] > 0
-    assert stock.get_finex('FINEX', 'FXIT', 1)['price'] > 0
+    # assert stock.get_finex('FINEX', 'FXIT', 1)['price'] > 0  # delisting
     assert stock.get_moex('M_TQBR', 'TATNP', 1)['price'] > 0
-    assert stock.get_moex('M_TQTF', 'FXIT', 1)['price'] > 0
-    assert stock.get_moex('M_TQTD', 'FXIT', 1)['price'] > 0
+    # assert stock.get_moex('M_TQTF', 'FXIT', 1)['price'] > 0  # delisting
+    # assert stock.get_moex('M_TQTD', 'FXIT', 1)['price'] > 0  # delisting
 
     assert stock.get_balance('broker_ru', '123', 'test_stock')['Balance'] > 0

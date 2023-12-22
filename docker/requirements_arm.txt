@@ -32,6 +32,6 @@ soupsieve==2.2.1
 typing_extensions==4.5.0
 tzdata==2021.1
 tzlocal==3.0
-urllib3==2.1.0
+urllib3==1.26.18
 websocket-client==1.5.1
 #websockets==9.1 installed by playwright dependency
