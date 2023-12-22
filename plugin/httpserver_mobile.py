@@ -662,7 +662,7 @@ class Scheduler():
     # строк с заданиями может быть несколько и их можно пихать в ini как
     # scheduler= ... scheduler1=... и т.д как сделано с table_format
 
-    def __new__(cls):  # singleton class
+    def __new__(cls, *args, **kwargs):  # singleton class
         if cls._self is None:
             cls._self = super().__new__(cls)
         return cls._self
@@ -859,7 +859,7 @@ class TelegramBot():
 
     _self = None  # singleton
 
-    def __new__(cls):  # singleton class
+    def __new__(cls, *args, **kwargs):  # singleton class
         if cls._self is None:
             cls._self = super().__new__(cls)
         return cls._self
