@@ -614,6 +614,14 @@ def send_http_signal(cmd, force=True):
             proc.kill()
 
 
+class SingletonMeta(type):
+    _instances = {}
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
 class TrayIcon:
     'Создаем переменную класса, и при повторных вызовах не создаем новый а обращаемся к уже созданному'
     icon = None
@@ -653,24 +661,22 @@ class TrayIcon:
             self.icon.stop()
 
 
-class Scheduler():
+class Scheduler(metaclass=SingletonMeta):
     '''Класс для работы с расписанием
     check_only - если не хотим чтобы шедулер стартовал при первом вызове'''
-    _self = None  # singleton
     # Форматы расписаний см https://schedule.readthedocs.io
     # schedule2 = every().day.at("10:30"),megafon
     # строк с заданиями может быть несколько и их можно пихать в ini как
     # scheduler= ... scheduler1=... и т.д как сделано с table_format
 
-    def __new__(cls, *args, **kwargs):  # singleton class
-        if cls._self is None:
-            cls._self = super().__new__(cls)
-        return cls._self
-    
     def __init__(self, check_only=False) -> None:
         self._scheduler_running = False  # Флаг, что шедулер НЕ работает
         self._job_running = False  # Флаг что в текущий момент задание выполняется
-        if not check_only and not self._scheduler_running:
+        if not check_only:
+            self.start_scheduler()
+
+    def start_scheduler(self):
+        if not self._scheduler_running:
             self._scheduler_running = True  # Флаг, что шедулер работает
             self.thread = threading.Thread(target=self._forever, name='Scheduler', daemon=True)
             self.thread.start()
@@ -692,6 +698,7 @@ class Scheduler():
         напрямую вызывать нельзя
         once - удалить задание после выполнения
         kwargs - передается сюда ИМЕННО как словарь без **'''
+        logging.info(f'Schedule run {once=} {cmd=} {kwargs=}')
         kwargs = {} if kwargs is None else kwargs
         self._job_running = True
         current_job = [job for job in schedule.jobs if job.should_run][0]
@@ -855,14 +862,7 @@ def auth_decorator(errmsg=None, nonauth: typing.Callable = None):
     return decorator
 
 
-class TelegramBot():
-
-    _self = None  # singleton
-
-    def __new__(cls, *args, **kwargs):  # singleton class
-        if cls._self is None:
-            cls._self = super().__new__(cls)
-        return cls._self
+class TelegramBot(metaclass=SingletonMeta):
 
     def __init__(self):
         if 'telebot' not in sys.modules:
@@ -870,6 +870,12 @@ class TelegramBot():
         # TgCommand для команд type(func) != str , для cmd_alias type(func) == str
         self._bot_running = False  # Флаг, что бот НЕ работает
         self.bot = None
+        self.commands = None
+        self.prepare_commands()
+        self.start_bot()
+        self.add_bot_menu()
+
+    def prepare_commands(self):
         TgCommand = collections.namedtuple('TgCommand', 'name, description, func')
         commands_list: typing.List[TgCommand] = [
             TgCommand('/help', 'справка', self.get_help),
@@ -895,8 +901,6 @@ class TelegramBot():
                 self.commands[alias.name] = alias
             except Exception:
                 logging.warning(f'Wrong tg alias {line}')
-        self.start_bot()
-        self.add_bot_menu()
 
     def start_bot(self):
         'Запускаем бота'
@@ -1069,10 +1073,10 @@ class TelegramBot():
         /receivebalancefailed
         """
         def feedback_func(txt):
-            self.put_text(message, txt, msg_type='edit_message_text')
+            self.put_text(reply_message, txt, msg_type='edit_message_text')
         args = telebot.util.extract_arguments(message.text).split()
         filtertext = '' if len(args) == 0 else f", with filter by {' '.join(args)}"
-        self.put_text(message, f'Request all number{filtertext}. Wait...', msg_type='reply_to')
+        reply_message = self.put_text(message, f'Request all number{filtertext}. Wait...', msg_type='reply_to')
         # Если запросили плохие - то просто запрашиваем плохие
         # Если запросили все - запрашиваем все, потом два раза только плохие
         only_failed = (message.text == "/receivebalancefailed")

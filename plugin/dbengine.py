@@ -164,7 +164,7 @@ class Dbengine():
         return self
 
     def __exit__(self, type, value, traceback):
-        logging.info(f'Db __exit__ close {self.dbname}')
+        logging.debug(f'Db __exit__ close {self.dbname}')
         self.conn.close()
 
     def cur_execute(self, query, *args, **kwargs):
