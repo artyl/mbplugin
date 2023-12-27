@@ -230,6 +230,9 @@ class PureBrowserDebug():
             return base64.b64decode(res.get('body', ''))
         else:
             return res.get('body', '')
+        
+    def len_data(self):
+        return len(self._data)
 
     def get_response_body_json(self, url, partitial=True):
         'get_response_body + json.dumps if the result is not json retry every second until the timeout expiries'
@@ -337,6 +340,8 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         state = 'unknown'
         time.sleep(1)
         for i in range(timeout):
+            location = pd.page_eval('window.location.toString()')
+            logging.info(f'{location=} collect {pd.len_data()}')
             if pd.check_selector('.footer .guru'):
                 state = 'qrator'
             elif pd.check_selector('form input[type=tel]'):
