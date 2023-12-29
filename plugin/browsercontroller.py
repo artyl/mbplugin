@@ -1,5 +1,5 @@
 ''' Работа с браузером через синхронный вариант библиотеки playwright python '''
-import glob, json, logging, os, re, shutil, subprocess, sys, time, tempfile
+import glob, json, logging, os, re, shutil, sys, time, tempfile
 from playwright.sync_api import sync_playwright
 try:
     from playwright_stealth import stealth_sync
@@ -17,7 +17,7 @@ import store, settings
 
 # Какой бы ни был режим в mbplugin для всех сторонних модулей отключаем расширенное логирование
 # иначе в лог польется все тоннами
-[logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict]  # type: ignore
+[logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict]  # # pylint: disable=no-member
 
 # Селекторы и скрипты по умолчанию для формы логона
 # Проверять попадание в ЛК по отсутствию поля пароля - универсальный, простой, но ненадежный путь -

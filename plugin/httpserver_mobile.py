@@ -494,6 +494,10 @@ def prepare_balance_sqlite(filter_tel: str = 'FULL', params: dict = None):
                 return f"<b> ! В списке услуг присутствуют нежелательные: {unwanted}!</b>"
         return ''
 
+    def prepared(line):
+        'convert all None value to 0'
+        return {k:(0 if v is None else v) for k,v in line.items()}
+
     params = {} if params is None else params
     db = dbengine.Dbengine()
     table_format = store.options('tg_format', section='Telegram').replace('\\t', '\t').replace('\\n', '\n')
@@ -508,8 +512,7 @@ def prepare_balance_sqlite(filter_tel: str = 'FULL', params: dict = None):
     table = [i for i in table if i['Alias'] != 'Unknown']  # filter_tel Unknown
     table.sort(key=lambda i: [i['NN'], i['Alias']])  # sort by NN, after by Alias
     table = filter_balance(table, filter_tel, params)
-    table = [{k:(0 if v is None else v) for k,v in line.items()} for line in table] # convert None to 0
-    res = [table_format.format(**line) + alert_suffix(line) for line in table]
+    res = [table_format.format(**prepared(line)) + alert_suffix(line) for line in table]
     return '\n'.join(res)
 
 
