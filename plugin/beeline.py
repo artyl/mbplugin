@@ -13,8 +13,8 @@ profile_tag = 'api/profile/userinfo/data/?noTimeout'
 services_url = 'https://beeline.ru/customers/products/elk/tab/mobile-connection'
 services_tag = '/api/uni-profile-mobile/services/'
 subscribtions_tag = '/api/uni-profile-mobile/subscriptions/'
-user_selectors = {'chk_lk_page_js': "document.querySelector('div.initial-form')==null && document.querySelector('form input[type=password]')== null",
-                  'chk_login_page_js': "!(document.querySelector('div.initial-form')==null && document.querySelector('form input[type=password]')== null)",
+user_selectors = {'chk_lk_page_js': "document.querySelector('div.initial-form')==null && document.querySelector('form input[type=password]')==null && document.querySelector('div.personal')!=null",
+                  'chk_login_page_js': "(document.querySelector('div.initial-form')!=null || document.querySelector('form input[type=password]')!=null) && document.querySelector('div.personal')==null",
                   'before_login_js': "document.querySelectorAll('button').forEach(el=>el.innerText=='С постоянным паролем'?el.click():0);",
                   'login_clear_js': "document.querySelector('div.initial-form input[name=login]').value=''",
                   'login_selector': 'div.initial-form input[name=login]',
@@ -104,7 +104,7 @@ class browserengine(browsercontroller.BrowserController):
                 self.result['Min'] = self.result.get('Min', 0) + acc2_dict.get('SECONDS', 0) / 60
                 self.result['SMS'] = self.result.get('SMS', 0) + acc2_dict.get('SMS', 0)
             else:  # иначе пробуем взять из api/profile/userinfo/data
-                logging.info(f'Taking the accumulator from the {profile_url} additionalBalances')
+                logging.info(f'Taking the accumulator from the {profile_tag} additionalBalances')
                 acc_list = bal_data['additionalBalances']['data'][0]['data']
                 acc_dict = {el.get('unit'): el.get('value', 0) for el in acc_list}
                 # И вот тут хоба подарок от билайна - написано KBYTE а число в байтах, а как лежит Min и SMS я вообще не знаю, у меня нет
