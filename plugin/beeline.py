@@ -79,32 +79,39 @@ class browserengine(browsercontroller.BrowserController):
         bal_data_url, bal_data = [[k, v] for k, v in self.responses.items() if profile_tag in k and 'balance' in v][-1]
         self.result['Balance'] = bal_data.get('balance', {}).get('data', {})['balance']
         self.result['TarifPlan'] = bal_data.get('profileSummary', {}).get('data', {}).get('tariffName', '')
-        # ??? self.result['Internet'] = ??? {'name': 'Internet', 'url_tag': [bal_data_url], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='KBYTE'?el.rest:0)))"},
-        # ??? self.result['Min'] = ??? {'name': 'Min', 'url_tag': [bal_data_url], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='SECONDS'?el.rest/60:0))).toFixed(0)"},
-        # ??? self.result['SMS'] = {'name': 'SMS', 'url_tag': [bal_data_url], 'jsformula': "Math.max.apply(null,data.accumulators.data.list.concat(data.accumulators.data.listForYoung).map(el => (el!=undefined&&el.unit=='SMS'?el.rest:0)))"},
         self.result['BlockStatus'] = bal_data.get('status', {}).get('data', {}).get('status', '')
         self.result['LicSchet'] = bal_data.get('profileSummary', {}).get('data', {}).get('ctn', '')
         # аккумуляторы тарифа Простой ?
         try:
+            try:
+                add_bal = bal_data['additionalBalances']['data'][0]['data']
+                dates = sorted([el.get('dueDate','') for el in add_bal])  # Все даты истечения балансов - сортируем по возрастанию
+                self.result['TurnOffStr'] = dates[0].split('T')[0]
+                self.result['TurnOff'] = int((time.mktime(time.strptime(self.result['TurnOffStr'], '%Y-%m-%d'))-time.time()) / 86400)
+                if self.result['TurnOff'] < 0:
+                    self.result['TurnOff'] = 0
+            except Exception:
+                exception_text = f'Ошибка при получении TurnOff {store.exception_text()}, идем дальше'
+                logging.error(exception_text)
             # все страницы попадающие под описание
             accumulators_all = [v for k, v in self.responses.items() if accumulators_tag in k and 'accumulators' in v]
-            if len(accumulators_all) > 0:  # Нашли что нибудь?
-                try: 
-                    add_bal = bal_data['additionalBalances']['data'][0]['data']
-                    dates = sorted([el.get('dueDate','') for el in add_bal])  # Все даты истечения балансов - сортируем по возрастанию
-                    self.result['TurnOffStr'] = dates[0].split('T')[0]
-                    self.result['TurnOff'] = int((time.mktime(time.strptime(self.result['TurnOffStr'], '%Y-%m-%d'))-time.time()) / 86400)
-                    if self.result['TurnOff'] < 0 : 
-                        self.result['TurnOff'] = 0
-                except Exception:
-                    exception_text = f'Ошибка при получении TurnOff {store.exception_text()}, идем дальше'
-                    logging.error(exception_text)
+            if len(accumulators_all) > 0:  # Нашли api/uni-profile-mobile/blocks ? - берем оттуда, там цифры выглядят адекватнее
+                logging.info(f'Taking the accumulator from the {accumulators_tag}')
                 acc2_list = accumulators_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items
                 acc2_dict = {el.get('unit'): el.get('rest', 0) for el in acc2_list}
-                self.result['Internet'] = self.result.get('Internet', 0) + acc2_dict.get('KBYTE', 0)
+                self.result['Internet'] = acc2_dict.get('KBYTE', 0)
                 self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
                 self.result['Min'] = self.result.get('Min', 0) + acc2_dict.get('SECONDS', 0) / 60
                 self.result['SMS'] = self.result.get('SMS', 0) + acc2_dict.get('SMS', 0)
+            else:  # иначе пробуем взять из api/profile/userinfo/data
+                logging.info(f'Taking the accumulator from the {profile_url} additionalBalances')
+                acc_list = bal_data['additionalBalances']['data'][0]['data']
+                acc_dict = {el.get('unit'): el.get('value', 0) for el in acc_list}
+                # И вот тут хоба подарок от билайна - написано KBYTE а число в байтах, а как лежит Min и SMS я вообще не знаю, у меня нет
+                self.result['Internet'] = acc_dict.get('KBYTE', 0)/1024
+                self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
+                self.result['Min'] = self.result.get('Min', 0) + acc_dict.get('SECONDS', 0) / 60
+                self.result['SMS'] = self.result.get('SMS', 0) + acc_dict.get('SMS', 0)
         except Exception:
             exception_text = f'Ошибка при получении accumulators {store.exception_text()} , идем дальше'
             logging.error(exception_text)
@@ -139,7 +146,7 @@ def get_balance_browser(login, password, storename=None, **kwargs):
 
 def get_balance_api(login, password, storename=None, **kwargs):
     ''' Работаем через API На вход логин и пароль, на выходе словарь с результатами '''
-    def beeline_api(session, token, login, item):
+    def beeline_api(session:store.Session, token, login, item):
         apiURL = 'https://my.beeline.ru/api/1.0/' + item + '?ctn=' + login + '&token=' + token
         response = session.get(apiURL)
         if response.status_code != 200:
