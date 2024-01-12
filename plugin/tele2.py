@@ -18,8 +18,8 @@ class browserengine(browsercontroller.BrowserController):
 
         def get_state():
             res = self.page_evaluate('''[
-                document.querySelector('input[id="keycloakAuth.phone"]') != null,
-                document.querySelector('input[id="keycloakAuth.password"]') != null,
+                document.querySelector('input[id="keycloakAuth.phone"]')!=null || document.querySelector('input[name="username"]')!=null,
+                document.querySelector('input[name="password"]') != null,
                 (a => a == null ? '' : a.innerText)(document.querySelector('button.keycloak-login-form__button')),
                 document.querySelector('input[id="header-navbar-login"]') != null
                 ]''')
@@ -56,9 +56,9 @@ class browserengine(browsercontroller.BrowserController):
                 self.page_screenshot()
                 self.page_click('button.keycloak-login-form__button')
             elif state.kc_phone and state.kc_phone and state.kc_button == 'Войти' and not state.hnr:  # Добрались до входа с логином паролем - входим
-                self.page_press("input[id='keycloakAuth.phone']", "Control+a")
-                self.page_fill("input[id='keycloakAuth.phone']", prepare_login(self.login))
-                self.page_fill("input[id='keycloakAuth.password']", prepare_login(self.password))
+                self.page_press("input[name='username']", "Control+a")
+                self.page_fill("input[name='username']", prepare_login(self.login))
+                self.page_fill("input[name='password']", prepare_login(self.password))
                 self.sleep(3)
                 self.page_screenshot()
                 self.page_click('button.keycloak-login-form__button')

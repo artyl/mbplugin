@@ -23,12 +23,12 @@ class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         accountId = 0
-        logging.info(f'Use api.rt.ru/start/accounts')
+        logging.info(f'Use /start/accounts')
         self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': f"data.data.filter(el=>el['id']=='{self.acc_num}'||'{self.acc_num}'=='')[0].balance.amount/100"},
-            {'name': 'UserName', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': f"((e=data.data.filter(el=>el['id']=='{self.acc_num}'||'{self.acc_num}'=='')[0].client)=>''+e.last_name+' '+e.first_name+' '+e.middle_name)().replace('undefined', '').trim()"},
-            {'name': 'BlockStatus', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': f"data.data.filter(el=>el['id']=='{self.acc_num}'||'{self.acc_num}'=='')[0].status.id"},
-            {'name': 'LicSchet', 'url_tag': ['api.rt.ru/start/accounts'], 'jsformula': f"data.data.filter(el=>el['id']=='{self.acc_num}'||'{self.acc_num}'=='')[0].id"},
+            {'name': 'Balance', 'url_tag': ['/start/accounts'], 'jsformula': f"data.data.filter(el=>el['id']=='{self.acc_num}'||'{self.acc_num}'=='')[0].balance.amount/100"},
+            {'name': 'UserName', 'url_tag': ['/start/accounts'], 'jsformula': f"((e=data.data.filter(el=>el['id']=='{self.acc_num}'||'{self.acc_num}'=='')[0].client)=>''+e.last_name+' '+e.first_name+' '+e.middle_name)().replace('undefined', '').trim()"},
+            {'name': 'BlockStatus', 'url_tag': ['/start/accounts'], 'jsformula': f"data.data.filter(el=>el['id']=='{self.acc_num}'||'{self.acc_num}'=='')[0].status.id"},
+            {'name': 'LicSchet', 'url_tag': ['/start/accounts'], 'jsformula': f"data.data.filter(el=>el['id']=='{self.acc_num}'||'{self.acc_num}'=='')[0].id"},
         ])
 
 
@@ -38,7 +38,8 @@ class browserengine_qiwi(browsercontroller.BrowserController):
         self.sleep(3)
         self.page_screenshot()
         self.page_evaluate("document.querySelectorAll('form input[type=tel]')[0].click()")
-        self.page_fill('form input[type=tel]', self.login)
+        acc_num = self.acc_num if self.acc_num.isdigit() else self.login
+        self.page_fill('form input[type=tel]', acc_num)
         for num in range(10):
             self.sleep(1)
             if '/containers$' in str(self.responses.keys()):
