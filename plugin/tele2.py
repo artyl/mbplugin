@@ -115,7 +115,8 @@ def calculate_dop(result, response_t, response_с, response_s, response_r):
 
     # Тарифный план у tele2 за услугу не считается, так что просто прибавляем его цену
     # tarif_fee = get_data(response_t).get('currentAbonentFee', {}).get('amount', 0)  # хз что там за цифра она неправильная
-    tarif_fee = get_data(response_r).get('tariffCost', {}).get('amount', 0)
+    tarif_cost = get_data(response_r).get('tariffCost', {})  # может быть null
+    tarif_fee = tarif_cost.get('amount', 0) if tarif_cost is dict else 0
     tarif_period = get_data(response_t).get('period')
     paid_tarif = tarif_fee * settings.UNIT.get(tarif_period, 1)
     services = []
@@ -198,18 +199,22 @@ def get_balance_api(login, password, storename=None, **kwargs):
     store.feedback.text(f'Забираем данные из личного кабинета', append=True)
     response_b = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/balance')
     result['Balance'] = get_data(response_b).get('value')  # баланс
-    response_t = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/tariff')
-    result['TarifPlan'] = get_data(response_t).get('frontName', '')  # тариф
-    response_p = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/profile')
-    result['UserName'] = get_data(response_p).get('fullName', '')  # ФИО владельца
-    siteId = get_data(response_p).get('siteId', '')  # регион
-    # список услуг
-    response_с = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/{siteId}/services?status=connected')
-    # подписки (мошенники из Теле2 стыдливо прячут их и стараются не показывать) прибавим их как услуги
-    response_s = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/subscription')
-    # остатки
-    response_r = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/rests')
-    result = calculate_dop(result, response_t, response_с, response_s, response_r)
+    try:
+        response_t = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/tariff')
+        result['TarifPlan'] = get_data(response_t).get('frontName', '')  # тариф
+        response_p = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/profile')
+        result['UserName'] = get_data(response_p).get('fullName', '')  # ФИО владельца
+        siteId = get_data(response_p).get('siteId', '')  # регион
+        # список услуг
+        response_с = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/{siteId}/services?status=connected')
+        # подписки (мошенники из Теле2 стыдливо прячут их и стараются не показывать) прибавим их как услуги
+        response_s = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/subscription')
+        # остатки
+        response_r = session.get(f'https://api.tele2.ru/api/subscribers/7{login}/rests')
+        result = calculate_dop(result, response_t, response_с, response_s, response_r)
+    except Exception:
+        exception_text = f'Ошибка при получении дополнительных данных {store.exception_text()}'
+        logging.error(exception_text)
 
     session.save_session()
     return result
