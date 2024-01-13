@@ -242,7 +242,7 @@ class PureBrowserDebug():
             self.responses[key] = res
             try:
                 if self.response_store_path is not None:
-                    text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k, v in self.responses.items()])
+                    text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4, width=160).pformat(v)}' for k, v in self.responses.items()])
                     open(self.response_store_path, 'w', encoding='utf8', errors='ignore').write(text)
             except Exception:
                 logging.info(f'json decode error')

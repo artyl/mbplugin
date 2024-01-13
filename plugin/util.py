@@ -174,7 +174,7 @@ def recompile_plugin(ctx, skip_dll, skip_jsmblh, prepare_link):
                 matches = re.findall(r"(?usi)login_url = '(.*?)'", body)
                 if len(matches) > 0:
                     links[pluginname] = matches[0]
-        click.echo(pprint.PrettyPrinter(indent=4).pformat(links))
+        click.echo(pprint.PrettyPrinter(indent=4, width=160).pformat(links))
     if sys.platform == 'win32':
         if not skip_dll:  # Пересобираем DLL plugin
             try:

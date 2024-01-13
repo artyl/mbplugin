@@ -251,7 +251,7 @@ class Session():
                         self.json_response[idx] = response.json()
                     except Exception:
                         self.json_response[idx] = "It's not json"
-                text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4).pformat(v)}' for k, v in self.json_response.items()])
+                text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4, width=160).pformat(v)}' for k, v in self.json_response.items()])
                 open(abspath_join(options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore').write(text)
             except Exception:
                 pass

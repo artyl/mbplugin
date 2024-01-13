@@ -114,7 +114,8 @@ def calculate_dop(result, response_t, response_с, response_s, response_r):
         return response.json().get('data', {}) if response.status_code == 200 else ''
 
     # Тарифный план у tele2 за услугу не считается, так что просто прибавляем его цену
-    tarif_fee = get_data(response_t).get('currentAbonentFee', {}).get('amount', 0)
+    # tarif_fee = get_data(response_t).get('currentAbonentFee', {}).get('amount', 0)  # хз что там за цифра она неправильная
+    tarif_fee = get_data(response_r).get('tariffCost', {}).get('amount', 0)
     tarif_period = get_data(response_t).get('period')
     paid_tarif = tarif_fee * settings.UNIT.get(tarif_period, 1)
     services = []
@@ -146,6 +147,8 @@ def calculate_dop(result, response_t, response_с, response_s, response_r):
         result['SMS'] = 0
         result['BlockStatus'] = ''
         for rest in rests:
+            if rest['status'] != 'active' or rest['type'] != 'service':
+                continue
             if rest['uom'] == 'min':
                 result['Min'] += rest['remain']
             if rest['uom'] == 'mb':

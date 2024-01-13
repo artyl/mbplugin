@@ -21,7 +21,7 @@ def get_balance(login, password, storename=None, **kwargs):
     logging.debug(data)
 
     import pprint
-    open('..\\log\\sodexo.log','w').write(pprint.PrettyPrinter(indent=4).pformat(data))
+    open('..\\log\\sodexo.log','w').write(pprint.PrettyPrinter(indent=4, width=160).pformat(data))
 
     result['Balance'] = 0.001+data['balance']['availableAmount']
     if 'currency' in data['balance']:

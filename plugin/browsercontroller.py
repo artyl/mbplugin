@@ -12,7 +12,7 @@ if sys.platform == 'win32':
     except Exception:
         print('No win32 installed, no fake-headless mode')
 import psutil
-# import pprint; pp = pprint.PrettyPrinter(indent=4).pprint
+# import pprint; pp = pprint.PrettyPrinter(indent=4, width=160).pprint
 import store, settings
 
 # Какой бы ни был режим в mbplugin для всех сторонних модулей отключаем расширенное логирование
@@ -823,7 +823,7 @@ class BalanceOverPlaywright():
             if settings.mode == settings.MODE_MB:
                 if str(self.options('log_responses')) == '1' or self.options('logginglevel') == 'DEBUG':
                     import pprint
-                    text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4).pformat(v) }'
+                    text = '\n\n'.join([f'{k}\n{v if k.startswith("CONTENT") else pprint.PrettyPrinter(indent=4, width=160).pformat(v) }'
                                         for k, v in self.responses.items() if 'GetAdElementsLS' not in k and 'mc.yandex.ru' not in k])
                     with open(store.abspath_join(self.options('loggingfolder'), self.storename + '.log'), 'w', encoding='utf8', errors='ignore') as f:
                         f.write(text)
