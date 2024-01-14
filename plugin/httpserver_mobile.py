@@ -239,6 +239,7 @@ def getbalance_plugin(method, param_source):
         except Exception:
             exception_text = f'Ошибка при подготовке работе с БД: {store.exception_text()}'
             logging.error(exception_text)
+            dbengine.flags('set', f"{lang}_{plugin}_{param['login']}", f'error result {time.asctime()}')  # выставляем флаг о ошибке вызова
         try:
             # генерируем balance_html
             write_report()

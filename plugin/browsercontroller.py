@@ -787,7 +787,6 @@ class BalanceOverPlaywright():
     def data_collector(self):
         'Переопределите для своего плагина'
 
-    @safe_run_decorator
     def main(self, run=NORMAL) -> dict:
         'Возвращает словарь с результатами'
         logging.info(f"browserengine=Playwright")
