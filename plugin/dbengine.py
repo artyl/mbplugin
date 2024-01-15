@@ -69,7 +69,9 @@ CREATE TABLE IF NOT EXISTS Flags (
 CREATE TABLE IF NOT EXISTS Responses (
     [key] [nvarchar] (150) PRIMARY KEY,
     [value] [nvarchar] (10000) NULL
-)
+);''', '''
+CREATE TABLE IF NOT EXISTS phones_delta AS select * from phones limit 0;
+--
 -- CREATE INDEX idx_PhoneNumber_Operator ON Phones (PhoneNumber,Operator);
 -- CREATE INDEX idx_QueryDateTime ON Phones (QueryDateTime);
 ''']
@@ -131,17 +133,28 @@ addition_indexes = ['idx_QueryDateTime ON Phones (QueryDateTime ASC)',
                     'idx_Phonenumber ON Phones (PhoneNumber)',
                     'idx_MBPhonenumber ON Phones (MBPhoneNumber)']
 addition_queries = [
-    "delete from phones where phonenumber like 'p_%' or operator='p_test1' or (phonenumber='tinkoff' and operator='???') or operator in ('#01','#02')"]
+    "delete from phones where phonenumber like 'p_%' or (phonenumber='tinkoff' and operator='???') or operator in ('#01','#02')"
+    ]
 
 
 class Dbengine():
     'Класс для работы с базой, внутри одного экземпляра используется только один курсор, для нескольких курсоров используйте несколько экземпляров'
 
-    def __init__(self, dbname=None, updatescheme=True, fast=False, row_factory=None, make_headers=True):
+    _need_updatescheme = True
+
+    def __new__(cls, *args, **kwargs):  # catching the first launch and forced initialization
+        instance = super().__new__(cls, *args, **kwargs)
+        instance._update_scheme = cls._need_updatescheme
+        if cls._need_updatescheme:
+            cls._need_updatescheme = False
+        return instance
+    
+    def __init__(self, dbname=None, updatescheme=False, fast=False, row_factory=None, make_headers=True):
         'fast - быстрее, но менее безопасно'
         if dbname is None:
             dbname = store.abspath_join(settings.mbplugin_ini_path, 'BalanceHistory.sqlite')
         self.dbname = dbname
+        self.cur_description = ()
         logging.debug(f'Db open {self.dbname}')
         self.conn = sqlite3.connect(self.dbname)  # detect_types=sqlite3.PARSE_DECLTYPES
         if row_factory is not None:
@@ -153,7 +166,7 @@ class Dbengine():
         if fast:
             self.cur.execute('PRAGMA synchronous = OFF;')
             self.conn.commit()
-        if updatescheme:
+        if self._update_scheme or updatescheme:
             self.check_and_add_addition()
         if make_headers:
             self.cur.execute('SELECT * FROM phones limit 1;')
@@ -168,16 +181,24 @@ class Dbengine():
         self.conn.close()
 
     def cur_execute(self, query, *args, **kwargs):
-        'Обертка для cur.execute(...).fetchall() c логированием и таймингом сразу возврящает list с результатом'
+        'Обертка для cur.execute(...) для UPDATE/INSERT/DELETE c логированием и таймингом'
+        t_start = time.process_time()
+        self.cur.execute(query, *args, **kwargs)
+        logging.debug(f'{query} {args} {kwargs}')
+        logging.debug(f'Execution time {time.process_time()-t_start:.6f}')
+
+    def cur_execute_fetch(self, query, *args, **kwargs):
+        'Обертка для cur.execute(...).fetchall() для SELECT c логированием и таймингом сразу возвращает list с результатом'
         t_start = time.process_time()
         res = self.cur.execute(query, *args, **kwargs).fetchall()
+        self.cur_description = self.cur.description
         logging.debug(f'{query} {args} {kwargs}')
         logging.debug(f'Execution time {time.process_time()-t_start:.6f}')
         return res
 
     def cur_execute_00(self, query, *args, **kwargs):
         'cur.execute(...).fetchall()[0][0] '
-        res = self.cur_execute(query, *args, **kwargs)
+        res = self.cur_execute_fetch(query, *args, **kwargs)
         if len(res) != 0:
             return res[0][0]
         return None
@@ -205,11 +226,11 @@ class Dbengine():
         line['QueryDateTime'] = datetime.datetime.now().replace(microsecond=0)  # no microsecond
         # Дней без изм.
         query = f"select cast(julianday('now')-julianday(max(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' and abs(balance-({result['Balance']}))>0.02"
-        line['NoChangeDays'] = self.cur_execute(query)[0][0]
+        line['NoChangeDays'] = self.cur_execute_00(query)
         if line['NoChangeDays'] is None:
             # Если баланс не менялся ни разу - то ориентируемся на самый первый запрос баланса
             query = f"select cast(julianday('now')-julianday(min(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' "
-            line['NoChangeDays'] = self.cur_execute(query)[0][0]
+            line['NoChangeDays'] = self.cur_execute_00(query)
         # Если записей по этому номеру совсем нет (первый запрос), тогда просто ставим 0
         line['NoChangeDays'] = line['NoChangeDays'] if line['NoChangeDays'] is not None else 0
         try:
@@ -217,27 +238,47 @@ class Dbengine():
             average_days = int(options_ini['Additional']['AverageDays'])
         except Exception:
             average_days = int(store.options('average_days'))
-        qres = self.cur_execute(f"select {line['Balance']}-balance from phones where phonenumber='{login}' and operator='{plugin}' and QueryDateTime>date('now','-{average_days} day') and strftime('%Y%m%d', QueryDateTime)<>strftime('%Y%m%d', date('now')) order by QueryDateTime desc limit 1")
+        qres = self.cur_execute_fetch(f"select {line['Balance']}-balance from phones where phonenumber='{login}' and operator='{plugin}' and QueryDateTime>date('now','-{average_days} day') and strftime('%Y%m%d', QueryDateTime)<>strftime('%Y%m%d', date('now')) order by QueryDateTime desc limit 1")
         if qres != []:
             line['BalDelta'] = round(qres[0][0], 2)  # Delta (день)
-        qres = self.cur_execute(f"select {line['Balance']}-balance from phones where phonenumber='{login}' and operator='{plugin}' order by QueryDateTime desc limit 1")
-        if qres != []:
-            line['BalDeltaQuery'] = round(qres[0][0], 2)  # Delta (запрос)
-        qres = self.cur_execute(f"select avg(b) from (select min(BalDelta) b from phones where phonenumber='{login}' and operator='{plugin}' and QueryDateTime>date('now','-{average_days} day') group by strftime('%Y%m%d', QueryDateTime))")
+        # qres = self.cur_execute_fetch(f"select {line['Balance']}-balance from phones where phonenumber='{login}' and operator='{plugin}' order by QueryDateTime desc limit 1")
+        qres = self.cur_execute_fetch(f"select avg(b) from (select min(BalDelta) b from phones where phonenumber='{login}' and operator='{plugin}' and QueryDateTime>date('now','-{average_days} day') group by strftime('%Y%m%d', QueryDateTime))")
         if qres != [] and qres[0][0] is not None:
             line['RealAverage'] = round(qres[0][0], 2)  # $/День(Р)
         if line.get('RealAverage', 0.0) < 0:
             line['CalcTurnOff'] = round(-line['Balance'] / line['RealAverage'], 2)
+        last_line_raw = self.cur_execute_fetch(f"select * from phones where phonenumber='{login}' and operator='{plugin}' order by QueryDateTime desc limit 1")
+        if last_line_raw != []:
+            last_line = {k[0]:v for k,v in zip(self.cur_description,last_line_raw[0])}
+            line['BalDeltaQuery'] = round(line['Balance']-last_line['Balance'], 2)  # Delta (запрос)
+            try:
+                delta = {}  # готовим дельту phones_delta
+                for key in line:
+                    if key in ['QueryDateTime', 'Operator', 'PhoneNumber', 'NoChangeDays']:  # эти копируем
+                        delta[key] = line[key]
+                    if key in ['AnyString', 'BlockStatus', 'Currenc', 'LicSchet', 'TarifPlan', 'TurnOffStr', 'UserName', 'UslugiOn']:  # строки 
+                        if last_line.get(key, "") != line[key]:
+                            delta[key] = f'{last_line.get(key, "")} -> {line[key]}'
+                    if key in ['Balance', 'Balance2', 'Balance3', 'SpendBalance', 'KreditLimit', 'Average', 'TurnOff', 'Recomend', 'SMS', 'SpendMin', 'ObPlat', 'Internet', 'Minutes', 'NoChangeDays', 'BalDeltaQuery']:  # числа
+                        prev_v = last_line.get(key, None)
+                        if not(type(prev_v) is int or type(prev_v) is float):
+                            prev_v = 0
+                        if last_line.get(key, 0) != line[key] and (type(line[key]) is int or type(line[key]) is float):
+                            delta[key] = prev_v - line[key]
+                self.cur_execute(f"delete from phones_delta where phonenumber='{login}' and operator='{plugin}'")
+                self.cur_execute(f'insert into phones_delta ({",".join(delta.keys())}) VALUES ({",".join(list("?"*len(delta)))})', list(delta.values()))
+            except Exception:
+                logging.exception('Error in calculate delta')
         self.cur.execute(f'insert into phones ({",".join(line.keys())}) VALUES ({",".join(list("?"*len(line)))})', list(line.values()))
         result2['QueryDateTime'] = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
-        self.cur.execute('REPLACE INTO responses(key,value) VALUES(?,?)', [f'{plugin}_{login}', json.dumps(result2, ensure_ascii=False)])
+        self.cur_execute('REPLACE INTO responses(key,value) VALUES(?,?)', [f'{plugin}_{login}', json.dumps(result2, ensure_ascii=False)])
         if commit:
             self.conn.commit()
 
     def report(self):
         ''' Генерирует отчет по последнему состоянию телефонов'''
         reportsql = f'''select * from phones where NN in (select NN from (SELECT NN,max(QueryDateTime) FROM Phones GROUP BY PhoneNumber,Operator)) order by PhoneNumber,Operator'''
-        dbdata = self.cur_execute(reportsql)
+        dbdata = self.cur_execute_fetch(reportsql)
         dbheaders = list(zip(*self.cur.description))[0]
         phones = store.ini('phones.ini').phones()
         dbdata.sort(key=lambda line: (phones.get(line[0:2], {}).get('NN', 999)))
@@ -262,7 +303,7 @@ class Dbengine():
         if days == 0:
             return []
         historysql = f'''select * from phones where phonenumber=? and operator=? and QueryDateTime>date('now','-'|| ? ||' day') order by QueryDateTime desc'''
-        dbdata = self.cur_execute(historysql, [phone_number, operator, days])
+        dbdata = self.cur_execute_fetch(historysql, [phone_number, operator, days])
         dbheaders = list(zip(*self.cur.description))[0]
         dbdata_sets = [set(el) for el in zip(*dbdata)]  # составляем список уникальных значений по каждой колонке
         dbdata_sets = [{i for i in el if str(i).strip() not in ['', 'None', '0.0', '0']} for el in dbdata_sets]  # подправляем косяки
@@ -283,10 +324,14 @@ class Dbengine():
 
     def check_and_add_addition(self):
         'Создаем таблицы, добавляем новые поля, и нужные индексы если их нет'
+        logging.debug('Dbengine.check_and_add_addition')
         [self.cur.execute(query) for query in DB_SCHEMA]
         for k, v in addition_phone_fields.items():
-            if self.cur_execute("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('phones') WHERE name=?", [k])[0][0] == 0:
+            if self.cur.execute("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('phones') WHERE name=?", [k]).fetchall()[0][0] == 0:
                 self.cur.execute(f"ALTER TABLE phones ADD COLUMN {k} {v}")
+                self.cur.execute(f"drop table if exists phones_delta")
+        for sql in addition_queries:
+            self.cur.execute(sql)
         for idx in addition_indexes:
             self.cur.execute(f"CREATE INDEX IF NOT EXISTS {idx}")
         self.conn.commit()
@@ -301,7 +346,7 @@ class Dbengine():
                 src_conn.row_factory = sqlite3.Row
                 src_cur = src_conn.cursor()
                 table = 'Phones'
-                current_data = set(self.cur_execute('select distinct PhoneNumber,Operator,QueryDateTime from phones'))
+                current_data = set(self.cur_execute_fetch('select distinct PhoneNumber,Operator,QueryDateTime from phones'))
                 print(len(current_data))
                 print("Copying Phones %s => %s" % (path, self.dbname))
                 src_cur.execute('SELECT * FROM %s' % table)
@@ -378,7 +423,7 @@ def update_sqlite_from_mdb_core(dbname=None, deep=None) -> bool:
         # Дата согласно указанному deep от которой сверяем данные
         dd = datetime.datetime.now() - datetime.timedelta(days=deep)
         logging.debug(f'Read from sqlite QueryDateTime>{dd}')
-        sqldata = db.cur_execute("SELECT * FROM phones where QueryDateTime>?", [dd])
+        sqldata = db.cur_execute_fetch("SELECT * FROM phones where QueryDateTime>?", [dd])
         dsqlite = {datetime.datetime.strptime(i[db.phoneheader.index('QueryDateTime')].split('.')[0], '%Y-%m-%d %H:%M:%S').timestamp(): i for i in sqldata}
         # теперь все то же самое из базы MDB
         logging.debug(f'Read from mdb QueryDateTime>{dd}')
@@ -497,11 +542,11 @@ def flags(cmd, key=None, value=None):
                     db.cur.execute('REPLACE INTO flags(key,value) VALUES(?,?)', [key, value])
                     db.conn.commit()
                 elif cmd.lower() == 'get':
-                    qres = db.cur_execute('select value from flags where key=?', [key])
+                    qres = db.cur_execute_fetch('select value from flags where key=?', [key])
                     if len(qres) > 0:
                         return qres[0][0]
                 elif cmd.lower() == 'getall':
-                    qres = db.cur_execute('select * from flags')
+                    qres = db.cur_execute_fetch('select * from flags')
                     return {k: v for k, v in qres}
                 elif cmd.lower() == 'deleteall':
                     db.cur.execute('delete from flags')
@@ -522,7 +567,7 @@ def responses() -> typing.Dict[str, str]:
         if store.options('sqlitestore') == '1':
             logging.debug(f'Responses from sqlite')
             db = Dbengine()
-            qres = db.cur_execute('select key,value from responses')
+            qres = db.cur_execute_fetch('select key,value from responses')
             return {k: v for k, v in qres}
         else:
             return {}

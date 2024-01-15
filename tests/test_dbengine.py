@@ -47,7 +47,7 @@ class Test:
         result2 = test1.get_balance(operator, phone_number, wait=False)
         result2.update({'Balance': '123', 'Currency': 'rub', 'Minutes': '23', 'BalExpired': '22.10.2022'})
         dbengine.write_result_to_db(operator, phone_number, result1)
-        assert phone_number in self.db.cur_execute('select * from phones where PhoneNumber=? limit 1', [phone_number])[0], 'Отсутствует запись'
+        assert phone_number in self.db.cur_execute_fetch('select * from phones where PhoneNumber=? limit 1', [phone_number])[0], 'Отсутствует запись'
         with pytest.raises(KeyError) as e_info:
             self.db.write_result(operator, phone_number, {})
         dbengine.write_result_to_db(operator, phone_number, {})
