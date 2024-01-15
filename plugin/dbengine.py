@@ -143,7 +143,7 @@ class Dbengine():
     _need_updatescheme = True
 
     def __new__(cls, *args, **kwargs):  # catching the first launch and forced initialization
-        instance = super().__new__(cls, *args, **kwargs)
+        instance = super().__new__(cls)
         instance._update_scheme = cls._need_updatescheme
         if cls._need_updatescheme:
             cls._need_updatescheme = False
