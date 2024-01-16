@@ -159,18 +159,18 @@ class Dbengine():
         self.conn = sqlite3.connect(self.dbname)  # detect_types=sqlite3.PARSE_DECLTYPES
         if row_factory is not None:
             self.conn.row_factory = row_factory
-        self.cur = self.conn.cursor()
+        # self.cur = self.conn.cursor()  # TODO it's wrong
         cache_size = int(store.options('sqlite_cache_size'))
         if cache_size != 0:
-            self.cur.execute(f'PRAGMA cache_size = {cache_size};')
+            self.conn.execute(f'PRAGMA cache_size = {cache_size};')
         if fast:
-            self.cur.execute('PRAGMA synchronous = OFF;')
+            self.conn.execute('PRAGMA synchronous = OFF;')
             self.conn.commit()
         if self._update_scheme or updatescheme:
             self.check_and_add_addition()
         if make_headers:
-            self.cur.execute('SELECT * FROM phones limit 1;')
-            self.phoneheader = list(zip(*self.cur.description))[0]
+            description = self.conn.execute('SELECT * FROM phones limit 1;').description
+            self.phoneheader = list(zip(*description))[0]
 
     def __enter__(self):
         logging.debug(f'Db __enter__ {self.dbname}')
@@ -180,25 +180,26 @@ class Dbengine():
         logging.debug(f'Db __exit__ close {self.dbname}')
         self.conn.close()
 
-    def cur_execute(self, query, *args, **kwargs):
+    def conn_execute(self, query, *args, **kwargs):
         'Обертка для cur.execute(...) для UPDATE/INSERT/DELETE c логированием и таймингом'
         t_start = time.process_time()
-        self.cur.execute(query, *args, **kwargs)
+        self.conn.execute(query, *args, **kwargs)
         logging.debug(f'{query} {args} {kwargs}')
         logging.debug(f'Execution time {time.process_time()-t_start:.6f}')
 
-    def cur_execute_fetch(self, query, *args, **kwargs):
+    def conn_execute_fetch(self, query, *args, **kwargs):
         'Обертка для cur.execute(...).fetchall() для SELECT c логированием и таймингом сразу возвращает list с результатом'
         t_start = time.process_time()
-        res = self.cur.execute(query, *args, **kwargs).fetchall()
-        self.cur_description = self.cur.description
+        cur = self.conn.execute(query, *args, **kwargs)
+        self.cur_description = cur.description
+        res = cur.fetchall()
         logging.debug(f'{query} {args} {kwargs}')
         logging.debug(f'Execution time {time.process_time()-t_start:.6f}')
         return res
 
-    def cur_execute_00(self, query, *args, **kwargs):
+    def conn_execute_00(self, query, *args, **kwargs):
         'cur.execute(...).fetchall()[0][0] '
-        res = self.cur_execute_fetch(query, *args, **kwargs)
+        res = self.conn_execute_fetch(query, *args, **kwargs)
         if len(res) != 0:
             return res[0][0]
         return None
@@ -226,11 +227,11 @@ class Dbengine():
         line['QueryDateTime'] = datetime.datetime.now().replace(microsecond=0)  # no microsecond
         # Дней без изм.
         query = f"select cast(julianday('now')-julianday(max(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' and abs(balance-({result['Balance']}))>0.02"
-        line['NoChangeDays'] = self.cur_execute_00(query)
+        line['NoChangeDays'] = self.conn_execute_00(query)
         if line['NoChangeDays'] is None:
             # Если баланс не менялся ни разу - то ориентируемся на самый первый запрос баланса
             query = f"select cast(julianday('now')-julianday(min(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' "
-            line['NoChangeDays'] = self.cur_execute_00(query)
+            line['NoChangeDays'] = self.conn_execute_00(query)
         # Если записей по этому номеру совсем нет (первый запрос), тогда просто ставим 0
         line['NoChangeDays'] = line['NoChangeDays'] if line['NoChangeDays'] is not None else 0
         try:
@@ -238,16 +239,16 @@ class Dbengine():
             average_days = int(options_ini['Additional']['AverageDays'])
         except Exception:
             average_days = int(store.options('average_days'))
-        qres = self.cur_execute_fetch(f"select {line['Balance']}-balance from phones where phonenumber='{login}' and operator='{plugin}' and QueryDateTime>date('now','-{average_days} day') and strftime('%Y%m%d', QueryDateTime)<>strftime('%Y%m%d', date('now')) order by QueryDateTime desc limit 1")
+        qres = self.conn_execute_fetch(f"select {line['Balance']}-balance from phones where phonenumber='{login}' and operator='{plugin}' and QueryDateTime>date('now','-{average_days} day') and strftime('%Y%m%d', QueryDateTime)<>strftime('%Y%m%d', date('now')) order by QueryDateTime desc limit 1")
         if qres != []:
             line['BalDelta'] = round(qres[0][0], 2)  # Delta (день)
-        # qres = self.cur_execute_fetch(f"select {line['Balance']}-balance from phones where phonenumber='{login}' and operator='{plugin}' order by QueryDateTime desc limit 1")
-        qres = self.cur_execute_fetch(f"select avg(b) from (select min(BalDelta) b from phones where phonenumber='{login}' and operator='{plugin}' and QueryDateTime>date('now','-{average_days} day') group by strftime('%Y%m%d', QueryDateTime))")
+        # qres = self.conn_execute_fetch(f"select {line['Balance']}-balance from phones where phonenumber='{login}' and operator='{plugin}' order by QueryDateTime desc limit 1")
+        qres = self.conn_execute_fetch(f"select avg(b) from (select min(BalDelta) b from phones where phonenumber='{login}' and operator='{plugin}' and QueryDateTime>date('now','-{average_days} day') group by strftime('%Y%m%d', QueryDateTime))")
         if qres != [] and qres[0][0] is not None:
             line['RealAverage'] = round(qres[0][0], 2)  # $/День(Р)
         if line.get('RealAverage', 0.0) < 0:
             line['CalcTurnOff'] = round(-line['Balance'] / line['RealAverage'], 2)
-        last_line_raw = self.cur_execute_fetch(f"select * from phones where phonenumber='{login}' and operator='{plugin}' order by QueryDateTime desc limit 1")
+        last_line_raw = self.conn_execute_fetch(f"select * from phones where phonenumber='{login}' and operator='{plugin}' order by QueryDateTime desc limit 1")
         if last_line_raw != []:
             last_line = {k[0]:v for k,v in zip(self.cur_description,last_line_raw[0])}
             line['BalDeltaQuery'] = round(line['Balance']-last_line['Balance'], 2)  # Delta (запрос)
@@ -265,21 +266,21 @@ class Dbengine():
                             prev_v = 0
                         if last_line.get(key, 0) != line[key] and (type(line[key]) is int or type(line[key]) is float):
                             delta[key] = prev_v - line[key]
-                self.cur_execute(f"delete from phones_delta where phonenumber='{login}' and operator='{plugin}'")
-                self.cur_execute(f'insert into phones_delta ({",".join(delta.keys())}) VALUES ({",".join(list("?"*len(delta)))})', list(delta.values()))
+                self.conn_execute(f"delete from phones_delta where phonenumber='{login}' and operator='{plugin}'")
+                self.conn_execute(f'insert into phones_delta ({",".join(delta.keys())}) VALUES ({",".join(list("?"*len(delta)))})', list(delta.values()))
             except Exception:
                 logging.exception('Error in calculate delta')
-        self.cur.execute(f'insert into phones ({",".join(line.keys())}) VALUES ({",".join(list("?"*len(line)))})', list(line.values()))
+        self.conn.execute(f'insert into phones ({",".join(line.keys())}) VALUES ({",".join(list("?"*len(line)))})', list(line.values()))
         result2['QueryDateTime'] = datetime.datetime.now().strftime('%Y.%m.%d %H:%M:%S')
-        self.cur_execute('REPLACE INTO responses(key,value) VALUES(?,?)', [f'{plugin}_{login}', json.dumps(result2, ensure_ascii=False)])
+        self.conn_execute('REPLACE INTO responses(key,value) VALUES(?,?)', [f'{plugin}_{login}', json.dumps(result2, ensure_ascii=False)])
         if commit:
             self.conn.commit()
 
     def report(self):
         ''' Генерирует отчет по последнему состоянию телефонов'''
         reportsql = f'''select * from phones where NN in (select NN from (SELECT NN,max(QueryDateTime) FROM Phones GROUP BY PhoneNumber,Operator)) order by PhoneNumber,Operator'''
-        dbdata = self.cur_execute_fetch(reportsql)
-        dbheaders = list(zip(*self.cur.description))[0]
+        dbdata = self.conn_execute_fetch(reportsql)
+        dbheaders = list(zip(*self.cur_description))[0]
         phones = store.ini('phones.ini').phones()
         dbdata.sort(key=lambda line: (phones.get(line[0:2], {}).get('NN', 999)))
         # округляем float до 2х знаков
@@ -303,8 +304,8 @@ class Dbengine():
         if days == 0:
             return []
         historysql = f'''select * from phones where phonenumber=? and operator=? and QueryDateTime>date('now','-'|| ? ||' day') order by QueryDateTime desc'''
-        dbdata = self.cur_execute_fetch(historysql, [phone_number, operator, days])
-        dbheaders = list(zip(*self.cur.description))[0]
+        dbdata = self.conn_execute_fetch(historysql, [phone_number, operator, days])
+        dbheaders = list(zip(*self.cur_description))[0]
         dbdata_sets = [set(el) for el in zip(*dbdata)]  # составляем список уникальных значений по каждой колонке
         dbdata_sets = [{i for i in el if str(i).strip() not in ['', 'None', '0.0', '0']} for el in dbdata_sets]  # подправляем косяки
         if len(dbdata_sets) == 0:  # Истории нет - возвращаем пустой
@@ -325,15 +326,15 @@ class Dbengine():
     def check_and_add_addition(self):
         'Создаем таблицы, добавляем новые поля, и нужные индексы если их нет'
         logging.debug('Dbengine.check_and_add_addition')
-        [self.cur.execute(query) for query in DB_SCHEMA]
+        [self.conn.execute(query) for query in DB_SCHEMA]
         for k, v in addition_phone_fields.items():
-            if self.cur.execute("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('phones') WHERE name=?", [k]).fetchall()[0][0] == 0:
-                self.cur.execute(f"ALTER TABLE phones ADD COLUMN {k} {v}")
-                self.cur.execute(f"drop table if exists phones_delta")
+            if self.conn.execute("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('phones') WHERE name=?", [k]).fetchall()[0][0] == 0:
+                self.conn.execute(f"ALTER TABLE phones ADD COLUMN {k} {v}")
+                self.conn.execute(f"drop table if exists phones_delta")
         for sql in addition_queries:
-            self.cur.execute(sql)
+            self.conn.execute(sql)
         for idx in addition_indexes:
-            self.cur.execute(f"CREATE INDEX IF NOT EXISTS {idx}")
+            self.conn.execute(f"CREATE INDEX IF NOT EXISTS {idx}")
         self.conn.commit()
 
     def copy_data(self, path: str):
@@ -346,7 +347,7 @@ class Dbengine():
                 src_conn.row_factory = sqlite3.Row
                 src_cur = src_conn.cursor()
                 table = 'Phones'
-                current_data = set(self.cur_execute_fetch('select distinct PhoneNumber,Operator,QueryDateTime from phones'))
+                current_data = set(self.conn.execute('select distinct PhoneNumber,Operator,QueryDateTime from phones').fetchall())
                 print(len(current_data))
                 print("Copying Phones %s => %s" % (path, self.dbname))
                 src_cur.execute('SELECT * FROM %s' % table)
@@ -360,7 +361,7 @@ class Dbengine():
                         cnt_skip += 1
                     else:
                         c = [row[c] for c in cols]
-                        res = self.cur.execute(ins, c)
+                        res = self.conn.execute(ins, c)
                         cnt_write += res.rowcount
             print(f'Update {cnt_write} row, skip {cnt_skip} row')
             self.conn.commit()
@@ -377,9 +378,9 @@ class Mdbengine():
         self.dbname = dbname
         DRV = '{Microsoft Access Driver (*.mdb)}'
         self.conn = pyodbc.connect(f'DRIVER={DRV};DBQ={dbname}')
-        self.cur = self.conn.cursor()
-        self.cur.execute('SELECT top 1 * FROM phones')
-        self.phoneheader = list(zip(*self.cur.description))[0]
+        # self.cur = self.conn.cursor()  # TODO it's wrong
+        description = self.conn.execute('SELECT top 1 * FROM phones').description
+        self.phoneheader = list(zip(*description))[0]
         phones_ini = store.ini('phones.ini').read()
         # phones - словарь key=MBphonenumber values=[phonenumber,region]
         self.phones = {v['Number']: (re.sub(r' #\d+', '', v['Number']), v['Region'])
@@ -423,12 +424,12 @@ def update_sqlite_from_mdb_core(dbname=None, deep=None) -> bool:
         # Дата согласно указанному deep от которой сверяем данные
         dd = datetime.datetime.now() - datetime.timedelta(days=deep)
         logging.debug(f'Read from sqlite QueryDateTime>{dd}')
-        sqldata = db.cur_execute_fetch("SELECT * FROM phones where QueryDateTime>?", [dd])
+        sqldata = db.conn_execute_fetch("SELECT * FROM phones where QueryDateTime>?", [dd])
         dsqlite = {datetime.datetime.strptime(i[db.phoneheader.index('QueryDateTime')].split('.')[0], '%Y-%m-%d %H:%M:%S').timestamp(): i for i in sqldata}
         # теперь все то же самое из базы MDB
         logging.debug(f'Read from mdb QueryDateTime>{dd}')
-        mdb.cur.execute("SELECT * FROM phones where QueryDateTime>?", [dd])
-        mdbdata = mdb.cur.fetchall()
+        mdbcur = mdb.conn.execute("SELECT * FROM phones where QueryDateTime>?", [dd])
+        mdbdata = mdbcur.fetchall()
         dmdb = {i[mdb.phoneheader.index('QueryDateTime')].timestamp(): i for i in mdbdata}
         logging.debug('calculate')
         # Строим общий список timestamp всех данных
@@ -472,23 +473,23 @@ def update_sqlite_from_mdb_core(dbname=None, deep=None) -> bool:
         # есть что вставить ?
         logging.debug(f'Insert {len(insert_param)}')
         if insert_param:
-            db.cur.executemany(f'insert into phones ({",".join(insert_header)}) VALUES ({",".join(list("?"*len(insert_header)))})', insert_param)
+            db.conn.executemany(f'insert into phones ({",".join(insert_header)}) VALUES ({",".join(list("?"*len(insert_header)))})', insert_param)
             db.conn.commit()
 
         # есть что проапдейтить ?
         logging.debug(f'Update {len(update_param)}')
         if update_param:
-            db.cur.executemany('update phones set QueryDateTime=? where QueryDateTime=?', update_param)
+            db.conn.executemany('update phones set QueryDateTime=? where QueryDateTime=?', update_param)
             db.conn.commit()
 
         # дополнительные фиксы (у меня в mdb мусор оказался, чтобы не трогать mdb чистим здесь)
         for sql in addition_queries:
-            db.cur.execute(sql)
+            db.conn.execute(sql)
             db.conn.commit()
         # прописываем колонку mbnumber
         update_mbnumber = [[MBphonenumber, phonenumber, region] for MBphonenumber, (phonenumber, region) in mdb.phones.items()]
-        db.cur.executemany(f'update phones set MBPhonenumber=? where MBPhonenumber is null and Phonenumber=? and operator=?', update_mbnumber)
-        logging.debug(f'Update empty MBPhonenumber {db.cur.rowcount}:')
+        cur = db.conn.executemany(f'update phones set MBPhonenumber=? where MBPhonenumber is null and Phonenumber=? and operator=?', update_mbnumber)
+        logging.debug(f'Update empty MBPhonenumber {cur.rowcount}:')
         db.conn.commit()
 
         logging.debug(f'After:')
@@ -534,25 +535,25 @@ def flags(cmd, key=None, value=None):
             logging.debug(f'Flag:{cmd}')
             with Dbengine() as db:
                 if cmd.lower() == 'set':
-                    db.cur.execute('REPLACE INTO flags(key,value) VALUES(?,?)', [key, value])
+                    db.conn.execute('REPLACE INTO flags(key,value) VALUES(?,?)', [key, value])
                     db.conn.commit()
                 if cmd.lower() == 'setunic':
-                    db.cur.execute('delete from flags where value=?', [value])
+                    db.conn.execute('delete from flags where value=?', [value])
                     db.conn.commit()
-                    db.cur.execute('REPLACE INTO flags(key,value) VALUES(?,?)', [key, value])
+                    db.conn.execute('REPLACE INTO flags(key,value) VALUES(?,?)', [key, value])
                     db.conn.commit()
                 elif cmd.lower() == 'get':
-                    qres = db.cur_execute_fetch('select value from flags where key=?', [key])
+                    qres = db.conn_execute_fetch('select value from flags where key=?', [key])
                     if len(qres) > 0:
                         return qres[0][0]
                 elif cmd.lower() == 'getall':
-                    qres = db.cur_execute_fetch('select * from flags')
+                    qres = db.conn_execute_fetch('select * from flags')
                     return {k: v for k, v in qres}
                 elif cmd.lower() == 'deleteall':
-                    db.cur.execute('delete from flags')
+                    db.conn.execute('delete from flags')
                     db.conn.commit()
                 elif cmd.lower() == 'delete':
-                    db.cur.execute('delete from flags where key=?', [key])
+                    db.conn.execute('delete from flags where key=?', [key])
                     db.conn.commit()
         else:
             if cmd.lower() == 'getall':
@@ -567,7 +568,7 @@ def responses() -> typing.Dict[str, str]:
         if store.options('sqlitestore') == '1':
             logging.debug(f'Responses from sqlite')
             db = Dbengine()
-            qres = db.cur_execute_fetch('select key,value from responses')
+            qres = db.conn_execute_fetch('select key,value from responses')
             return {k: v for k, v in qres}
         else:
             return {}

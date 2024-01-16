@@ -41,13 +41,13 @@ class Test:
         phone_number = '9161234567'
         operator = 'p_test1'
         assert len(self.db.phoneheader) == 47
-        assert self.db.cur_execute_00('select count(*) from phones') >= 0
+        assert self.db.conn_execute_00('select count(*) from phones') >= 0
         result1 = test1.get_balance(operator, phone_number, wait=False)
         self.db.write_result(operator, phone_number, result1)
         result2 = test1.get_balance(operator, phone_number, wait=False)
         result2.update({'Balance': '123', 'Currency': 'rub', 'Minutes': '23', 'BalExpired': '22.10.2022'})
         dbengine.write_result_to_db(operator, phone_number, result1)
-        assert phone_number in self.db.cur_execute_fetch('select * from phones where PhoneNumber=? limit 1', [phone_number])[0], 'Отсутствует запись'
+        assert phone_number in self.db.conn_execute_fetch('select * from phones where PhoneNumber=? limit 1', [phone_number])[0], 'Отсутствует запись'
         with pytest.raises(KeyError) as e_info:
             self.db.write_result(operator, phone_number, {})
         dbengine.write_result_to_db(operator, phone_number, {})
@@ -56,14 +56,14 @@ class Test:
         history = self.db.history(phone_number, operator)
         assert len(history) > 0
         shutil.copyfile(self.db.dbname, self.dbname_copy)
-        self.db.cur_execute_00('delete from phones where PhoneNumber=?', [phone_number])
+        self.db.conn_execute_00('delete from phones where PhoneNumber=?', [phone_number])
         assert self.db.copy_data(os.path.join(conftest.data_path, 'aaabbb.sqlite')) is False, 'return False as error'
         self.db.copy_data(self.dbname_copy)
-        assert self.db.cur_execute_00('select count(*) from phones') >= 0
-        self.db.cur_execute_00('delete from phones where PhoneNumber=?', [phone_number])
+        assert self.db.conn_execute_00('select count(*) from phones') >= 0
+        self.db.conn_execute_00('delete from phones where PhoneNumber=?', [phone_number])
         self.db.conn.commit()
         assert self.db.cur.rowcount > 0
-        assert self.db.cur_execute_00('select count(*) from phones') == 0
+        assert self.db.conn_execute_00('select count(*) from phones') == 0
         assert len(dbengine.responses()) > 0
         self.change_ini('sqlitestore', '0')
         assert len(dbengine.responses()) == 0
@@ -78,7 +78,7 @@ class Test:
                     dbengine.update_sqlite_from_mdb_core(os.path.join(conftest.data_path, 'aaabbb.mdb'))
                 assert dbengine.update_sqlite_from_mdb(os.path.join(conftest.data_path, 'aaabbb.mdb')) is False
                 dbengine.update_sqlite_from_mdb(os.path.join(conftest.data_path, 'BalanceHistory_test.mdb'))
-                assert self.db.cur_execute_00('select count(*) from phones') == 9
+                assert self.db.conn_execute_00('select count(*) from phones') == 9
 
     def test_flags(self):
         dbengine.flags('set', 'key1', 'val1')
