@@ -183,9 +183,10 @@ class Dbengine():
     def conn_execute(self, query, *args, **kwargs):
         'Обертка для cur.execute(...) для UPDATE/INSERT/DELETE c логированием и таймингом'
         t_start = time.process_time()
-        self.conn.execute(query, *args, **kwargs)
+        cur = self.conn.execute(query, *args, **kwargs)
         logging.debug(f'{query} {args} {kwargs}')
         logging.debug(f'Execution time {time.process_time()-t_start:.6f}')
+        return cur
 
     def conn_execute_fetch(self, query, *args, **kwargs):
         'Обертка для cur.execute(...).fetchall() для SELECT c логированием и таймингом сразу возвращает list с результатом'

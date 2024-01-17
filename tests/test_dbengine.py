@@ -15,7 +15,7 @@ class Test:
         self.change_ini('updatefrommdb', '1')
         self.change_ini('sqlitestore', '1')
         shutil.copyfile(self.ini_path + '.ori', self.ini_path)
-        self.db = dbengine.Dbengine()
+        self.db = dbengine.Dbengine(updatescheme=True)
         self.dbname_copy = self.db.dbname + '.cp.sqlite'
 
     def teardown_method(self, test_method=None):
@@ -56,13 +56,13 @@ class Test:
         history = self.db.history(phone_number, operator)
         assert len(history) > 0
         shutil.copyfile(self.db.dbname, self.dbname_copy)
-        self.db.conn_execute_00('delete from phones where PhoneNumber=?', [phone_number])
+        self.db.conn_execute('delete from phones where PhoneNumber=?', [phone_number])
         assert self.db.copy_data(os.path.join(conftest.data_path, 'aaabbb.sqlite')) is False, 'return False as error'
         self.db.copy_data(self.dbname_copy)
         assert self.db.conn_execute_00('select count(*) from phones') >= 0
-        self.db.conn_execute_00('delete from phones where PhoneNumber=?', [phone_number])
+        rowcount = self.db.conn_execute('delete from phones where PhoneNumber=?', [phone_number]).rowcount
         self.db.conn.commit()
-        assert self.db.cur.rowcount > 0
+        assert rowcount > 0
         assert self.db.conn_execute_00('select count(*) from phones') == 0
         assert len(dbengine.responses()) > 0
         self.change_ini('sqlitestore', '0')
