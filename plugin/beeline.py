@@ -77,6 +77,7 @@ class browserengine(browsercontroller.BrowserController):
         self.page_screenshot()
         # Приходится сначала долго ждать страницу, а затем когда она пришла получить ее точный url чтобы отфильтроваться от остальных запросов с похожим url
         bal_data_url, bal_data = [[k, v] for k, v in self.responses.items() if profile_tag in k and 'balance' in v][-1]
+        _ = bal_data_url
         self.result['Balance'] = bal_data.get('balance', {}).get('data', {})['balance']
         self.result['TarifPlan'] = bal_data.get('profileSummary', {}).get('data', {}).get('tariffName', '')
         self.result['BlockStatus'] = bal_data.get('status', {}).get('data', {}).get('status', '')
@@ -139,12 +140,12 @@ class browserengine(browsercontroller.BrowserController):
             logging.error(exception_text)
 
 
-def get_balance_browser(login, password, storename=None, **kwargs):
+def get_balance_browser(login, password, storename=None, **kwargs):  # pylint: disable=unused-argument
     ''' Работаем через Browser На вход логин и пароль, на выходе словарь с результатами '''
     return browserengine(login, password, storename, plugin_name=__name__).main()
 
 
-def get_balance_api(login, password, storename=None, **kwargs):
+def get_balance_api(login, password, storename=None, **kwargs):  # pylint: disable=unused-argument
     ''' Работаем через API На вход логин и пароль, на выходе словарь с результатами '''
     def beeline_api(session:store.Session, token, login, item):
         apiURL = 'https://my.beeline.ru/api/1.0/' + item + '?ctn=' + login + '&token=' + token

@@ -10,6 +10,8 @@ logging.basicConfig(filename=os.path.abspath(os.path.join('log', 'pytest.log')),
 settings.mode = settings.MODE_MB
 settings.mbplugin_root_path = data_path
 settings.mbplugin_ini_path = data_path
+os.makedirs(os.path.join(settings.mbplugin_root_path, 'mbplugin', 'log'), exist_ok=True)
+os.makedirs(os.path.join(settings.mbplugin_root_path, 'mbplugin', 'store'), exist_ok=True)
 settings.ini_codepage = 'cp1251'
 print(f'{settings.mbplugin_ini_path=}')
 print(os.path.abspath('plugin'))

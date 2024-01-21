@@ -1,12 +1,12 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
 import os, sys, re, logging, collections
-import requests
 import browsercontroller, settings, store
 
 icon = '789CAD532DA8C250143E0F5E31080B83D581618F056141EBE00583F0C06235D9865530894D64C13010C12C68B50D8345C3FA82C16A90051141C7E6DF39CF5DAE6F4E1EBCF7C11776EE77CE3DDF39BB9F5FF97720E46FFCB851B8F30DE4EF83FB398FCBE5F267FABE0F994C060A85029CCF678AD56A358ABDE2683422EDE170A05E645966F9BAAEC79BFD01CBB2487B3C1EE95B5114963F180CC0300CEAA35AAD42A5528172B90CB95C0E5455A5BB86C361623E72329940B3D9846EB70BBD5E0F1CC7A1386A4EA713D326E5E35C70263C168B456C7E49F948BC07FBE7B15C2E1F346118422A95225FCFF68335F91A8220D0CCF16C3C1E93CF76BB4D1E77BB1DF3C6F78231DE4BBD5EA7F833341A0D9A99A669502A95C81F6AB7DB2DF519017B984EA7D0E974683FD96C96CE716FA669329DE779AC0FFEBF705D37E613678E75715711B01ECE68BD5E8324492F771131080210459169E7F379CCE766B379F92E56AB15A4D369D2CE66B387DC56ABF5ABB7B5DFEFA1DFEF9357DC6FB15804DBB6FFE5DD22AF62AEE146'
 api_url = 'https://api.tele2.ru/api/subscribers/'
-login_url = 'https://msk.tele2.ru/lk'
+login_url = 'https://tele2.ru/lk'
+base_url = 'https://tele2.ru/lk'  # этот url идет как prefix для ряда страниц и на некоторых сайтах может отличаться от login_url поэтому оставлено оба
 api_headers = {'Tele2-User-Agent': '"mytele2-app/6.09.0"; "Build/25117710"', 'User-Agent': 'okhttp/6.2.3'}
 
 class browserengine(browsercontroller.BrowserController):
@@ -27,9 +27,8 @@ class browserengine(browsercontroller.BrowserController):
                 kc_phone, kc_password, kc_button, hnr = res
                 return States(kc_phone, kc_password, kc_button, hnr)
 
-        self.baseurl = 'https://tele2.ru/lk'
         States = collections.namedtuple('States', 'kc_phone, kc_password, kc_button, hnr')
-        self.page_goto(self.baseurl)
+        self.page_goto(base_url)
         self.sleep(1)
         states, state = set(), None
         # Проверка текущего состояния и логин пр инеобходимости
@@ -77,12 +76,12 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'UserName', 'url_tag': ['/profile$'], 'jsformula': "data.data.fullName"},
         ])
         self.page_screenshot()
-        self.page_goto(self.baseurl + '/../../lk/remains')
+        self.page_goto(base_url + '/../../lk/remains')
         for _ in range(10):
             if 'connected$' not in str(self.responses.keys()):
                 self.sleep(1)
         self.page_screenshot()
-        self.page_goto(self.baseurl + '/../../lk/services')
+        self.page_goto(base_url + '/../../lk/services')
         for _ in range(100):
             if 'subscription$' not in str(self.responses.keys()):
                 self.sleep(1)
@@ -98,7 +97,7 @@ class browserengine(browsercontroller.BrowserController):
             logging.error(exception_text)
 
 
-def get_balance_browser(login, password, storename=None, **kwargs):
+def get_balance_browser(login, password, storename=None, **kwargs):  # pylint: disable=unused-argument
     ''' Работаем через Browser На вход логин и пароль, на выходе словарь с результатами '''
     # TODO !!! У tele2 в веб варианте просто навешивание page.route уже приводит к кривоте, будет время разберусь, а пока просто отключил
     store.options('', mainparams={'intercept_request': 0})
@@ -160,7 +159,7 @@ def calculate_dop(result, response_t, response_с, response_s, response_r):
                 result['BlockStatus'] = rest['service']['billingServiceStatus']
     return result
 
-def get_balance_api(login, password, storename=None, **kwargs):
+def get_balance_api(login, password, storename=None, **kwargs):  # pylint: disable=unused-argument
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     def check_or_get_bearer():
         '''Проверяем если сессия отдает баланс, то ок, если нет, то логинимся заново'''

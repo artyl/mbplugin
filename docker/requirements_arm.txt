@@ -1,37 +1,28 @@
-APScheduler==3.6.3
-backports.zoneinfo==0.2.1
-beautifulsoup4==4.9.3
-cachetools==4.2.2
-cffi==1.14.6
-chardet==3.0.4
-charset-normalizer==2.0.4
-click==8.0.1
-colorama==0.4.4
+beautifulsoup4==4.12.3
+cffi==1.16.0
+charset-normalizer==3.3.2
+click==8.1.7
+colorama==0.4.6
 cryptography==41.0.7
-#greenlet==1.1.1 installed by playwright dependency
-idna==2.10
-markdown-it-py==2.2.0
+#greenlet==3.0.3 installed by playwright dependency
+idna==3.6
+markdown-it-py==3.0.0
 mdurl==0.1.2
 Pillow==9.5.0
 #playwright==1.14.1 installed separately
-playwright-stealth==1.0.5
-psutil==5.9.5
-pycparser==2.20
-pyee==8.2.2
-Pygments==2.15.1
+playwright-stealth==1.0.6
+psutil==5.9.8
+pycparser==2.21
+pyee==11.1.0
+Pygments==2.17.2
 pyreadline3==3.4.1
-PySocks==1.7.1
-pyTelegramBotAPI==4.14.0
-python-telegram-bot==13.7
-pytz==2021.1
+pyTelegramBotAPI==4.15.2
 requests==2.31.0
-rich==13.3.4
-schedule==1.1.0
+rich==13.7.0
+schedule==1.2.1
 six==1.16.0
-soupsieve==2.2.1
-typing_extensions==4.5.0
-tzdata==2021.1
-tzlocal==3.0
+soupsieve==2.5
+typing_extensions==4.9.0
 urllib3==1.26.18
-websocket-client==1.5.1
-#websockets==9.1 installed by playwright dependency
+websocket-client==1.7.0
+#websockets==12.0 installed by playwright dependency

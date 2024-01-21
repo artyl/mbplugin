@@ -1,7 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
 import os, sys, re, logging
-import requests
 import store
 
 re_balance = r'(?usi)Баланс.*?>.*?>(-?\d*\.\d*)<'

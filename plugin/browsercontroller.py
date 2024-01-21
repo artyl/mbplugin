@@ -17,7 +17,7 @@ import store, settings
 
 # Какой бы ни был режим в mbplugin для всех сторонних модулей отключаем расширенное логирование
 # иначе в лог польется все тоннами
-[logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict]  # # pylint: disable=no-member
+[logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict]  # pylint: disable=no-member,expression-not-assigned
 
 # Селекторы и скрипты по умолчанию для формы логона
 # Проверять попадание в ЛК по отсутствию поля пароля - универсальный, простой, но ненадежный путь -
@@ -144,7 +144,6 @@ def kill_chrome():
                 p.kill()
         except Exception:
             logging.info(f'While chrome {p} was killing an exception occured: {store.exception_text()}')
-            pass
 
 @safe_run_decorator
 def fix_crash_banner(storefolder, storename):
@@ -215,10 +214,10 @@ def safe_run_with_log_decorator(func):  # pylint: disable=no-self-argument
             res = func(self, *args, **kwargs)  # pylint: disable=not-callable
             logging.info(f'{log_string} OK')
             return res
-        except Exception:
+        except Exception as e:
             exception_text = store.exception_text()
             if 'Target page, context or browser has been closed' in exception_text:
-                raise RuntimeError(f'Browser has been closed')  # браузера уже нет
+                raise RuntimeError(f'Browser has been closed') from e  # браузера уже нет
             logging.info(f'{log_string} fail: {exception_text}')
             return default
     wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
@@ -363,9 +362,11 @@ class BalanceOverPlaywright():
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
-    def page_evaluate(self, eval_string, default=None, args=[]):
+    def page_evaluate(self, eval_string, default=None, args=None):
         ''' переносим вызов evaluate в класс для того чтобы каждый раз не указывать page и обернуть декораторами
         Проверка на пустой eval_string и default значение - сделано в декораторе'''
+        if args is None:
+            args = []
         try:
             return self.page.evaluate(eval_string, args)
         except Exception:
@@ -451,12 +452,12 @@ class BalanceOverPlaywright():
                 try:
                     # в процессе выполнения можем грохнуться т.к. страница может перезагрузиться, такие даже не пишем в лог
                     res = self.page.evaluate(expression, **kwargs)
-                except Exception:
+                except Exception as e:
                     exception_text = f'Ошибка в page_wait_for:{store.exception_text()}'
                     if 'Execution context was destroyed' not in exception_text:
                         logging.info(exception_text)
                     if 'Target page, context or browser has been closed' in exception_text:
-                        raise RuntimeError(f'Browser has been closed on {cnt} try')  # браузера уже нет
+                        raise RuntimeError(f'Browser has been closed on {cnt} try') from e  # браузера уже нет
                 if res is not None and res is True:
                     break
                 self.sleep(1)
@@ -531,7 +532,7 @@ class BalanceOverPlaywright():
                 stealth_sync(self.page)
             except Exception:
                 logging.error('Bad turn stealth_sync(self.page)')
-        [p.close() for p in self.browser.pages[1:]]
+        [p.close() for p in self.browser.pages[1:]]  # pylint: disable=expression-not-assigned
         self.page.on("response", self.response_worker)
         self.page.on("dialog", lambda dialog: dialog.dismiss())
         if str(self.options('intercept_request')) == '1' and str(self.options('show_captcha')) == '0':
@@ -603,7 +604,7 @@ class BalanceOverPlaywright():
         Если какой-то из шагов по умолчанию хотим пропустить, передаем пустую строку
         Смотрите актуальное описание напротив параметров в коментариях
         Чтобы избежать ошибок - копируйте названия параметров'''
-        breakpoint() if os.path.exists('breakpoint_logon') else None
+        breakpoint() if os.path.exists('breakpoint_logon') else None # pylint: disable=expression-not-assigned,forgotten-debug-statement
         store.feedback.text(f'Логинимся', append=True)
         selectors = default_logon_selectors.copy()
         if url is None:
@@ -626,7 +627,7 @@ class BalanceOverPlaywright():
             # Если мы не в ЛК и login_pause >0 ждем чтобы можно было авторизоваться через SMS или еще как-то
             login_pause = int(self.options('login_pause'))
             logging.info(f'Login pause {login_pause}')
-            for i in range(login_pause):
+            for _ in range(login_pause):
                 if self.page_evaluate(selectors['chk_lk_page_js']):
                     break
                 self.sleep(1)
@@ -691,10 +692,12 @@ class BalanceOverPlaywright():
             self.sleep(1)
         self.page_screenshot()
 
-    def calculate_param(self, param_name, url_tag: list = [], jsformula: str = '', pformula: str = ''):
+    def calculate_param(self, param_name, url_tag: list = None, jsformula: str = '', pformula: str = ''):
         'Вычисляет js выражение jsformula над json co страницы с url_tag, !!! url_tag - список тэгов'
         # TODO self.page.evaluate(f"(data) => {jsformula}", json_data)
         # return self.page_evaluate(f"()=>{{data={json.dumps(json_data,ensure_ascii=False)};return {jsformula};}}")
+        if url_tag is None:
+            url_tag = []
         if url_tag != []:  # Ищем в загруженных страницах
             response_result_ = [v for k, v in self.responses.items() if [i for i in url_tag if i not in k] == []]
             if len(response_result_) > 0:
@@ -703,7 +706,7 @@ class BalanceOverPlaywright():
                     logging.info(f'{param_name}: pformula on {url_tag}:{pformula}')
                     # Для скрипта на python делаем
                     try:
-                        res = eval(pformula, {'data': response_result})
+                        res = eval(pformula, {'data': response_result})  # pylint: disable=eval-used
                         return res
                     except Exception:
                         exception_text = f'Ошибка в pformula:{pformula} :{store.exception_text()}'
@@ -758,7 +761,7 @@ class BalanceOverPlaywright():
             self.page_wait_for(loadstate=True)
         for countdown in range(self.wait_loop):
             self.sleep(1)
-            breakpoint() if os.path.exists('breakpoint_wait') else None
+            breakpoint() if os.path.exists('breakpoint_wait') else None  ## pylint: disable=expression-not-assigned,forgotten-debug-statement
             for param in params:
                 if param['name'] in result:
                     continue  # Если этот параметр уже получен, то его пропускаем

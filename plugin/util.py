@@ -209,7 +209,9 @@ def check_import(ctx):
     'Проверяем что все модули импортируются'
     name = 'check-import'
     try:
-        import telegram, requests, PIL, bs4, readline, psutil, playwright, schedule
+        # python -m pip install --upgrade pip wheel setuptools
+        # python -m pip install urllib3==1.26.18 click requests pyTelegramBotAPI rich playwright==1.14.1 Pillow==9.5.0 beautifulsoup4 pyreadline3 psutil schedule pywin32 pyodbc pystray playwright_stealth websocket-client cryptography
+        import telebot, requests, PIL, bs4, readline, psutil, playwright, playwright_stealth, schedule, rich, websocket, cryptography
         if sys.platform == 'win32':
             import win32api, win32gui, win32con, pyodbc, pystray
     except ModuleNotFoundError:
@@ -436,7 +438,7 @@ def refresh_balance_html(ctx):
     name = 'refresh-balance-html'
     store.turn_logging()
     import httpserver_mobile
-    res = httpserver_mobile.write_report()
+    res = httpserver_mobile.write_report()  # pylint: disable=assignment-from-no-return
     echo(f'OK {name}\n{res}')
 
 
@@ -571,7 +573,7 @@ def check_plugin(ctx, bpoint, params, plugin, login, password):
     import httpserver_mobile
     if bpoint:
         import pdb
-        pdbpdb = pdb.Pdb()
+        pdbpdb = pdb.Pdb()  # pylint: disable=no-member
         lang = 'p'
         plugin = plugin.split('_', 1)[1]  # plugin это все что после p_
         module = __import__(plugin, globals(), locals(), [], 0)
@@ -762,15 +764,15 @@ def db_query(ctx, query):
         db = dbengine.Dbengine()
         if len(query) == 0:
             query1 = "SELECT name FROM sqlite_master WHERE type='table'"
-            dbdata = db.cur.execute(query1).fetchall()
+            dbdata = db.conn_execute_fetch(query1)
             echo('Tables:')
             for line in dbdata:
                 tbl = line[0]
-                cnt = db.cur.execute(f"select count(*) from {tbl}").fetchall()[0][0]
+                cnt = db.conn_execute_00(f"select count(*) from {tbl}")
                 echo(f'{tbl} {cnt}')
             return
         query2 = ' '.join(query).replace('select all ', 'select * ')
-        cur = db.cur.execute(query2)
+        cur = db.conn_execute(query2)
         if cur.description is not None:
             dbheaders = list(zip(*cur.description))[0]
             dbdata = cur.fetchall()
@@ -932,7 +934,7 @@ def mbplugin_dockerfile_version():
 
 if __name__ == '__main__':
     store.switch_to_mb_mode()
-    cli(obj={})
+    cli(obj={})  # pylint: disable=no-value-for-parameter
 
 # ..\python\python -c "import updateengine;updateengine.create_signature()"
 # ..\python\python -c "import util;util.mbplugin_ini_md_gen()"
