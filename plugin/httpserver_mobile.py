@@ -434,7 +434,8 @@ def filter_balance(table: typing.List[typing.Dict], filter_tel: str = 'FULL', pa
                           line['BalDeltaQuery'] != line['Balance'],
                           line['BalDeltaQuery'] != '',
                           line['Balance'] != '']),
-                     flags.get(f"{line.get('Operator', '')}_{line.get('PhoneNumber', '')}", '').startswith('error')])
+                     flags.get(f"{line.get('Operator', '')}_{line.get('PhoneNumber', '')}", '').startswith('error')
+                     ])
                  ]
     elif filter_tel == 'LASTDAYCHANGE':
         table = [line for line in table if line['BalDelta'] != 0 and line['Balance'] != 0]
@@ -501,19 +502,23 @@ def prepare_balance_sqlite(filter_tel: str = 'FULL', params: dict = None):
 
     params = {} if params is None else params
     db = dbengine.Dbengine()
-    table_format = store.options('tg_format', section='Telegram').replace('\\t', '\t').replace('\\n', '\n')
     phones = store.ini('phones.ini').phones()
     flags = dbengine.flags('getall')
     responses = dbengine.responses()
     table = db.report()
-    # table_format = 'Alias,PhoneNumber,Operator,Balance'
-    # Если формат задан как перечисление полей через запятую - переделываем под формат
-    if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
-        table_format = ' '.join([f'{{{i.strip()}}}' for i in table_format.split(',')])
     table = [i for i in table if i['Alias'] != 'Unknown']  # filter_tel Unknown
     table.sort(key=lambda i: [i['NN'], i['Alias']])  # sort by NN, after by Alias
     table = filter_balance(table, filter_tel, params)
-    res = [table_format.format(**prepared(line)) + alert_suffix(line) for line in table]
+    res = []
+    for line in table:
+        pkey = store.get_pkey(line['PhoneNumber'], line['Operator'])
+        table_format = store.options('tg_format', pkey=pkey).replace('\\t', '\t').replace('\\n', '\n')
+        # table_format = 'Alias,PhoneNumber,Operator,Balance'
+        # Если формат задан как перечисление полей через запятую - переделываем под формат
+        if re.match(r'^(\w+(?:,|\Z))*$', table_format.strip()):
+            table_format = ' '.join([f'{{{i.strip()}}}' for i in table_format.split(',')])
+        fmt_line = table_format.format(**prepared(line)) + alert_suffix(line)
+        res.append(fmt_line)
     return '\n'.join(res)
 
 

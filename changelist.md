@@ -573,3 +573,4 @@ FIX: refactoring, update requirements
 CHANGE: setup_and_check.bat проверяет пакеты по версиям и если найдено несовпадение версий или отсутствующие пакеты - запускает установку пакетов  
 ADD: mbp pip-update --check-only  
 FIX: dbengine phone_delta  
+CHANGE: ключ tg_format перенесен из секции Telegram в секцию Options чтобы его можно было задавать индивидуально для конкретного телефона  

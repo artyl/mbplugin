@@ -247,6 +247,9 @@ ini = {
         # Разрешение сохранять phone.ini из скриптов 0 - запрещено 1 - разрешено.
         'phone_ini_save_': {'descr': 'Пропускает каждые n дней в отчете', 'type': 'checkbox'},
         'phone_ini_save': '0',
+        # формат для строки telegram bot из sqlite, т.к. индивидуальные параметры возможны только в Options перенесли этот параметр из раздела Telegram
+        'tg_format_': {'descr': 'Формат для строки telegram bot из sqlite, задается либо списком через запятую, либо в tg HTML формате', 'type': 'text', 'size': 200},
+        'tg_format': '<b>{Alias}</b>\t<code>{PhoneNumberFormat2}</code>\t<b>{Balance}</b>({BalDeltaQuery})',        
         # Разрешить изменения в конфиге через http сервер config edit (пока до конца не реализовано)
         # Внимание, при сохранении все параметры будут в нижнем регистре, комментарии будут сохранены
         'httpconfigedit_': {'descr': 'Включить редактор конфига', 'type': 'checkbox'},
@@ -272,9 +275,6 @@ ini = {
         'auth_id': '',  # список id пользователей, которые авторизованы
         'send_balance_changes_': {'descr': 'Отправлять изменения баланса по sendtgbalance', 'type': 'checkbox'},
         'send_balance_changes': '1',  # отправлять изменения баланса по sendtgbalance (может приходится если мы не хотим получать полный список а фильтровать по подписке)
-        # формат для строки telegram bot из sqlite
-        'tg_format_': {'descr': 'Формат для строки telegram bot из sqlite', 'type': 'text', 'size': 200},
-        'tg_format': '<b>{Alias}</b>\t<code>{PhoneNumberFormat2}</code>\t<b>{Balance}</b>({BalDeltaQuery})',
         'tg_from_': {'descr': 'Источник данных для ТГ бота', 'type': 'select', 'variants': 'mobilebalance sqlite'},
         'tg_from': 'sqlite',  # mobilebalance или sqlite
         'send_empty_': {'descr': 'Посылать сообщения если изменений не было', 'type': 'checkbox'},
