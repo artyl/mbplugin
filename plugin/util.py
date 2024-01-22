@@ -578,7 +578,7 @@ def check_ini(ctx):
                 if not valid:
                     phones_ini_mess.append(f'Section [Phone] #{nn} ' + msg)
                     phones_ini_status = 'Fail'
-                if key.lower() not in store.settings.ini['Options'] and key.lower() not in store.settings.PHONE_INI_KEYS_LOWER and key.lower() not in ('phone_orig', 'region_orig'):
+                if key.lower() not in store.settings.ini['Options'] and key.lower() not in store.settings.PHONE_INI_KEYS_LOWER and key.lower() not in ('phone_orig', 'number_orig', 'region_orig'):
                     phones_ini_mess.append(f'Section [Phone] #{nn} has unused {key}')
                     phones_ini_status = 'Fail'
         echo(f'{phones_ini_status} {name} phones.ini {CRLF +  CRLF.join(phones_ini_mess)}'.strip())

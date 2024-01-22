@@ -12,8 +12,8 @@ UNIT = {'TB': 1073741824, 'ТБ': 1073741824, 'TByte': 1073741824, 'TBYTE': 1073
         'day': 30, 'dayly': 30, 'month': 1,
         }
 
-PHONE_INI_KEYS = ['Region', 'Monitor', 'Alias', 'Number', 'Password', 'mdOperation', 'mdConstant', 'PauseBeforeRequest', 'ShowInBallon', 'Password2', 'Indication']
-PHONE_INI_KEYS_LOWER = ['region', 'monitor', 'alias', 'number', 'password', 'mdoperation', 'mdconstant', 'pausebeforerequest', 'showinballon', 'password2', 'indication']
+PHONE_INI_KEYS = ['Region', 'Monitor', 'Alias', 'Number', 'Password', 'mdOperation', 'mdConstant', 'PauseBeforeRequest', 'ShowInBallon', 'Password2', 'Indication', 'IndicColor', 'TrayShow', 'CalcAverageDays', 'IgnoreAutoRequest', 'IgnoreZerroIsError']
+PHONE_INI_KEYS_LOWER = ['region', 'monitor', 'alias', 'number', 'password', 'mdoperation', 'mdconstant', 'pausebeforerequest', 'showinballon', 'password2', 'indication', 'indiccolor', 'trayshow', 'calcaveragedays', 'ignoreautorequest', 'ignorezerroiserror']
 
 MODE_LIB = 'lib'
 MODE_MB = 'mb'
