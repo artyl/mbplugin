@@ -567,7 +567,9 @@ FIX: добавлено альтернативное получение акку
 FIX: tele2 восстановлена работа логона в web варианте, исправлен расчет остатков  
 FIX: восстановлена проверка баланса ростелеком  
 
-## mbplugin v1.00.66 (21.01.24) refactoring
+## mbplugin v1.00.66 (22.01.24) refactoring
 FIX: mbp db-query  
 FIX: refactoring, update requirements  
- 
+CHANGE: setup_and_check.bat проверяет пакеты по версиям и если найдено несовпадение версий или отсутствующие пакеты - запускает установку пакетов  
+ADD: mbp pip-update --check-only  
+FIX: dbengine phone_delta  

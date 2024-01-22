@@ -9,17 +9,21 @@ mbplugin\python\python mbplugin\plugin\util.py fix-embedded-python-path
 REM Выставляем переменные по значениям в mbplugin.ini
 if "%1"=="noweb" mbplugin\python\python mbplugin\plugin\util.py set ini/HttpServer/start_http=0
 
+REM Проверяем что все модули имеют правильную версию, если нет - запускаем update
+mbplugin\python\python mbplugin\plugin\util.py pip-update --check-only
+if NOT "%ERRORLEVEL%"=="0" mbplugin\python\python mbplugin\plugin\util.py pip-update
+
+REM Проверяем что все модули импортируются
+mbplugin\python\python mbplugin\plugin\util.py check-import
+
 REM если используем встроенный браузер запускаем playwright install chromium
 mbplugin\python\python mbplugin\plugin\util.py install-chromium
 
 REM очищаем кэши браузера (только в full)
-REM mbplugin\python\python mbplugin\plugin\util.py clear-browser-cache
+mbplugin\python\python mbplugin\plugin\util.py clear-browser-cache
 
 REM Пересобираем DLL и JSMB LH plugin
 mbplugin\python\python mbplugin\plugin\util.py recompile-plugin
-
-REM Проверяем что все модули импортируются
-mbplugin\python\python mbplugin\plugin\util.py check-import
 
 REM Пересоздаем balance.html
 mbplugin\python\python mbplugin\plugin\util.py refresh-balance-html

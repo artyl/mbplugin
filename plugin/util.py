@@ -95,6 +95,7 @@ def fix_embedded_python_path(ctx):
             echo(f'OK {name}')
         except Exception:
             echo(f'Fail {name}: {store.exception_text()}')
+            sys.exit(1)
     else:
         echo(f'Not needed {name}')
 
@@ -118,13 +119,15 @@ def install_chromium(ctx, browsers):
             echo(f"OK {name} {','.join(browsers)}")
     except Exception:
         echo(f'Fail {name}: {store.exception_text()}')
+        sys.exit(1)
 
 
 @cli.command()
 @click.option('-q', '--quiet', is_flag=True)
+@click.option('-c', '--check-only', is_flag=True)
 @click.pass_context
-def pip_update(ctx, quiet):
-    '''Обновляем пакеты по requirements.txt или requirements_win.txt '''
+def pip_update(ctx, quiet, check_only):
+    '''Проверяем или обновляем пакеты по requirements.txt или requirements_win.txt '''
     name = 'pip-update'
     flags = " -q " if quiet else ""
     if sys.platform == 'win32':
@@ -132,7 +135,22 @@ def pip_update(ctx, quiet):
         flags += ' --no-warn-script-location '
     else:
         requirements_path = os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements.txt")
-    os.system(f'"{sys.executable}" -m pip install {flags} --upgrade pip')
+    if check_only:
+        freeze = {line.strip() for line in os.popen(f'"{sys.executable}" -m pip freeze').readlines() if '==' in line}
+        freeze_pack = {line.split('==')[0] for line in freeze}
+        requirements = {line.strip() for line in open(requirements_path).readlines() if '==' in line}
+        requirements_pack = {line.split('==')[0] for line in requirements}
+        not_installed = requirements_pack.difference(freeze_pack)
+        not_same_version = requirements.difference(freeze)
+        if len(not_installed) > 0:
+            echo(f'Fail {name}: Not all packages are installed: {",".join(not_installed)}')
+            sys.exit(1)
+        if len(not_same_version) > 0:
+            echo(f'Fail {name}: Not all packages are installed with the correct version: {",".join(not_same_version)}')
+            sys.exit(2)
+        echo(f'OK {name}')
+        return
+    os.system(f'"{sys.executable}" -m pip install {flags} --upgrade pip wheel setuptools')
     os.system(f'"{sys.executable}" -m pip install {flags} -r {requirements_path}')
     echo(f'OK {name}')
 
@@ -154,6 +172,7 @@ def clear_browser_cache(ctx, soft):
         echo(f'OK {name}')
     except Exception:
         echo(f'Fail {name}: {store.exception_text()}')
+        sys.exit(1)
 
 
 @cli.command()
@@ -199,6 +218,7 @@ def recompile_plugin(ctx, skip_dll, skip_jsmblh, prepare_link):
                 echo(f'OK {name} jsmblh')
             except Exception:
                 echo(f'Fail {name}: {store.exception_text()}')
+                sys.exit(1)
     else:
         echo('On windows platform only')
 
@@ -216,7 +236,7 @@ def check_import(ctx):
             import win32api, win32gui, win32con, pyodbc, pystray
     except ModuleNotFoundError:
         echo(f'Fail {name}: {store.exception_text()}')
-        return
+        sys.exit(1)
     echo(f'OK {name}')
 
 
@@ -272,6 +292,7 @@ def web_server_autostart(ctx, turn):
             echo(f'OK {name} {turn}')
         except Exception:
             echo(f'Fail {name}: {store.exception_text()}')
+            sys.exit(1)
     else:
         echo('On windows platform only')
 
@@ -297,6 +318,7 @@ def web_server(ctx, cmd, force):
         echo(f'OK {name} {cmd}')
     except Exception:
         echo(f'Fail {name}: {store.exception_text()}')
+        sys.exit(1)
 
 
 @cli.command()
@@ -333,6 +355,7 @@ def check_jsmblh(ctx, plugin):
             echo(f'{res}')
     except Exception:
         echo(f'Fail {name} {plugin}:\n{store.exception_text()}')
+        sys.exit(1)
 
 
 @cli.command()
@@ -355,6 +378,7 @@ def check_dll(ctx):
             echo(f'OK {name}')
         except Exception:
             echo(f'Fail {name}:\n{store.exception_text()}')
+            sys.exit(1)
     else:
         echo('On windows platform only')
 
@@ -370,12 +394,15 @@ def check_playwright(ctx):
     result = browser.main(run=browsercontroller.CHECK_PLAYWRIGHT)
     if hasattr(browser.main, '__exception_text__'):
         echo(f'Fail {name}:\n{browser.main.__exception_text__}')
+        sys.exit(1)
     elif 'Balance' not in result:
         echo(f'Fail {name}:\nno result')
+        sys.exit(2)
     elif result['Balance'] > 0:
         echo(f'OK {name} {result["Balance"]}')
     else:
         echo(f'Fail {name}:\nresult=0')
+        sys.exit(3)
 
 
 @cli.command()
@@ -409,6 +436,7 @@ def init(ctx):
         echo(f'OK {name}')
     except Exception:
         echo(f'Fail {name}:\n{store.exception_text()}')
+        sys.exit(1)
 
 
 @cli.command(name='get-balance')
@@ -456,17 +484,19 @@ def copy_all_from_other_db(ctx, path):
     if ext == '.mdb':  # копировать все данные из mdb
         if store.options('updatefrommdb') != '1':
             echo(f'Fail {name}\n:updatefrommdb turn in OFF')
-            return
+            sys.exit(1)
         store.turn_logging(logginglevel=logging.DEBUG)
         if not dbengine.update_sqlite_from_mdb(dbname=path, deep=10000):
             echo(f'Fail {name} from {path}\nsee log')
+            sys.exit(2)
     elif ext == '.sqlite':  # копировать все данные из sqlite
         store.turn_logging(logginglevel=logging.DEBUG)
         if not dbengine.Dbengine().copy_data(path):
             echo(f'Fail {name} from {path}\nsee log')
+            sys.exit(3)
     else:
         echo(f'Fail {name}\nUnknown type {ext}')
-        return
+        sys.exit(4)
     echo(f'OK {name}')
 
 @cli.command()
@@ -554,6 +584,7 @@ def check_ini(ctx):
         echo(f'{phones_ini_status} {name} phones.ini {CRLF +  CRLF.join(phones_ini_mess)}'.strip())
     except Exception:
         echo(f'Fail {name}:\n{store.exception_text()}')
+        sys.exit(1)
 
 
 @cli.command()
@@ -751,6 +782,7 @@ def version_update(ctx, force, version, only_download, only_check, only_install,
         res, msg = updater.install_update(version=version, force=force, undo_update=undo_update, by_current=by_current)
         echo('Run setup_and_check.bat or mbplugin/standalone/mbp after install')
     echo(f'{"OK" if res else "Fail"} {name}: {msg}')
+    sys.exit(1)
 
 
 @cli.command()
@@ -811,10 +843,10 @@ def bugreport(ctx, num, alias, plugin, login):
     dp = [i for i in dp if i['number'] == login or login == '']
     if len(dp) == 0:
         echo(f'Fail {name}: по указанному фильтру ничего не нашлось.')
-        return
+        sys.exit(1)
     if len(dp) > 1:
         echo(f'Fail {name}: найдено несколько, должен отфильтроваться только один, укажите точнее')
-        return
+        sys.exit(2)
     line = dp[0]
     echo(f'Найден один номер {line["alias"]}, составляем bugreport')
     plugin, login = line['region'], line['number']

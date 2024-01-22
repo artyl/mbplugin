@@ -259,14 +259,14 @@ class Dbengine():
                     if key in ['QueryDateTime', 'Operator', 'PhoneNumber', 'NoChangeDays']:  # эти копируем
                         delta[key] = line[key]
                     if key in ['AnyString', 'BlockStatus', 'Currenc', 'LicSchet', 'TarifPlan', 'TurnOffStr', 'UserName', 'UslugiOn']:  # строки 
-                        if last_line.get(key, "") != line[key]:
+                        if str(last_line.get(key, "")) != str(line[key]):
                             delta[key] = f'{last_line.get(key, "")} -> {line[key]}'
-                    if key in ['Balance', 'Balance2', 'Balance3', 'SpendBalance', 'KreditLimit', 'Average', 'TurnOff', 'Recomend', 'SMS', 'SpendMin', 'ObPlat', 'Internet', 'Minutes', 'NoChangeDays', 'BalDeltaQuery']:  # числа
+                    if key in ['Balance', 'Balance2', 'Balance3', 'SpendBalance', 'KreditLimit', 'Average', 'TurnOff', 'Recomend', 'SMS', 'SpendMin', 'ObPlat', 'Internet', 'Minutes']:  # числа
                         prev_v = last_line.get(key, None)
                         if not(type(prev_v) is int or type(prev_v) is float):
                             prev_v = 0
                         if last_line.get(key, 0) != line[key] and (type(line[key]) is int or type(line[key]) is float):
-                            delta[key] = prev_v - line[key]
+                            delta[key] = line[key] - prev_v
                 self.conn_execute(f"delete from phones_delta where phonenumber='{login}' and operator='{plugin}'")
                 self.conn_execute(f'insert into phones_delta ({",".join(delta.keys())}) VALUES ({",".join(list("?"*len(delta)))})', list(delta.values()))
             except Exception:

@@ -2,14 +2,8 @@
 # -*- coding: utf8 -*-
 from typing import List, Dict
 import base64, datetime, gc, glob, json, logging, os, pathlib, pprint, random, re, socket, sys, threading, time, subprocess
-import psutil, requests, playwright
+import psutil, requests, playwright, websocket
 import browsercontroller, store, settings
-# костыль для тех у кого нет пакета websocket
-try:
-    import websocket
-except Exception:
-    os.system(f'{sys.executable} -m pip install websocket-client==1.5.1 psutil==5.9.5')
-    import websocket
 if sys.platform == 'win32':
     import win32gui, win32process
 
@@ -130,6 +124,7 @@ class PureBrowserDebug():
             className = win32gui.GetClassName(hwnd)
             tid, pid = win32process.GetWindowThreadProcessId(hwnd)
             windowList.append((hwnd, text, className, tid, pid))
+
         if sys.platform != 'win32':
             return []
         try:
