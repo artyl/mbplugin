@@ -222,6 +222,18 @@ def get_balance_api(login, password, storename=None, **kwargs):  # pylint: disab
                 if elem['unitType'] == 'SMS_MMS':
                     result['SMS'] += elem['currValue']
 
+        jsonNewRests = beeline_api(session, token, login, 'info/prepaidAddBalance')
+        if jsonNewRests.get('meta', {}).get('status', '') == 'OK':
+            result['Min'] = result.get('Min', 0)
+            result['Internet'] = result.get('Internet', 0)
+            result['SMS'] = result.get('SMS', 0)
+            if 'balanceTime' in jsonNewRests and jsonNewRests['balanceTime'] is not None:
+                result['Min'] += jsonNewRests['balanceTime'][0].get('value', 0) // 60
+            if 'balanceData' in jsonNewRests and jsonNewRests['balanceData'] is not None:
+                result['Internet'] += jsonNewRests['balanceData'][0].get('value', 0)/1024 * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
+            if 'balanceSMS' in jsonNewRests and jsonNewRests['balanceSMS'] is not None:
+                result['SMS'] += jsonNewRests['balanceSMS'][0].get('value', 0)
+
         # похоже теперь у билайна не rests а accumulators, данных мало так что пробуем так
         # и не понятно как определить про что аккумулятор, так что пока ориентируемся на поле unit, у интернета он 'unit': 'KBYTE'
         jsonAcc = beeline_api(session, token, login, 'info/accumulators')
