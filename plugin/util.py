@@ -465,10 +465,13 @@ def refresh_balance_html(ctx):
     'Обновить balance.html'
     name = 'refresh-balance-html'
     store.turn_logging()
-    import httpserver_mobile
-    res = httpserver_mobile.write_report()  # pylint: disable=assignment-from-no-return
-    echo(f'OK {name}\n{res}')
-
+    try:
+        import httpserver_mobile
+        httpserver_mobile.write_report()
+        echo(f'OK {name}')
+    except Exception as e:
+        echo(f'Fail {name}:\n{store.exception_text()}')
+        sys.exit(1)
 
 @cli.command()
 @click.argument('path', type=str, default='')
