@@ -567,10 +567,13 @@ FIX: добавлено альтернативное получение акку
 FIX: tele2 восстановлена работа логона в web варианте, исправлен расчет остатков  
 FIX: восстановлена проверка баланса ростелеком  
 
-## mbplugin v1.00.66 (22.01.24) refactoring
-FIX: mbp db-query  
+## mbplugin v1.00.66 (24.01.24) beeline api rest fix, mbp get-balance filter, arm dockerfile
+FIX: mbp db-query снова работает  
 FIX: refactoring, update requirements  
-CHANGE: setup_and_check.bat проверяет пакеты по версиям и если найдено несовпадение версий или отсутствующие пакеты - запускает установку пакетов  
-ADD: mbp pip-update --check-only  
-FIX: dbengine phone_delta  
+CHANGE: setup_and_check.bat проверяет пакеты python по версиям и если найдено несовпадение версий или отсутствующие пакеты - запускает установку пакетов  
+ADD: mbp pip-update опция --check-only  
+FIX: dbengine phone_delta исправлены расчеты  
 CHANGE: ключ tg_format перенесен из секции Telegram в секцию Options чтобы его можно было задавать индивидуально для конкретного телефона  
+FIX: Update Dockerfile_arm PR #43 from d1mdev  
+FIX: Восстановлено получение остатков в API версии Beeline PR #44, спасибо truman369  
+FIX: исправлена работа фильтра в mbp get-balance filter  
