@@ -104,11 +104,11 @@ call mbplugin\setup_and_check.bat
 cd /D "%~dp0\.."
 echo STEP: verify
 if NOT EXIST balance.html (
-    ECHO Error setup_and_check (not exist balance.html)
+    ECHO Error setup_and_check - not exist balance.html
     GOTO :EOF
 )
 if NOT EXIST mbplugin\store\headless (
-    ECHO Error setup_and_check (not exist mbplugin\store\headless)
+    ECHO Error setup_and_check - not exist mbplugin\store\headless
     GOTO :EOF
 )
 
@@ -117,7 +117,7 @@ cd /D "%~dp0\.."
 call mbp clear-browser-cache
 cd /D "%~dp0\.."
 if EXIST mbplugin\store\headless (
-    ECHO Error setup_and_check (not clean mbplugin\store\headless)
+    ECHO Error setup_and_check - not clean mbplugin\store\headless
     GOTO :EOF
 )
 
