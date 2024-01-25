@@ -98,7 +98,7 @@ if NOT "%errorlevel%"=="0" (
 )
 
 cd /D "%~dp0\.."
-call mbplugin\setup_and_check_full.bat
+call mbplugin\setup_and_check.bat
 cd /D "%~dp0\.."
 if NOT EXIST balance.html (
     ECHO Error setup_and_check (not exist balance.html)
