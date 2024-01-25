@@ -8,7 +8,7 @@ cryptography==41.0.7
 idna==3.6
 markdown-it-py==3.0.0
 mdurl==0.1.2
-Pillow==9.5.0
+pillow==10.2.0
 #playwright==1.14.1 installed separately
 playwright-stealth==1.0.6
 psutil==5.9.8
