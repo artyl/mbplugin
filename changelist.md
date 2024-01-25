@@ -567,7 +567,7 @@ FIX: добавлено альтернативное получение акку
 FIX: tele2 восстановлена работа логона в web варианте, исправлен расчет остатков  
 FIX: восстановлена проверка баланса ростелеком  
 
-## mbplugin v1.00.66 (24.01.24) beeline api rest fix, mbp get-balance filter, arm dockerfile, tg_format moved to Options
+## mbplugin v1.00.66 (25.01.24) beeline api rest fix, mbp get-balance filter, arm dockerfile, tg_format moved to Options
 BREAKING_CHANGE: ключ tg_format перенесен из секции Telegram в секцию Options чтобы его можно было задавать индивидуально для конкретного телефона  
 FIX: Восстановлено получение остатков в API версии Beeline PR #44, спасибо truman369  
 FIX: Update Dockerfile_arm PR #43 from d1mdev  

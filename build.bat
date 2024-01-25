@@ -80,6 +80,7 @@ if NOT EXIST mbplugin\python\Lib\site-packages\playwright\__init__.py (
     GOTO :EOF
 )
 
+echo STEP: mbplugin\standalone\mbp
 cd /D "%~dp0\.."
 call mbplugin\standalone\mbp
 cd /D "%~dp0\.."
@@ -97,9 +98,11 @@ if NOT "%errorlevel%"=="0" (
     GOTO :EOF
 )
 
+echo STEP: mbplugin\setup_and_check.bat
 cd /D "%~dp0\.."
 call mbplugin\setup_and_check.bat
 cd /D "%~dp0\.."
+echo STEP: verify
 if NOT EXIST balance.html (
     ECHO Error setup_and_check (not exist balance.html)
     GOTO :EOF
@@ -109,6 +112,7 @@ if NOT EXIST mbplugin\store\headless (
     GOTO :EOF
 )
 
+echo STEP: mbp clear-browser-cache
 cd /D "%~dp0\.."
 call mbp clear-browser-cache
 cd /D "%~dp0\.."
@@ -117,6 +121,7 @@ if EXIST mbplugin\store\headless (
     GOTO :EOF
 )
 
+ECHO STEP: pytest tests
 cd /D "%~dp0"
 call python\python -m pip install -r docker\requirements_pytest.txt 
 call python\python -m pytest tests
@@ -125,9 +130,11 @@ if "%ERRORLEVEL%"==1  (
     ECHO Error tests
     GOTO :EOF
 )
+ECHO STEP: uninstall pytest
 call python\python -m pip uninstall -y -r docker\requirements_pytest.txt 
 call python\python -m pip install -r docker\requirements_win.txt
 
+ECHO STEP: remove__pycache__.py
 cd /D "%~dp0\.."
 call mbplugin\python\python mbplugin\python\remove__pycache__.py
 cd /D "%~dp0\.."
@@ -136,6 +143,7 @@ if EXIST mbplugin\python\__pycache__  (
     GOTO :EOF
 )
 
+ECHO STEP: mbp web-server stop
 cd /D "%~dp0\.."
 call mbp web-server stop
 timeout 5
@@ -145,12 +153,14 @@ if EXIST mbplugin\store\web-server.pid (
     GOTO :EOF
 )
 
+ECHO STEP: clean 
 cd /D "%~dp0\.."
 del mbplugin\log\*.log
 del mbplugin\log\*.png
 del mbplugin\store\mbplugin.ini.bak.zip
 del mbplugin\python\scripts\*.exe
 
+ECHO STEP: prepare mbplugin_bare zip
 cd /D "%~dp0"
 for /F "tokens=1 delims=#" %%T IN ('git rev-parse HEAD') DO set mbpluginhead=%%T
 for /F "tokens=3 delims= " %%T IN ('find "## mbplugin v1." changelist.md') DO set mbpluginversion=%%T
@@ -159,11 +169,14 @@ curl -Lk https://github.com/artyl/mbplugin/archive/%mbpluginhead%.zip -o pack\cu
 copy pack\current.zip dist\mbplugin_bare.%mbpluginversion%.zip
 call git-restore-mtime
 
+ECHO STEP: prepare mbplugin zip
 cd /D "%~dp0\.."
 7z a -tzip mbplugin\dist\mbplugin.%mbpluginversion%.zip mbplugin -xr0!mbplugin\.git -xr0!mbplugin\dist -xr!*.log
 
+ECHO STEP: create signature
 cd /D "%~dp0\plugin"
 ..\python\python -c "import updateengine;updateengine.create_signature()"
 
+ECHO COMPLETE
 goto :EOF
 @REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
