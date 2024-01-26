@@ -577,3 +577,6 @@ FIX: mbp db-query снова работает
 ADD: mbp pip-update опция --check-only  
 FIX: refactoring, update requirements  
 FIX: dbengine phone_delta исправлены расчеты  
+
+## mbplugin v1.00.67 (27.01.24) alias
+FIX: tg alias сломались при переходе на telebot, починил  

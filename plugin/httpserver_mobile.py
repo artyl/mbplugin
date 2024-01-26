@@ -1026,7 +1026,7 @@ class TelegramBot(metaclass=SingletonMeta):
             return self.run_tg_command(message)
         return self.commands[cmd].func(message)
 
-    @auth_decorator
+    @auth_decorator()
     def handle_catch_all(self, message: telebot.types.Message):
         '''catch-all handler - отрабатываем алиасы и логируем все остальное что не попало в фильтры,
         аутентификацию можно не отрабатывать - она отработает когда пойдем в вызванную по алиасу команду'''
@@ -1035,7 +1035,7 @@ class TelegramBot(metaclass=SingletonMeta):
         logging.info(f'TG catch all:{effective_message.chat.id} {effective_message.text}')
         return self.run_tg_command(effective_message)
 
-    @auth_decorator
+    @auth_decorator()
     def handle_edited_message(self, message: telebot.types.Message):
         'redirect edit command to new command'
         ### breakpoint()  ###
