@@ -147,7 +147,7 @@ def calculate_dop(result, response_t, response_с, response_s, response_r):
         result['SMS'] = 0
         result['BlockStatus'] = ''
         for rest in rests:
-            if rest['status'] != 'active' or rest['type'] != 'service':
+            if rest['status'] != 'active':  # or rest['type'] != 'service':  # service - вечные, tarif - этого месяца
                 continue
             if rest['uom'] == 'min':
                 result['Min'] += rest['remain']

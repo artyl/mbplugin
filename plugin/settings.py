@@ -317,9 +317,11 @@ ini = {
         # schedule = every(4).hour,mts,beeline
         # если фильтры не указаны, то опрос проводится по всем телефонам, для которых указан password2 в phones.ini либо в phones_add.ini
         # после изменения расписания необходим перезапуск сервера или команда util.py reload-schedule
+        # функция валидации упрощена и обрабатывает только самые простые кейсы, в сложном расписании может выдавать ошибку хотя расписание будет правильным и будет работать
+        # В таких случаях надо ориентироваться на расписание на странице http://localhost:19777/schedule - если оно там есть значит оно правильное
         'schedule_': {
             'descr': 'Расписание опросов', 'type': 'list', 'size': 200,
-            'validate': lambda i: re.match(r'^every\(\d*\)\.(?:minutes?|hours?|days?|weeks?)(.at\(.+\))?,(?:check|check_send|check_new_version|ping)(_once)?(,.*)?', i)
+            'validate': lambda i: re.match(r'^every\(\d*\)(\.to\(\d+\))?\.(?:minutes?|hours?|days?|weeks?)(\.at\(.+\))?,(?:check|check_send|check_new_version|ping)(_once)?(,.*)?', i)
         },
         'schedule': '',
 
