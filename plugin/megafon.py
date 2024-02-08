@@ -13,7 +13,7 @@ login_url_old_lk = 'https://lk.megafon.ru/'
 login_checkers_old_lk = ['<input[^>]*name="CSRF"[^>]*', '<input[^>]*name="j_username"[^>]*', '<input[^>]*name="j_password"[^>]*', '<input[^>]*type="submit"[^>]*']
 user_selectors = {'chk_lk_page_js': "document.querySelector('.login-tile input.phone-input__field') == null",
                   'chk_login_page_js': "document.querySelector('.login-tile input.phone-input__field') !== null",
-                  'before_login_js': 'document.querySelectorAll("button").forEach(el=>el.innerText=="По паролю"?el.click():0)',
+                  'before_login_js': 'document.querySelectorAll("button").forEach(el=>el.innerText.toLowerCase().endsWith("по паролю")?el.click():0)',
                   'login_clear_js': "[document.querySelector('input.phone-input__field').setAttribute('value',''),document.querySelector('input.phone-input__field').value='']",
                   'login_selector': 'input.phone-input__field',
                   'password_clear_js': "[document.querySelector('input[type=password]').setAttribute('value',''),document.querySelector('input[type=password]').value='']",
