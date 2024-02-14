@@ -91,26 +91,7 @@ class PureBrowserDebug():
         return [p for p in children if p.name() == 'chrome.exe']
 
     def run_chromium(self):
-        try:
-            browsers_json = json.load(open(os.path.join(os.path.split(playwright.__file__)[0], 'driver', 'package', 'browsers.json')))
-            revision = [e for e in browsers_json['browsers'] if e['name'] == 'chromium'][0]['revision']
-            if sys.platform == 'win32':
-                pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', os.path.join(os.environ.get('LOCALAPPDATA'), 'ms-playwright'))
-                self.browser_path = os.path.join(pbp, f'chromium-{revision}', 'chrome-win', 'chrome.exe')
-            elif sys.platform == 'linux':
-                pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', os.path.join(pathlib.Path.home(), '.cache', 'ms-playwright'))
-                self.browser_path = os.path.join(pbp, f'chromium-{revision}', 'chrome-linux', 'chrome')
-            elif sys.platform == 'darwin':
-                pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', os.path.join(pathlib.Path.home(), 'Library', 'Caches', 'ms-playwright'))
-                self.browser_path = os.path.join(pbp, f'chromium-{revision}', 'chrome-mac', 'chrome')
-            else:
-                raise RuntimeError(f'Unknown platform {sys.platform} Chromium not found')
-            if not os.path.exists(self.browser_path):
-                raise RuntimeError(f'Chromium not found by path {self.browser_path}')
-        except Exception:
-            logging.error(store.exception_text())
-            raise RuntimeError('Chromium not found')
-        self.cmd = [self.browser_path, f'--user-data-dir={self.user_data_dir}', f'--remote-debugging-port={self.port}', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-save-password-bubble', '--no-default-browser-check', ' --disable-component-update', '--disable-extensions', '--disable-sync', '--no-first-run', '--no-service-autorun', f'--remote-allow-origins=http://localhost:{self.port}']
+        self.cmd = [str(browsercontroller.browser_path()), f'--user-data-dir={self.user_data_dir}', f'--remote-debugging-port={self.port}', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-save-password-bubble', '--no-default-browser-check', ' --disable-component-update', '--disable-extensions', '--disable-sync', '--no-first-run', '--no-service-autorun', f'--remote-allow-origins=http://localhost:{self.port}']
         self.cmd.extend(self.chrome_args)
         # ??? ' --headless --no-sandbox about:blank'
         logging.info(f'Browser start: {" ".join(self.cmd)}')

@@ -245,15 +245,7 @@ def check_import(ctx):
 def web_control(ctx):
     'Открываем страницу управления mbplugin (если запущен веб-сервер)'
     name = 'web-control'
-    if sys.platform == 'win32':
-        start_cmd = 'start'
-    elif sys.platform == 'linux':
-        start_cmd = 'xdg-open'
-    elif sys.platform == 'darwin':
-        start_cmd = 'open'
-    else:
-        echo(f'Unknown platform {sys.platform}')
-    os.system(f'{start_cmd} http://localhost:{store.options("port", section="HttpServer")}/main')
+    os.system(f'{store.start_cmd()} http://localhost:{store.options("port", section="HttpServer")}/main')
     echo(f'OK {name}')
 
 
@@ -612,7 +604,7 @@ def check_plugin(ctx, bpoint, params, plugin, login, password):
         plugin = plugin.split('_', 1)[1]  # plugin это все что после p_
         module = __import__(plugin, globals(), locals(), [], 0)
         importlib.reload(module)  # обновляем модуль, на случай если он менялся
-        storename = re.sub(r'\W', '_', f"{lang}_{plugin}_{login}")
+        storename = store.gen_storename(plugin, login)
         pdbpdb.set_break(module.__file__, bpoint)
         # module.get_balance(login,  password, storename)
         _ = login, password, storename  # dummy linter - use in pdbpdb.run
@@ -897,29 +889,44 @@ def console(ctx, args):
 
 
 @cli.command()
+@click.option('-p', '--pure', is_flag=True, help='Запустить чистый браузер без playwright')
+@click.option('-f', '--storename', type=str, help='Папка профиля (только в режиме pure)')
 @click.argument('url', type=str, default='')
 @click.pass_context
-def browser(ctx, url):
+def browser(ctx, pure, storename, url):
     'Запуск браузера playwright '
     name = 'browser '
     store.turn_logging()
-    from playwright.sync_api import sync_playwright
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        page = browser.new_page()
-        print(f"{store.options('playwright_stealth')=}")
-        if str(store.options('playwright_stealth')) == '1':
-            try:
-                from playwright_stealth import stealth_sync
-                stealth_sync(page)
-                print('Stealth mode')
-            except Exception:
-                logging.error('Bad turn stealth_sync(page)')
-        page.wait_for_timeout(1000)
-        if url.strip().lower().startswith('http'):
-            page.goto(url)
-        page.pause()
-        browser.close()
+    if pure:
+        if storename is None:
+            storename = 'tmp'
+        storefolder = store.options('storefolder')
+        profile_directory = storename
+        user_data_dir = store.abspath_join(storefolder, 'headless', profile_directory)
+        import browsercontroller
+        if url == '':
+            op_var = re.findall(r'^(\w_\w+)_', storename)
+            if len(op_var) > 0:
+                url = settings.operator_link.get(op_var[0], '')
+        os.system(f'{store.start_cmd()} "{browsercontroller.browser_path()}" --password-store=basic "--user-data-dir={user_data_dir}" {url}')
+    else: # playwright
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=False)
+            page = browser.new_page()
+            print(f"{store.options('playwright_stealth')=}")
+            if str(store.options('playwright_stealth')) == '1':
+                try:
+                    from playwright_stealth import stealth_sync
+                    stealth_sync(page)
+                    print('Stealth mode')
+                except Exception:
+                    logging.error('Bad turn stealth_sync(page)')
+            page.wait_for_timeout(1000)
+            if url.strip().lower().startswith('http'):
+                page.goto(url)
+            page.pause()
+            browser.close()
     echo(f'OK {name}')
 
 

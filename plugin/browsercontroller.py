@@ -1,5 +1,5 @@
 ''' Работа с браузером через синхронный вариант библиотеки playwright python '''
-import glob, json, logging, os, re, shutil, sys, time, tempfile
+import glob, json, logging, os, re, shutil, sys, time, tempfile, pathlib
 from playwright.sync_api import sync_playwright
 try:
     from playwright_stealth import stealth_sync
@@ -223,6 +223,33 @@ def safe_run_with_log_decorator(func):  # pylint: disable=no-self-argument
     wrapper.__doc__ = f'wrapper:{wrapper.__doc__}\n{func.__doc__}'
     return wrapper
 
+def browser_path(browser='chromium') -> pathlib.Path:
+    'Get full path for browser'
+    # TODO в данный момент реализовано только для chromium
+    if browser != 'chromium':
+        raise RuntimeError('Only for chromium')
+    try:
+        browsers_json = json.load(open(pathlib.Path(playwright.__file__).parent / 'driver' /'package' / 'browsers.json'))
+        revision = [e for e in browsers_json['browsers'] if e['name'] == 'chromium'][0]['revision']
+        if sys.platform == 'win32':
+            pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', pathlib.Path(os.environ.get('LOCALAPPDATA'), 'ms-playwright'))
+            path = pbp / f'chromium-{revision}' / 'chrome-win' / 'chrome.exe'
+        elif sys.platform == 'linux':
+            pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', pathlib.Path.home() / '.cache' / 'ms-playwright')
+            path = pbp / f'chromium-{revision}' /  'chrome-linux' / 'chrome'
+        elif sys.platform == 'darwin':
+            pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', pathlib.Path.home() / 'Library' / 'Caches' / 'ms-playwright')
+            path = pbp / f'chromium-{revision}' / 'chrome-mac' / 'chrome'
+        else:
+            raise RuntimeError(f'Unknown platform {sys.platform} Chromium not found')
+        if not path.exists():
+            raise RuntimeError(f'Chromium not found by path {path}')
+    except Exception as e:
+        logging.error(store.exception_text())
+        raise RuntimeError('Chromium not found') from e
+    return path
+
+
 class BalanceOverPlaywright():
     '''Общая часть класса управления браузером '''
 
@@ -261,9 +288,12 @@ class BalanceOverPlaywright():
         else:
             self.storefolder = tempfile.gettempdir()
         if storename is None:
-            lang = 'p'
-            storename = re.sub(r'\W', '_', f"{lang}_{self.plugin_name}_{login}")
+            storename = store.gen_storename(self.plugin_name, login)
         self.storename = storename
+        if '/' in login:
+            self.login, self.acc_num = self.login_ori.split('/')
+            # !!! в storename уже преобразован поэтому чтобы выкинуть из него ненужную часть нужно по ним тоже регуляркой пройтись
+            self.storename = self.storename.replace(re.sub(r'\W', '_', self.login_ori), re.sub(r'\W', '_', self.login))  # исправляем storename
         self.login_url = login_url
         self.user_selectors = user_selectors
         self.ss_counter = 0  # Счетчик скриншотов
@@ -282,10 +312,6 @@ class BalanceOverPlaywright():
             self.headless = False
         else:
             self.headless = str(self.options('headless_chrome')) == '1'
-        if '/' in login:
-            self.login, self.acc_num = self.login_ori.split('/')
-            # !!! в storename уже преобразован поэтому чтобы выкинуть из него ненужную часть нужно по ним тоже регуляркой пройтись
-            self.storename = self.storename.replace(re.sub(r'\W', '_', self.login_ori), re.sub(r'\W', '_', self.login))  # исправляем storename
         kill_chrome()  # Превентивно убиваем все наши хромы, чтобы не появлялось кучи зависших
         clear_cache(self.storefolder, self.storename)
         self.result = {}

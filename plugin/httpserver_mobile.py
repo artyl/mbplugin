@@ -1,7 +1,7 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
 # pylint: disable=multiple-imports, too-many-lines
-import typing, os, sys, io, random, re, time, json, threading, logging, importlib, queue, argparse, subprocess, glob, base64, collections, uuid
+import typing, os, sys, io, random, re, time, json, threading, logging, importlib, queue, argparse, subprocess, glob, base64, collections, uuid, pathlib
 import wsgiref.simple_server, socketserver, socket, urllib.parse, urllib.request
 import psutil, requests, bs4, PIL.Image, schedule
 import settings, dbengine, compile_all_jsmblh, updateengine, store  # pylint: disable=import-error
@@ -214,7 +214,7 @@ def getbalance_plugin(method, param_source):
         plugin = param['fplugin'].split('_', 1)[1]  # plugin это все что после p_
         module = __import__(plugin, globals(), locals(), [], 0)
         importlib.reload(module)  # обновляем модуль, на случай если он менялся
-        storename = re.sub(r'\W', '_', f"{lang}_{plugin}_{param['login']}")
+        storename = store.gen_storename(plugin, param['login'])
         dbengine.flags('setunic', f"{lang}_{plugin}_{param['login']}", 'start')  # выставляем флаг о начале запроса
         try:
             if store.option_validate('jitter')[0]:
@@ -1459,6 +1459,23 @@ class WebServer():
                     qs = urllib.parse.parse_qs(environ['QUERY_STRING'])
                     ct, text = view_log(qs)
                     text = [settings.header_html] + text
+            elif cmd.lower() == 'profile':  # открытие браузера с указанным профилем (only local)
+                if environ.get('REMOTE_ADDR', 'None') == '127.0.0.1':
+                    profile_path = store.abspath_join(store.options('storefolder'), 'headless')
+                    profiles = [fn for fn in pathlib.Path(profile_path).iterdir() if fn.is_dir()]
+                    if len(param) == 0:
+                        disclaimer = '<p>Данная функция является экспериментальной, используйте ее с осторожностью, работает только chromium, если в момент запуска проверки браузер открыт - проверка не отработает, не оставляйте браузер открытым<p>'
+                        text = [settings.header_html] + [disclaimer] + [f'''<button onclick="fetch('/profile/{pr.name}').then(function(response){{return response}})">{pr.name}</button><br>''' for pr in profiles]
+                    elif param[0] in [pr.name for pr in profiles]:
+                        import browsercontroller
+                        browsercontroller.browser_path()
+                        storename = param[0]
+                        user_data_dir = [pr for pr in profiles if pr.name == param[0]][0]
+                        op_var = re.findall(r'^(\w_\w+)_', storename)
+                        url = ''
+                        if len(op_var) > 0:
+                            url = settings.operator_link.get(op_var[0], '')
+                        os.system(f'{store.start_cmd()} "{browsercontroller.browser_path()}" --password-store=basic "--user-data-dir={user_data_dir}" {url}')
             elif cmd.lower() == 'screenshot':  # скриншоты
                 if len(param) == 0 or not re.match(r'^\w*\.png$', param[0]):
                     return

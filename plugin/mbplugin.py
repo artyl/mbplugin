@@ -48,7 +48,7 @@ def main():
     logging.info(f'Start {lang} {plugin} {login}')
     dbengine.flags('setunic', f'{lang}_{plugin}_{login}', 'start')  # выставляем флаг о начале запроса
     try:
-        storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
+        storename = store.gen_storename(plugin, login)
         pkey = store.get_pkey(login, plugin)  # Пара (номер, оператор)
         result = module.get_balance(login, password, storename, pkey=pkey)
         result = store.correct_and_check_result(result, pkey=pkey)

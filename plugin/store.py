@@ -16,6 +16,24 @@ def abspath_join(*argv):
         path = os.path.abspath(os.path.join(root, path))
     return path
 
+def start_cmd():
+    res = ''
+    if sys.platform == 'win32':
+        res = 'start "" '
+    elif sys.platform == 'linux':
+        res = 'xdg-open'
+    elif sys.platform == 'darwin':
+        res = 'open'
+    else:
+        raise RuntimeError(f'Unknown platform {sys.platform}')    
+    return res
+
+def gen_storename(plugin, login, lang='p'):
+    'Generate storename by plugin, login and lang'
+    if plugin.startswith(f'{lang}_'):
+        plugin = plugin.split('_', 1)[1]  # plugin это все что после p_
+    return re.sub(r'\W', '_', f"{lang}_{plugin}_{login}")
+
 def session_folder(storename):
     'Возвращает путь к папке хранения сессий'
     storefolder = abspath_join(options('storefolder'), storename)

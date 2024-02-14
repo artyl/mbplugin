@@ -335,8 +335,8 @@ ini = {
 operator_link = {
     'p_a1by': 'https://my.a1.by/work.html',
     'p_avtodor-tr': 'https://avtodor-tr.ru/account/login',
-    'p_beeline': 'https://my.beeline.ru',
-    'p_beeline_uz': 'https://beeline.uz/ru/signin',
+    'p_beeline': 'https://beeline.ru/login',
+    'p_beeline_uz': 'https://beeline.uz/ru',
     'p_beget': 'https://api.beget.com',
     'p_cardtel': 'https://my.cardtel.ru/home',
     'p_chailand': 'https://chailand.ru/balance',
@@ -382,6 +382,7 @@ main_html = r'''<html>
 <button onclick="fetch('/getbalance_standalone').then(function(response) {return response})">Get balance request</button><br>
 <br>
 <a href=/schedule>View schedule</a><br>
+<a href=/profile>View profile</a><br>
 <div id=call_editor><a href=/editcfg>Edit config</a><br></div>
 <a href=/log?lines=40>View log</a><br>
 <a href=/log/list>View screenshot log</a><br>

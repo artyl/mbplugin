@@ -582,5 +582,6 @@ FIX: dbengine phone_delta исправлены расчеты
 FIX: tg alias сломались при переходе на telebot, починил  
 FIX: tele2 остатки, теперь показывает вечные+текущие  
 
-## mbplugin v1.00.67 (08.02.24) megafon web login
+## mbplugin v1.00.68 (14.02.24) megafon web login, open browser with profile
 FIX: Восстановлен логин в ЛК мегафон web вариант  
+EXPERIMENTAL: Открытие профиля браузера, важно, если вы открыли браузер для какого-то профиля, то проверка по нему не отработает  
