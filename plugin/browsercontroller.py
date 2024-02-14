@@ -450,6 +450,7 @@ class BalanceOverPlaywright():
             self.ss_counter += 1
         if path == '':
             path = store.abspath_join(self.options('loggingfolder'), f'{self.storename}_{suffix}.png')
+        self.sleep(int(self.options('wait_screenshot')))
         self.page.screenshot(path=path)
 
     @check_browser_opened_decorator

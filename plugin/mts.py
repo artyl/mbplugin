@@ -25,12 +25,13 @@ def get_free_port() -> int:
 
 class PureBrowserDebug():
 
-    def __init__(self, user_data_dir, response_store_path=None, headless_chrome=False, show_chrome=True, chrome_args=None) -> None:
+    def __init__(self, user_data_dir, response_store_path=None, headless_chrome=False, show_chrome=True, chrome_args=None, wait_screenshot=0) -> None:
         self.user_data_dir = user_data_dir  # chrome profile path
         self.response_store_path = response_store_path  # path for file log, screenshot store fith same name but png extension
         self.headless = headless_chrome  # for mts headles is broken headless_chrome always False
         self.show_chrome = show_chrome
         self.chrome_args = chrome_args if type(chrome_args) == list else []  # additional cmd argements for chrome
+        self.wait_screenshot = wait_screenshot
         self.port = get_free_port()  # port for CDP
         self._data: List[dict] = []  # store all winsocket reply
         self.chrome_hwnd: List[int] = []  # store chrome visible windows handle (windows only)
@@ -248,6 +249,7 @@ class PureBrowserDebug():
                     os.remove(fn)
                 return
         try:
+            time.sleep(int(self.wait_screenshot))
             res = self.get('Page.captureScreenshot', {'format': 'png', 'quality': 80, 'fromSurface': True})
             if res is None:
                 logging.info('Screenshot is None')
@@ -358,7 +360,8 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     chrome_args = []
     if options('browser_proxy').strip() != '':
         chrome_args.append(f'--proxy-server={options("browser_proxy").strip()}')
-    pd = PureBrowserDebug(user_data_dir, response_store_path, headless_chrome=headless_chrome, show_chrome=show_chrome, chrome_args=chrome_args)
+    wait_screenshot = int(options('wait_screenshot'))
+    pd = PureBrowserDebug(user_data_dir, response_store_path, headless_chrome=headless_chrome, show_chrome=show_chrome, chrome_args=chrome_args, wait_screenshot=wait_screenshot)
     # 1 Is login ???
     store.feedback.text(f"Run browser", append=True)
     pd.send('Page.navigate', {'url': login_url})
@@ -371,7 +374,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
 
     if state == 'qrator':
         store.feedback.text(f"Qrator", append=True)
-        logging.error('Сработала защита, попробуйте запустить в режиме show_chrome=0')
+        logging.error('Сработала защита, попробуйте запустить в режиме show_chrome=1')
         return
 
     login_pause = int(options('login_pause'))

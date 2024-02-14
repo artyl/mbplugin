@@ -115,7 +115,7 @@ def calculate_dop(result, response_t, response_с, response_s, response_r):
     # Тарифный план у tele2 за услугу не считается, так что просто прибавляем его цену
     # tarif_fee = get_data(response_t).get('currentAbonentFee', {}).get('amount', 0)  # хз что там за цифра она неправильная
     tarif_cost = get_data(response_r).get('tariffCost', {})  # может быть null
-    tarif_fee = tarif_cost.get('amount', 0) if tarif_cost is dict else 0
+    tarif_fee = tarif_cost.get('amount', 0) if isinstance(tarif_cost, dict) else 0
     tarif_period = get_data(response_t).get('period')
     paid_tarif = tarif_fee * settings.UNIT.get(tarif_period, 1)
     services = []
