@@ -3,7 +3,7 @@
 для того чтобы не писать утилиты два раза для windows и linux все переносим сюда, а
 непосредственно в bat и sh скриптах оставляем вызов этого скрипта
 '''
-import os, sys, re, time, subprocess, shutil, glob, pathlib, logging, pprint, importlib, zipfile
+import os, sys, platform, re, time, subprocess, shutil, glob, pathlib, logging, pprint, importlib, zipfile
 import click
 
 # Т.к. мы меняем текущую папку, то sys.argv[0] будет смотреть не туда, пользоваться можно только
@@ -164,7 +164,7 @@ def clear_browser_cache(ctx, soft):
     try:
         if soft:
             path = pathlib.Path(ROOT_PATH, 'mbplugin', 'store', 'headless')
-            [(shutil.rmtree(fl) if fl.is_dir() else fl.unlink()) for fl in path.rglob('*') if 'Cache' in fl.name or fl.name.startswith('BrowserMetrics') or fl.name in ['History', 'Favicons', 'Visited Links']]
+            [(shutil.rmtree(fl) if fl.is_dir() else fl.unlink()) for fl in path.rglob('*') if 'Cache' in fl.name or fl.name.startswith('BrowserMetrics') or fl.name in ['History', 'Favicons', 'Visited Links', 'component_crx_cache', 'ClientSidePhishing', 'hyphen-data']]
         else:
             [os.remove(fn) for fn in glob.glob(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'p_*'))]
             shutil.rmtree(os.path.join(ROOT_PATH, 'mbplugin', 'store', 'puppeteer'), ignore_errors=True)

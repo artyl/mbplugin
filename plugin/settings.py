@@ -146,7 +146,7 @@ ini = {
         'node_tls_reject_unauthorized_': {'descr': 'Отключение проверки сертификатов при загрузке браузерных движков, не меняйте этот параметр без крайней необходимости', 'type': 'text'},
         'node_tls_reject_unauthorized': '',
         # PLAYWRIGHT_BROWSERS_PATH
-        'playwright_browsers_path_': {'descr': 'Путь по которому находится папка с движками браузеров, по умолчанию в LOCALAPPDATA\ms-playwright, не меняйте этот путь без крайней необходимости', 'type': 'text'},
+        'playwright_browsers_path_': {'descr': 'Путь по которому находится папка с движками браузеров, по умолчанию в LOCALAPPDATA\\ms-playwright, не меняйте этот путь без крайней необходимости', 'type': 'text'},
         'playwright_browsers_path': '',
         # Использовать браузер встроенный в движок playwright, если отключен, то движки не скачиваются
         'use_builtin_browser_': {'descr': 'Использовать браузер встроенный в движок playwright', 'type': 'checkbox'},
@@ -462,7 +462,7 @@ a.hdr { color: #FFFFFF}
 </td></tr>
 </table>
 ''',
-    'script': '''<script>
+    'script': r'''<script>
   // take from https://stackoverflow.com/questions/14267781/sorting-html-table-with-javascript
   function table_sort() {
     const styleSheet = document.createElement('style')
