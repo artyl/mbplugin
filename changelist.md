@@ -582,9 +582,12 @@ FIX: dbengine phone_delta исправлены расчеты
 FIX: tg alias сломались при переходе на telebot, починил  
 FIX: tele2 остатки, теперь показывает вечные+текущие  
 
-## mbplugin v1.00.68 (18.02.24) megafon web login, open browser with profile
+## mbplugin v1.00.68 (18.02.24) megafon web login, tele2 fee, chailand, open browser with profile
 FIX: Восстановлен логин в ЛК мегафон web вариант  
 EXPERIMENTAL: Открытие профиля браузера, важно, если вы открыли браузер для какого-то профиля, то проверка по нему не отработает, пока браузер открыт  
 FIX: Tele2 Исправлено получение абонентской платы  
 ADD: Опция wait_screenshot - задержка перед скриншотом в секундах, чтобы успела прогрузится страница и скриншот получился с данными  
 FIX: Исправлена проверка баланса chailand (av-park.ru)  
+
+## mbplugin v1.00.69 (19.02.24) megafon web login, tele2 fee, chailand, open browser with profile
+FIX: при использовании PLAYWRIGHT_BROWSERS_PATH возникала ошибка при открытии браузера в mts и при открытии профиля браузера  

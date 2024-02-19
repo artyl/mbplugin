@@ -233,13 +233,13 @@ def browser_path(browser='chromium') -> pathlib.Path:
         revision = [e for e in browsers_json['browsers'] if e['name'] == 'chromium'][0]['revision']
         if sys.platform == 'win32':
             pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', pathlib.Path(os.environ.get('LOCALAPPDATA'), 'ms-playwright'))
-            path = pbp / f'chromium-{revision}' / 'chrome-win' / 'chrome.exe'
+            path = pathlib.Path(pbp) / f'chromium-{revision}' / 'chrome-win' / 'chrome.exe'
         elif sys.platform == 'linux':
             pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', pathlib.Path.home() / '.cache' / 'ms-playwright')
-            path = pbp / f'chromium-{revision}' /  'chrome-linux' / 'chrome'
+            path = pathlib.Path(pbp) / f'chromium-{revision}' /  'chrome-linux' / 'chrome'
         elif sys.platform == 'darwin':
             pbp = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', pathlib.Path.home() / 'Library' / 'Caches' / 'ms-playwright')
-            path = pbp / f'chromium-{revision}' / 'chrome-mac' / 'chrome'
+            path = pathlib.Path(pbp) / f'chromium-{revision}' / 'chrome-mac' / 'chrome'
         else:
             raise RuntimeError(f'Unknown platform {sys.platform} Chromium not found')
         if not path.exists():
