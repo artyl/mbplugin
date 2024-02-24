@@ -22,7 +22,7 @@ class Test:
         # tear down self.attribute
         self.db.conn.close()
         # os.path.join('mbplugin', 'tests', 'data') in self.db.dbname:
-        if re.match(f'^.*mbplugin.?\w*.tests.data$', os.path.split(self.db.dbname)[0]) and os.path.exists(self.db.dbname):
+        if re.match(rf'^.*mbplugin.?\w*.tests.data$', os.path.split(self.db.dbname)[0]) and os.path.exists(self.db.dbname):
             os.remove(self.db.dbname)
             if os.path.exists(self.dbname_copy):
                 os.remove(self.dbname_copy)

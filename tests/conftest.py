@@ -43,7 +43,7 @@ def prepare_ini(request):
     def fin():
         print('\nprepare_ini.fin')
         ini_path = os.path.join(data_path, 'mbplugin.ini')
-        if re.match('^.*mbplugin.?\w*.tests.data.mbplugin.ini$', ini_path) and os.path.exists(ini_path):
+        if re.match(r'^.*mbplugin.?\w*.tests.data.mbplugin.ini$', ini_path) and os.path.exists(ini_path):
             os.remove(ini_path)
     shutil.copyfile(os.path.join(settings.mbplugin_ini_path, 'mbplugin.ini.ori'), os.path.join(settings.mbplugin_ini_path, 'mbplugin.ini'))
     request.addfinalizer(fin)
@@ -52,7 +52,7 @@ def prepare_ini(request):
 def final_remove_ini(request):
     def fin():
         ini_path = os.path.join(data_path, 'mbplugin.ini')
-        if re.match('^.*mbplugin.?\w*.tests.data.mbplugin.ini$', ini_path) and os.path.exists(ini_path):
+        if re.match(r'^.*mbplugin.?\w*.tests.data.mbplugin.ini$', ini_path) and os.path.exists(ini_path):
             os.remove(ini_path)
     request.addfinalizer(fin)
 
