@@ -19,7 +19,7 @@ class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
         self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': ['api.sm-center.ru/vremya/Accounting/Info'], 'jsformula': "data.Data[0].TotalSum"},
+            {'name': 'Balance', 'url_tag': ['api.sm-center.ru/vremya/Accounting/Info'], 'jsformula': "data.Data[0].Sum"},
             {'name': 'Balance2', 'url_tag': ['api.sm-center.ru/vremya/Accounting/Info'], 'jsformula': "data.Data[0].Comission"},
             {'name': 'LicSchet', 'url_tag': ['api.sm-center.ru/vremya/Accounting/Info'], 'jsformula': "data.Data[0].Ident"},
             {'name': 'UserName', 'url_tag': ['api.sm-center.ru/vremya/auth/login'], 'jsformula': "data.fio"},
