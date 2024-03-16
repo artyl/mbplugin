@@ -185,7 +185,8 @@ class PureBrowserDebug():
         return res
 
     def get_response_body(self, url, partitial=True, ctype=''):
-        'wrapper for Network.getResponseBody + ws.recv, add $ if need strongly end of url'
+        '''wrapper for Network.getResponseBody + ws.recv, add $ if need strongly end of url
+        partial=False - search in everyone response'''
         self.collect()  # Прежде чем искать по response нужно собрать последние
         if partitial:
             request_id_list = [
@@ -275,9 +276,11 @@ class PureBrowserDebug():
     def wait_selector(self, selector, timeout=30):
         'Waits for the selector to appear on the page'
         for i in range(timeout):
-            self.check_selector(selector)
+            if self.check_selector(selector):
+                return True
         else:
             logging.info(f'The waiting time has expired for {selector}')
+        return False
 
     def page_fill(self, selector, text, delay=0.1):
         'enter text'
@@ -402,6 +405,22 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
 
     state = wait_state()
     if state == 'lk':
+        logged_as1 = pd.get_response_body_json('api/login/user-info').get('userProfile', {}).get('login', 'UNKNOWN')
+        logging.info(f'Logged as {logged_as1}')
+        if login_ori != login and acc_num.isdigit():
+            logging.info(f'Switch to {acc_num}')
+            pd.wait_selector('.mts-multi-account__carousel')
+            pd.page_eval(rf"Array.from(document.querySelectorAll('a.account-badge')).filter(el => el.querySelector('span.account-badge__phone').innerText.replace(/\D/g,'').endsWith('{acc_num}'))[0].click()")
+            for _ in range(10):
+                logged_as2 = pd.get_response_body_json('api/login/user-info').get('userProfile', {}).get('login', '')
+                logging.info(f'Logged as {logged_as2}')
+                if logged_as2.endswith(acc_num):
+                    break
+                time.sleep(1)
+            else:
+                logging.error(f"We didn't switch to the number {acc_num}")
+                pd.capture_screenshot()
+                return
         store.feedback.text(f"User info", append=True)
         user_info = pd.get_response_body_json('api/login/user-info')
         user_profile = user_info.get('userProfile', {})
