@@ -3,8 +3,8 @@
 import browsercontroller, store
 
 login_url = 'https://lk.uminet.ru/'
-user_selectors = {'chk_lk_page_js': "document.querySelector('form input[id=bootstrap-password]') == null",
-                  'chk_login_page_js': "document.querySelector('form input[id=bootstrap-password]') !== null",
+user_selectors = {'chk_lk_page_js': "document.querySelector('form input[id=LoginForm_password]') == null",
+                  'chk_login_page_js': "document.querySelector('form input[id=LoginForm_password]') !== null",
                   'login_clear_js': "document.querySelector('form input[type=text]').value=''",
                   'login_selector': 'form input[type=text]',
                   'submit_js': "document.querySelector('form [type=submit]').click()"}
