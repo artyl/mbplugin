@@ -34,22 +34,23 @@ class browserengine(browsercontroller.BrowserController):
 
 class browserengine_qiwi(browsercontroller.BrowserController):
     def data_collector(self):
-        self.page_goto('https://qiwi.com/payment/form/32558')
+        self.page_goto('https://platiuslugi.ru/oplata/rostelecom/')
         self.sleep(3)
         self.page_screenshot()
-        self.page_evaluate("document.querySelectorAll('form input[type=tel]')[0].click()")
+        self.page_evaluate("document.querySelector('input.form-control').click()")
         acc_num = self.acc_num if self.acc_num.isdigit() else self.login
-        self.page_fill('form input[type=tel]', acc_num)
+        self.page_fill('input.form-control', acc_num)
+        self.page_click('button.submit')
         for num in range(10):
             self.sleep(1)
-            if '/containers$' in str(self.responses.keys()):
+            if self.page_evaluate('''document.querySelector('input.form-control[name*="BALANCE"]')''') is not None:
                 break
         else:
             self.page_screenshot()
             return
         self.page_screenshot()
         # pp list(self.responses.values())[-1]['elements'][0]['value']
-        self.result['Balance'] = [v for k, v in self.responses.items() if '/containers$' in k][0]['elements'][0]['value']
+        self.result['Balance'] = self.page_evaluate('''document.querySelector('input.form-control[name*="BALANCE"]').value''').replace(',', '.')
 
 
 def get_balance(login, password, storename=None, **kwargs):
@@ -57,7 +58,7 @@ def get_balance(login, password, storename=None, **kwargs):
     store.update_settings(kwargs)
     store.turn_logging()
     pkey = store.get_pkey(login, plugin_name=__name__)
-    if store.options('plugin_mode', pkey=pkey).upper() == 'QIWI':
+    if store.options('plugin_mode', pkey=pkey).upper() in ('QIWI', 'PLATIUSLUGI'):
         return browserengine_qiwi(login, password, storename, plugin_name=__name__).main()
     else:
         return browserengine(login, password, storename, plugin_name=__name__, headless=browsercontroller.NOT_IN_CHROME).main()  # ростелеком в headless не работает
