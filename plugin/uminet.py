@@ -16,16 +16,13 @@ class browserengine(browsercontroller.BrowserController):
         # Здесь мы берет данные непосредственно с отрендеренной страницы, поэтому url_tag не указан
         self.wait_params(params=[{
             'name': 'Balance',
-            'jsformula': r"""regexp=/Баланс.*?badge.*?>(.*?)<.span/i;
-                             html=document.documentElement.outerHTML.replace(/\r|\n/g, "").replace(/>\s+/g, ">");
-                             res=regexp.exec(html);
-                             parseFloat(res[1].replace(',','.').replace(/\D\./g, '').replace(/[^\d,.-]/g, ''))""",
+            'jsformula': r"""document.querySelector('.balance-home').innerText.replace(',','.').replace(/\D\./g, '').replace(/[^\d,.-]/g, '')""",
         }, {
             'name': 'BlockStatus', 'wait':False,
-            'jsformula': r"""regexp=/Состояние блокировки.*?badge.*?>(.*?)<.span/i;
-                             html=document.documentElement.outerHTML.replace(/\r|\n/g, "").replace(/>\s+/g, ">");
-                             res=regexp.exec(html);
-                             res[1].trim()""",
+            'jsformula': r"""document.querySelector('[data-label="Статус"]').innerText""",
+        }, {
+            'name': 'TarifPlan', 'wait':False,
+            'jsformula': r"""a=document.querySelector('[data-label="Тариф"]');b=document.querySelector('[data-label="Абонентская плата"]'); ((a!==null?a.innerText:"")+" "+(b!==null?b.innerText:"")).replace(/\s/g,' ')""",
         }])
 
 
