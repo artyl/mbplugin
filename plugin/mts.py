@@ -441,11 +441,10 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             time.sleep(1)
         pd.capture_screenshot()
         mccsp_balance = pd.get_response_body_json('for=api/accountInfo/mscpBalance')
-        # amount брать нельзя т.к. он здесь криво округленный под показ на странице
-        # но если баланс нулевой а amount не нулевой то нам вернули кривой баланс и мы его выкидываем
-        if 'amount' in mccsp_balance and 'Balance' in result:
-            if mccsp_balance['amount'] > 0 and result['Balance'] == 0:
-                del result['Balance']
+        # МТС перестал возвращать баланс в поле Balance и он теперь есть только в amount
+        if mccsp_balance.get('amount', 0) > 0 and result.get('Balance', 0) == 0:
+            logging.info(f'''Take amount={mccsp_balance['amount']} from mscpBalance instead balance=0''')
+            result['Balance'] = mccsp_balance['amount']
         cashback_page = pd.get_response_body_json('for=api/cashback/account')
         # pd.jsformula('for=api/cashback/account', "parseFloat(data.data.balance).toFixed(2)")
         cashback_data = cashback_page.get('data', {})
