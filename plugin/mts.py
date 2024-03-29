@@ -347,6 +347,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     if '/' in login:
         login, acc_num = login_ori.split('/')
     mts_usedbyme = options('mts_usedbyme')
+    unitDiv = settings.UNIT.get(options('interUnit'), 1)    
     store.turn_logging()
     session = store.Session(storename)
     logging.info(f"Start {kwargs=}")
@@ -441,10 +442,18 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             time.sleep(1)
         pd.capture_screenshot()
         mccsp_balance = pd.get_response_body_json('for=api/accountInfo/mscpBalance')
-        # МТС перестал возвращать баланс в поле Balance и он теперь есть только в amount
-        if mccsp_balance.get('amount', 0) > 0 and result.get('Balance', 0) == 0:
-            logging.info(f'''Take amount={mccsp_balance['amount']} from mscpBalance instead balance=0''')
-            result['Balance'] = mccsp_balance['amount']
+        # amount брать нельзя т.к. он здесь криво округленный под показ на странице
+        # но если баланс нулевой а amount не нулевой то нам вернули кривой баланс и мы его выкидываем
+        # amount берем только если заходим через другой номер, там у части пользователей баланс стабильно нулевой
+        if 'amount' in mccsp_balance and 'Balance' in result:
+            if mccsp_balance['amount'] > 0 and result['Balance'] == 0:
+                del result['Balance']
+        if options('mts_balance_from').lower() == 'balance':
+            logging.info('force get balance from api/login/user-info..balance')
+            result['Balance'] = round(user_profile['balance'], 2)
+        if options('mts_balance_from').lower() == 'amount':
+            logging.info('force get balance from for=api/accountInfo/mscpBalance..amount')
+            result['Balance'] = round(mccsp_balance['amount'], 2)
         cashback_page = pd.get_response_body_json('for=api/cashback/account')
         # pd.jsformula('for=api/cashback/account', "parseFloat(data.data.balance).toFixed(2)")
         cashback_data = cashback_page.get('data', {})
@@ -490,7 +499,6 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             internet.sort(key=lambda el: (el.get('packageGroup') == 'Main', el.get('priority', 0)), reverse=True)
             if internet != []:
                 unitMult = settings.UNIT.get(internet[0]['unitType'], 1)
-                unitDiv = settings.UNIT.get(options('interUnit'), 1)
                 nonused = [i['amount'] for i in internet[0]['parts'] if i['partType'] == 'NonUsed']
                 usedbyme = [i['amount'] for i in internet[0]['parts'] if i['partType'] == 'UsedByMe']
                 if (mts_usedbyme == '0' or login not in mts_usedbyme.split(',')) and nonused != []:
@@ -548,7 +556,8 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                         if el.get('packageType', '') == 'Messaging':
                             result['SMS'] = el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)
                         if el.get('packageType', '') == 'Internet':
-                            result['Internet'] = round((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) / 1024 / 1024, 3)
+                            unitMult = settings.UNIT.get(el.get('unitType', ''), 1)
+                            result['Internet'] = round((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) * unitMult / unitDiv, 3)
                 if res3_alt.get('subscriberType', '') == 'Acceptor':
                     logging.info(f'mts_usedbyme: Acceptor')
                     for el in counters:  # data.counters. ...
@@ -557,7 +566,8 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                         if el.get('packageType', '') == 'Messaging':
                             result['SMS'] = el.get('usedAmount', 0)
                         if el.get('packageType', '') == 'Internet':
-                            result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)
+                            unitMult = settings.UNIT.get(el.get('unitType', ''), 1)
+                            result['Internet'] = round(el.get('usedAmount', 0) * unitMult / unitDiv, 3)
                 # Спецверсия для общего пакета, работает только для Donor
                 if acc_num.lower().startswith('common'):
                     # Обработка по новому варианту страницы api/sharing/counters
@@ -573,10 +583,11 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                                 else:                       # потрачено
                                     result['SMS'] = el.get('usedAmount', 0)
                             if el.get('packageType', '') == 'Internet':
+                                unitMult = settings.UNIT.get(el.get('unitType', ''), 1)
                                 if 'rest' in acc_num:  # common_rest - общие остатки
-                                    result['Internet'] = round((el.get('totalAmount', 0) - el.get('usedAmount', 0)) / 1024 / 1024, 3)
+                                    result['Internet'] = round((el.get('totalAmount', 0) - el.get('usedAmount', 0)) * unitMult / unitDiv, 3)
                                 else:                       # потрачено
-                                    result['Internet'] = round(el.get('usedAmount', 0) / 1024 / 1024, 3)
+                                    result['Internet'] = round(el.get('usedAmount', 0) * unitMult / unitDiv, 3)
                     else:  # Со страницы общего пакета не отдали данные, чистим все, иначе будут кривые графики. ТОЛЬКО для common
                         raise RuntimeError(f'Страница общего пакета не возвращает данных')
             except Exception:

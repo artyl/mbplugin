@@ -198,6 +198,9 @@ ini = {
             'type': 'text',
             'validate': lambda i: (i in ('0', '1') or re.match(r'^(\d\d\d+,)*\d\d\d+$', i))},
         'mts_usedbyme': '0',
+        # откуда брать баланс на МТС дефолтное поведение брать из balance не возвращая ничего если amount не нулевой считая это ошибкой, balance - всегда balance, amount - всегда amount
+        'mts_balance_from_': {'descr':'Откуда брать баланс на МТС', 'type': 'select', 'variants': 'smart balance amount'},
+        'mts_balance_from': 'smart',
         # спецвариант по просьбе dimon_s2020 при 0 берет данные по счетчику максимальные из всех
         # 1 - Переданные клиентом (ЛКК)
         # 2 - Снятые сотрудниками Мосэнергосбыт (АИИС КУЭ)
