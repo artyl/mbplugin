@@ -105,7 +105,7 @@ fi
 # if exist env/bin/activate - apply
 if [ ! -f dockervarfile ] ; then
     [ -f env/bin/activate ] &&  . env/bin/activate
-     pythonver=$(python3 -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
+     pythonver=$(python3 -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\+\).*/\1\2/')
     if [ ! -f dockervarfile ] && [ "$pythonver" -lt "38" ] ; then
         echo "This script requires python 3.8 or greater, you have $pythonver"
         exit 1
