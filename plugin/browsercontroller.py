@@ -186,6 +186,8 @@ def delete_profile(storefolder, storename):
 def check_browser_opened_decorator(func):  # pylint: disable=no-self-argument
     def wrapper(self, *args, **kwargs):
         'decorator Проверка на закрытый браузер, если браузера нет пишем в лог и падаем'
+        if self.page.is_closed():
+            self.browser_open = False
         if self.browser_open:
             res = func(self, *args, **kwargs)  # pylint: disable=not-callable
             return res
@@ -438,10 +440,12 @@ class BalanceOverPlaywright():
             logging.info(f'page.reload {reason}')
         return self.page.reload()
 
+    @check_browser_opened_decorator
     def page_content(self):
         ''' переносим вызов content в класс для того чтобы каждый раз не указывать page'''
         return self.page.content()
 
+    @check_browser_opened_decorator
     def page_screenshot(self, path='', number=-1, suffix=''):
         if str(self.options('log_responses')) != '1' and self.options('logginglevel') != 'DEBUG' or settings.mode != settings.MODE_MB:
             return
@@ -452,6 +456,7 @@ class BalanceOverPlaywright():
             path = store.abspath_join(self.options('loggingfolder'), f'{self.storename}_{suffix}.png')
         self.sleep(int(self.options('wait_screenshot')))
         self.page.screenshot(path=path)
+        return path
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
