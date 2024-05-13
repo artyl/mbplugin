@@ -1,71 +1,43 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-''' пример плагина почти на чистом puppeteer без упрощенной логики '''
+''' пример плагина почти на чистом playwright без упрощенной логики '''
 import time, re, json, logging, os
-import pyppeteer  # PYthon puPPETEER
-import pyppeteeradd
+import browsercontroller, store
 
-def main(login, password, storename=None):
-    result = {} 
-    pyppeteeradd.clear_cache(storename)
-
-    pa = pyppeteeradd.balance_over_puppeteer(login, password, storename)
-    pa.browser_launch()
-    # Нажмите кнопку "Демо-доступ" или введите логин demo@saures.ru и пароль demo вручную. 
-    pa.page_goto('https://lk.saures.ru/dashboard')
-
-    if pa.page_evaluate("document.getElementById('main-wrapper')!=null"):
-        logging.info(f'Already login')
-    else:
-        for cnt in range(20):  # Почему-то иногда с первого раза логон не проскакивает
-            if pa.page_evaluate("document.querySelector('form input[type=password]') !== null"):
-                logging.info(f'Login')
-                pa.page_type("#email", login, {'delay': 10})
-                pa.page_type("#password", password, {'delay': 10})
-                pa.sleep(1)
-                # await page.click("form button[type=submit]") # почему-то так не заработало
-                pa.page_evaluate("document.querySelector('form button[type=submit]').click()")
-            elif pa.page_evaluate("document.getElementById('main-wrapper')!=null"):
-                logging.info(f'Logoned')
-                break 
-            pa.sleep(1)
-            if cnt==10:
-                pa.page_reload('unclear: logged in or not')
+class browserengine(browsercontroller.BrowserController):
+    def data_collector(self):
+        # Нажмите кнопку "Демо-доступ" или введите логин demo@saures.ru и пароль demo вручную.
+        self.page_goto('https://lk.saures.ru/dashboard')
+        self.page_wait_for(expression="document.getElementById('main-wrapper')!=null || document.querySelector('form button[type=submit]')!=null")
+        if self.page_evaluate("document.getElementById('main-wrapper')!=null"):
+            logging.info(f'Already login')
+        elif self.page_evaluate("document.querySelector('form button[type=submit]')!=null"):
+            logging.info(f'Login')
+            self.page_type("form input[type=text]", self.login)
+            self.page_type("form input[type=password]", self.password)
+            self.sleep(1)
+            self.page_evaluate("document.querySelector('form button[type=submit]').click()")
         else:
             logging.error(f'Unknown state')
             raise RuntimeError(f'Unknown state')
+        # Ждем появления информации
+        selector = '.page-content .text-dark'
+        self.page_wait_for(selector=selector)
+        if self.page_evaluate("document.querySelector('.page-content .text-dark')!=null"):
+            baltext = self.page_evaluate("document.querySelector('.page-content .text-dark').innerText")
+            baltext = re.sub(r'[^\d|,|.-]','',baltext).replace(',', '.')
+            self.result['Balance'] = float(baltext)
+        else:
+            logging.error(f'Not found BALANCE')
+            raise RuntimeError(f'Not found BALANCE')
+        logging.debug(f'Data ready {self.result.keys()}')
+        # Обратите внимание, что возвращать результат нужно сохранив его в self.result
 
-    # Ждем появления информации
-    for cnt in range(20):
-        pa.sleep(1)
-        if pa.page_evaluate("document.querySelector('.sensor-5 .d-inline')!=null"):
-            break
-    else:
-        logging.error(f'Not found BALANCE')
-        raise RuntimeError(f'Not found BALANCE')
-    
-    baltext = pa.page_evaluate("document.querySelector('.sensor-5 .d-inline').innerText")
-    baltext = re.sub(r'[^\d|,|.-]','',baltext).replace(',', '.')
-    result['Balance'] = float(baltext)
-
-    block_status = pa.page_evaluate("document.querySelector('.sensor-9 .d-inline').innerText")
-    if block_status is not None:
-        result['BlockStatus'] = block_status
-    else:
-        logging.info(f'Not found BlockStatus')
-
-    logging.debug(f'Data ready {result.keys()}')
-    pa.browser_close()
-    pyppeteeradd.clear_cache(storename)
-    return result
-
-
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    result = {}
-    result = main(login, password, storename)
-    return result    
-
+    store.update_settings(kwargs)
+    store.turn_logging()
+    return browserengine(login, password, storename, plugin_name=__name__).main()
 
 if __name__ == '__main__':
-    print('This is module test3 for test chrome on puppeteer')
+    print('This is module test3 for test chrome on playwright')

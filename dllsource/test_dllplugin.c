@@ -14,7 +14,7 @@ char* RequestInfo()
 	char request[]=""; // Request
 	char result[4096]; //Buffer ="Str3333"; 0000000000
 	long resultsize=0x0800; //Buffer size
-	char buf1[0x10];  // Надо разобраться, сюда что-то прилетает
+	char buf1[0x10];  // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ-пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 	
 	MessageBox (0, cmd, "Header IssaPlugin3", MB_ICONINFORMATION);
 	IssaPlugin(cmd, request, result, resultsize);
@@ -27,7 +27,7 @@ char* RequestBalance()
 	char request[]="<?xml version=\"1.0\" encoding=\"windows-1251\" ?>\n<Request>\n<ParentWindow>007F09DA</ParentWindow>\n<Login>p_test_1234567</Login>\n<Password>pass1234</Password>\n</Request>"; // Request
 	char result[4096]; //Buffer 
 	long resultsize=4096; //Buffer size
-	char buf1[0x10];  // Надо разобраться, сюда что-то прилетает
+	char buf1[0x10];  // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ-пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
 	MessageBox (0, cmd, "Header IssaPlugin3", MB_ICONINFORMATION);
 	IssaPlugin(cmd, request, result, resultsize);
@@ -40,8 +40,8 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
 {
 	char* result;
 	result=RequestInfo();
-	MessageBox (0, result, "Responce Info IssaPlugin3", MB_ICONINFORMATION);
+	MessageBox (0, result, "Response Info IssaPlugin3", MB_ICONINFORMATION);
 	result=RequestBalance();
-	MessageBox (0, result, "Responce Balance IssaPlugin3", MB_ICONINFORMATION);
+	MessageBox (0, result, "Response Balance IssaPlugin3", MB_ICONINFORMATION);
     return 0;
 }

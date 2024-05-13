@@ -1,40 +1,52 @@
 @echo OFF
-%~d0 
-cd "%~dp0"
+cd /D "%~dp0\.."
+set MBPLUGIN_WRITE_DIAG=YES
+if EXIST mbplugin\log\setup_diag.txt del mbplugin\log\setup_diag.txt 
 
+REM добавляем в sys.path поиск в папке откуда запущен скрипт по умолчанию, в embedded он почему-то выключен
+mbplugin\python\python mbplugin\plugin\util.py fix-embedded-python-path
 
-@REM добавляем в sys.path поиск в папке откуда запущен скрипт по умолчанию, в embedded он почему-то выключен
-cd python 
-..\python\python -c "txt='''import os,sys\nsys.path.insert(0,os.path.split(sys.argv[0])[0])''';open('sitecustomize.py','w').write(txt)"
+REM Выставляем переменные по значениям в mbplugin.ini
+if "%1"=="noweb" mbplugin\python\python mbplugin\plugin\util.py set ini/HttpServer/start_http=0
 
-cd "%~dp0"
-echo Пересобираем DLL 
-call dllsource\compile_all_p.bat
+REM Проверяем что все модули имеют правильную версию, если нет - запускаем update
+mbplugin\python\python mbplugin\plugin\util.py pip-update --check-only
+if NOT "%ERRORLEVEL%"=="0" mbplugin\python\python mbplugin\plugin\util.py pip-update
 
-cd "%~dp0"
-echo Пересобираем JSMB LH plugin
-python\python.exe plugin\compile_all_jsmblh.py
+REM Проверяем что все модули импортируются
+mbplugin\python\python mbplugin\plugin\util.py check-import
 
-cd "%~dp0"
-if NOT "%1"=="noweb" echo Создаем lnk на run_webserver.bat и помещаем его в автозапуск и запускаем
-if NOT "%1"=="noweb" python\python -c "import os, sys, win32com.client;shell = win32com.client.Dispatch('WScript.Shell');shortcut = shell.CreateShortCut('run_webserver.lnk');shortcut.Targetpath = os.path.abspath('run_webserver.bat');shortcut.save()"
-if NOT "%1"=="noweb" copy run_webserver.lnk "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
-if NOT "%1"=="noweb" start "" /MIN "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\run_webserver.lnk"
-if NOT "%1"=="noweb" echo подождем пока запустится
-if NOT "%1"=="noweb" ping 127.0.0.1 -n 11 >nul
+REM если используем встроенный браузер запускаем playwright install chromium
+mbplugin\python\python mbplugin\plugin\util.py install-chromium
 
-cd "%~dp0"
-echo Проверяем что все модули импортируются
-python\python -c "import requests, telegram, win32api, win32gui, win32con, winerror, PIL, bs4, pyodbc, pyreadline, pyppeteer, psutil"
+REM очищаем кэши браузера (только в full)
+mbplugin\python\python mbplugin\plugin\util.py clear-browser-cache
 
-cd "%~dp0"
-if NOT "%1"=="noweb" echo Проверяем что все работает JSMB LH PLUGIN простой плагин
-if NOT "%1"=="noweb" python\python -c "import re,requests;url=re.findall(r'(?usi)(http://127.0.0.1:.*?/)',open('jsmblhplugin\\p_test1_localweb.jsmb').read())[0];print(requests.session().get(url+'getbalance/p_test1/123/456/789').content.decode('cp1251'))"
+REM Пересобираем DLL и JSMB LH plugin
+mbplugin\python\python mbplugin\plugin\util.py recompile-plugin
 
-cd "%~dp0"
-if NOT "%1"=="noweb" echo Проверяем что все работает JSMB LH PLUGIN через Chrome
-if NOT "%1"=="noweb" python\python -c "import re,requests;url=re.findall(r'(?usi)(http://127.0.0.1:.*?/)',open('jsmblhplugin\\p_test3_localweb.jsmb').read())[0];print(requests.session().get(url+'getbalance/p_test3/demo@saures.ru/demo/789').content.decode('cp1251'))"
+REM Пересоздаем balance.html
+mbplugin\python\python mbplugin\plugin\util.py refresh-balance-html
 
-cd "%~dp0"
-echo Проверяем что все работает DLL PLUGIN
-call plugin\test_mbplugin_dll_call.bat p_test1 123 456 
+REM Проверяем корректность ini файлов
+mbplugin\python\python mbplugin\plugin\util.py check-ini
+
+REM Автозапуск браузера
+mbplugin\python\python mbplugin\plugin\util.py web-server-autostart
+
+REM Проверяем playwright
+mbplugin\python\python mbplugin\plugin\util.py check-playwright
+
+REM Проверяем что все работает JSMB LH PLUGIN простой плагин
+mbplugin\python\python mbplugin\plugin\util.py check-jsmblh simple
+
+REM Проверяем что все работает JSMB LH PLUGIN через Chrome
+mbplugin\python\python mbplugin\plugin\util.py check-jsmblh chrome
+
+REM Проверяем что все работает DLL PLUGIN
+mbplugin\python\python mbplugin\plugin\util.py check-dll
+
+REM Показываем версию
+mbplugin\python\python mbplugin\plugin\util.py version -v
+
+timeout 60

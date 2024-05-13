@@ -1,0 +1,51 @@
+# syntax=docker/dockerfile:1
+
+FROM python:3.9.2-buster
+
+# Install Chromium and node.js for arm
+RUN apt-get update && \
+    apt-get install -y \
+    chromium=89.0.4389.114-1~deb10u1 \
+    nodejs=10.24.0~dfsg-1~deb10u3
+
+WORKDIR /app
+
+# docker build --tag mbplugin:1.00.03 mbplugin/docker --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg UNAME=$(whoami) 
+ARG UNAME=testuser
+ARG UID=1000
+ARG GID=1000
+ENV UNAME=$UNAME
+ENV UID=$UID
+ENV GID=$GID
+#RUN usermod -u $UID node && groupmod -g $GID node
+#RUN groupadd --gid 2000 node && useradd --uid 2000 --gid node --shell /bin/bash --create-home node
+RUN groupadd -f --gid $GID $UNAME && useradd --uid $UID --gid $UNAME --shell /bin/bash --create-home $UNAME
+
+RUN pip install --upgrade pip
+
+# Download playwright for linux x86_64, rename it so that it can be installed on arm and install
+RUN wget https://files.pythonhosted.org/packages/78/e7/3e0cb3362c7d90b10457cc9a40fca4bfd9b5dcbe526be3f478d660436916/playwright-1.14.1-py3-none-manylinux1_x86_64.whl && \
+    mv playwright-1.14.1-py3-none-manylinux1_x86_64.whl playwright-1.14.1-py3-none-any.whl && \
+    pip install playwright-1.14.1-py3-none-any.whl
+
+# replace the node binary provided by playwright with a symlink to the version we just installed.
+RUN rm /usr/local/lib/python3.9/site-packages/playwright/driver/node && \
+    ln -s /usr/bin/node /usr/local/lib/python3.9/site-packages/playwright/driver/node
+
+# create the hierarchy expected by playwright to find chrome
+RUN mkdir -p /app/pw-browser/chromium-907428/chrome-linux
+# Add a symlink to the chromium binary we just installed.
+RUN ln -s /usr/bin/chromium /app/pw-browser/chromium-907428/chrome-linux/chrome
+# ask playwright to search chrome in this folder
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/pw-browser
+
+WORKDIR /mbstandalone
+
+COPY requirements_arm.txt requirements.txt
+RUN pip install -r requirements.txt
+
+EXPOSE 19777
+
+# Use for calling from mbp with just command to execute
+#ENTRYPOINT [ "python", "mbplugin/plugin/util.py" ]
+#CMD [ "version -v" ]

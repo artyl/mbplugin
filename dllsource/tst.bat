@@ -1,5 +1,4 @@
-%~d0 
-cd "%~dp0"
+cd /D "%~dp0"
 set FULLPATH=%~dp0
 
 if "%1"=="" GOTO :EOF

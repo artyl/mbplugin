@@ -1,16 +1,14 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import time, os, sys, re, logging, traceback
+import time, os, sys, re, logging
 import xml.etree.ElementTree as etree
 import dbengine, store, settings, httpserver_mobile
 
-lang = 'p'  # Для плагинов на python преффикс lang всегда 'p'
+lang = 'p'  # Для плагинов на python префикс lang всегда 'p'
 
 def main():
-    logging.basicConfig(filename=store.options('loggingfilename'),
-                        level=store.options('logginglevel'),
-                        format=store.options('loggingformat'))
-    # В коммандной строке указан плагин ?
+    store.turn_logging()
+    # В командной строке указан плагин ?
     if len(sys.argv) < 2:
         exception_text = f'При вызове mbplugin.bat не указан модуль'
         logging.error(exception_text)
@@ -26,64 +24,64 @@ def main():
     try:
         module = __import__(plugin, globals(), locals(), [], 0)
     except Exception:
-        exception_text = f'Модуль {plugin} не грузится: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        exception_text = f'Модуль {plugin} не грузится: {store.exception_text()}'
         logging.error(exception_text)
         sys.stdout.write(exception_text)
         return -1
-    if len(sys.argv) == 4: # plugin login password
+    if len(sys.argv) == 4:  # plugin login password
         login = sys.argv[2]
         password = sys.argv[3]
-    else: # request указан в переменной RequestVariable ?        
+    else:  # request указан в переменной RequestVariable ?
         try:
             RequestVariable = os.environ['RequestVariable'].strip(' "')
             root = etree.fromstring(RequestVariable)
             login = root.find('Login').text
             password = root.find('Password').text
         except Exception:
-            exception_text = f'Не смог взять RequestVariable: {"".join(traceback.format_exception(*sys.exc_info()))}'
+            exception_text = f'Не смог взять RequestVariable: {store.exception_text()}'
             logging.error(exception_text)
             sys.stdout.write(exception_text)
             return -1
         logging.debug(f'request = {RequestVariable}')
-    
+
     # Запуск плагина
     logging.info(f'Start {lang} {plugin} {login}')
-    dbengine.flags('set',f'{lang}_{plugin}_{login}','start')  # выставляем флаг о начале запроса
+    dbengine.flags('setunic', f'{lang}_{plugin}_{login}', 'start')  # выставляем флаг о начале запроса
     try:
-        storename = re.sub(r'\W', '_', f'{lang}_{plugin}_{login}')
-        result = module.get_balance(login, password, storename)
-        if 'Balance' not in result:
-            raise RuntimeError(f'В result отсутствует баланс')
+        storename = store.gen_storename(plugin, login)
+        pkey = store.get_pkey(login, plugin)  # Пара (номер, оператор)
+        result = module.get_balance(login, password, storename, pkey=pkey)
+        result = store.correct_and_check_result(result, pkey=pkey)
     except Exception:
-        exception_text = f'Ошибка при вызове модуля \n{plugin}: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        exception_text = f'Ошибка при вызове модуля \n{plugin}: {store.exception_text()}'
         logging.error(exception_text)
         sys.stdout.write(exception_text)
-        dbengine.flags('set',f'{lang}_{plugin}_{login}','error call')  # выставляем флаг о ошибке вызова
+        dbengine.flags('set', f'{lang}_{plugin}_{login}', f'error call {time.asctime()}')  # выставляем флаг о ошибке вызова
         return -1
     # Готовим результат
     try:
         sys.stdout.write(store.result_to_xml(result))
     except Exception:
-        exception_text = f'Ошибка при подготовке результата: {"".join(traceback.format_exception(*sys.exc_info()))}'
+        exception_text = f'Ошибка при подготовке результата: {store.exception_text()}'
         logging.error(exception_text)
         sys.stdout.write(exception_text)
-        dbengine.flags('set',f'{lang}_{plugin}_{login}','error result')  # выставляем флаг о плохом результате]
+        dbengine.flags('set', f'{lang}_{plugin}_{login}', 'error result')  # выставляем флаг о плохом результате]
         return -1
-    dbengine.flags('delete',f'{lang}_{plugin}_{login}','start')  # запрос завершился успешно - сбрасываем флаг
-    try:    
+    dbengine.flags('delete', f'{lang}_{plugin}_{login}', 'start')  # запрос завершился успешно - сбрасываем флаг
+    try:
         # пишем в базу
         dbengine.write_result_to_db(f'{lang}_{plugin}', login, result)
         # обновляем данные из mdb
         dbengine.update_sqlite_from_mdb()
-    except Exception:    
-        exception_text = f'Ошибка при подготовке работе с БД: {"".join(traceback.format_exception(*sys.exc_info()))}'
-        logging.error(exception_text)        
+    except Exception:
+        exception_text = f'Ошибка при подготовке работе с БД: {store.exception_text()}'
+        logging.error(exception_text)
     try:
         # генерируем balance_html
         httpserver_mobile.write_report()
-    except Exception:    
-        exception_text = f'Ошибка при подготовке report: {"".join(traceback.format_exception(*sys.exc_info()))}'
-        logging.error(exception_text)        
+    except Exception:
+        exception_text = f'Ошибка при подготовке report: {store.exception_text()}'
+        logging.error(exception_text)
     logging.debug(f'result = {result}')
     logging.info(f'Complete {lang} {plugin} {login}\n')
     return 0
@@ -92,4 +90,5 @@ def main():
 if __name__ == '__main__':
     # todo mbplugin.py plugin  (RequestVariable=<Request>\n<ParentWindow>007F09DA</ParentWindow>\n<Login>p_test_1234567</Login>\n<Password>pass1234</Password>\n</Request>)
     # todo mbplugin.py plugin login password (нужен для отладки)
+    store.switch_to_mb_mode()
     main()

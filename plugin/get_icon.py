@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # -*- coding: utf8 -*-
 ''' Получение иконки с сайта в виде строки для вставки в jsmb plugin
 иконка на сайте может быть в виде http://examples.com/favicon.ico
@@ -9,10 +10,10 @@ get_icon.py путь_к_иконке
 get_icon.py https://vscale.io/fav.png
 или
 get_icon.py https://my.mosenergosbyt.ru/favicon.ico
-или 
+или
 get_icon.py имя_файла_на_диске.ico
 '''
-import zlib,requests,io,sys,os
+import zlib, requests, io, sys, os
 from PIL import Image
 
 def get_icon(fn):
@@ -21,8 +22,8 @@ def get_icon(fn):
     else:
         bb = io.BytesIO(requests.get(fn).content)
         img = Image.open(bb)
-    img = img.resize((16,16))
-    bb=io.BytesIO()
+    img = img.resize((16, 16))
+    bb = io.BytesIO()
     img.save(bb, 'bmp')
     bb.getvalue()
     print(zlib.compress(bb.getvalue()).hex())

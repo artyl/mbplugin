@@ -1,5 +1,4 @@
 @echo off
-%~d0 
-cd "%~dp0"\plugin
+cd /D "%~dp0"\..
 
-start "" ..\python\pythonw.exe ..\plugin\httpserver_mobile.py %*
+start "" mbplugin\python\pythonw.exe mbplugin\plugin\httpserver_mobile.py %*

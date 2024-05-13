@@ -1,0 +1,139 @@
+#!/bin/bash
+# Prepare:
+# There should be either docker and dockervarfile or env/bin/activate with python>=3.8
+# apt-get install -y python3.8 python3-venv npm unzip
+# mkdir mbstandalone
+# cd mbstandalone
+# git clone https://github.com/artyl/mbplugin
+# OR
+# curl -LO https://github.com/artyl/mbplugin/releases/download/1.00.00/mbplugin_bare.1.00.00.zip
+# python3.8 -m venv env
+# . env/bin/activate
+# python -m pip install --upgrade pip
+# python -m pip install -r mbplugin/docker/requirements.txt
+# python -m playwright install chrome
+# bash mbplugin/standalone/mbp
+# ./mbp check-plugin
+
+# universal realpath with symlink :-) (linux and macOS) - $(cd "$(dirname "$0")"; pwd)
+util_path=$(dirname $0)/../../mbplugin/plugin/util.py
+root_path=$(cd "$(dirname "$0")"; pwd)
+[ -f $util_path ] && root_path=$(cd "$(dirname "$0")/../.."; pwd)
+
+echo "root_path is $root_path"
+
+### SETUP mode
+# run from folder mbplugin/standalone - setup mode - condition !!! [ -f $util_path ]
+if [ -f $util_path ]; then
+    # if $1 - empty, use previous mode docker/python, if no dockervarfile - use python
+    [ -f $util_path ] && [ "$1" = "" ] && [ ! -f dockervarfile ] && pythonvar=python
+    [ -f $util_path ] && [ "$1" = "" ] && [ -f dockervarfile ] && dockervar=docker
+
+    # explicitly specified $1 python or docker
+    [ -f $util_path ] && [ "$1" == "python" ] && pythonvar=python
+    [ -f $util_path ] && [ "$1" == "docker" ] && dockervar=docker
+
+    # if use python (pythonvar)
+    if [ -f $util_path ] && [ -n "$pythonvar" ]; then
+        # if do not use docker (use python) - remove dockervarfile
+        [ -f dockervarfile ] && rm dockervarfile
+        # if no env/bin/activate
+        if [ ! -f env/bin/activate ]; then
+            echo "Not found env/bin/activate (see the readme how to install):"
+            exit 1
+        fi
+        [ -f env/bin/activate ] &&  . env/bin/activate
+    fi
+
+    # if use docker (dockervar)
+    if [ -f $util_path ] && [ -n "$dockervar" ]; then
+        if [ ! -x "$(command -v docker)" ]; then
+            echo "Install docker. See https://docs.docker.com/engine/install"
+            exit 1
+        fi
+
+        # Stop and remove container if running
+        docker ps    --format '{{.Names}}' | grep -w mbplugin &> /dev/null && docker stop mbplugin
+        docker ps -a --format '{{.Names}}' | grep -w mbplugin &> /dev/null && docker rm   mbplugin
+
+        tag=`sed -n -e 's/## mbplugin v\([1-9]\.[^ ]*\).*/\1/p' mbplugin/changelist.md | tail -n 1`
+        # Use separate Dockerfile for arm platform
+        dfparam=""
+        if [ $(uname -m) == "aarch64" ]; then
+            dfparam="-f mbplugin/docker/Dockerfile_arm"
+        fi
+        # Build image for playwright if not exists
+        [ -z "$(docker images -q mbplugin:$tag)" ] && docker build --tag mbplugin:$tag $dfparam mbplugin/docker --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg UNAME=$(whoami) 
+        # docker build --tag mbplugin:$tag mbplugin/docker
+        # -p 127.0.0.1:19777:19777
+
+        echo '# dockervarfile' > dockervarfile
+        # fix for mbplugin symlink
+        [ -L "mbplugin" ] && [ -d "mbplugin" ] && mbplugin_vol="-v `cd mbplugin;pwd -P`:/mbstandalone/mbplugin"
+        TZ='Europe/Moscow'
+        echo 'DOCKER="docker run -u $(id -u) -it --init --rm -e TZ='$TZ' -v '$PWD':/mbstandalone '$mbplugin_vol' --ipc=host --security-opt seccomp=mbplugin/docker/seccomp_profile.json mbplugin:'$tag' "' >> dockervarfile
+        echo 'DOCKER_STD="docker run -u $(id -u) -it --init --rm -e TZ='$TZ' -v '$PWD':/mbstandalone '$mbplugin_vol' --ipc=host --security-opt seccomp=mbplugin/docker/seccomp_profile.json mbplugin:'$tag' "' >> dockervarfile
+        echo 'DOCKER_WEB="docker run -u $(id -u) -d --init --name mbplugin -e TZ='$TZ' -v '$PWD':/mbstandalone '$mbplugin_vol' --ipc=host --security-opt seccomp=mbplugin/docker/seccomp_profile.json -p 127.0.0.1:19777:19777 mbplugin:'$tag' "' >> dockervarfile
+        echo 'DOCKER_EXEC="docker exec -u $(id -u) -it mbplugin "' >> dockervarfile
+        # if ! docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null; then ... ; fi
+        # docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && echo "RUN"
+    fi
+
+    if [ -z "$pythonvar" ] && [ -z "$dockervar" ]; then
+        echo "Unknown command $1"
+        exit 1
+    fi
+
+fi
+
+cd $root_path
+# if exist dockervarfile - set DOCKER variables
+[ -f dockervarfile ] && . ./dockervarfile
+# if mbplugin container is running use docker exec instead docker run
+[ -f dockervarfile ] && docker ps --format '{{.Names}}' | grep -w mbplugin &> /dev/null && DOCKER=$DOCKER_EXEC
+
+# port mapping for docker only for web-server start
+if [ "$DOCKER" != "" ] && [ "$1 $2" = "web-server start" ]; then
+    #DOCKER=${DOCKER/ mbplugin/ -p 127.0.0.1:19777:19777 mbplugin}
+    echo "$DOCKER_STD python mbplugin/plugin/util.py set ini/HttpServer/host=0.0.0.0"
+    $DOCKER_STD python mbplugin/plugin/util.py set ini/HttpServer/host=0.0.0.0
+    docker ps    --format '{{.Names}}' | grep -w mbplugin &> /dev/null && docker stop mbplugin
+    docker ps -a --format '{{.Names}}' | grep -w mbplugin &> /dev/null && docker rm   mbplugin
+    DOCKER=$DOCKER_WEB
+fi
+
+# if exist env/bin/activate - apply
+if [ ! -f dockervarfile ] ; then
+    [ -f env/bin/activate ] &&  . env/bin/activate
+     pythonver=$(python3 -V 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
+    if [ ! -f dockervarfile ] && [ "$pythonver" -lt "38" ] ; then
+        echo "This script requires python 3.8 or greater, you have $pythonver"
+        exit 1
+    fi
+fi
+
+### SETUP mode continue
+# ../plugin/util.py exists go into installation mode
+if [ -f $util_path ]; then 
+    export MBPLUGIN_WRITE_DIAG=YES
+    echo "The file $(cd "$(dirname "$util_path")"; pwd) exist";
+    cd $root_path
+    cp mbplugin/standalone/mbp .
+    chmod +x mbp
+    [ -f dockervarfile ] && echo $DOCKER
+    $DOCKER_STD python mbplugin/plugin/util.py init
+    # Run only NOT docker
+    [ ! -f dockervarfile ] && python mbplugin/plugin/util.py web-server stop -f
+    [ ! -f dockervarfile ] && python mbplugin/plugin/util.py pip-update
+    [ ! -f dockervarfile ] && python mbplugin/plugin/util.py install-chromium
+    $DOCKER_STD python mbplugin/plugin/util.py check-import
+    $DOCKER_STD python mbplugin/plugin/util.py check-ini
+    $DOCKER_STD python mbplugin/plugin/util.py clear-browser-cache
+    $DOCKER_STD python mbplugin/plugin/util.py check-playwright
+    $DOCKER_STD python mbplugin/plugin/util.py version -v
+    exit 0
+fi
+
+cd $root_path
+[ -f dockervarfile ] && echo $DOCKER python mbplugin/plugin/util.py $*
+$DOCKER python mbplugin/plugin/util.py $*

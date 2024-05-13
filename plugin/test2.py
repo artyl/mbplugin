@@ -4,7 +4,7 @@ import os, sys, re, io, logging
 from PIL import Image, ImageTk
 import tkinter.tix as Tix
 import urllib.parse as urlparse
-import requests, bs4
+import bs4
 import store
 
 def get_human_captcha(buffer):
@@ -25,10 +25,12 @@ def get_human_captcha(buffer):
     return get_human_captcha.res
 
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     # Demo captcha
-    session = requests.Session()
+    session = store.Session()
     data = {}
     captcha_text = ''
     response1_text = '<img class="captcha-img" src="/api/captcha/next?form=login&x1485735388" title="CAPTCHA" alt="CAPTCHA"/>'

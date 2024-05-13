@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys, re, random, logging, traceback, datetime
+import os, sys, re, random, logging, datetime
 import requests
 import store
 
@@ -8,18 +8,20 @@ icon = '789C73F235636100033320D600620128666450804840E5918182BCF2A0C04A8AAA38E574
 
 api_url = f'https://sodexo.gift-cards.ru/api/1/'
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     result = {}
     cardno = login
-    session = store.Session(storename, headers={})
-    session.update_headers({'X-Requested-With': 'XMLHttpRequest'})
+    session = store.Session(storename, headers={'X-Requested-With': 'XMLHttpRequest'})
     cardtype = 'virtual-cards' if cardno.startswith('+') else 'cards'
     response = session.get(f'{api_url}{cardtype}/{cardno}?limit=100&rid={random.randint(1000000000,9999999999)}')
     data = response.json()['data']
     logging.debug(data)
 
     import pprint
-    open('..\\log\\sodexo.log','w').write(pprint.PrettyPrinter(indent=4).pformat(data))
+    open('..\\log\\sodexo.log','w').write(pprint.PrettyPrinter(indent=4, width=160).pformat(data))
 
     result['Balance'] = 0.001+data['balance']['availableAmount']
     if 'currency' in data['balance']:
@@ -35,8 +37,8 @@ def get_balance(login, password, storename=None):
             history.append([f"{histdate} {','.join([i.replace('3DI ','').replace('MD00','').replace('EPS*','') for i in hist['locationName']])}",f"{hist['amount']}"])
         result['UslugiOn'] = f'{len(data["history"])}'
         result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in sorted(history)])
-    except:
-        logging.info(f'Ошибка при получении списка транзакций {"".join(traceback.format_exception(*sys.exc_info()))}')
+    except Exception:
+        logging.info(f'Ошибка при получении списка транзакций {store.exception_text()}')
 
     return result
 

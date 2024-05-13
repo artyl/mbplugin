@@ -1,7 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
 import os, sys, re, logging
-import requests
 import store
 
 re_balance = r'(?usi)Баланс.*?>.*?>(-?\d*\.\d*)<'
@@ -11,7 +10,10 @@ icon = '789CB593CF4B146118C7BF61EECA2E9520DE749D50B6221044F1E0316F46467419B6123D
 login_url = 'https://my.cardtel.ru/home'
 login_checkers = ['<input[^>]*name="authpwd"[^>]*', '<input[^>]*name="authpwd2"[^>]*', '<input[^>]*name="authlogin"[^>]*', '<input[^>]*type="button"[^>]*']
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
+    ''' На вход логин и пароль, на выходе словарь с результатами '''
+    store.update_settings(kwargs)
+    store.turn_logging()
     logging.info(f'start get_balance {login}')
     result = {}
     session = store.Session(storename)

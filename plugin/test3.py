@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
-import pyppeteeradd as pa
+import browsercontroller, store, settings
 
 login_url = 'https://lk.saures.ru/dashboard'
 user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=password]') == null",
@@ -9,23 +9,24 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
                   'login_selector': 'form input[type=text]', }
 
 # введите логин demo@saures.ru и пароль demo вручную
-class test3_over_puppeteer(pa.balance_over_puppeteer):
+class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
-        # Здесь мы берет данные непосредственно с отрендеренной страницы, поэтому url_tag не указан
+        # Здесь мы берем данные непосредственно с отрендеренной страницы, поэтому url_tag не указан
         self.wait_params(params=[{
             'name': 'Balance',
-            'jsformula': r"parseFloat(document.querySelector('div.card-body div.counter__row').innerText.replace(/[^\d,.-]/g, '').replace(',','.'))",
-        }, {
-            'name': 'BlockStatus',
-            'jsformula': r"document.querySelector('div.devices p.small').innerText",
+            'url_tag': ['object/meters'],
+            'jsformula': "data.data.sensors[0].meters.length",
+            #'jsformula': r"parseFloat(document.querySelector('div.card-body div.counter__row').innerText.replace(/[^\d,.-]/g, '').replace(',','.'))",
         }])
 
 
-def get_balance(login, password, storename=None):
+def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
-    return test3_over_puppeteer(login, password, storename).main()
+    store.update_settings(kwargs)
+    store.turn_logging()
+    return browserengine(login, password, storename, plugin_name=__name__).main()
 
 
 if __name__ == '__main__':
-    print('This is module test3 for test chrome on puppeteer with class balance_over_puppeteer')
+    print('This is module test3 for test chrome on browser')
