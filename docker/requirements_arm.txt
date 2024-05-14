@@ -5,10 +5,9 @@ click==8.1.7
 colorama==0.4.6
 cryptography==42.0.5
 #greenlet==3.0.3 installed by playwright dependency
-idna==3.6
 markdown-it-py==3.0.0
 mdurl==0.1.2
-pillow==10.2.0
+pillow==10.3.0
 #playwright==1.14.1 installed separately
 playwright-stealth==1.0.6
 psutil==5.9.8
