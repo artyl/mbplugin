@@ -602,7 +602,7 @@ FIX: Ростелеком. Восстановлена работа в вариа
 ## mbplugin v1.00.71 (21.03.24) mts balance and amount
 FIX: МТС похоже решил перестать возвращать точный баланс в поле balance и теперь его можно взять только приблизительный из amount  
 
-## mbplugin v1.00.72 (14.05.24) mts balance and amount round2, fix rostelecom, small bug fix
+## mbplugin v1.00.72 (14.05.24) mts balance and amount round2, fix rostelecom + rostelecom bonus, small bug fix
 FIX: МТС вернул схему получения баланса - amount берем только при получения баланса через ЛК другого телефона  
 ADD: МТС добавил опцию mts_balance_from откуда брать баланс на МТС дефолтное поведение брать из balance не возвращая ничего если amount не нулевой считая это ошибкой, balance - всегда balance, amount - всегда amount  
 FIX: linux исправлена проверка версии python (старше 3.10) в shell script mbp  
