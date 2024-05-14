@@ -30,6 +30,10 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'BlockStatus', 'url_tag': ['/start/accounts'], 'jsformula': f"data.data.filter(el=>el['id']=='{self.acc_num}'||'{self.acc_num}'=='')[0].status.id"},
             {'name': 'LicSchet', 'url_tag': ['/start/accounts'], 'jsformula': f"data.data.filter(el=>el['id']=='{self.acc_num}'||'{self.acc_num}'=='')[0].id"},
         ])
+        logging.info(f'Use /bonuses')
+        self.wait_params(params=[
+            {'name': 'Balance2', 'url_tag': ['/bonuses'], 'jsformula': f"data.data.balance"},
+        ])
 
 
 class browserengine_qiwi(browsercontroller.BrowserController):
