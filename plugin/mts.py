@@ -25,9 +25,10 @@ def get_free_port() -> int:
 
 class PureBrowserDebug():
 
-    def __init__(self, user_data_dir, response_store_path=None, headless_chrome=False, show_chrome=True, chrome_args=None, wait_screenshot=0) -> None:
+    def __init__(self, user_data_dir, response_store_path=None, log_responses=None, headless_chrome=False, show_chrome=True, chrome_args=None, wait_screenshot=0) -> None:
         self.user_data_dir = user_data_dir  # chrome profile path
         self.response_store_path = response_store_path  # path for file log, screenshot store fith same name but png extension
+        self.log_responses = log_responses  # write responses and screenshot
         self.headless = headless_chrome  # for mts headles is broken headless_chrome always False
         self.show_chrome = show_chrome
         self.chrome_args = chrome_args if type(chrome_args) == list else []  # additional cmd argements for chrome
@@ -219,7 +220,7 @@ class PureBrowserDebug():
             key = f'{url}_{len(self.responses)}'
             self.responses[key] = res
             try:
-                if self.response_store_path is not None:
+                if self.response_store_path is not None and self.log_responses:
                     text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4, width=160).pformat(v)}' for k, v in self.responses.items()])
                     open(self.response_store_path, 'w', encoding='utf8', errors='ignore').write(text)
             except Exception:
@@ -236,7 +237,7 @@ class PureBrowserDebug():
 
     def capture_screenshot(self, filename=None, init=False, comment=''):
         'use filename or _1, _2, .... init=True - only delete old screenshot'
-        if filename is None and self.response_store_path is None:
+        if filename is None and self.response_store_path is None or not self.log_responses:
             return
         if filename is None:
             preffix = os.path.splitext(self.response_store_path)[0]
@@ -358,6 +359,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         response_store_path = store.abspath_join(options('loggingfolder'), storename + '.log')
     headless_chrome = (str(options('headless_chrome')) == '1') and (str(options('show_chrome')) == '0')  # headless if headless and NOT show_chrome
     show_chrome = str(options('show_chrome')) == '1'
+    log_responses = str(options('log_responses')) == '1'
     result = {}
     headless_chrome = False  # FIX !!! МТС в headless не работает
     show_chrome = True  # FIX !!! МТС без show_chrome не работает
@@ -365,7 +367,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     if options('browser_proxy').strip() != '':
         chrome_args.append(f'--proxy-server={options("browser_proxy").strip()}')
     wait_screenshot = int(options('wait_screenshot'))
-    pd = PureBrowserDebug(user_data_dir, response_store_path, headless_chrome=headless_chrome, show_chrome=show_chrome, chrome_args=chrome_args, wait_screenshot=wait_screenshot)
+    pd = PureBrowserDebug(user_data_dir, response_store_path=response_store_path, log_responses=log_responses, headless_chrome=headless_chrome, show_chrome=show_chrome, chrome_args=chrome_args, wait_screenshot=wait_screenshot)
     # 1 Is login ???
     store.feedback.text(f"Run browser", append=True)
     pd.send('Page.navigate', {'url': login_url})
