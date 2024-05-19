@@ -456,17 +456,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         if options('mts_balance_from').lower() == 'amount':
             logging.info('force get balance from for=api/accountInfo/mscpBalance..amount')
             result['Balance'] = round(mccsp_balance['amount'], 2)
-        cashback_page = pd.get_response_body_json('for=api/cashback/account')
-        # pd.jsformula('for=api/cashback/account', "parseFloat(data.data.balance).toFixed(2)")
-        cashback_data = cashback_page.get('data', {})
-        if 'balance' in cashback_data:
-            result['Balance2'] = round(cashback_data['balance'], 2)
         counters = pd.get_response_body_json('for=api/sharing/counters').get('data', {}).get('counters', [])
-        if 'Balance' in result and 'Balance2' in result:
-            try:
-                result['Balance3'] = float(result['Balance']) + float(result['Balance2'])
-            except Exception:
-                logging.info(f'Не смогли сложить балансы {store.exception_text()}')
         if type(counters) == list and len(counters) > 0:
             # deadlineDate
             deadline_dates = set([i['deadlineDate'] for i in counters if 'deadlineDate' in i])
@@ -507,7 +497,27 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                     result['Internet'] = round(nonused[0] * unitMult / unitDiv, 2)
                 if (mts_usedbyme == '1' or login in mts_usedbyme.split(',')) and usedbyme != []:
                     result['Internet'] = round(usedbyme[0] * unitMult / unitDiv, 2)
-
+        cashback_page = pd.get_response_body_json('for=api/cashback/account')
+        # pd.jsformula('for=api/cashback/account', "parseFloat(data.data.balance).toFixed(2)")
+        cashback_data = cashback_page.get('data', {})
+        if 'balance' in cashback_data:
+            logging.info('Пытаемся взять cashback баланс из for=api/cashback/account')
+            result['Balance2'] = round(cashback_data['balance'], 2)
+        else:
+            try:
+                logging.info('Пытаемся взять cashback баланс с рендера страницы')
+                balance2_text = pd.page_eval(r"document.querySelector('.mts-widget-mobile-cashback__price').innerText.replace(/[^\d,.]/g,'').replace(',','.')")
+                if len(balance2_text) > 0:
+                    result['Balance2'] = round(float(balance2_text), 2)
+                else:
+                    logging.info(f'На странице не нашли информации о балансе cashback')
+            except Exception:
+                logging.info(f'Не смогли взять баланс с рендера {store.exception_text()}')
+        if 'Balance' in result and 'Balance2' in result:
+            try:
+                result['Balance3'] = float(result['Balance']) + float(result['Balance2'])
+            except Exception:
+                logging.info(f'Не смогли сложить балансы {store.exception_text()}')
         store.feedback.text(f"Uslugi", append=True)
         pd.send('Page.navigate', {'url': 'https://lk.mts.ru/uslugi/podklyuchennye'})
         # ждем longtask тормозную страницу
