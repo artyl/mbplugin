@@ -430,6 +430,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         # rich.print(ui)
         # parseFloat(data.userProfile.balance).toFixed(2)
         if 'balance' in user_profile:
+            logging.info(f'Balance found on page api/login/user-info..Balance')
             result['Balance'] = round(user_profile['balance'], 2)
         # Закрываем банеры (для эстетики)
         pd.page_eval("document.querySelectorAll('mts-dialog div[class=popup__close]').forEach(s=>s.click())==null")
@@ -456,6 +457,12 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         if options('mts_balance_from').lower() == 'amount':
             logging.info('force get balance from for=api/accountInfo/mscpBalance..amount')
             result['Balance'] = round(mccsp_balance['amount'], 2)
+        if result.get('Balance', 0) == 0:
+            # get balance from html
+            web_bal = pd.page_eval("parseFloat(document.querySelector('div.widget-mobile-balance').innerText.replace(',','.').replace(/[^0-9.]/g, ''))")
+            if isinstance(web_bal, float):
+                logging.info(f'Balance found in html: {web_bal}')
+                result['Balance'] = web_bal
         counters = pd.get_response_body_json('for=api/sharing/counters').get('data', {}).get('counters', [])
         if type(counters) == list and len(counters) > 0:
             # deadlineDate
