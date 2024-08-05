@@ -614,6 +614,7 @@ ADD: Rostelecom balance2 (bonus) PR #47 from Comprech
 ## mbplugin v1.00.73 (19.05.24) mts cashback balance 
 FIX: МТС перестал отдавать баланс кэшбэка в api/cashback/account, приходится его брать из рендеренной страницы.  
 
-## mbplugin v1.00.74 (06.06.24) ucell.uz plugin
+## mbplugin v1.00.74 (05.08.24) ucell.uz plugin, ntvplus fix url
 ADD: ucelluz новый оператор для ЛК my.ucell.uz  
 FIX: Мтс, если баланс нигде не нашли, или он нулевой то берем его из html кода рендеренной страницы  
+FIX: ntvplus поменял url по которому отдает инфу, исправил в плагине  
