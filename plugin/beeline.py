@@ -13,13 +13,13 @@ profile_tag = 'api/profile/userinfo/data/?noTimeout'
 services_url = 'https://beeline.ru/customers/products/elk/tab/mobile-connection'
 services_tag = '/api/uni-profile-mobile/services/'
 subscribtions_tag = '/api/uni-profile-mobile/subscriptions/'
-user_selectors = {'chk_lk_page_js': "document.querySelector('div.initial-form')==null && document.querySelector('form input[type=password]')==null && document.querySelector('div.personal')!=null",
-                  'chk_login_page_js': "(document.querySelector('div.initial-form')!=null || document.querySelector('form input[type=password]')!=null) && document.querySelector('div.personal')==null",
-                  'before_login_js': "document.querySelectorAll('button').forEach(el=>el.innerText=='С постоянным паролем'?el.click():0);",
-                  'login_clear_js': "document.querySelector('div.initial-form input[name=login]').value=''",
-                  'login_selector': 'div.initial-form input[name=login]',
-                  'password_clear_js': "document.querySelector('div.initial-form input[name=password]').value=''",
-                  'password_selector': 'div.initial-form input[name=password]',
+user_selectors = {'chk_lk_page_js': "Array.from(document.querySelectorAll('div.personal')).filter(el=>el.innerText!='Войти').length>0",
+                  'chk_login_page_js': "Array.from(document.querySelectorAll('h1')).filter(el=>el.innerText=='Вход в личный кабинет') != null && Array.from(document.querySelectorAll('button')).filter(el=>el.innerText=='Войти')!= null",
+                  'before_login_js': "document.querySelectorAll('button').forEach(el=>el.innerText=='Логин'?el.click():0);",
+                  'login_clear_js': "document.querySelector('input[placeholder^=Введите][placeholder$=логин]').value=''",
+                  'login_selector': 'input[placeholder^=Введите][placeholder$=логин]',
+                  'password_clear_js': "document.querySelector('input[placeholder^=Введите][placeholder$=пароль][type=password]').value=''",
+                  'password_selector': 'input[placeholder^=Введите][placeholder$=пароль][type=password]',
                   'submit_js': "document.querySelector('button[type=submit]').click()",
                   }
 
