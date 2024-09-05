@@ -1,12 +1,12 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys, re, logging, collections
+import os, sys, re, time, logging, collections
 import browsercontroller, settings, store
 
 icon = '789CAD532DA8C250143E0F5E31080B83D581618F056141EBE00583F0C06235D9865530894D64C13010C12C68B50D8345C3FA82C16A90051141C7E6DF39CF5DAE6F4E1EBCF7C11776EE77CE3DDF39BB9F5FF97720E46FFCB851B8F30DE4EF83FB398FCBE5F267FABE0F994C060A85029CCF678AD56A358ABDE2683422EDE170A05E645966F9BAAEC79BFD01CBB2487B3C1EE95B5114963F180CC0300CEAA35AAD42A5528172B90CB95C0E5455A5BB86C361623E72329940B3D9846EB70BBD5E0F1CC7A1386A4EA713D326E5E35C70263C168B456C7E49F948BC07FBE7B15C2E1F346118422A95225FCFF68335F91A8220D0CCF16C3C1E93CF76BB4D1E77BB1DF3C6F78231DE4BBD5EA7F833341A0D9A99A669502A95C81F6AB7DB2DF519017B984EA7D0E974683FD96C96CE716FA669329DE779AC0FFEBF705D37E613678E75715711B01ECE68BD5E8324492F771131080210459169E7F379CCE766B379F92E56AB15A4D369D2CE66B387DC56ABF5ABB7B5DFEFA1DFEF9357DC6FB15804DBB6FFE5DD22AF62AEE146'
-api_url = 'https://api.tele2.ru/api/subscribers/'
-login_url = 'https://tele2.ru/lk'
-base_url = 'https://tele2.ru/lk'  # этот url идет как prefix для ряда страниц и на некоторых сайтах может отличаться от login_url поэтому оставлено оба
+api_url = 'https://api.t2.ru/api/subscribers/'
+login_url = 'https://t2.ru/lk'
+base_url = 'https://t2.ru/lk'  # этот url идет как prefix для ряда страниц и на некоторых сайтах может отличаться от login_url поэтому оставлено оба
 api_headers = {'Tele2-User-Agent': '"mytele2-app/6.09.0"; "Build/25117710"', 'User-Agent': 'okhttp/6.2.3'}
 
 class browserengine(browsercontroller.BrowserController):
@@ -18,20 +18,24 @@ class browserengine(browsercontroller.BrowserController):
 
         def get_state():
             res = self.page_evaluate('''[
-                document.querySelector('input[id="keycloakAuth.phone"]')!=null || document.querySelector('input[name="username"]')!=null,
-                document.querySelector('input[name="password"]') != null,
-                (a => a == null ? '' : a.innerText)(document.querySelector('button.keycloak-login-form__button')),
-                document.querySelector('input[id="header-navbar-login"]') != null
+                document.querySelector('input[id="keycloakAuth.phone"]')!=null || document.querySelector('input[name="username"]')!=null, // username
+                document.querySelector('input[name="password"]') != null, // password
+                (a => a == null ? '' : a.innerText)(document.querySelector('button.keycloak-login-form__button')), // button Далее/Вход по паролю/Войти
+                document.querySelector('input[id="header-navbar-login"]') != null, // hnr sms (obsolete)
+                [...document.querySelectorAll('a')].filter(el=>el.innerText.toLowerCase()=='войти').length+[...document.querySelectorAll('button')].filter(el=>el.innerText.toLowerCase()=='войти').length==0, // 0 - в ЛК, больше 0 не зашли
+                [...document.querySelectorAll('a.btn')].filter(el => el.innerText === 'Войти по SMS').length!=0, // ждет нажатия кнопки SMS
+                [...document.querySelectorAll('label')].filter(el => el.innerText === 'Введите код из SMS').length // ждет кода SMS
                 ]''')
-            if type(res) == list and len(res) == 4:
-                kc_phone, kc_password, kc_button, hnr = res
-                return States(kc_phone, kc_password, kc_button, hnr)
+            if type(res) == list and len(res) == 7:
+                kc_phone, kc_password, kc_button, hnr, is_auth, wait_sms_btn, wait_sms_code = res
+                return States(kc_phone, kc_password, kc_button, hnr, is_auth, wait_sms_btn, wait_sms_code)
 
-        States = collections.namedtuple('States', 'kc_phone, kc_password, kc_button, hnr')
+        States = collections.namedtuple('States', 'kc_phone, kc_password, kc_button, hnr, is_auth, wait_sms_btn, wait_sms_code')
         self.page_goto(base_url)
         self.sleep(1)
         states, state = set(), None
-        # Проверка текущего состояния и логин пр инеобходимости
+        automat_start_time = time.time()
+        # Проверка текущего состояния и логин принеобходимости
         while True:
             # Ждем изменения состояния
             if len(states) > 0:
@@ -40,31 +44,48 @@ class browserengine(browsercontroller.BrowserController):
                         self.sleep(1)
             state = get_state()
             logging.info(f'{__name__}:Login phase {state}')
+            if state.is_auth:
+                logging.info(f'Already login')
+                break
+            if automat_start_time + int(self.options('max_wait_captcha')) < time.time():
+                logging.info(f'max_wait_captcha timeout')
+                break
             if state in states:
+                if state.wait_sms_btn is True:
+                    continue  # на экране кнопка Войти по SMS
+                if state.kc_phone and not state.kc_password and state.kc_button =='Далее' and not state.hnr:
+                    continue  # В это состояние можем попасть повторно, если ЛК не пустит по паролю, в таком случае ничего не делаем
                 logging.info(f'{__name__}:Login phase Dublicate state {state}')
-                break  # В каждом состоянии можем побывать не более одного раза иначе на выход чтобы не забанили
+                # break  # В каждом состоянии можем побывать не более одного раза иначе на выход чтобы не забанили
             states.add(state)
+            # breakpoint()
             if state.kc_phone and not state.kc_password and state.kc_button == 'Далее' and not state.hnr:  # Хочет номер для sms входа
                 # Похоже tele2 передумал и можно сразу заходить по паролю
                 # self.page_fill("input[id='keycloakAuth.phone']", prepare_login(self.options('tele2_sms_num')))
                 # self.sleep(3)
                 # self.page_screenshot()
                 # self.page_click('button.keycloak-login-form__button')
-                self.page_evaluate("document.querySelectorAll('.filled-tabs button').forEach(el=>el.innerText=='По паролю'?el.click():0)")
-            elif not state.kc_phone and not state.kc_password and state.kc_button == 'Вход по паролю' and not state.hnr:  # Прислал SMS просит код
+                self.page_evaluate("document.querySelectorAll('.filled-tabs button').forEach(el=>['Email','По паролю'].includes(el.innerText)?el.click():0)")
+            elif not state.kc_phone and not state.kc_password and state.kc_button == 'Войти' and not state.hnr:  # Прислал SMS просит код
                 self.page_screenshot()
-                self.page_click('button.keycloak-login-form__button')
-            elif state.kc_phone and state.kc_phone and state.kc_button == 'Войти' and not state.hnr:  # Добрались до входа с логином паролем - входим
+                # self.page_click('button.keycloak-login-form__button')
+            elif state.kc_phone and state.kc_password and state.kc_button == 'Войти' and not state.hnr:  # Добрались до входа с логином паролем - входим
                 self.page_press("input[name='username']", "Control+a")
                 self.page_fill("input[name='username']", prepare_login(self.login))
                 self.page_fill("input[name='password']", prepare_login(self.password))
                 self.sleep(3)
                 self.page_screenshot()
                 self.page_click('button.keycloak-login-form__button')
-            elif state.kc_phone is False and state.kc_password is False and state.kc_button == '' and state.hnr is False:
-                if len(states) == 1:
-                    logging.info(f'Already login')
-                break
+            elif not state.kc_phone and not state.kc_password and state.kc_button =='' and not state.wait_sms_btn:
+                # нет окна логона - нажимаем кнопку войти
+                self.page_evaluate("document.querySelectorAll('button').forEach(el=>el.innerText=='ВОЙТИ'?el.click():0)")
+            #elif state.kc_phone is False and state.kc_password is False and state.kc_button == '' and not state.hnr:
+            #    if len(states) == 1:
+            #        logging.info(f'Already login')
+            #    break
+            # Logoned: [document.querySelectorAll('div[data-cartridge-type="LoginAction2"] span.action-title').length, document.querySelectorAll('div.login-action_auth').length]
+            # SMS:  [...document.querySelectorAll('a.btn')].filter(el => el.innerText === 'Войти по SMS') != []
+            # state == [false, false, '', false]
             self.sleep(1)
         if not (state.kc_phone is False and state.kc_password is False and state.kc_button == '' and state.hnr is False):
             self.page_screenshot()
@@ -224,9 +245,9 @@ def get_balance(login, password, storename=None, **kwargs):
     store.update_settings(kwargs)
     store.turn_logging()
     pkey = store.get_pkey(login, plugin_name=__name__)
-    if store.options('plugin_mode', pkey=pkey).upper() == 'WEB':
-        return get_balance_browser(login, password, storename)
-    return get_balance_api(login, password, storename)
+    if store.options('plugin_mode', pkey=pkey).upper() == 'API':
+        return get_balance_api(login, password, storename)
+    return get_balance_browser(login, password, storename)
 
 
 if __name__ == '__main__':
