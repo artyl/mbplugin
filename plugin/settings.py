@@ -53,6 +53,8 @@ ini = {
         'autoupdate': '0',
         'ask_update_': {'descr': 'При обновлении не задавать вопрос', 'type': 'checkbox'},
         'ask_update': '1',
+        'requirements_': {'descr': 'Файл установленных пакетов, можно составить индивидуальный набор пакетов для установки,  файл установки будет открываться из папки /mbplugin/docker/, если значение пустое, то будет взят в зависимости от ОС', 'type': 'text'},
+        'requirements': '',
         # logging
         # Формат лога
         'loggingformat_': {'descr': 'Формат лога', 'type': 'text', 'size': 100},
@@ -131,9 +133,9 @@ ini = {
         # например для показа капчи.
         'show_chrome_': {'descr': 'Показывать окно chrome', 'type': 'checkbox'},
         'show_chrome': '0',
-        # Пытаться спрятаться от скриптов определяющих что мы не человек, по умолчанию включено
+        # Пытаться спрятаться от скриптов определяющих что мы не человек, по умолчанию выключено (в новых версиях хрома может сломать работу)
         'playwright_stealth_': {'descr': 'Режим playwright stealth', 'type': 'checkbox'},
-        'playwright_stealth': '1',
+        'playwright_stealth': '0',
         # Режим Headless Прятать окна Chrome (при logginglevel=DEBUG всегда показывает)
         # Честный headless chrome режим, из этого режима вернуть окно в видимое нельзя
         'headless_chrome_': {'descr': 'Headless режим работы chrome', 'type': 'checkbox'},

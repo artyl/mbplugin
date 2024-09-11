@@ -130,14 +130,16 @@ def pip_update(ctx, quiet, check_only):
     '''Проверяем или обновляем пакеты по requirements.txt или requirements_win.txt или requirements_win7.txt'''
     name = 'pip-update'
     flags = " -q " if quiet else ""
-    if sys.platform == 'win32':
+    if store.options('requirements').strip() != '':
+        requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', store.options('requirements').strip())
+    elif sys.platform == 'win32':
         if int(platform.version().split('.')[0]) >= 10: # win10
-            requirements_path = os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements_win.txt")
+            requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements_win.txt')
         else:
-            requirements_path = os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements_win7.txt")
+            requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements_win7.txt')
         flags += ' --no-warn-script-location '
     else:
-        requirements_path = os.path.join(ROOT_PATH, "mbplugin", "docker", "requirements.txt")
+        requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements.txt')
     if check_only:
         freeze = {line.strip() for line in os.popen(f'"{sys.executable}" -m pip freeze').readlines() if '==' in line}
         freeze_pack = {line.split('==')[0] for line in freeze}

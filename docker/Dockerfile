@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-from mcr.microsoft.com/playwright:v1.14.1
+from mcr.microsoft.com/playwright:v1.46.0
 
 WORKDIR /mbstandalone
 

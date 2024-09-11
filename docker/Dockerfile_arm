@@ -24,9 +24,9 @@ RUN groupadd -f --gid $GID $UNAME && useradd --uid $UID --gid $UNAME --shell /bi
 RUN pip install --upgrade pip
 
 # Download playwright for linux x86_64, rename it so that it can be installed on arm and install
-RUN wget https://files.pythonhosted.org/packages/78/e7/3e0cb3362c7d90b10457cc9a40fca4bfd9b5dcbe526be3f478d660436916/playwright-1.14.1-py3-none-manylinux1_x86_64.whl && \
-    mv playwright-1.14.1-py3-none-manylinux1_x86_64.whl playwright-1.14.1-py3-none-any.whl && \
-    pip install playwright-1.14.1-py3-none-any.whl
+RUN wget https://files.pythonhosted.org/packages/75/4f/0a410deb48a0ff93107884a6cf06bbdbc97571f41b49e06cf7673c192264/playwright-1.46.0-py3-none-manylinux1_x86_64.whl && \
+    mv playwright-1.46.0-py3-none-manylinux1_x86_64.whl playwright-1.46.0-py3-none-any.whl && \
+    pip install playwright-1.46.0-py3-none-any.whl
 
 # replace the node binary provided by playwright with a symlink to the version we just installed.
 RUN rm /usr/local/lib/python3.9/site-packages/playwright/driver/node && \
