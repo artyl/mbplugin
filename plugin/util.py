@@ -133,10 +133,10 @@ def pip_update(ctx, quiet, check_only):
     if store.options('requirements').strip() != '':
         requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', store.options('requirements').strip())
     elif sys.platform == 'win32':
-        if int(platform.version().split('.')[0]) >= 10: # win10
-            requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements_win.txt')
-        else:
-            requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements_win7.txt')
+        #if int(platform.version().split('.')[0]) >= 10: # win10
+        requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements_win.txt')
+        #else:
+        #    requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements_win7.txt')
         flags += ' --no-warn-script-location '
     else:
         requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements.txt')
