@@ -3,7 +3,7 @@
 # pylint: disable=multiple-imports, too-many-lines
 import typing, os, sys, io, random, re, time, json, threading, logging, importlib, queue, argparse, subprocess, glob, base64, collections, uuid, pathlib
 import wsgiref.simple_server, socketserver, socket, urllib.parse, urllib.request
-import psutil, requests, bs4, PIL.Image, schedule
+import psutil, requests, bs4, PIL.Image, schedule, playwright._repo_version
 import settings, dbengine, compile_all_jsmblh, updateengine, store  # pylint: disable=import-error
 try:
     # ??? не смотря на декларированную кроссплатформенность pystray нормально заработал только на windows
@@ -1513,6 +1513,7 @@ class WebServer():
             elif cmd.lower() == 'main':  # главная страница
                 port = store.options('port', section='HttpServer')
                 info = f'Mbplugin {store.version()} run on {socket.gethostname()}:{port} from {os.path.abspath(os.path.dirname(__file__))}<br>'
+                info+= f'Playwright {playwright._repo_version.version}<br>'
                 phones = store.ini('phones.ini').phones()
                 groups = sorted(set([p['indication'] for p in phones.values() if 'indication' in p]))
                 group_urls = '<br>'.join([f'<a href=/report/group_{g}>Group_{g}</a> ' for g in groups])

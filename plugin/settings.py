@@ -12,8 +12,8 @@ UNIT = {'TB': 1073741824, 'ТБ': 1073741824, 'TByte': 1073741824, 'TBYTE': 1073
         'day': 30, 'dayly': 30, 'month': 1,
         }
 
-PHONE_INI_KEYS = ['Region', 'Monitor', 'Alias', 'Number', 'Password', 'mdOperation', 'mdConstant', 'PauseBeforeRequest', 'ShowInBallon', 'Password2', 'Indication', 'IndicColor', 'TrayShow', 'CalcAverageDays', 'IgnoreAutoRequest', 'IgnoreZerroIsError']
-PHONE_INI_KEYS_LOWER = ['region', 'monitor', 'alias', 'number', 'password', 'mdoperation', 'mdconstant', 'pausebeforerequest', 'showinballon', 'password2', 'indication', 'indiccolor', 'trayshow', 'calcaveragedays', 'ignoreautorequest', 'ignorezerroiserror']
+PHONE_INI_KEYS = ['Region', 'Monitor', 'Alias', 'Number', 'Password', 'mdOperation', 'mdConstant', 'PauseBeforeRequest', 'ShowInBallon', 'Password2', 'Indication', 'IndicColor', 'TrayShow', 'CalcAverageDays', 'IgnoreAutoRequest', 'IgnoreZerroIsError', 'IgnoreForMinBalanceInTray']
+PHONE_INI_KEYS_LOWER = ['region', 'monitor', 'alias', 'number', 'password', 'mdoperation', 'mdconstant', 'pausebeforerequest', 'showinballon', 'password2', 'indication', 'indiccolor', 'trayshow', 'calcaveragedays', 'ignoreautorequest', 'ignorezerroiserror', 'ignoreforminbalanceintray']
 
 MODE_LIB = 'lib'
 MODE_MB = 'mb'
@@ -402,6 +402,10 @@ main_html = r'''<html>
 <button onclick="fetch('/cancel').then(function(response) {return response})">Cancel the balance request</button><br>
 <button onclick="fetch('/exit').then(function(response) {return response})">Exit web server</button><br>
 <br>
+<a href=https://github.com/artyl/mbplugin/releases/latest>Релизы на github</a><br>
+<a href=https://github.com/artyl/mbplugin/wiki>Wiki на github</a><br>
+<a href=https://github.com/artyl/mbplugin/issues>Issue на github</a><br>
+<a href=https://github.com/artyl/mbplugin/pulls>Пулл реквесты на github</a><br>
 <a href=https://github.com/artyl/mbplugin/blob/master/readme.md>Документация на github</a><br>
 <br>
 <b>Обратная связь.</b><br>

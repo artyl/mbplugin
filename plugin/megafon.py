@@ -45,30 +45,22 @@ class browserengine(browsercontroller.BrowserController):
         try:
             self.page_goto('https://lk.megafon.ru/options/connected/paid')  # ??? https://lk.megafon.ru/options
             self.sleep(5)
-            url_tag = 'api/services/currentServices/list'
-            resps = [v for k, v in self.responses.items() if url_tag in k]
+            a_tariff, a_services, a_report = {}, {}, {}
+            resps = [v for k, v in self.responses.items() if 'api/tariff/2019-3/current' in k]
             if len(resps) > 0:
-                o_list_free = resps[-1].get('free', [])  # бесплатные
-                services_free = [(el.get('optionName', ''), 0) for el in o_list_free]
-                # !!! т.к. у меня нет информации как выглядят строчки платных услуг - просто беру все что не free и символично ставлю 1 рубль за услугу
-                o_list_non_free = sum([v for k, v in resps[-1].items() if k != 'free'], [])  # платные (все что не free)
-                services_non_free = [(el.get('optionName', ''), 1) for el in o_list_non_free]
-                # услугу Абонентская плата за Сохранение номера в списке услуг нет, она видна только ва выписке
-                url_expenses = 'api/reports/expenses'
-                resp_exp = [v for k, v in self.responses.items() if url_expenses in k]
-                if re.search(r'(?usi)Абонентская\W+плата\W+за\W+Сохранение\W+номера', str(resp_exp)):
-                    services_non_free += [('Абонентская плата за Сохранение номера нежелательная', 5)]
-                services = services_free + services_non_free
-                services.sort(key=lambda i: (-i[1], i[0]))
-                free = len(services_free)  # бесплатные
-                paid = len(services_non_free)  # платные
-                paid_sum = round(sum([b for a, b in services]), 2)
-                self.result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
-                self.result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
+                a_tariff = resps[-1]            
+            resps = [v for k, v in self.responses.items() if 'api/services/currentServices/list' in k]
+            if len(resps) > 0:
+                a_services = resps[-1]
+            resps = [v for k, v in self.responses.items() if 'api/reports/expenses' in k]
+            if len(resps) > 0:
+                a_report = resps[-1]
+            if len(a_services) > 0:
+                calc_uslugi(self.result, a_tariff, a_services, a_report)
             else:
-                logging.error(f'Not found response {url_tag}')
+                logging.error(f'Not found response api/services/currentServices/list')
         except Exception:
-            exception_text = f'Ошибка обработки api/options/list/current {store.exception_text()}'
+            exception_text = f'Ошибка обработки списка услуг {store.exception_text()}'
             logging.error(exception_text)
 
         return
@@ -78,84 +70,88 @@ def get_balance_browser(login, password, storename=None, **kwargs):
     ''' Работаем через Browser На вход логин и пароль, на выходе словарь с результатами '''
     return browserengine(login, password, storename, plugin_name=__name__).main()
 
+def calc_uslugi(result, a_tariff, a_services, a_report):
+    ''' Внимание result меняется внутри функции
+    Общее место расчета услуг и для api и для web
+    a_tariff - JSON из api/tariff/2019-3/current
+    a_services - JSON из api/services/currentServices/list
+    a_report - txt из api/reports/expenses
+    '''
+    paid_tarif = int(a_tariff.get('ratePlanCharges', {}).get('price', {}).get('value', '0'))
+    paid_sum = a_tariff.get('ratePlanCharges', {}).get('totalMonthlyPrice', {}).get('value', '0')
+    services = [(f"Тариф {result['TarifPlan']}", paid_tarif)]
+    # 'title': '200 ₽ за 30 дней' ->(r'^\d*')-> '200' -> 200
+    services += [(i['optionName'], int('0' + re.search(r'^\d*', i.get('previewImportantInformation',[{}])[0].get('title', '')).group())) for i in a_services.get('paid', [])]
+    services += [(i['optionName'], 0) for i in a_services.get('free', [])]
+    if re.search(r'(?usi)Абонентская\W+плата\W+за\W+Сохранение\W+номера', str(a_report)):
+        services += [('Абонентская плата за Сохранение номера нежелательная', 5)]
+    services.sort(key=lambda i: (-i[1], i[0]))
+    free = len([a for a, b in services if b == 0])  # бесплатные
+    paid = len([a for a, b in services if b != 0])  # платные
+    result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
+    result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
+
 def get_balance_api(login, password, storename=None, **kwargs):
     result = {}
     session = store.Session(storename)
-    new_api = kwargs.get('new_api') is True or kwargs.get('new_api') is None
-    if new_api:
-        api_url = 'https://api.megafon.ru/mlk/'
-        logging.info('Use NEW api {api_url}')
-        add_headers = {'User-Agent': 'MLK Android Phone 4.28.10'}
-        session.update_headers(add_headers)
-        response1 = session.post(api_url + 'login', data={'login': f'7{login}', 'password': password})
-        if 'json' not in response1.headers.get('content-type') or 'name' not in response1.json():
-            session.drop_and_create()
-            raise RuntimeError(f'Authentication failed: status_code={response1.status_code} {response1.text}')
-        response2 = session.get(api_url + 'auth/check')
-        if 'json' not in response2.headers.get('content-type') or response2.json().get('authenticated') is False:
-            session.drop_and_create()
-            raise RuntimeError(f'Authentication failed: status_code={response2.status_code} {response2.text}')
-        response3 = session.get(api_url + 'api/main/balance')
-    else:  # old api
-        api_url = 'https://old.lk.megafon.ru/'
-        logging.info('Use OLD api {api_url}')
-        response3 = session.get(api_url + 'api/lk/main/atourexpense')
-        if 'json' in response3.headers.get('content-type') and 'balance' in response3.text:
-            logging.info('Old session is ok')
-        else:  # Нет, логинимся
-            logging.info('Old session is bad, relogin')
-            session.drop_and_create()
-            response1 = session.get(api_url + 'login/')
-            if response1.status_code != 200:
-                raise RuntimeError(f'GET Login page error: status_code {response1.status_code}!=200')
-            csrf = re.search('(?usi)name="CSRF" value="([^\"]+)"', response1.text)
-            data = {'CSRF': csrf, 'j_username': f'+7{login}', 'j_password': password}
-            response2 = session.post(api_url + 'dologin/', data=data)
-            if response2.status_code != 200:
-                raise RuntimeError(f'POST Login page error: status_code {response2.status_code}!=200')
-            response3 = session.get(api_url + 'api/lk/main/atourexpense')
-            if response3.status_code != 200 or 'json' not in response3.headers.get('content-type'):
-                raise RuntimeError(f'Get Balance page not return json: status_code={response2.status_code} {response3.headers.get("content-type")}')
-            if 'balance' not in response3.text:
-                raise RuntimeError(f'Get Balance page not return balance: status_code={response3.status_code} {response3.text}')
+    api_url = 'https://api.megafon.ru/mlk/'
+    logging.info('Use api {api_url}')
+    add_headers = {'User-Agent': 'MLK Android Phone 4.28.10'}
+    session.update_headers(add_headers)
+    response1 = session.post(api_url + 'login', data={'login': f'7{login}', 'password': password})
+    if 'json' not in response1.headers.get('content-type') or 'name' not in response1.json():
+        session.drop_and_create()
+        raise RuntimeError(f'Authentication failed: status_code={response1.status_code} {response1.text}')
+    response2 = session.get(api_url + 'auth/check')
+    if 'json' not in response2.headers.get('content-type') or response2.json().get('authenticated') is False:
+        session.drop_and_create()
+        raise RuntimeError(f'Authentication failed: status_code={response2.status_code} {response2.text}')
+    response3 = session.get(api_url + 'api/main/balance')
 
     result['Balance'] = response3.json().get('balance', 0)
     result['KreditLimit'] = response3.json().get('limit', 0)
 
+    a_profile, a_tariff, a_services = {}, {}, {}
+
     try:
         response4 = session.get(api_url + 'api/profile/name')
         if response4.status_code == 200 and 'json' in response4.headers.get('content-type'):
-            result['UserName'] = response4.json()['name'].replace('"', '').replace("'", '').replace('&quot;', '')
-        response5_new = session.get(api_url + 'api/tariff/2019-3/current')
-        response5 = session.get(api_url + 'api/tariff/current')
-        if response5.status_code != 200:
-            response5 = response5_new
-        if response5.status_code == 200 and 'json' in response5.headers.get('content-type'):
-            result['TarifPlan'] = response5.json().get('name', '').replace('&nbsp;', ' ').replace('&mdash;', '-')
+            a_profile = response4.json()
+            result['UserName'] = a_profile.get('name', '').replace('"', '').replace("'", '').replace('&quot;', '').replace('&nbsp;',' ').replace('&mdash;','-')
     except Exception:
         exception_text = f'Ошибка обработки api/profile/name {store.exception_text()}'
         logging.error(exception_text)
 
     try:
-        response6 = session.get(api_url + 'api/options/list/current')
-        if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
-            oList = response6.json()
-            services = [(i['optionName'], i['monthRate'] * (1 if i['monthly'] else 30)) for i in oList.get('paid', [])]
-            services += [(i['optionName'], i['monthRate'] * (1 if i['monthly'] else 30)) for i in oList.get('free', [])]
-            services.sort(key=lambda i: (-i[1], i[0]))
-            free = len([a for a, b in services if b == 0])  # бесплатные
-            paid = len([a for a, b in services if b != 0])  # платные
-            paid_sum = round(sum([b for a, b in services]), 2)
-            result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
-            result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
+        response5 = session.get(api_url + 'api/tariff/2019-3/current')
+        if response5.status_code == 200 and 'json' in response5.headers.get('content-type'):
+            a_tariff = response5.json()
+            result['TarifPlan'] = a_tariff.get('name', '').replace('"', '').replace("'", '').replace('&quot;', '').replace('&nbsp;',' ').replace('&mdash;','-')
     except Exception:
-        exception_text = f'Ошибка обработки api/options/list/current {store.exception_text()}'
+        exception_text = f'Ошибка обработки api/tariff/2019-3/current {store.exception_text()}'
         logging.error(exception_text)
 
     try:
-        response7 = session.get(api_url + 'api/options/remaindersMini')
+        response6 = session.get(api_url + 'api/reports/expenses')
+        if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
+            a_reports = response6.json()
+    except Exception:
+        exception_text = f'Ошибка обработки api/reports/expenses {store.exception_text()}'
+        logging.error(exception_text)
+
+    try:
+        response7 = session.get(api_url + 'api/services/currentServices/list')
         if response7.status_code == 200 and 'json' in response7.headers.get('content-type'):
-            r7_remainders = response7.json().get('remainders', [])  # {.., remainders: [{remainders:[{...},{...}], ...]...},  ...}
+            a_services = response7.json()
+            calc_uslugi(result, a_tariff, a_services, a_reports)
+    except Exception:
+        exception_text = f'Ошибка обработки api/services/currentServices/list {store.exception_text()}'
+        logging.error(exception_text)
+
+    try:
+        response8 = session.get(api_url + 'api/options/remaindersMini')
+        if response8.status_code == 200 and 'json' in response8.headers.get('content-type'):
+            r7_remainders = response8.json().get('remainders', [])  # {.., remainders: [{remainders:[{...},{...}], ...]...},  ...}
             remainders = sum([i.get('remainders', []) for i in r7_remainders if 'в крыму' not in i.get('name', '').lower()], [])
             minutes = [i['availableValue'] for i in remainders if i.get('unit', '').startswith('мин') or i.get('groupId', '') == 'voice']
             if len(minutes) > 0:
@@ -181,10 +177,6 @@ def get_balance(login, password, storename=None, **kwargs):
     pkey = store.get_pkey(login, plugin_name=__name__)
     if store.options('plugin_mode', pkey=pkey).upper() == 'WEB':
         return get_balance_browser(login, password, storename)
-    if store.options('plugin_mode', pkey=pkey).upper() == 'NEW_API':
-        return get_balance_api(login, password, storename, new_api=True)
-    if store.options('plugin_mode', pkey=pkey).upper() == 'OLD_API':
-        return get_balance_api(login, password, storename, new_api=False)
     return get_balance_api(login, password, storename)
 
 if __name__ == '__main__':
