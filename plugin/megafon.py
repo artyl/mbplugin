@@ -35,17 +35,18 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'TarifPlan', 'url_tag': ['api/tariff'], 'jsformula': """data.name.replace('"','').replace("'",'').replace('&quot;','').replace('&nbsp;',' ').replace('&mdash;','-')"""},
             {'name': 'Min', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='VOICE'&&('availableValue' in el)).map(el => el.availableValue.value).reduce((a,b)=>a+b,0)"},
             {'name': 'Sms', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='MESSAGE'&&('availableValue' in el)).map(el => el.availableValue.value).reduce((a,b)=>a+b,0)"},
-            {'name': 'Internet', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='INTERNET'&&('availableValue' in el)).map(el => el.availableValue.value*1024).reduce((a,b)=>a+b,0)"},  # FIXME el.availableValue.unit
+            {'name': 'Internet', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='INTERNET'&&('availableValue' in el)).map(el => [el.availableValue.value,el.availableValue.unit]).map(([v,u])=>v*{'KB':1,'МБ':2**10,'ГБ':2**20,'ТБ':2**30}[u]).reduce((a,b)=>a+b,0)"},
         ])
         try:
-            self.result['Internet'] = self.result.get('Internet', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB']))
+            # recalculate self.result['Internet'] in KB to interUnit (default GB)
+            self.result['Internet'] = self.result.get('Internet', 0) / settings.UNIT.get(store.options('interUnit'), settings.UNIT['GB'])
         except Exception:
             logging.error(f'Internet calculation fail:{store.exception_text()}')
             del self.result['Internet']
         try:
             self.page_goto('https://lk.megafon.ru/options/connected/paid')  # ??? https://lk.megafon.ru/options
             self.sleep(5)
-            a_tariff, a_services, a_report = {}, {}, {}
+            a_tariff, a_services, a_reports = {}, {}, {}
             resps = [v for k, v in self.responses.items() if 'api/tariff/2019-3/current' in k]
             if len(resps) > 0:
                 a_tariff = resps[-1]            
@@ -54,9 +55,9 @@ class browserengine(browsercontroller.BrowserController):
                 a_services = resps[-1]
             resps = [v for k, v in self.responses.items() if 'api/reports/expenses' in k]
             if len(resps) > 0:
-                a_report = resps[-1]
+                a_reports = resps[-1]
             if len(a_services) > 0:
-                calc_uslugi(self.result, a_tariff, a_services, a_report)
+                calc_uslugi(self.result, a_tariff, a_services, a_reports)
             else:
                 logging.error(f'Not found response api/services/currentServices/list')
         except Exception:
@@ -70,20 +71,20 @@ def get_balance_browser(login, password, storename=None, **kwargs):
     ''' Работаем через Browser На вход логин и пароль, на выходе словарь с результатами '''
     return browserengine(login, password, storename, plugin_name=__name__).main()
 
-def calc_uslugi(result, a_tariff, a_services, a_report):
+def calc_uslugi(result, a_tariff, a_services, a_reports):
     ''' Внимание result меняется внутри функции
     Общее место расчета услуг и для api и для web
     a_tariff - JSON из api/tariff/2019-3/current
     a_services - JSON из api/services/currentServices/list
-    a_report - txt из api/reports/expenses
+    a_reports - txt из api/reports/expenses
     '''
-    paid_tarif = int(a_tariff.get('ratePlanCharges', {}).get('price', {}).get('value', '0'))
-    paid_sum = a_tariff.get('ratePlanCharges', {}).get('totalMonthlyPrice', {}).get('value', '0')
+    paid_tarif = float(a_tariff.get('ratePlanCharges', {}).get('price', {}).get('value', '0').replace(',', '.'))
+    paid_sum = float(a_tariff.get('ratePlanCharges', {}).get('totalMonthlyPrice', {}).get('value', '0').replace(',', '.'))
     services = [(f"Тариф {result['TarifPlan']}", paid_tarif)]
     # 'title': '200 ₽ за 30 дней' ->(r'^\d*')-> '200' -> 200
     services += [(i['optionName'], int('0' + re.search(r'^\d*', i.get('previewImportantInformation',[{}])[0].get('title', '')).group())) for i in a_services.get('paid', [])]
     services += [(i['optionName'], 0) for i in a_services.get('free', [])]
-    if re.search(r'(?usi)Абонентская\W+плата\W+за\W+Сохранение\W+номера', str(a_report)):
+    if re.search(r'(?usi)Абонентская\W+плата\W+за\W+Сохранение\W+номера', str(a_reports)):
         services += [('Абонентская плата за Сохранение номера нежелательная', 5)]
     services.sort(key=lambda i: (-i[1], i[0]))
     free = len([a for a, b in services if b == 0])  # бесплатные
@@ -151,8 +152,8 @@ def get_balance_api(login, password, storename=None, **kwargs):
     try:
         response8 = session.get(api_url + 'api/options/remaindersMini')
         if response8.status_code == 200 and 'json' in response8.headers.get('content-type'):
-            r7_remainders = response8.json().get('remainders', [])  # {.., remainders: [{remainders:[{...},{...}], ...]...},  ...}
-            remainders = sum([i.get('remainders', []) for i in r7_remainders if 'в крыму' not in i.get('name', '').lower()], [])
+            r8_remainders = response8.json().get('remainders', [])  # {.., remainders: [{remainders:[{...},{...}], ...]...},  ...}
+            remainders = sum([i.get('remainders', []) for i in r8_remainders if 'в крыму' not in i.get('name', '').lower()], [])
             minutes = [i['availableValue'] for i in remainders if i.get('unit', '').startswith('мин') or i.get('groupId', '') == 'voice']
             if len(minutes) > 0:
                 result['Min'] = sum([i['value'] for i in minutes if i['value'] < 10000])
