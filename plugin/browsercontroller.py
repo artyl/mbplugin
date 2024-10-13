@@ -569,7 +569,7 @@ class BalanceOverPlaywright():
         self.page.on("dialog", lambda dialog: dialog.dismiss())
         if str(self.options('intercept_request')) == '1' and str(self.options('show_captcha')) == '0':
             # Если включено показывать капчу - то придется грузить все чтобы загрузить картинки
-            self.page.route("*", self.on_route_worker)
+            self.page.route("**/*", self.on_route_worker)
         self.browser.on("disconnected", self.disconnected_worker)  # вешаем обработчик закрытие браузера
 
     def browser_close(self):
