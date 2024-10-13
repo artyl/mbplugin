@@ -182,3 +182,5 @@ def get_balance(login, password, storename=None, **kwargs):
 
 if __name__ == '__main__':
     print('This is module megafon')
+
+
