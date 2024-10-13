@@ -150,3 +150,7 @@ class TestUM:
     def test_yota(self):
         plugin = 'yota'
         self.do_test_plugin(plugin)
+
+    def test_zadarma(self):
+        plugin = 'zadarma'
+        self.do_test_plugin(plugin)
