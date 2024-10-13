@@ -26,6 +26,7 @@ lang = 'p'  # Для плагинов на python префикс lang всегд
 # pylint: disable=unspecified-encoding
 # pylint: disable=missing-function-docstring, missing-class-docstring
 
+CRLF = '\n'
 # Scheduler commands constants
 CMD_CHECK = 'check'
 CMD_CHECK_SEND = 'check_send'
@@ -33,7 +34,6 @@ CMD_CHECK_NEW_VERSION = 'check_new_version'
 CMD_PING = 'ping'
 CMD_GET_ONE = 'get_one'
 SCHED_CMDS = (CMD_CHECK, CMD_CHECK_NEW_VERSION, CMD_CHECK_SEND, CMD_GET_ONE, CMD_PING)
-
 Job = collections.namedtuple('Job', 'job_str job_sched cmd filter_tel err_msg')
 
 Q_CMD_EXIT = 'exit'
@@ -1489,6 +1489,19 @@ class WebServer():
                 Scheduler().reload()
                 ct, text = Scheduler().view_html()
                 text = [settings.header_html] + text
+            elif cmd.lower() == 'check_ini':  # проверка ini файлов (результат mbp check-ini)
+                import util
+                result = []
+
+                try:
+                    mbplugin_ini_ok, mbplugin_ini_mess, phones_ini_ok, phones_ini_mess = util.do_check_ini()
+                    mbplugin_ini_status = 'OK' if mbplugin_ini_ok else 'Fail'
+                    phones_ini_status = 'OK' if phones_ini_ok else 'Fail'
+                    result.append(f'{mbplugin_ini_status} check-ini mbplugin.ini {CRLF + CRLF.join(mbplugin_ini_mess)}'.strip())
+                    result.append(f'{phones_ini_status} check-ini phones.ini {CRLF +  CRLF.join(phones_ini_mess)}'.strip())
+                except Exception:
+                    result.append(f'Fail check-ini:\n{store.exception_text()}')
+                text = [settings.header_html] + [f'<pre>\n{CRLF.join(result)}\n</pre>']
             elif cmd.lower() == 'version_update':  # обновление версии
                 res = run_update()
                 ct, text = 'text/html', settings.header_html + f'\n<pre>\n{res}\n</pre>\n'

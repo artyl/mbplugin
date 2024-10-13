@@ -390,6 +390,7 @@ main_html = r'''<html>
 <button onclick="fetch('/getbalance_standalone').then(function(response) {return response})">Get balance request</button><br>
 <br>
 <a href=/schedule>View schedule</a><br>
+<a href=/check_ini>Check ini</a><br>
 <a href=/profile>View profile</a><br>
 <div id=call_editor><a href=/editcfg>Edit config</a><br></div>
 <a href=/log?lines=40>View log</a><br>

@@ -531,6 +531,62 @@ def show_chrome(ctx, action):
     else:
         echo(f'{name}:On windows platform only')
 
+def do_check_ini():
+    '''Проверяет ini файлы и возвращает 
+    mbplugin_ini_ok - bool
+    mbplugin_ini_mess - подробное описание по phones.ini
+    phones_ini_ok - bool
+    phones_ini_mess - подробное описание по phones.ini + phones_add.ini'''
+    import httpserver_mobile
+    mbplugin_ini = store.ini()
+    mbplugin_ini.read()
+    mbplugin_ini_mess = []
+    mbplugin_ini_ok = True
+    if 'Telegram' in mbplugin_ini.ini:
+        if len([i for i in mbplugin_ini.ini['Telegram'].keys() if i.startswith('subscrib' + 'tion')]):
+            msg = f'Warning check-ini mbplugin.ini - subsri_B_tion key found in ini'
+            mbplugin_ini_mess.append(msg)
+            mbplugin_ini_ok = False
+    for sec in store.settings.ini.keys():
+        for key in store.settings.ini[sec]:
+            if not key.endswith('_'):
+                valid, msg = store.option_validate(key, section=sec)
+                if not valid:
+                    mbplugin_ini_mess.append(f'Section [{sec}]: ' + msg)
+                    mbplugin_ini_ok = False
+    jobs = httpserver_mobile.Scheduler(check_only=True).read_from_ini()
+    mbplugin_ini_mess.extend([f'{job.err_msg}\n{job.job_str}' for job in jobs if job.err_msg != ''])
+    # echo(f'{mbplugin_ini_status} {name} mbplugin.ini {CRLF + CRLF.join(mbplugin_ini_mess)}'.strip())
+    phones_ini_mess = []
+    phones_ini_ok = True
+    phones_ini = store.ini('phones.ini')
+    phones_ini.read()
+    for nn in phones_ini.ini.keys():
+        if nn == 'DEFAULT':
+            continue
+        if not nn.isdigit():
+            phones_ini_mess.append(f'Invalid section number [{nn}]')
+            phones_ini_ok = False
+            continue
+        if phones_ini.ini[nn].get('monitor', 'false').lower() != 'true':
+            phones_ini_mess.append(f'Section [{nn}] is not Monitor = TRUE, skip')
+            continue
+        try:
+            pkey = store.get_pkey(phones_ini.ini[nn]['number'], phones_ini.ini[nn]['region'])
+            for key in phones_ini.ini[nn].keys():
+                valid, msg = store.option_validate(key, pkey=pkey)
+                if not valid:
+                    phones_ini_mess.append(f'Section [Phone] #{nn} ' + msg)
+                    phones_ini_ok = False
+                if key.lower() not in store.settings.ini['Options'] and key.lower() not in store.settings.PHONE_INI_KEYS_LOWER and key.lower() not in ('phone_orig', 'number_orig', 'region_orig'):
+                    phones_ini_mess.append(f'Section [Phone] #{nn} has unused {key}')
+                    phones_ini_ok = False
+        except Exception:
+            phones_ini_ok = False
+            phones_ini_mess.append(f'Check phones phones.ini/phones_add.ini generate error:\n{store.exception_text()}')
+            break
+    #echo(f'{phones_ini_status} {name} phones.ini {CRLF +  CRLF.join(phones_ini_mess)}'.strip())
+    return [mbplugin_ini_ok, mbplugin_ini_mess, phones_ini_ok, phones_ini_mess]
 
 @cli.command()
 @click.pass_context
@@ -538,49 +594,10 @@ def check_ini(ctx):
     'Проверка INI на корректность'
     name = 'check-ini'
     try:
-        import httpserver_mobile
-        mbplugin_ini = store.ini()
-        mbplugin_ini.read()
-        mbplugin_ini_mess = []
-        mbplugin_ini_status = 'OK'
-        if 'Telegram' in mbplugin_ini.ini:
-            if len([i for i in mbplugin_ini.ini['Telegram'].keys() if i.startswith('subscrib' + 'tion')]):
-                msg = f'Warning {name} mbplugin.ini - subsri_B_tion key found in ini'
-                mbplugin_ini_mess.append(msg)
-                mbplugin_ini_status = 'Fail'
-        for sec in store.settings.ini.keys():
-            for key in store.settings.ini[sec]:
-                if not key.endswith('_'):
-                    valid, msg = store.option_validate(key, section=sec)
-                    if not valid:
-                        mbplugin_ini_mess.append(f'Section [{sec}]: ' + msg)
-                        mbplugin_ini_status = 'Fail'
-        jobs = httpserver_mobile.Scheduler(check_only=True).read_from_ini()
-        mbplugin_ini_mess.extend([f'{job.err_msg}\n{job.job_str}' for job in jobs if job.err_msg != ''])
+        mbplugin_ini_ok, mbplugin_ini_mess, phones_ini_ok, phones_ini_mess = do_check_ini()
+        mbplugin_ini_status = 'OK' if mbplugin_ini_ok else 'Fail'
+        phones_ini_status = 'OK' if phones_ini_ok else 'Fail'
         echo(f'{mbplugin_ini_status} {name} mbplugin.ini {CRLF + CRLF.join(mbplugin_ini_mess)}'.strip())
-        phones_ini_mess = []
-        phones_ini_status = 'OK'
-        phones_ini = store.ini('phones.ini')
-        phones_ini.read()
-        for nn in phones_ini.ini.keys():
-            if nn == 'DEFAULT':
-                continue
-            if not nn.isdigit():
-                phones_ini_mess.append(f'Invalid section number [{nn}]')
-                phones_ini_status = 'Fail'
-                continue
-            if phones_ini.ini[nn].get('monitor', 'false').lower() != 'true':
-                phones_ini_mess.append(f'Section [{nn}] is not Monitor = TRUE, skip')
-                continue
-            pkey = store.get_pkey(phones_ini.ini[nn]['number'], phones_ini.ini[nn]['region'])
-            for key in phones_ini.ini[nn].keys():
-                valid, msg = store.option_validate(key, pkey=pkey)
-                if not valid:
-                    phones_ini_mess.append(f'Section [Phone] #{nn} ' + msg)
-                    phones_ini_status = 'Fail'
-                if key.lower() not in store.settings.ini['Options'] and key.lower() not in store.settings.PHONE_INI_KEYS_LOWER and key.lower() not in ('phone_orig', 'number_orig', 'region_orig'):
-                    phones_ini_mess.append(f'Section [Phone] #{nn} has unused {key}')
-                    phones_ini_status = 'Fail'
         echo(f'{phones_ini_status} {name} phones.ini {CRLF +  CRLF.join(phones_ini_mess)}'.strip())
     except Exception:
         echo(f'Fail {name}:\n{store.exception_text()}')
