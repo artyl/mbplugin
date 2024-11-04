@@ -378,6 +378,8 @@ class Mdbengine():
             dbname = store.abspath_join(settings.mbplugin_ini_path, 'BalanceHistory.mdb')
         self.dbname = dbname
         DRV = '{Microsoft Access Driver (*.mdb)}'
+        if DRV not in pyodbc.drivers():
+            logging.error(f'ODBC driver {DRV} is not installed')
         self.conn = pyodbc.connect(f'DRIVER={DRV};DBQ={dbname}')
         # self.cur = self.conn.cursor()  # TODO it's wrong
         description = self.conn.execute('SELECT top 1 * FROM phones').description
