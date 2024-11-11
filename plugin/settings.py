@@ -362,7 +362,7 @@ operator_link = {
     'p_onlime': 'https://my.rt.ru',
     'p_rostelecom': 'https://lk.rt.ru',
     'p_sipnet': 'https://www.sipnet.ru/cabinet/index',
-    'p_smile-net': 'https://lk.virginconnect.ru/login',
+    'p_smile-net': 'https://lk.smile-net.ru/login',  # 'https://lk.virginconnect.ru/login',
     'p_stock': 'https://finance.yahoo.com/quote',
     'p_strelka': 'http://strelkacard.ru',
     'p_tele2': 'https://msk.tele2.ru/lk',

@@ -636,3 +636,4 @@ ADD: добавлена возможность смотреть корректн
 ## mbplugin v1.00.77 (11.11.24) beeline
 FIX: снова исправлена работа плагина beeline web  
 FIX: исправлена работа с драйвером ODBC из Microsoft Access Database Engine 2016 Redistributable  
+FIX: исправлена проверка smile-net (это каменный век какой-то)  
