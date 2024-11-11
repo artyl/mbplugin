@@ -3,7 +3,7 @@
 Модуль для работы с базами
 Для интеграции с базой MDB необходимо установить 32битный ODBC драйвер для MDB AccessDatabaseEngine.exe:
 Скачать можно отсюда:
-https://www.microsoft.com/en-us/download/details.aspx?id=13255
+https://www.microsoft.com/en-us/download/details.aspx?id=54920
 Объяснение, почему не 32 битный python не работает с 64 битным ODBC и наоборот
 https://stackoverflow.com/questions/45362440/32bit-pyodbc-for-32bit-python-3-6-works-with-microsofts-64-bit-odbc-driver-w
 set up some constants
@@ -377,9 +377,12 @@ class Mdbengine():
         if dbname is None:
             dbname = store.abspath_join(settings.mbplugin_ini_path, 'BalanceHistory.mdb')
         self.dbname = dbname
-        DRV = '{Microsoft Access Driver (*.mdb)}'
-        if DRV not in pyodbc.drivers():
-            logging.error(f'ODBC driver {DRV} is not installed')
+        DRV = '{Microsoft Access Driver (*.mdb)}'  # or 'Microsoft Access Driver (*.mdb, *.accdb)'
+        DRVs = [el for el in pyodbc.drivers() if 'Access' in el and '*.mdb' in el]
+        if len(DRVs) > 0:
+            DRV = DRVs[0]
+        else:
+            logging.error(f'ODBC Microsoft Access Driver for mdb is not installed')
         self.conn = pyodbc.connect(f'DRIVER={DRV};DBQ={dbname}')
         # self.cur = self.conn.cursor()  # TODO it's wrong
         description = self.conn.execute('SELECT top 1 * FROM phones').description
