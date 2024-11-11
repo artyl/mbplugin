@@ -96,8 +96,12 @@ class browserengine(browsercontroller.BrowserController):
                 logging.error(exception_text)
             # все страницы попадающие под описание
             accumulators_all = [v for k, v in self.responses.items() if accumulators_tag in k and 'accumulators' in v]
-            if len(accumulators_all) > 0:  # Нашли api/uni-profile-mobile/blocks ? - берем оттуда, там цифры выглядят адекватнее
+            acc2_list = []
+            if len(accumulators_all) > 0:  # Нашли api/uni-profile-mobile/blocks ? - берем оттуда, там цифры выглядят адекватнее, но их там может и не быть вовсе
                 logging.info(f'Taking the accumulator from the {accumulators_tag}')
+                acc2_list = accumulators_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items, но бывает что он пустой
+            if len(acc2_list) > 0:  # Нашли api/uni-profile-mobile/blocks ? и он не пустой - берем оттуда, там цифры выглядят адекватнее, но их там может и не быть вовсе
+                logging.info(f'Taking the accumulator from the {accumulators_tag} - not empty')
                 acc2_list = accumulators_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items
                 acc2_dict = {el.get('unit'): el.get('rest', 0) for el in acc2_list}
                 self.result['Internet'] = acc2_dict.get('KBYTE', 0)
