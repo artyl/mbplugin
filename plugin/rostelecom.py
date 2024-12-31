@@ -22,7 +22,28 @@ user_selectors = {
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
-        accountId = 0
+        if self.acc_num.isdigit():
+            if self.acc_num.isdigit():
+                self.page_goto(f'https://lk.rt.ru/#account/{self.acc_num}')
+        for w in range(5):  # 10s=sum(range(5))
+            if len([k for k in self.responses if 'getAccounts' in k]) > 0:
+                break
+            self.sleep(w)
+        accounts = [v for k, v in self.responses.items() if 'getAccounts' in k][-1]
+        profile = [v for k, v in self.responses.items() if 'getProfile' in k][-1]
+        account = [v for v in accounts.get('accounts',{}) if v['number']==self.acc_num or (not self.acc_num.isdigit())][-1]
+        accountId = account['accountId']
+        for w in range(5):  # 10s=sum(range(5))
+            if len([k for k in self.responses if 'getAccountBalanceV2' in k and str(accountId) in k]) > 0:
+                break
+            self.sleep(w)
+        # accountinfo = [k for k, v in self.responses.items() if 'getAccountInfo' in k and str(accountId) in k][-1] # ???
+        balancev2 = [v for k, v in self.responses.items() if 'getAccountBalanceV2' in k and str(accountId) in k][-1]
+        self.result['Balance'] = balancev2['balance']/100
+        self.result['UserName'] = profile.get('lastName','')+' '+profile.get('name','')+' '+profile.get('middleName','')
+        self.result['BlockStatus'] = profile.get('financialBlockStatus', '')
+        self.result['LicSchet'] = account.get('number')
+        ''' # старая версия больше не работает                
         logging.info(f'Use /start/accounts')
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['/start/accounts'], 'jsformula': f"data.data.filter(el=>el['id']=='{self.acc_num}'||'{self.acc_num}'=='')[0].balance.amount/100"},
@@ -34,6 +55,7 @@ class browserengine(browsercontroller.BrowserController):
         self.wait_params(params=[
             {'name': 'Balance2', 'url_tag': ['/bonuses'], 'jsformula': f"data.data.balance"},
         ])
+        '''
 
 
 class browserengine_qiwi(browsercontroller.BrowserController):
