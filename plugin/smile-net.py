@@ -8,7 +8,7 @@ icon = '789C65535B485451145D338E14D9400FEDF5950465D857A51F2104817D14D64720FE0AE5
 
 login_url = 'https://lk.smile-net.ru/login.php'
 # balance_url = 'https://lk.smile-net.ru/services/apiGetAllServicesList'
-login_checkers = ['<input[^>]*id="login"[^>]*', '<input[^>]*id="pswd"[^>]*', '<button[^>]*type="submit"[^>]*']
+login_checkers = ['<input[^>]*name="login"[^>]*', '<input[^>]*name="pswd"[^>]*', '<button[^>]*type="submit"[^>]*']
 
 # regexp для поиска баланса на странице
 re_balance = r'(?usi)>Баланс\s*(-?\d+[.,]?\d*) '
