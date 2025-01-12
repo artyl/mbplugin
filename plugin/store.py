@@ -115,6 +115,7 @@ def fix_num_params(result, int_params):
             result[param] = str(result[param])
             if re.match(r'^-?\d+(?:\.\d+)?$', result[param]):
                 result[param] = int(float(result[param]))
+                result[param] = max(-32768, min(32767, result[param]))  # урезаем до smallint
             else:
                 logging.error(f'Bad {param} value: {result[param]}')
                 del result[param]
