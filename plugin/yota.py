@@ -21,7 +21,10 @@ class browserengine(browsercontroller.BrowserController):
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['finance/balance'], 'jsformula': "parseFloat(data.amount).toFixed(2)"},
             {'name': 'BlockStatus', 'url_tag': ['/product$'], 'jsformula': "data.status"},
+            {'name': 'LicSchet', 'url_tag': ['/info$'], 'jsformula': "data.accountNumber"},
             {'name': 'TarifPlan', 'url_tag': ['/product$'], 'jsformula': "data.description"},
+            {'name': 'TurnOff', 'url_tag': ['/product$'], 'jsformula': "data.remain"},
+            {'name': 'TurnOffStr', 'url_tag': ['/product$'], 'jsformula': "data.remainType"},
             # {'name': 'BlockStatus', 'url_tag': ['devices/devices'], 'jsformula': "data.devices[0].productStatus == 'active' ? '' : data.devices[0].productStatus"},
             # {'name': 'TurnOff', 'url_tag': ['devices/devices'], 'jsformula': "data.devices[0].slider.currentProduct.remain+' '+data.devices[0].slider.currentProduct.remainString"},
         ])

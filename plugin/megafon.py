@@ -37,6 +37,11 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'Sms', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='MESSAGE'&&('availableValue' in el)).map(el => el.availableValue.value).reduce((a,b)=>a+b,0)"},
             {'name': 'Internet', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='INTERNET'&&('availableValue' in el)).map(el => [el.availableValue.value,el.availableValue.unit]).map(([v,u])=>v*{'KB':1,'МБ':2**10,'ГБ':2**20,'ТБ':2**30}[u]).reduce((a,b)=>a+b,0)"},
         ])
+        try: 
+            if len(str(self.result.get('Min', 0))) > 9:  # unlimit recalculate to 30000-spend
+                self.result['Min'] = 30000-(1000000500-int(self.result['Min']))
+        except Exception:
+            logging.error(f'Unlimit Min recalculate fail:{store.exception_text()}')
         try:
             # recalculate self.result['Internet'] in KB to interUnit (default GB)
             self.result['Internet'] = self.result.get('Internet', 0) / settings.UNIT.get(store.options('interUnit'), settings.UNIT['GB'])
@@ -63,7 +68,6 @@ class browserengine(browsercontroller.BrowserController):
         except Exception:
             exception_text = f'Ошибка обработки списка услуг {store.exception_text()}'
             logging.error(exception_text)
-
         return
 
 
