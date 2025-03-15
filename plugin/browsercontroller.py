@@ -424,11 +424,11 @@ class BalanceOverPlaywright():
 
     @check_browser_opened_decorator
     @safe_run_with_log_decorator
-    def page_goto(self, url):
+    def page_goto(self, url, **kwargs):
         ''' переносим вызов goto в класс для того чтобы каждый раз не указывать page и обернуть декораторами'''
         try:
             if url is not None and url != '':
-                return self.page.goto(url)
+                return self.page.goto(url, **kwargs)
         except Exception:
             logging.info(f'goto timeout')
 
@@ -715,6 +715,7 @@ class BalanceOverPlaywright():
                 else:
                     # Никуда не попали и это не капча
                     self.page_screenshot(suffix='unknown')
+                    breakpoint() if os.path.exists('breakpoint_logon_unknown') else None # pylint: disable=expression-not-assigned,forgotten-debug-statement
                     logging.error(f'Unknown state')
                     raise RuntimeError(f'Unknown state')
                 break  # ВЫХОДИМ ИЗ ЦИКЛА
