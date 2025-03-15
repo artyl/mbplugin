@@ -640,9 +640,10 @@ FIX: исправлена проверка smile-net (это каменный в
 FIX: исправлена работа плагина rostelecom  
 FIX: т.к. в mdb sms и min это smallint урезаем их значение до 32767 чтобы при передаче в mobilebalance не ломалось (мегафон решил обозначать unlim как 1000000500)  
 
-## mbplugin v1.00.78 (15.03.25) yota, megafon, a1, smile-net
+## mbplugin v1.00.78 (16.03.25) yota, megafon, a1, smile-net, beeline_uz, ucelluz
 ADD: в yota добавлены LicSchet TurnOff TurnOffStr (спасибо Dmitry)  
 ADD: в мегафон в случае безлимита пытается показывать 30000 - количество потраченных минут  
 FIX: Исправление работы оператора a1by от Exemok  
 FIX: исправлена проверка smile-net (похоже они смогли нанять программиста и восстановить то что у них было до падения, вернул версию плагина из 76 версии)  
-FIX: Исправлена работа beeline_uz.py  
+FIX: Исправлена работа beeline_uz  
+FIX: Исправлена работа ucelluz  
