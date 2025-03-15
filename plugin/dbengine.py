@@ -9,7 +9,7 @@ https://stackoverflow.com/questions/45362440/32bit-pyodbc-for-32bit-python-3-6-w
 set up some constants
 
 '''
-import time, os, sys, re, logging, sqlite3, datetime, json, typing
+import math, time, os, sys, re, logging, sqlite3, datetime, json, typing
 import settings, store
 
 DB_SCHEMA = ['''
@@ -212,6 +212,8 @@ class Dbengine():
         # Исправляем поля которые в response называются не так как в базе
         if type(result2['Balance']) == str:
             result2['Balance'] = float(result2['Balance'])
+        if not math.isfinite(result2['Balance']):
+            raise RuntimeError(f"Balance is {result2['Balance']}, it is not correct")
         if 'Currency' in result2:  # Currency -> Currenc
             result2['Currenc'] = result2['Currency']
         if 'Min' in result2:  # Min -> Minutes
@@ -227,7 +229,7 @@ class Dbengine():
         line['PhoneNumber'] = login  # PhoneNumber=PhoneNum
         line['QueryDateTime'] = datetime.datetime.now().replace(microsecond=0)  # no microsecond
         # Дней без изм.
-        query = f"select cast(julianday('now')-julianday(max(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' and abs(balance-({result['Balance']}))>0.02"
+        query = f"select cast(julianday('now')-julianday(max(QueryDateTime)) as integer) from phones where phonenumber='{login}' and operator='{plugin}' and abs(balance-({result2['Balance']}))>0.02"
         line['NoChangeDays'] = self.conn_execute_00(query)
         if line['NoChangeDays'] is None:
             # Если баланс не менялся ни разу - то ориентируемся на самый первый запрос баланса
