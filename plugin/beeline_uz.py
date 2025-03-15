@@ -6,34 +6,38 @@ icon = '789C7D93CB6B135114C6BF79C4BC66924993D0269926D3247DD8579A5A92D61A5B84B628
 
 login_url = 'https://beeline.uz/ru'
 user_selectors = {
-    'chk_login_page_js': "Array.from(document.querySelectorAll('button.auth-link')).filter(el=>el.innerText.startsWith('Войти')).length>0",
-    'chk_lk_page_js': "Array.from(document.querySelectorAll('a.auth-link')).filter(el=>el.innerText.toLowerCase().startsWith('личный кабинет')).length>0",
-    'before_login_js': "document.querySelectorAll('button.auth-link').forEach(el=>el.innerText.toLowerCase()=='войти'?el.click():0);setTimeout(()=>document.querySelectorAll('button').forEach(el=>el.innerText.toLowerCase()=='вход по паролю'?el.click():0),1000)",
-    'login_clear_js': "document.querySelector('#auth-form-phone').value=''",
-    'login_selector': "#auth-form-phone",
-    'password_clear_js': "document.querySelector('input[type=password]').value=''",
-    'password_selector': "input[type=password]",
+    'chk_login_page_js': "Array.from(document.querySelectorAll('button.auth__action')).filter(el=>el.innerText.startsWith('Войти')).length>0",
+    'chk_lk_page_js': "Array.from(document.querySelectorAll('a.auth__action')).filter(el=>el.innerText.toLowerCase().startsWith('личный кабинет')).length>0",
+    'before_login_js': "Array.from(document.querySelectorAll('button.auth__action')).filter(el=>el.innerText.toLowerCase()=='войти')[0].click();setTimeout(()=>document.querySelectorAll('button').forEach(el=>el.innerText.toLowerCase()=='вход по паролю'?el.click():0),1000)",
+    'login_clear_js': """document.querySelector('form[style=""] input[type=tel]').value=''""",
+    'login_selector': """form[style=""] input[type=tel]""",
+    'password_clear_js': """document.querySelector('form[style=""] input[type=password]').value=''""",
+    'password_selector': """form[style=""] input[type=password]""",
     'remember_checker': "true",  # все проверяем в remember_js
     'remember_js': "",
-    'submit_js': "document.querySelector('button.center').click()",
+    'submit_js': "document.querySelectorAll('button').forEach(el=>el.innerText.toLowerCase()=='вход'?el.click():0)",
 }
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
-        self.do_logon(url=login_url, user_selectors=user_selectors)
-        self.page_evaluate("document.querySelectorAll('button').forEach(el=>el.innerText.startsWith('+998')?el.click():0)")  # удалить, этого вроде не нужно уже?
+        self.force = 2  # сайт тормозной - увеличиваем тайминги
+        self.page_goto(login_url, wait_until='commit')
+        self.page_wait_for(expression="document.querySelectorAll('.auth__action').length>0")
+        self.sleep(1)
+        self.do_logon(url=None, user_selectors=user_selectors)
+        #self.page_evaluate("document.querySelectorAll('button').forEach(el=>el.innerText.startsWith('+998')?el.click():0)")  # удалить, этого вроде не нужно уже?
         self.page_evaluate("Array.from(document.querySelectorAll('a')).filter(el=>el.innerText.toLowerCase().startsWith('личный кабинет')).forEach(el=>el.click())")
         self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': ['/dashboard-updated$'], 'jsformula': "parseFloat(data.subUsers[0].balance).toFixed(2)"},
-            {'name': 'TarifPlan', 'url_tag': ['/dashboard-updated$'], 'jsformula': "data.subUsers[0].pricePlan.ru"},
-            {'name': 'UserName', 'url_tag': ['/dashboard-updated$'], 'jsformula': "data.subUsers[0].fio"},
-            {'name': 'Internet', 'url_tag': ['/dashboard-updated$'], 'jsformula': "data.usages.filter(el => el.belongsTo.startsWith('GPRS_PACK')).map(el=>(parseFloat(el.leftover)/1024/1024)).reduce((x,y)=>x+y,0).toFixed(2)"},
-            {'name': 'SMS', 'url_tag': ['/dashboard-updated$'], 'jsformula': "data.usages.filter(el => el.belongsTo.startsWith('SMS')).map(el=>(parseFloat(el.leftover)/1024/1024)).reduce((x,y)=>x+y,0).toFixed(2)"},
-            {'name': 'Min', 'url_tag': ['/dashboard-updated$'], 'jsformula': "data.usages.filter(el => el.belongsTo.startsWith('CBM_ON_MINUTE_BALANCE')).map(el=>(parseFloat(el.leftover)/1024/1024)).reduce((x,y)=>x+y,0).toFixed(2)"},
-            {'name': 'LicSchet', 'url_tag': ['/dashboard-updated$'], 'jsformula': "data.subUsers[0].subAccount"},
-            {'name': 'BlockStatus', 'url_tag': ['/dashboard-updated$'], 'jsformula': "data.state"},
-            {'name': 'UslugiOn', 'url_tag': ['/dashboard-updated$'], 'jsformula': "data.services.filter(el => el.accordeons).length"},
-            {'name': 'UslugiList', 'url_tag': ['/dashboard-updated$'], 'jsformula': r"data.services.filter(el => el.accordeons).map(el => el.name.ru).join('\n')"},
+            {'name': 'Balance', 'url_tag': ['/lk-api/user/dashboard'], 'jsformula': "parseFloat(data.core_balance).toFixed(2)"},
+            {'name': 'TarifPlan', 'url_tag': ['/lk-api/user/dashboard'], 'jsformula': "data.plan.name"},
+            {'name': 'UserName', 'url_tag': ['/lk-api/user/dashboard'], 'jsformula': "data.customer_info.first_name + ' ' + data.customer_info.last_name"},
+            {'name': 'Internet', 'url_tag': ['/lk-api/user/dashboard'], 'jsformula': r"data.balances.filter(el=>el.unit=='kb' && !el.name.startsWith('Бонусный')).map(v => /(\d+(\.\d+)?)\s*(GB|MB)/.exec(v.value)).filter(x=>x).map(el=>el[3]=='MB'?el[1]/1024:el[1]/1).reduce((x,y)=>x+y,0).toFixed(2)"},
+            {'name': 'SMS', 'url_tag': ['/lk-api/user/dashboard'], 'jsformula': r"data.balances.filter(el=>el.unit=='unit').map(el=>el.value.replace(/\D/g, '')*1).reduce((x,y)=>x+y,0).toFixed(0)"},
+            {'name': 'Min', 'url_tag': ['/lk-api/user/dashboard'], 'jsformula': r"data.balances.filter(el=>el.unit=='min').map(el=>el.value.replace(/\D/g, '')*1).reduce((x,y)=>x+y,0).toFixed(0)"},
+            {'name': 'LicSchet', 'url_tag': ['/lk-api/user?'], 'jsformula': "data.id"},
+            {'name': 'BlockStatus', 'url_tag': ['/lk-api/user?'], 'jsformula': "data.status"},
+            #{'name': 'UslugiOn', 'url_tag': ['/dashboard-updated$'], 'jsformula': "data.services.filter(el => el.accordeons).length"},
+            #{'name': 'UslugiList', 'url_tag': ['/dashboard-updated$'], 'jsformula': r"data.services.filter(el => el.accordeons).map(el => el.name.ru).join('\n')"},
         ])
 
 def get_balance(login, password, storename=None, **kwargs):
