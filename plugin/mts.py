@@ -326,11 +326,11 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             logging.info(f'{location=} collect {pd.len_data()}')
             if pd.check_selector('.footer .guru'):
                 state = 'qrator'
-            elif pd.check_selector('form input[type=tel]'):
+            elif pd.check_selector('main input[type=tel]'):
                 state = 'login'
             elif pd.check_selector('div[data-test-id=verify-otp]'):
                 state = 'sms'
-            elif pd.check_selector('form input[id=password]'):
+            elif pd.check_selector('main input[id=password]'):
                 state = 'password'
             elif pd.check_selector('mts-lk-root'):
                 state = 'lk'
@@ -393,16 +393,19 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     state = wait_state()
     if state == 'login':
         store.feedback.text(f"Login", append=True)
-        pd.page_fill('form input[type=tel]', login)
-        pd.page_click('form [type=submit]')
+        pd.page_fill('main input[type=tel]', login)
+        # pd.page_click('main [type=submit]')
+        pd.page_eval('Array.from(document.querySelectorAll("main button")).filter(el=>el.innerText.toLowerCase()=="далее").map(el=>el.click())')
+        
         state = wait_state()
         pd.capture_screenshot()
 
     state = wait_state()
     if state == 'password':
         store.feedback.text(f"Password", append=True)
-        pd.page_fill('form input[id=password]', password)
-        pd.page_click('form [type=submit]')
+        pd.page_fill('main input[id=password]', password)
+        # pd.page_click('main [type=submit]')
+        pd.page_eval('Array.from(document.querySelectorAll("main button")).filter(el=>el.innerText.toLowerCase()=="далее").map(el=>el.click())')
         state = wait_state()
         pd.capture_screenshot()
 
@@ -439,24 +442,13 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         result['UserName'] = user_profile.get('displayName', '')
         # ждем longtask тормозную страницу
         logging.info(f'Wait mscpBalance and counters')
-        for cnt in range(30):
-            if pd.get_response_body('for=api/accountInfo/mscpBalance') != '' and pd.get_response_body('for=api/sharing/counters') != '':
-                break
-            time.sleep(1)
-        pd.capture_screenshot()
-        mccsp_balance = pd.get_response_body_json('for=api/accountInfo/mscpBalance')
+        # !!! api/accountInfo/mscpBalance - такой страницы больше нет - баланс только на api/login/user-info
         # amount брать нельзя т.к. он здесь криво округленный под показ на странице
         # но если баланс нулевой а amount не нулевой то нам вернули кривой баланс и мы его выкидываем
         # amount берем только если заходим через другой номер, там у части пользователей баланс стабильно нулевой
-        if 'amount' in mccsp_balance and 'Balance' in result:
-            if mccsp_balance['amount'] > 0 and result['Balance'] == 0:
-                del result['Balance']
         if options('mts_balance_from').lower() == 'balance':
             logging.info('force get balance from api/login/user-info..balance')
             result['Balance'] = round(user_profile['balance'], 2)
-        if options('mts_balance_from').lower() == 'amount':
-            logging.info('force get balance from for=api/accountInfo/mscpBalance..amount')
-            result['Balance'] = round(mccsp_balance['amount'], 2)
         if result.get('Balance', 0) == 0:
             # get balance from html
             web_bal = pd.page_eval("parseFloat(document.querySelector('div.widget-mobile-balance').innerText.replace(',','.').replace(/[^0-9.]/g, ''))")
@@ -464,7 +456,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                 logging.info(f'Balance found in html: {web_bal}')
                 result['Balance'] = web_bal
         counters = pd.get_response_body_json('for=api/sharing/counters').get('data', {}).get('counters', [])
-        if type(counters) == list and len(counters) > 0:
+        if isinstance(counters, list) and len(counters) > 0:
             # deadlineDate
             deadline_dates = set([i['deadlineDate'] for i in counters if 'deadlineDate' in i])
             if len(deadline_dates) > 0:
