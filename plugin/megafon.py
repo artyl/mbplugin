@@ -34,7 +34,7 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'UserName', 'url_tag': ['/api/auth/sessionCheck'], 'jsformula': """data.name.replace('"','').replace("'",'').replace('&quot;','').replace('&nbsp;',' ').replace('&mdash;','-')"""},
             {'name': 'TarifPlan', 'url_tag': ['api/tariff'], 'jsformula': """data.name.replace('"','').replace("'",'').replace('&quot;','').replace('&nbsp;',' ').replace('&mdash;','-')"""},
             {'name': 'Min', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='VOICE'&&('availableValue' in el)).map(el => el.availableValue.value).reduce((a,b)=>a+b,0)"},
-            {'name': 'Sms', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='MESSAGE'&&('availableValue' in el)).map(el => el.availableValue.value).reduce((a,b)=>a+b,0)"},
+            {'name': 'SMS', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='MESSAGE'&&('availableValue' in el)).map(el => el.availableValue.value).reduce((a,b)=>a+b,0)"},
             {'name': 'Internet', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='INTERNET'&&('availableValue' in el)).map(el => [el.availableValue.value,el.availableValue.unit]).map(([v,u])=>v*{'KB':1,'МБ':2**10,'ГБ':2**20,'ТБ':2**30}[u]).reduce((a,b)=>a+b,0)"},
         ])
         try: 
@@ -83,8 +83,8 @@ def calc_uslugi(result, a_tariff, a_services, a_reports):
     a_reports - txt из api/reports/expenses
     '''
     paid_tarif = float(a_tariff.get('ratePlanCharges', {}).get('price', {}).get('value', '0').replace(',', '.'))
-    paid_sum = float(a_tariff.get('ratePlanCharges', {}).get('totalMonthlyPrice', {}).get('value', '0').replace(',', '.'))
-    services = [(f"Тариф {result['TarifPlan']}", paid_tarif)]
+    # paid_sum = float(a_tariff.get('ratePlanCharges', {}).get('totalMonthlyPrice', {}).get('value', '0').replace(',', '.'))
+    services = [(f"Тариф {result.get('TarifPlan', '')}", paid_tarif)]
     # 'title': '200 ₽ за 30 дней' ->(r'^\d*')-> '200' -> 200
     services += [(i['optionName'], int('0' + re.search(r'^\d*', i.get('previewImportantInformation',[{}])[0].get('title', '')).group())) for i in a_services.get('paid', [])]
     services += [(i['optionName'], 0) for i in a_services.get('free', [])]
@@ -93,6 +93,7 @@ def calc_uslugi(result, a_tariff, a_services, a_reports):
     services.sort(key=lambda i: (-i[1], i[0]))
     free = len([a for a, b in services if b == 0])  # бесплатные
     paid = len([a for a, b in services if b != 0])  # платные
+    paid_sum = sum([b for a, b in services if b != 0]) # общая сумма
     result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
     result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
 

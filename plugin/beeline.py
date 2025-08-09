@@ -14,7 +14,7 @@ services_url = 'https://beeline.ru/customers/products/elk/tab/mobile-connection'
 services_tag = '/api/uni-profile-mobile/services/'
 subscribtions_tag = '/api/uni-profile-mobile/subscriptions/'
 user_selectors = {'chk_lk_page_js': "document.querySelectorAll('div.balance').length+document.querySelectorAll('button[data-metric-data]').length+document.querySelectorAll('p[data-t-id]').length>0",
-                  'chk_login_page_js': "Array.from(document.querySelectorAll('h1')).filter(el=>el.innerText=='Вход в личный кабинет') != null && Array.from(document.querySelectorAll('button')).filter(el=>el.innerText=='Войти')!= null",
+                  'chk_login_page_js': "Array.from(document.querySelectorAll('h1')).filter(el=>el.innerText=='Вход в личный кабинет').length>0 && Array.from(document.querySelectorAll('button')).filter(el=>el.innerText=='Войти').length>0",
                   'before_login_js': "document.querySelectorAll('button').forEach(el=>el.innerText=='Логин'?el.click():0);",
                   'login_clear_js': "document.querySelector('input[placeholder^=Введите][placeholder$=логин]').value=''",
                   'login_selector': 'input[placeholder^=Введите][placeholder$=логин]',

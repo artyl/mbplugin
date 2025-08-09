@@ -518,7 +518,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             except Exception:
                 logging.info(f'Не смогли сложить балансы {store.exception_text()}')
         store.feedback.text(f"Uslugi", append=True)
-        pd.send('Page.navigate', {'url': 'https://lk.mts.ru/uslugi/podklyuchennye'})
+        pd.send('Page.navigate', {'url': 'https://lk.mts.ru/moi-uslugi'})  # fix https://lk.mts.ru/uslugi/podklyuchennye
         # ждем longtask тормозную страницу
         for cnt in range(30):
             if pd.get_response_body('for=api/services/list/active$') != '':
