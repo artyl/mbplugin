@@ -519,19 +519,20 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                 logging.info(f'Не смогли сложить балансы {store.exception_text()}')
         store.feedback.text(f"Uslugi", append=True)
         pd.send('Page.navigate', {'url': 'https://lk.mts.ru/moi-uslugi'})  # fix https://lk.mts.ru/uslugi/podklyuchennye
-        # ждем longtask тормозную страницу
+        # теперь у нас https://federation.mts.ru/graphql, раньше ждали longtask тормозную страницу 'for=api/services/list/active$'
         for cnt in range(30):
-            if pd.get_response_body('for=api/services/list/active$') != '':
+            if pd.get_response_body('/graphql') != '':
                 break
             time.sleep(1)
         pd.capture_screenshot()
         # services = pd.jsformula('for=api/services/list/active$', "data.data.services.map(s=>[s.name,!!s.subscriptionFee.value?s.subscriptionFee.value*(s.subscriptionFee.unitOfMeasureRaw=='DAY'?30:1):0])")
-        active = pd.get_response_body_json('for=api/services/list/active$')
+        active = pd.get_response_body_json('/graphql')
         # (name, cost, period)
-        services_ = [(e.get('name', ''), e.get('subscriptionFee', {}).get('value', 0), e.get('subscriptionFee', {}).get('unitOfMeasureRaw', ''))
-                     for e in active.get('data', {}).get('services', [])]
-        services_2 = [(s, c * (30 if p == 'DAY' else 1)) for s, c, p in services_]
-        result['BlockStatus'] = active.get('data', {}).get('accountBlockStatus', '').replace('Unblocked', '')
+        groups = active.get('data', {}).get('myServicesProducts', {}).get('groups', [])
+        products = sum([gr.get('products', []) for gr in groups], []) 
+        services_ = [(pr.get('name', ''),pr.get('currentPrice', {}).get('value', 0), pr.get('currentPrice', {}).get('unitOfMeasure', 'r'))  for pr in products]
+        services_2 = [(s, float(c) * (30 if '/день' in p else 1)) for s, c, p in services_]
+        # result['BlockStatus'] = active.get('data', {}).get('accountBlockStatus', '').replace('Unblocked', '')
         try:
             services = sorted(services_2, key=lambda i: (-i[1], i[0]))
             free = len([a for a, b in services if b == 0 and (a, b) != ('Ежемесячная плата за тариф', 0)])
@@ -555,7 +556,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                 time.sleep(1)
             pd.capture_screenshot()
             res3_alt = pd.get_response_body_json('for=api/sharing/counters').get('data', {})
-            # Пока просто исключаем Tethering, потом посмотрим как быть если варианты появяться
+            # Пока просто исключаем Tethering, потом посмотрим как быть если варианты появятся
             counters = [el for el in res3_alt.get('counters', []) if el.get('packageGroup', '') not in ['Tethering']]
             try:
                 # Обработка по новому варианту страницы api/sharing/counters
