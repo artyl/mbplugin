@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
 from typing import List, Dict
-import base64, datetime, gc, glob, json, logging, os, pathlib, pprint, random, re, socket, sys, threading, time, subprocess
+import base64, datetime, gc, glob, hashlib, json, logging, os, pathlib, pprint, random, re, socket, sys, threading, time, subprocess
 import psutil, requests, playwright, websocket
 import browsercontroller, store, settings
 if sys.platform == 'win32':
@@ -10,7 +10,7 @@ if sys.platform == 'win32':
 icon = '789C75524D4F5341143D84B6A8C0EB2BAD856A4B0BE5E301A508A9F8158DC18498A889896E8C3B638C31F147B83171E34E4388AE5C68E246A3C68D0B5DA82180B5B40A5A94B6F651DA423F012D2DE09D79CF4A207DC949A733F79C39F7CC1D3A37A801FF060912415451058772A09E6FFD04CD18F4DA09C267C214210051FB857EFFC1AFEEB3F3495E2F68DEA35EF396F086F6BCBC46D47E257C2304A1D7045157350DA13A80FA6A1F6AAB7CB4F6AB5A5E08DA71D2F840FC772AEF3B44DD0F1874215A87D1DA34871B57658CDE4F1212B87E2504BBD94F5A01D5938F7B16341F8937CB79C65DBF60DA2DC3E594F1FAE532D64B1BD8DCDCE428D1FAC5B30CDAAD33E483799C2E6B187411E245D124CC63BF18C3DD3BB9326F3B6EDF4A506FB3C49FE5BE99C6DE3D32F6E9636836C671A0631153DEB58AFCC9F155EA4DE951D40579CE8C6B37C5693F895347D388C9EB15F9D148119E1E190D3551F23DC7F366F73A2D4974DA52183E9E831CADCC0F878A38E88AC15C3B4F1A119E5D8B39814EEB125CAD199CF0E4C97FA9227F7CAC809E96382CE4D9489989BA9F7092EF2E7B8A7ACF62D0B58C278F8A15F90F4656D0D29880D5B0C07363EFD6665944B72385012947FC15DCBC56403EB7939BCD6CE0F2852CF193B0352C500F8C1F267EB2CC3FEC5EA10CFFE0D5F39D193C7D5C80BB2DCDEFDBCADFEEFF58FF2A2E9D2FC0F7E9BFC6C45809A74FE62035A778BDE23FCAFD3B28BF0EEB22E597E61E0EF52EE348DF2A2E9EFD8D87236B18BD57C099A13CE596E639B37AF6E66C5E597ECC0B7B7BA97909BDCE0CFA3BB3F074E73906A43CFADA73FC6DBAD4BB597D63DD3C0C35CA0C59049A3D933203926D89DFE3261D779B0217FD67DA2C273667AC9ECDBB323F33F80B823D9864'
 
 # login_url 'https://login.mts.ru/amserver/UI/Login'  # - другая форма логина - там оба поля на одной странице, и можно запомнить сессию
-login_url = 'https://lk.mts.ru/'  # а на этой запомнить сессию нельзя, но другой больше нет
+login_url = 'https://lk.mts.ru'  # а на этой запомнить сессию нельзя, но другой больше нет
 
 def get_free_port() -> int:
     """Get free port."""
@@ -35,8 +35,12 @@ class PureBrowserDebug():
         self.wait_screenshot = wait_screenshot
         self.port = get_free_port()  # port for CDP
         self._data: List[dict] = []  # store all winsocket reply
+        self.data_proc = 0  # number of processed data, up to what point has the data been processed
+        self.queue_json_request_id = set()  # queue json requests waiting Network.loadingFinished
+        self._json: List[dict] = []  # store all winsocket json reply
         self.chrome_hwnd: List[int] = []  # store chrome visible windows handle (windows only)
         self.responses: Dict[str, dict] = {}  # [f'{response.request.method}:{post} URL:{response.request.url}$'] = data
+        self.responses_md5 = set()  # store md5 of responses to avoid duplicates
         self.ws_id = 0  # id counter for ws query
         self.fix_crash_banner()
         self.br_subp = self.run_chromium()  # run browser subprocess
@@ -119,11 +123,12 @@ class PureBrowserDebug():
         except Exception:
             logging.error(f'While enumerate the window an exception occurred: {store.exception_text()}')
 
-    def send(self, method, params=None):
+    def send(self, method, params=None, comment=''):
         if params is None:
             params = {}
         self.ws_id += 1
-        logging.info(f'send {self.ws_id}: {method} {params}')
+        comment = f'#{comment}' if len(comment) > 0 else ''
+        logging.info(f'send {self.ws_id}: {method} {params} {comment}')
         self.ws.send(json.dumps({"id": self.ws_id, "method": method, "params": params}))
         return self.ws_id
 
@@ -179,9 +184,9 @@ class PureBrowserDebug():
         if hasattr(self, 'br_subp') and self.br_subp.poll() is None:  # browser is running ?
             self.browser_close()
 
-    def get_response_by_id(self, request_id):
+    def get_response_by_id(self, request_id, comment=''):
         'wrapper for Network.getResponseBody + ws.recv for debug'
-        id = self.send('Network.getResponseBody', {"requestId": request_id})
+        id = self.send('Network.getResponseBody', {"requestId": request_id}, comment=comment)
         res = self.collect(id)
         return res
 
@@ -191,44 +196,84 @@ class PureBrowserDebug():
         self.collect()  # Прежде чем искать по response нужно собрать последние
         if partitial:
             request_id_list = [
-                el['params']['requestId'] for el in self._data
-                if url in (el.get('params', {}).get('response', {}).get('url', '') + '$')
-                and ctype in el.get('params', {}).get('response', {}).get('headers', {}).get('Content-Type', '')
-                and el.get('params', {}).get('response', {}).get('status', 0) not in [204, 400, 404]
+                self.tget(el, 'params.requestId') for el in self._data
+                if url in (self.tget(el, 'params.response.url') + '$')
+                and ctype in self.tget(el, 'params.response.headers.Content-Type')
+                and self.tget(el, 'params.response.status') not in [204, 400, 404]
             ]
         else:
-            request_id_list = [el['params']['requestId'] for el in self._data if el.get('params', {}).get('response', {}).get('url', '') == url]
+            request_id_list = [self.tget(el, 'params.requestId') for el in self._data if self.tget(el, 'params.response.url') == url]
         if len(request_id_list) == 0:
             logging.info(f'Url {url} with {ctype=} not found in data')
             return None
         id = self.send('Network.getResponseBody', {"requestId": request_id_list[-1]})
-        res = self.collect(id)
-        if res is None:
+        res_raw = self.collect(id)
+        if res_raw is None:
             return ''
-        if res.get('base64Encoded', True):
-            return base64.b64decode(res.get('body', ''))
+        if res_raw.get('base64Encoded', True):
+            return base64.b64decode(res_raw.get('body', ''))
         else:
-            return res.get('body', '')
+            return res_raw.get('body', '')
         
     def len_data(self):
         return len(self._data)
 
-    def get_response_body_json(self, url, partitial=True):
+    def get_response_body_json(self, url, partitial=True, graphql_key=None):
         'get_response_body + json.dumps if the result is not json retry every second until the timeout expiries'
+        res = {}  # default value
         try:
-            res = json.loads(self.get_response_body(url, partitial=partitial, ctype='json'))
-            key = f'{url}_{len(self.responses)}'
-            self.responses[key] = res
-            try:
-                if self.response_store_path is not None and self.log_responses:
-                    text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4, width=160).pformat(v)}' for k, v in self.responses.items()])
-                    open(self.response_store_path, 'w', encoding='utf8', errors='ignore').write(text)
-            except Exception:
-                logging.info(f'json decode error')
+            for key in reversed(self.responses.keys()):
+                if url in key and partitial==True or url == key.split('$_')[0] and partitial==False:
+                    # FIXME !!! add graphql_key
+                    res = self.responses[key]
+                    break
             return res
         except Exception:  # json.decoder.JSONDecodeError:
             logging.info(f'json decode error')
-            return {}
+            return res
+
+    def collect_json(self):
+        'collect json body and Network.responseReceived and Network.loadingFinished, Network.loadingFailed match'
+        # collect all json
+        self.collect()
+        for el in self._data[self.data_proc:]:
+            self.data_proc += 1
+            if 'method' not in el: continue
+            request_id = self.tget(el, 'params.requestId')
+            if el.get('method') in ['Network.loadingFinished', 'Network.loadingFailed']:
+                self.queue_json_request_id.discard(request_id)
+                continue
+            if el.get('method') == 'Network.responseReceived' and 'json' in self.tget(el, 'params.response.headers.Content-Type'):
+                url = self.tget(el, 'params.response.url')
+                if 'yandex.ru' in url: continue
+                self.queue_json_request_id.add(request_id)
+                if self.tget(el, 'params.response.status') not in [204, 400, 404]:
+                    try:
+                        body = self.get_response_by_id(el['params']['requestId'], comment=url).get('body', '')
+                        body_prep = re.sub(r'(\d{2}:\d{2}):\d{2}\.\d+', r'\1:00.000', body)  # replace seconds with 00.000
+                        body_md5 = hashlib.md5(body_prep.encode('utf8')).hexdigest()
+                        if body_md5 in self.responses_md5 or len(body) == 0:
+                            logging.info(f'Skipped duplicate or empty response for {url}')
+                            continue
+                        self.responses_md5.add(body_md5)
+                        res = json.loads(body)
+                        self._json.append(res)
+                        key = f'{url}$_{len(self.responses)}'
+                        self.responses[key] = res
+                        if self.response_store_path is not None and self.log_responses:
+                            text = '\n\n'.join([f'{k}\n{pprint.PrettyPrinter(indent=4, width=160).pformat(v)}' for k, v in self.responses.items()])
+                            open(self.response_store_path, 'w', encoding='utf8', errors='ignore').write(text)
+                    except Exception:
+                        logging.info(f'json decode error for {url}')
+
+    def wait_json_queue(self, timeout=10, tick=0.1):
+        time.sleep(1)
+        self.collect_json()
+        while timeout > 0 and len(self.queue_json_request_id) > 0:
+            self.collect_json()
+            time.sleep(tick)
+            timeout -= tick
+            self.collect()
 
     def jsformula(self, url, formula):
         'get json from url and evaluate as data'
@@ -428,6 +473,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                 pd.capture_screenshot()
                 return
         store.feedback.text(f"User info", append=True)
+        pd.wait_json_queue(timeout=10)  # ждем пока загрузятся json
         user_info = pd.get_response_body_json('api/login/user-info')
         user_profile = user_info.get('userProfile', {})
         # rich.print(ui)
@@ -518,21 +564,18 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             except Exception:
                 logging.info(f'Не смогли сложить балансы {store.exception_text()}')
         store.feedback.text(f"Uslugi", append=True)
+        pd.send('Page.navigate', {'url': 'https://lk.mts.ru/tarif'})
+        pd.wait_json_queue(timeout=10)  # ждем пока загрузятся json
         pd.send('Page.navigate', {'url': 'https://lk.mts.ru/moi-uslugi'})  # fix https://lk.mts.ru/uslugi/podklyuchennye
         # теперь у нас https://federation.mts.ru/graphql, раньше ждали longtask тормозную страницу 'for=api/services/list/active$'
-        for cnt in range(30):
-            if pd.get_response_body('/graphql') != '':
-                break
-            time.sleep(1)
+        pd.wait_json_queue(timeout=10)  # ждем пока загрузятся json
         pd.capture_screenshot()
-        # services = pd.jsformula('for=api/services/list/active$', "data.data.services.map(s=>[s.name,!!s.subscriptionFee.value?s.subscriptionFee.value*(s.subscriptionFee.unitOfMeasureRaw=='DAY'?30:1):0])")
-        active = pd.get_response_body_json('/graphql')
+        active = pd.get_response_body_json('for=api/services/list/active$')
         # (name, cost, period)
-        groups = active.get('data', {}).get('myServicesProducts', {}).get('groups', [])
-        products = sum([gr.get('products', []) for gr in groups], []) 
-        services_ = [(pr.get('name', ''),pr.get('currentPrice', {}).get('value', 0), pr.get('currentPrice', {}).get('unitOfMeasure', 'r'))  for pr in products]
-        services_2 = [(s, float(c) * (30 if '/день' in p else 1)) for s, c, p in services_]
-        # result['BlockStatus'] = active.get('data', {}).get('accountBlockStatus', '').replace('Unblocked', '')
+        services_ = [(e.get('name', ''), e.get('subscriptionFee', {}).get('value', 0), e.get('subscriptionFee', {}).get('unitOfMeasureRaw', ''))
+                     for e in active.get('data', {}).get('services', [])]
+        services_2 = [(s, c * (30 if p == 'DAY' else 1)) for s, c, p in services_]
+        result['BlockStatus'] = active.get('data', {}).get('accountBlockStatus', '').replace('Unblocked', '')
         try:
             services = sorted(services_2, key=lambda i: (-i[1], i[0]))
             free = len([a for a, b in services if b == 0 and (a, b) != ('Ежемесячная плата за тариф', 0)])
@@ -550,10 +593,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             # 24.08.2021 иногда возвращается легальная страница, но вместо информации там сообщение об ошибке - тогда перегружаем и повторяем
             store.feedback.text(f"Sharing", append=True)
             pd.send('Page.navigate', {'url': 'https://lk.mts.ru/sharing'})
-            for cnt in range(30):
-                if pd.get_response_body('for=api/sharing/counters') != '':
-                    break
-                time.sleep(1)
+            pd.wait_json_queue(timeout=10)  # ждем пока загрузятся json
             pd.capture_screenshot()
             res3_alt = pd.get_response_body_json('for=api/sharing/counters').get('data', {})
             # Пока просто исключаем Tethering, потом посмотрим как быть если варианты появятся

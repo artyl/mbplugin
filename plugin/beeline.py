@@ -24,9 +24,19 @@ user_selectors = {'chk_lk_page_js': "document.querySelectorAll('div.balance').le
                   }
 
 class browserengine(browsercontroller.BrowserController):
+    def wait_slow_beeline_response(self, response_urls):
+        prev_responses = len(self.responses)
+        for w in range(9):  # 66s=sum(range(12))
+            if self.page_check_response_urls(response_urls): break
+            if len(self.responses) == prev_responses and w > 4: break
+            prev_responses = len(self.responses)
+            self.sleep(w)
+        else:
+            raise RuntimeError(f'Так и не получили страницу с балансом {list(response_urls.keys())}')
+
     def data_collector(self):
         logging.info(f'Before call self.page_goto({direct_lk_url})')
-        self.page_goto(direct_lk_url)
+        self.page_goto(direct_lk_url, wait_until='commit')
         # оптимистичный сценарий если залогинены стараемся побыстрому все забрать
         for w in range(5):  # 10s=sum(range(5))
             self.sleep(w)
@@ -46,34 +56,18 @@ class browserengine(browsercontroller.BrowserController):
         self.page_screenshot()
         ### direct_lk_url
         logging.info(f'Сall self.page_goto({direct_lk_url})')
-        self.page_goto(direct_lk_url)
-        for w in range(9):  # 28s=sum(range(8))
-            if self.page_check_response_urls({accumulators_tag: 'accumulators'}):
-                break
-            self.sleep(w)
-        else:
-            logging.info(f'Так и не получили страницу с accumulators {accumulators_tag}, но идем дальше')
+        self.page_goto(direct_lk_url, wait_until='commit')
+        self.wait_slow_beeline_response({accumulators_tag: 'accumulators'})
         self.page_screenshot()
         ### profile_url
         logging.info(f'Сall self.page_goto({profile_url})')
-        self.page_goto(profile_url)
-        for w in range(9):  # 66s=sum(range(12))
-            if self.page_check_response_urls({profile_tag: 'balance'}):
-                break
-            self.sleep(w)
-        else:
-            raise RuntimeError(f'Так и не получили страницу с балансом {profile_tag}')
+        self.page_goto(profile_url, wait_until='commit')
+        self.wait_slow_beeline_response({profile_tag: 'balance'})
         self.page_screenshot()
         ### services_url
         logging.info(f'Сall self.page_goto({services_url})')
-        self.page_goto(services_url)
-        for w in range(9):  # 28s=sum(range(8))
-            if self.page_check_response_urls({services_tag:None, subscribtions_tag: None}):
-                break
-            self.sleep(w)
-        else:
-            logging.info(f'Так и не получили страницу с accumulators {services_tag} или {subscribtions_tag}, но идем дальше')
-
+        self.page_goto(services_url, wait_until='commit')
+        self.wait_slow_beeline_response({services_tag:None, subscribtions_tag: None})
         self.page_screenshot()
         # Приходится сначала долго ждать страницу, а затем когда она пришла получить ее точный url чтобы отфильтроваться от остальных запросов с похожим url
         bal_data_url, bal_data = [[k, v] for k, v in self.responses.items() if profile_tag in k and 'balance' in v][-1]

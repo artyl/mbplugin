@@ -11,7 +11,9 @@ if exist python-3.8.3-embed-win32.zip del python-3.8.3-embed-win32.zip
 
 @ECHO Install package
 @REM Скачать https://bootstrap.pypa.io/get-pip.py в mbplugin\python
-if not exist get-pip.py   curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+@REM if not exist get-pip.py   curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+@REM Докатились, The minimum supported Python version is 3.9 придется брать старый
+if not exist get-pip.py   curl -s https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip.py
 
 @REM Находясь в папке mbplugin\python выполнить 
 if not exist Lib\site-packages\pip python get-pip.py -q --no-warn-script-location 
