@@ -491,9 +491,9 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         graphql_balance = pd.get_response_body_json('/graphql', graphql_key='data.balances.nodes')
         balance_nodes = pd.tget(graphql_balance, 'data.balances.nodes', [])
         if len(balance_nodes) > 0:
-            balance_text = pd.tget(balance_nodes[0], 'remainingValue.amount')
+            balance_text = str(pd.tget(balance_nodes[0], 'remainingValue.amount'))
             if balance_text != '':
-                result['Balance'] = round(float(balance_text), 2)
+                result['Balance'] = round(float(balance_text.replace(',', '.')), 2)
         # Потом все остальное
         # result['TarifPlan'] = user_profile.get('tariff', '').replace('(МАСС) (SCP)', '') # see graphql
         result['UserName'] = user_profile.get('displayName', '')
@@ -603,7 +603,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         # !!! pr.get('currentPrice') может быть None поэтому вместо pr.get('currentPrice', {}) делаем (pr.get('currentPrice') or {})
         services_ = [(pr.get('name', ''),pr.get('description', ''),(pr.get('currentPrice') or {}).get('value', 0), (pr.get('currentPrice') or {}).get('unitOfMeasure', 'r'))  for pr in products]
         services_ = services_ + [('Ежемесячная плата ' + tariff_name, tariff_price_date, *tariff_price_text.split(' ',1))]
-        services_2 = [(s, float(c) * (30 if '/день' in p else 1)*(0 if d is None else 1)) for s, d, c, p in services_]
+        services_2 = [(s, float(str(c).replace(',', '.')) * (30 if '/день' in p else 1)*(0 if d is None else 1)) for s, d, c, p in services_]
         # result['BlockStatus'] = active.get('data', {}).get('accountBlockStatus', '').replace('Unblocked', '')
         try:
             services = sorted(services_2, key=lambda i: (-i[1], i[0]))
