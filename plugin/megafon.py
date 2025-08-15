@@ -33,9 +33,9 @@ class browserengine(browsercontroller.BrowserController):
             {'name': 'KreditLimit', 'url_tag': ['api/main/balance'], 'jsformula': "parseFloat(data.balanceWithLimit).toFixed(2)"},
             {'name': 'UserName', 'url_tag': ['/api/auth/sessionCheck'], 'jsformula': """data.name.replace('"','').replace("'",'').replace('&quot;','').replace('&nbsp;',' ').replace('&mdash;','-')"""},
             {'name': 'TarifPlan', 'url_tag': ['api/tariff/2019-3/current'], 'jsformula': """data.name.replace('"','').replace("'",'').replace('&quot;','').replace('&nbsp;',' ').replace('&mdash;','-')"""},
-            {'name': 'Min', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='VOICE'&&('availableValue' in el)).map(el => el.availableValue.value).reduce((a,b)=>a+b,0)"},
-            {'name': 'SMS', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='MESSAGE'&&('availableValue' in el)).map(el => el.availableValue.value).reduce((a,b)=>a+b,0)"},
-            {'name': 'Internet', 'url_tag': ['remainders/mini'], 'jsformula': "data.remainders.filter(el => el.remainderType=='INTERNET'&&('availableValue' in el)).map(el => [el.availableValue.value,el.availableValue.unit]).map(([v,u])=>v*{'KB':1,'МБ':2**10,'ГБ':2**20,'ТБ':2**30}[u]).reduce((a,b)=>a+b,0)"},
+            {'name': 'Min', 'url_tag': ['remainders/mini'], 'jsformula': "(data.remainders ?? []).filter(el => el.remainderType=='VOICE'&&('availableValue' in el)).map(el => el.availableValue.value).reduce((a,b)=>a+b,0)"},
+            {'name': 'SMS', 'url_tag': ['remainders/mini'], 'jsformula': "(data.remainders ?? []).filter(el => el.remainderType=='MESSAGE'&&('availableValue' in el)).map(el => el.availableValue.value).reduce((a,b)=>a+b,0)"},
+            {'name': 'Internet', 'url_tag': ['remainders/mini'], 'jsformula': "(data.remainders ?? []).filter(el => el.remainderType=='INTERNET'&&('availableValue' in el)).map(el => [el.availableValue.value,el.availableValue.unit]).map(([v,u])=>v*{'KB':1,'МБ':2**10,'ГБ':2**20,'ТБ':2**30}[u]).reduce((a,b)=>a+b,0)"},
         ])
         try: 
             if len(str(self.result.get('Min', 0))) > 9:  # unlimit recalculate to 30000-spend
