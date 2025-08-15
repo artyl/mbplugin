@@ -49,4 +49,4 @@ mbplugin\python\python mbplugin\plugin\util.py check-dll
 REM Показываем версию
 mbplugin\python\python mbplugin\plugin\util.py version -v
 
-timeout 60
+pause

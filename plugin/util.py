@@ -129,15 +129,16 @@ def install_chromium(ctx, browsers):
 def pip_update(ctx, quiet, check_only):
     '''Проверяем или обновляем пакеты по requirements.txt или requirements_win.txt или requirements_win7.txt'''
     name = 'pip-update'
-    flags = " -q " if quiet else ""
+    flags = []
+    if quiet: flags.append('-q')
     if store.options('requirements').strip() != '':
         requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', store.options('requirements').strip())
     elif sys.platform == 'win32':
-        #if int(platform.version().split('.')[0]) >= 10: # win10
-        requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements_win.txt')
-        #else:
-        #    requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements_win7.txt')
-        flags += ' --no-warn-script-location '
+        if int(platform.version().split('.')[0]) >= 10: # win10
+            requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements_win10.txt')
+        else:
+            requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements_win7.txt')
+        flags.append('--no-warn-script-location')
     else:
         requirements_path = os.path.join(ROOT_PATH, 'mbplugin', 'docker', 'requirements.txt')
     if check_only:
@@ -155,8 +156,8 @@ def pip_update(ctx, quiet, check_only):
             sys.exit(2)
         echo(f'OK {name}')
         return
-    os.system(f'"{sys.executable}" -m pip install {flags} --upgrade pip wheel setuptools')
-    os.system(f'"{sys.executable}" -m pip install {flags} -r {requirements_path}')
+    subprocess.run([sys.executable, '-m', 'pip', 'install', *flags,  '--upgrade', 'pip', 'wheel', 'setuptools'])
+    subprocess.run([sys.executable, '-m', 'pip', 'install', *flags, '-r', requirements_path])
     echo(f'OK {name}')
 
 
@@ -209,7 +210,7 @@ def recompile_plugin(ctx, skip_dll, skip_jsmblh, prepare_link):
                     dst = os.path.join(ROOT_PATH, 'mbplugin', 'dllplugin', pluginname + '.dll')
                     compile_bat = os.path.join(ROOT_PATH, 'mbplugin', 'dllsource', 'compile.bat')
                     if 'def' + ' get_balance(' in open(fn, encoding='utf8').read():
-                        os.system(f'{compile_bat} {pluginname}')
+                        subprocess.run([compile_bat, pluginname])
                         shutil.move(src, dst)
                     if ctx.obj['VERBOSE']:
                         echo(f'Move {pluginname}.dll -> dllplugin\\')
@@ -606,7 +607,7 @@ def check_ini(ctx):
 
 @cli.command()
 @click.option('-b', '--bpoint', type=int)
-@click.option('-p', '--params', multiple=True, type=click.Tuple([str, str]), help='override parameters ex. -p showchrome 1 -p plugin_mode WEB')
+@click.option('-p', '--params', multiple=True, type=click.Tuple([str, str]), help='override parameters ex. -p show_chrome 1 -p plugin_mode WEB')
 @click.argument('plugin', type=str)
 @click.argument('login', type=str)
 @click.argument('password', type=str)
@@ -734,7 +735,7 @@ def version(ctx, verbose, download_stat):
     echo(f'Mbplugin version {store.version()}')
     if not verbose:
         return
-    echo(f'Python {sys.version}')
+    echo(f'Python {sys.version} on {sys.platform}')
     import playwright._repo_version, playwright.sync_api, requests
     echo(f'Playwright {playwright._repo_version.version}')
     import browsercontroller

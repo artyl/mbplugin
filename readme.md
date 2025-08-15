@@ -26,6 +26,7 @@
 [Инструкция по варианту использования как python модуль](https://github.com/artyl/mbplugin/blob/master/module.md)
 
 ## Дополнительная информация
+[FAQ часто задаваемые вопросы](https://github.com/artyl/mbplugin/blob/master/faq.md)
 [История изменения (в ней часть информации не попавшая в документацию)](https://github.com/artyl/mbplugin/blob/master/changelist.md)  
 [Описание параметров mbplugin.ini (почти все параметры из секции Options из mbplugin.ini могут быть прописаны индивидуально в секцию к телефону)](https://github.com/artyl/mbplugin/blob/master/mbplugin_ini.md)
 

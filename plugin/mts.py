@@ -160,13 +160,13 @@ class PureBrowserDebug():
         res = self.collect(id)
         return res
 
-    def tget(self, js, chain):
+    def tget(self, js, chain, default=''):
         '''get by tree chain tget(js, 'params.request.url') -> js['params']['request']['url']'''
         res = js
         chain_list = chain.split('.')
         for el in chain_list[:-1]:
             res = res.get(el, {})
-        return res.get(chain_list[-1], '')
+        return res.get(chain_list[-1], default)
 
     def browser_close(self):
         try:
@@ -190,11 +190,11 @@ class PureBrowserDebug():
         res = self.collect(id)
         return res
 
-    def get_response_body(self, url, partitial=True, ctype=''):
+    def get_response_body(self, url, partial=True, ctype=''):
         '''wrapper for Network.getResponseBody + ws.recv, add $ if need strongly end of url
         partial=False - search in everyone response'''
         self.collect()  # Прежде чем искать по response нужно собрать последние
-        if partitial:
+        if partial:
             request_id_list = [
                 self.tget(el, 'params.requestId') for el in self._data
                 if url in (self.tget(el, 'params.response.url') + '$')
@@ -218,14 +218,15 @@ class PureBrowserDebug():
     def len_data(self):
         return len(self._data)
 
-    def get_response_body_json(self, url, partitial=True, graphql_key=None):
+    def get_response_body_json(self, url, partial=True, graphql_key=None):
         'get_response_body + json.dumps if the result is not json retry every second until the timeout expiries'
         res = {}  # default value
         try:
-            for key in reversed(self.responses.keys()):
-                if url in key and partitial==True or url == key.split('$_')[0] and partitial==False:
-                    # FIXME !!! add graphql_key
-                    res = self.responses[key]
+            for key, value in reversed(self.responses.items()):
+                if partial==True and url in key or partial==False and url == key.split('$_')[0]:
+                    if graphql_key is not None and self.tget(value, graphql_key) == '':
+                        continue
+                    res = value
                     break
             return res
         except Exception:  # json.decoder.JSONDecodeError:
@@ -266,10 +267,11 @@ class PureBrowserDebug():
                     except Exception:
                         logging.info(f'json decode error for {url}')
 
-    def wait_json_queue(self, timeout=10, tick=0.1):
+    def wait_json_queue(self, timeout=10, tick=0.1, responses_cnt=-1):
+        'Ждем пока в очереди не останется json запросов или timeout и responses_cnt увеличиться от стартового'
         time.sleep(1)
         self.collect_json()
-        while timeout > 0 and len(self.queue_json_request_id) > 0:
+        while timeout > 0 and (len(self.queue_json_request_id) > 0 or responses_cnt > 0 and responses_cnt >= len(self.responses)):
             self.collect_json()
             time.sleep(tick)
             timeout -= tick
@@ -476,15 +478,24 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         pd.wait_json_queue(timeout=10)  # ждем пока загрузятся json
         user_info = pd.get_response_body_json('api/login/user-info')
         user_profile = user_info.get('userProfile', {})
+        # Закрываем банеры (для эстетики)
+        pd.page_eval("document.querySelectorAll('mts-dialog div[class=popup__close]').forEach(s=>s.click())==null")
         # rich.print(ui)
         # parseFloat(data.userProfile.balance).toFixed(2)
+        # TODO есть подозрение что старое api вида api/login/user-info умрет и останется только graphql
+        # Берем баланс из api/login/user-info (он здесь может залипать на несколько дней)
         if 'balance' in user_profile:
             logging.info(f'Balance found on page api/login/user-info..Balance')
             result['Balance'] = round(user_profile['balance'], 2)
-        # Закрываем банеры (для эстетики)
-        pd.page_eval("document.querySelectorAll('mts-dialog div[class=popup__close]').forEach(s=>s.click())==null")
+        # Берем баланс из graphql 
+        graphql_balance = pd.get_response_body_json('/graphql', graphql_key='data.balances.nodes')
+        balance_nodes = pd.tget(graphql_balance, 'data.balances.nodes', [])
+        if len(balance_nodes) > 0:
+            balance_text = pd.tget(balance_nodes[0], 'remainingValue.amount')
+            if balance_text != '':
+                result['Balance'] = round(float(balance_text), 2)
         # Потом все остальное
-        result['TarifPlan'] = user_profile.get('tariff', '').replace('(МАСС) (SCP)', '')
+        # result['TarifPlan'] = user_profile.get('tariff', '').replace('(МАСС) (SCP)', '') # see graphql
         result['UserName'] = user_profile.get('displayName', '')
         # ждем longtask тормозную страницу
         logging.info(f'Wait mscpBalance and counters')
@@ -564,18 +575,36 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             except Exception:
                 logging.info(f'Не смогли сложить балансы {store.exception_text()}')
         store.feedback.text(f"Uslugi", append=True)
+        responses_cnt = len(pd.responses)
         pd.send('Page.navigate', {'url': 'https://lk.mts.ru/tarif'})
-        pd.wait_json_queue(timeout=10)  # ждем пока загрузятся json
+        pd.wait_json_queue(timeout=10, responses_cnt = responses_cnt)  # ждем пока загрузятся json или как минимум 1 responses
+        responses_cnt = len(pd.responses)
         pd.send('Page.navigate', {'url': 'https://lk.mts.ru/moi-uslugi'})  # fix https://lk.mts.ru/uslugi/podklyuchennye
         # теперь у нас https://federation.mts.ru/graphql, раньше ждали longtask тормозную страницу 'for=api/services/list/active$'
-        pd.wait_json_queue(timeout=10)  # ждем пока загрузятся json
+        pd.wait_json_queue(timeout=10, responses_cnt = responses_cnt)  # ждем пока загрузятся json
         pd.capture_screenshot()
+        # вариант получения списка услуг из for=api/services/list/active
         active = pd.get_response_body_json('for=api/services/list/active$')
         # (name, cost, period)
         services_ = [(e.get('name', ''), e.get('subscriptionFee', {}).get('value', 0), e.get('subscriptionFee', {}).get('unitOfMeasureRaw', ''))
                      for e in active.get('data', {}).get('services', [])]
         services_2 = [(s, c * (30 if p == 'DAY' else 1)) for s, c, p in services_]
         result['BlockStatus'] = active.get('data', {}).get('accountBlockStatus', '').replace('Unblocked', '')
+        # вариант получения из graphql
+        active_gr = pd.get_response_body_json('/graphql', graphql_key='data.myServicesProducts.groups')
+        tariff = pd.get_response_body_json('/graphql', graphql_key='data.tariffInfo.tariffPricesInfo')
+        tariff_name = pd.tget(tariff, 'data.tariffInfo.name', '')
+        result['TarifPlan'] = tariff_name
+        tariff_price_text = pd.tget(tariff, 'data.tariffInfo.tariffPricesInfo.mainPrice.price', '0 р/день')
+        tariff_price_date = pd.tget(tariff, 'data.tariffInfo.tariffPricesInfo.mainPrice.date', '')
+        groups = pd.tget(active_gr, 'data.myServicesProducts.groups', [])
+        products = sum([gr.get('products', []) for gr in groups], []) 
+        # (name, description(у непостоянно платных None а у постоянно платных - дата следующего списания), cost, period)
+        # !!! pr.get('currentPrice') может быть None поэтому вместо pr.get('currentPrice', {}) делаем (pr.get('currentPrice') or {})
+        services_ = [(pr.get('name', ''),pr.get('description', ''),(pr.get('currentPrice') or {}).get('value', 0), (pr.get('currentPrice') or {}).get('unitOfMeasure', 'r'))  for pr in products]
+        services_ = services_ + [('Ежемесячная плата ' + tariff_name, tariff_price_date, *tariff_price_text.split(' ',1))]
+        services_2 = [(s, float(c) * (30 if '/день' in p else 1)*(0 if d is None else 1)) for s, d, c, p in services_]
+        # result['BlockStatus'] = active.get('data', {}).get('accountBlockStatus', '').replace('Unblocked', '')
         try:
             services = sorted(services_2, key=lambda i: (-i[1], i[0]))
             free = len([a for a, b in services if b == 0 and (a, b) != ('Ежемесячная плата за тариф', 0)])
@@ -592,8 +621,9 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         if mts_usedbyme == '1' or login in mts_usedbyme.split(',') or acc_num.lower().startswith('common'):
             # 24.08.2021 иногда возвращается легальная страница, но вместо информации там сообщение об ошибке - тогда перегружаем и повторяем
             store.feedback.text(f"Sharing", append=True)
+            responses_cnt = len(pd.responses)
             pd.send('Page.navigate', {'url': 'https://lk.mts.ru/sharing'})
-            pd.wait_json_queue(timeout=10)  # ждем пока загрузятся json
+            pd.wait_json_queue(timeout=10, responses_cnt = responses_cnt)  # ждем пока загрузятся json
             pd.capture_screenshot()
             res3_alt = pd.get_response_body_json('for=api/sharing/counters').get('data', {})
             # Пока просто исключаем Tethering, потом посмотрим как быть если варианты появятся

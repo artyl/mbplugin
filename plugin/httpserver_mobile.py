@@ -1525,8 +1525,14 @@ class WebServer():
                     ct, text = 'text/html', HTML_NO_REPORT
             elif cmd.lower() == 'main':  # главная страница
                 port = store.options('port', section='HttpServer')
-                info = f'Mbplugin {store.version()} run on {socket.gethostname()}:{port} from {os.path.abspath(os.path.dirname(__file__))}<br>'
+                info = ''
+                info+= f'Mbplugin {store.version()} run on {socket.gethostname()}:{port} from {os.path.abspath(os.path.dirname(__file__))}<br>'
+                info+= f'Python {sys.version} on {sys.platform}<br>'
                 info+= f'Playwright {playwright._repo_version.version}<br>'
+                required_playwright = (1, 46, 0)
+                current_playwright = tuple(map(int, playwright._repo_version.version.split(".")))
+                if current_playwright < required_playwright:
+                    info+= f'<font color="red">ВНИМАНИЕ!!! Версия playwright меньше {".".join(map(str, required_playwright))}, а значит у вы используется старый браузер для опросов, некоторые операторы могут отрабатывать с ошибками </font><br>'
                 phones = store.ini('phones.ini').phones()
                 groups = sorted(set([p['indication'] for p in phones.values() if 'indication' in p]))
                 group_urls = '<br>'.join([f'<a href=/report/group_{g}>Group_{g}</a> ' for g in groups])
