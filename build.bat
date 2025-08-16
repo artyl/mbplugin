@@ -171,7 +171,7 @@ call git-restore-mtime
 
 ECHO STEP: prepare mbplugin zip
 cd /D "%~dp0\.."
-7z a -tzip mbplugin\dist\mbplugin.%mbpluginversion%.zip mbplugin -xr0!mbplugin\.git -xr0!mbplugin\dist -xr!*.log
+7z a -tzip mbplugin\dist\mbplugin.%mbpluginversion%.zip mbplugin -xr0!mbplugin\.pytest_cache -xr0!mbplugin\.git -xr0!mbplugin\dist -xr!*.log
 
 ECHO STEP: create signature
 cd /D "%~dp0\plugin"
