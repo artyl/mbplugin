@@ -49,4 +49,5 @@ mbplugin\python\python mbplugin\plugin\util.py check-dll
 REM Показываем версию
 mbplugin\python\python mbplugin\plugin\util.py version -v
 
-pause
+if NOT "%1"=="nopause" pause
+if     "%1"=="nopause" timeout 60

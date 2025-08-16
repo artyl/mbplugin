@@ -98,9 +98,9 @@ if NOT "%errorlevel%"=="0" (
     GOTO :EOF
 )
 
-echo STEP: mbplugin\setup_and_check.bat
+echo STEP: mbplugin\setup_and_check.bat nopause
 cd /D "%~dp0\.."
-call mbplugin\setup_and_check.bat
+call mbplugin\setup_and_check.bat nopause
 cd /D "%~dp0\.."
 echo STEP: verify
 if NOT EXIST balance.html (
