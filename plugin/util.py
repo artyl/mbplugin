@@ -127,7 +127,7 @@ def install_chromium(ctx, browsers):
 @click.option('-c', '--check-only', is_flag=True)
 @click.pass_context
 def pip_update(ctx, quiet, check_only):
-    '''Проверяем или обновляем пакеты по requirements.txt или requirements_win.txt или requirements_win7.txt'''
+    '''Проверяем или обновляем пакеты по requirements.txt или requirements_win7.txt или requirements_win10.txt'''
     name = 'pip-update'
     flags = []
     if quiet: flags.append('-q')

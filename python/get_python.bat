@@ -26,8 +26,8 @@ if not exist Lib\site-packages\pip python get-pip.py -q --no-warn-script-locatio
 
 @REM Находясь mbplugin\python выполнить 
 @REM ..\python\python -m pip install --upgrade python-telegram-bot requests pillow beautifulsoup4 pyodbc pyreadline pywin32 psutil pystray playwright schedule click cryptography
-@REM ..\python\python -m pip freeze >..\docker\requirements_win.txt
-..\python\python -m pip install -q --no-warn-script-location -r ..\docker\requirements_win.txt
+@REM ..\python\python -m pip freeze >..\docker\requirements_win7.txt
+..\python\python -m pip install -q --no-warn-script-location -r ..\docker\requirements_win7.txt
 
 @REM К сожалению не нашел вменяемой инструкции по установке tkinter только переложить из установленного python
 @REM Вдобавок тема с tkinter нигде пока не полетела, так что на настоящий момент не особенно от в принципе и нужен

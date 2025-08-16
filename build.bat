@@ -132,7 +132,7 @@ if "%ERRORLEVEL%"==1  (
 )
 ECHO STEP: uninstall pytest
 call python\python -m pip uninstall -y -r docker\requirements_pytest.txt 
-call python\python -m pip install -r docker\requirements_win.txt
+call python\python -m pip install -r docker\requirements_win7.txt
 
 ECHO STEP: remove__pycache__.py
 cd /D "%~dp0\.."
