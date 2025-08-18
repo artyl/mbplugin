@@ -25,7 +25,7 @@ def get_free_port() -> int:
 
 class PureBrowserDebug():
 
-    def __init__(self, user_data_dir, response_store_path=None, log_responses=None, headless_chrome=False, show_chrome=True, chrome_args=None, wait_screenshot=0) -> None:
+    def __init__(self, user_data_dir, response_store_path=None, log_responses=None, headless_chrome=False, show_chrome=True, chrome_args=None, wait_screenshot=0, slowdown=1) -> None:
         self.user_data_dir = user_data_dir  # chrome profile path
         self.response_store_path = response_store_path  # path for file log, screenshot store fith same name but png extension
         self.log_responses = log_responses  # write responses and screenshot
@@ -33,6 +33,7 @@ class PureBrowserDebug():
         self.show_chrome = show_chrome
         self.chrome_args = chrome_args if type(chrome_args) == list else []  # additional cmd argements for chrome
         self.wait_screenshot = wait_screenshot
+        self.slowdown = slowdown
         self.port = get_free_port()  # port for CDP
         self._data: List[dict] = []  # store all winsocket reply
         self.data_proc = 0  # number of processed data, up to what point has the data been processed
@@ -58,7 +59,7 @@ class PureBrowserDebug():
                     self.chrome_proc = self.chrome_children()
                     if len(self.chrome_proc) > 3:
                         break
-                    time.sleep(0.02)
+                    time.sleep(0.02*self.slowdown)
                 r1 = requests.get(f'http://localhost:{self.port}/json/list')
                 logging.info(r1.json()[0])
                 self.ws_url = [el.get('webSocketDebuggerUrl') for el in r1.json() if el.get('type') == 'page'][0]
@@ -174,7 +175,7 @@ class PureBrowserDebug():
             for i in range(50):
                 if self.br_subp.poll() is not None:  # chrome finished ?
                     break
-                time.sleep(0.1)
+                time.sleep(0.1*self.slowdown)
             else:
                 self.br_subp.kill()
         except Exception:
@@ -269,9 +270,9 @@ class PureBrowserDebug():
 
     def wait_json_queue(self, timeout=10, tick=0.1, responses_cnt=-1):
         'Ждем пока в очереди не останется json запросов или timeout и responses_cnt увеличиться от стартового'
-        time.sleep(1)
+        time.sleep(1 * self.slowdown)
         self.collect_json()
-        while timeout > 0 and (len(self.queue_json_request_id) > 0 or responses_cnt > 0 and responses_cnt >= len(self.responses)):
+        while timeout*self.slowdown > 0 and (len(self.queue_json_request_id) > 0 or responses_cnt > 0 and responses_cnt >= len(self.responses)):
             self.collect_json()
             time.sleep(tick)
             timeout -= tick
@@ -382,7 +383,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             elif pd.check_selector('mts-lk-root'):
                 state = 'lk'
             else:
-                time.sleep(1)
+                time.sleep(1 * pd.slowdown)
                 continue
             logging.info(f'state={state}')
             break
@@ -407,6 +408,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     headless_chrome = (str(options('headless_chrome')) == '1') and (str(options('show_chrome')) == '0')  # headless if headless and NOT show_chrome
     show_chrome = str(options('show_chrome')) == '1'
     log_responses = str(options('log_responses')) == '1'
+    slowdown = float(options('slowdown'))
     result = {}
     headless_chrome = False  # FIX !!! МТС в headless не работает
     show_chrome = True  # FIX !!! МТС без show_chrome не работает
@@ -414,7 +416,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     if options('browser_proxy').strip() != '':
         chrome_args.append(f'--proxy-server={options("browser_proxy").strip()}')
     wait_screenshot = int(options('wait_screenshot'))
-    pd = PureBrowserDebug(user_data_dir, response_store_path=response_store_path, log_responses=log_responses, headless_chrome=headless_chrome, show_chrome=show_chrome, chrome_args=chrome_args, wait_screenshot=wait_screenshot)
+    pd = PureBrowserDebug(user_data_dir, response_store_path=response_store_path, log_responses=log_responses, headless_chrome=headless_chrome, show_chrome=show_chrome, chrome_args=chrome_args, wait_screenshot=wait_screenshot, slowdown=slowdown)
     # 1 Is login ???
     store.feedback.text(f"Run browser", append=True)
     pd.send('Page.navigate', {'url': login_url})
@@ -469,7 +471,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                 logging.info(f'Logged as {logged_as2}')
                 if logged_as2.endswith(acc_num):
                     break
-                time.sleep(1)
+                time.sleep(1 * pd.slowdown)
             else:
                 logging.error(f"We didn't switch to the number {acc_num}")
                 pd.capture_screenshot()

@@ -272,6 +272,9 @@ class BalanceOverPlaywright():
         force - коэффициент, на который будет умножено страховочное ожидание 0 - ускориться, 2 - замедлиться
         если все проверки заданы качественно - можно указать force=0
         plugin_name - нужен для поиска индивидуальных параметров в phones.ini'''
+        self.login_ori, self.acc_num = login, ''
+        self.login = login
+        self.plugin_name = plugin_name  # пока с login, login_ori и plugin_name не разберемся self.options не работает
         self.browser, self.page = None, None  # откроем браузер - заполним
         self.chrome_executable_path = None
         self.sync_pw = None
@@ -279,12 +282,9 @@ class BalanceOverPlaywright():
         self.browser_open = True  # флаг что браузер работает
         self.wait_loop = wait_loop  # TODO подобрать параметр
         self.max_timeout = max_timeout
-        self.force = force
-        self.plugin_name = plugin_name
+        self.force = force * float(self.options('slowdown'))
         self.wait_and_reload = wait_and_reload
         self.password = password
-        self.login_ori, self.acc_num = login, ''
-        self.login = login
         if settings.mode == settings.MODE_MB:
             self.storefolder = self.options('storefolder')
         else:
