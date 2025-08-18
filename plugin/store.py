@@ -501,9 +501,13 @@ class ini():
             self.save_bak()
             # TODO если сохраняем комменты (комменты попадут куда надо если меняем не больше одной строчки за раз):
             with open(self.inipath, encoding=self.codepage) as f_ini_r:
-                for num, line in enumerate(f_ini_r.read().splitlines()):
+                pos = 0
+                for line in f_ini_r.read().splitlines():
                     if line.startswith(';'):
-                        raw.insert(num, line)
+                        raw.insert(pos, line)
+                    elif line in raw:
+                        pos = raw.index(line)
+                    pos += 1 
         with open(self.inipath, encoding=self.codepage, mode='w') as f_ini_w:
             f_ini_w.write('\n'.join(raw))
         # TODO Если просто сохраняем то так
