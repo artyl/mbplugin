@@ -463,9 +463,12 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         logged_as1 = pd.get_response_body_json('api/login/user-info').get('userProfile', {}).get('login', 'UNKNOWN')
         logging.info(f'Logged as {logged_as1}')
         if login_ori != login and acc_num.isdigit():
+            pd.wait_json_queue(timeout=10)  # собираем все от материнского номера
+            pd.responses = {i for i in range(len(pd.responses))} # очищаем старые ответы, сохраняя нумерацию
             logging.info(f'Switch to {acc_num}')
             pd.wait_selector('.mts-multi-account__carousel')
             pd.page_eval(rf"Array.from(document.querySelectorAll('a.account-badge')).filter(el => el.querySelector('span.account-badge__phone').innerText.replace(/\D/g,'').endsWith('{acc_num}'))[0].click()")
+            pd.wait_json_queue(timeout=10)
             for _ in range(10):
                 logged_as2 = pd.get_response_body_json('api/login/user-info').get('userProfile', {}).get('login', '')
                 logging.info(f'Logged as {logged_as2}')
