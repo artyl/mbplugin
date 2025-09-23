@@ -7,7 +7,7 @@ icon = '789C7D93CB6B135114C6BF79C4BC66924993D0269926D3247DD8579A5A92D61A5B84B628
 login_url = 'https://beeline.ru/login'
 # если залогинены, то попадем сразу в ЛК, иначе попадем ХЗ куда
 direct_lk_url = 'https://beeline.ru/customers/products/elk'
-accumulators_tag = 'api/uni-profile-mobile/blocks'
+accumulators_tag = 'api/uni-profile-mobile/accumulators/'
 profile_url = 'https://beeline.ru/customers/products/mobile/profile'
 profile_tag = 'api/profile/userinfo/data/?noTimeout'
 services_url = 'https://beeline.ru/customers/products/elk/tab/mobile-connection'
@@ -25,21 +25,29 @@ user_selectors = {'chk_lk_page_js': "document.querySelectorAll('div.balance').le
 
 class browserengine(browsercontroller.BrowserController):
     def wait_slow_beeline_response(self, response_urls):
-        prev_responses = len(self.responses)
+        start_responses = prev_responses = len(self.responses)
         for w in range(9):  # 66s=sum(range(12))
-            if self.page_check_response_urls(response_urls): break
-            if len(self.responses) == prev_responses and w > 4: break
+            self.page_evaluate('''document.querySelector('div[data-t-id=components-Banner]')?.remove();''')
+            for url in [u.split(' URL:')[-1] for u in list(self.responses.keys())[prev_responses:]]:
+                if 'mc.yandex.ru' not in url and 'sentry-relay.beeline.ru' not in url:
+                    logging.info(f'New response {url}')
             prev_responses = len(self.responses)
+            if self.page_check_response_urls(response_urls): break
+            if len(self.responses) == prev_responses and w > 4: 
+                logging.info(f'No new responses for {sum(range(w))} seconds, break')
+                break
+            # if len(self.responses) != prev_responses: breakpoint()
             self.sleep(w)
         else:
-            raise RuntimeError(f'Так и не получили страницу с балансом {list(response_urls.keys())}')
+            raise RuntimeError(f'Так и не получили страницу с балансом {list(response_urls.keys())} responses {start_responses} -> {len(self.responses)}')
 
     def data_collector(self):
         logging.info(f'Before call self.page_goto({direct_lk_url})')
         self.page_goto(direct_lk_url, wait_until='commit')
-        # оптимистичный сценарий если залогинены стараемся побыстрому все забрать
+        # оптимистичный сценарий если залогинены стараемся по быстрому все забрать
         for w in range(5):  # 10s=sum(range(5))
             self.sleep(w)
+            self.page_evaluate('''document.querySelector('div[data-t-id=components-Banner]')?.remove();''')        
             logging.info(f'{len(self.responses)=}')
             # На странице окно логона - ждать нечего
             if self.page_evaluate(user_selectors['chk_login_page_js']):
