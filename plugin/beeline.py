@@ -133,12 +133,16 @@ class browserengine(browsercontroller.BrowserController):
                 uslugi.append(['Unwanted Нежелательная подписка (проверьте)', 0])
             profile = [v for k, v in self.responses.items() if profile_tag in k and 'balance' in v][0]['profileSummary']['data']
             # Цена тарифа только в виде '250 ₽ в месяц' - придется парсить
-            tariff_rate = int(re.sub(r'\D', '', profile['tariffRcRateText']))
-            paid_sum = tariff_rate * (30 if 'день' in profile.get('tariffRcRateText') else 1)
+            t_name = profile.get('tariffName', 'ххх')
+            t_text = profile['tariffRcRateText']
+            tariff_rate = float(re.search(r'\d+([,.]\d*)?', t_text).group(0).replace(',', '.'))
+            paid_sum = tariff_rate * (30 if ('день' in t_text or 'сутки' in t_text) else 1)
+            # Добавляем тариф в список услуг
+            uslugi.append([t_name, round(paid_sum, 2)])
             free = len([a for a, b in uslugi if b == 0])  # бесплатные
             subscr = len(subscribtions)
             paid = len([a for a, b in uslugi if b != 0])  # платные
-            paid_sum = paid_sum + round(sum([b for a, b in uslugi if b != 0]), 2)
+            paid_sum = round(sum([b for a, b in uslugi if b != 0]), 2)
             self.result['UslugiOn'] = f'{free}/{subscr}/{paid}({paid_sum})'
             self.result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in uslugi])
         except Exception:

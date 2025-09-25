@@ -464,7 +464,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         logging.info(f'Logged as {logged_as1}')
         if login_ori != login and acc_num.isdigit():
             pd.wait_json_queue(timeout=10)  # собираем все от материнского номера
-            pd.responses = {i for i in range(len(pd.responses))} # очищаем старые ответы, сохраняя нумерацию
+            pd.responses = {i:'' for i in range(len(pd.responses))} # очищаем старые ответы, сохраняя нумерацию
             logging.info(f'Switch to {acc_num}')
             pd.wait_selector('.mts-multi-account__carousel')
             pd.page_eval(rf"Array.from(document.querySelectorAll('a.account-badge')).filter(el => el.querySelector('span.account-badge__phone').innerText.replace(/\D/g,'').endsWith('{acc_num}'))[0].click()")
@@ -606,9 +606,10 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         products = sum([gr.get('products', []) for gr in groups], []) 
         # (name, description(у непостоянно платных None а у постоянно платных - дата следующего списания), cost, period)
         # !!! pr.get('currentPrice') может быть None поэтому вместо pr.get('currentPrice', {}) делаем (pr.get('currentPrice') or {})
+        no_count_services = ['Забугорище', 'БИТ за границей', 'За границей', 'Мессенджеры в путешествии', 'Всё для поездки', 'Пакеты интернета в особых странах']  # услуги которые не считаем в платные, т.к. сбивают с толку
         services_ = [(pr.get('name', ''),pr.get('description', ''),(pr.get('currentPrice') or {}).get('value', 0), (pr.get('currentPrice') or {}).get('unitOfMeasure', 'r'))  for pr in products]
         services_ = services_ + [('Ежемесячная плата ' + tariff_name, tariff_price_date, *tariff_price_text.split(' ',1))]
-        services_2 = [(s, float(str(c).replace(',', '.')) * (30 if '/день' in p else 1)*(0 if d is None else 1)) for s, d, c, p in services_]
+        services_2 = [(s, float(str(c).replace(',', '.')) * (30 if '/день' in p else 1)*(0 if s in no_count_services else 1)) for s, d, c, p in services_]
         # result['BlockStatus'] = active.get('data', {}).get('accountBlockStatus', '').replace('Unblocked', '')
         try:
             services = sorted(services_2, key=lambda i: (-i[1], i[0]))

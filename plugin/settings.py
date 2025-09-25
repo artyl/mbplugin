@@ -346,7 +346,7 @@ ini = {
 operator_link = {
     'p_a1by': 'https://my.a1.by/work.html',
     'p_avtodor-tr': 'https://avtodor-tr.ru/account/login',
-    'p_beeline': 'https://beeline.ru/login',
+    'p_beeline': 'https://beeline.ru/customers/products/elk',
     'p_beeline_uz': 'https://beeline.uz/ru',
     'p_beget': 'https://api.beget.com',
     'p_cardtel': 'https://my.cardtel.ru/home',
