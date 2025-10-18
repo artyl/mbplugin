@@ -47,7 +47,8 @@ class browserengine(browsercontroller.BrowserController):
         # оптимистичный сценарий если залогинены стараемся по быстрому все забрать
         for w in range(5):  # 10s=sum(range(5))
             self.sleep(w)
-            self.page_evaluate('''document.querySelector('div[data-t-id=components-Banner]')?.remove();''')        
+            self.page_evaluate('''document.querySelector('div[data-t-id=components-Banner]')?.remove();''')
+            # document.querySelector('div.banner.swiper')?.remove();
             logging.info(f'{len(self.responses)=}')
             # На странице окно логона - ждать нечего
             if self.page_evaluate(user_selectors['chk_login_page_js']):
@@ -67,6 +68,7 @@ class browserengine(browsercontroller.BrowserController):
         self.page_goto(direct_lk_url, wait_until='commit')
         self.wait_slow_beeline_response({accumulators_tag: 'accumulators'})
         self.page_screenshot()
+        self.page_evaluate('''document.querySelector('div[data-t-id=components-Banner]')?.remove();''')
         ### profile_url
         logging.info(f'Сall self.page_goto({profile_url})')
         self.page_goto(profile_url, wait_until='commit')
@@ -78,12 +80,37 @@ class browserengine(browsercontroller.BrowserController):
         self.wait_slow_beeline_response({services_tag:None, subscribtions_tag: None})
         self.page_screenshot()
         # Приходится сначала долго ждать страницу, а затем когда она пришла получить ее точный url чтобы отфильтроваться от остальных запросов с похожим url
-        bal_data_url, bal_data = [[k, v] for k, v in self.responses.items() if profile_tag in k and 'balance' in v][-1]
-        _ = bal_data_url
-        self.result['Balance'] = bal_data.get('balance', {}).get('data', {})['balance']
-        self.result['TarifPlan'] = bal_data.get('profileSummary', {}).get('data', {}).get('tariffName', '')
-        self.result['BlockStatus'] = bal_data.get('status', {}).get('data', {}).get('status', '')
-        self.result['LicSchet'] = bal_data.get('profileSummary', {}).get('data', {}).get('ctn', '')
+        bal_pages = [[k, v] for k, v in self.responses.items() if profile_tag in k and 'balance' in v]
+        bal_data = {}  # нужен как признак нашли ли мы страницу profile_tag
+        if len(bal_pages) > 0:
+            logging.info(f'Берем данные с {profile_tag}')
+            bal_data_url, bal_data = bal_pages[-1]
+            self.result['Balance'] = bal_data.get('balance', {}).get('data', {})['balance']
+            self.result['TarifPlan'] = bal_data.get('profileSummary', {}).get('data', {}).get('tariffName', '')
+            self.result['BlockStatus'] = bal_data.get('status', {}).get('data', {}).get('status', '')
+            self.result['LicSchet'] = bal_data.get('profileSummary', {}).get('data', {}).get('ctn', '')
+        else:
+            logging.info(f'Не получили {profile_tag}, собираем данные с разных страниц')
+            p_main = [[k, v] for k, v in self.responses.items() if 'apigw/ub/balance/main/$' in k]
+            p_blocks = [[k, v] for k, v in self.responses.items() if 'api/uni-profile-mobile/blocks/$' in k]
+            p_tariff = [[k, v] for k, v in self.responses.items() if 'api/uni-profile-mobile/tariff/$' in k]
+            p_accounts = [[k, v] for k, v in self.responses.items() if 'api/uni-profile/accounts/$' in k]
+            LAST = -1
+            DATA = 1
+            if len(p_main) > 0:
+                self.result['Balance'] = p_main[LAST][DATA].get('data', {})['balanceValue']
+                if p_main[LAST][DATA].get('data', {}).get('isBlocked') is False:
+                    self.result['BlockStatus'] = 'Active'
+                elif p_main[LAST][DATA].get('data', {}).get('isBlocked') is True:
+                    self.result['BlockStatus'] = 'Blocked'
+            if len(p_blocks) > 0 and 'tariff' in p_blocks[LAST][DATA]:
+                self.result['TarifPlan'] = p_blocks[LAST][DATA]['tariff'].get('name', '')
+            elif len(p_tariff) > 0:
+                self.result['TarifPlan'] = p_tariff[LAST][DATA].get('name', '')
+            if len(p_accounts) > 0:
+                for line in p_accounts[LAST][DATA]:
+                    if self.login in str(line):
+                        self.result['LicSchet'] = line.get('selectAccountParams', {}).get('ctn','')
         # аккумуляторы тарифа Простой ?
         try:
             try:
@@ -98,27 +125,23 @@ class browserengine(browsercontroller.BrowserController):
                 logging.error(exception_text)
             # все страницы попадающие под описание
             accumulators_all = [v for k, v in self.responses.items() if accumulators_tag in k and 'accumulators' in v]
-            acc2_list = []
-            if len(accumulators_all) > 0:  # Нашли api/uni-profile-mobile/blocks ? - берем оттуда, там цифры выглядят адекватнее, но их там может и не быть вовсе
+            acc_list = []
+            if len(accumulators_all) > 0:
                 logging.info(f'Taking the accumulator from the {accumulators_tag}')
-                acc2_list = accumulators_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items, но бывает что он пустой
-            if len(acc2_list) > 0:  # Нашли api/uni-profile-mobile/blocks ? и он не пустой - берем оттуда, там цифры выглядят адекватнее, но их там может и не быть вовсе
+                acc_list = accumulators_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items, но бывает что он пустой
+            if len(acc_list) > 0:  # Нашли api/uni-profile-mobile/accumulators/ и он не пустой
                 logging.info(f'Taking the accumulator from the {accumulators_tag} - not empty')
-                acc2_list = accumulators_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items
-                acc2_dict = {el.get('unit'): el.get('rest', 0) for el in acc2_list}
-                self.result['Internet'] = acc2_dict.get('KBYTE', 0)
-                self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
-                self.result['Min'] = self.result.get('Min', 0) + acc2_dict.get('SECONDS', 0) / 60
-                self.result['SMS'] = self.result.get('SMS', 0) + acc2_dict.get('SMS', 0)
+                acc_dict = {el.get('unit'): el.get('rest', 0) for el in acc_list}
+                self.result['Internet'] = acc_dict.get('KBYTE', 0)
             else:  # иначе пробуем взять из api/profile/userinfo/data
                 logging.info(f'Taking the accumulator from the {profile_tag} additionalBalances')
                 acc_list = bal_data['additionalBalances']['data'][0]['data']
                 acc_dict = {el.get('unit'): el.get('value', 0) for el in acc_list}
                 # И вот тут хоба подарок от билайна - написано KBYTE а число в байтах, а как лежит Min и SMS я вообще не знаю, у меня нет
                 self.result['Internet'] = acc_dict.get('KBYTE', 0)/1024
-                self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
-                self.result['Min'] = self.result.get('Min', 0) + acc_dict.get('SECONDS', 0) / 60
-                self.result['SMS'] = self.result.get('SMS', 0) + acc_dict.get('SMS', 0)
+            self.result['Internet'] = round(self.result.get('Internet', 0) * (settings.UNIT['KB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['KB'])), 3)
+            self.result['Min'] = self.result.get('Min', 0) + acc_dict.get('SECONDS', 0) / 60
+            self.result['SMS'] = self.result.get('SMS', 0) + acc_dict.get('SMS', 0)
         except Exception:
             exception_text = f'Ошибка при получении accumulators {store.exception_text()} , идем дальше'
             logging.error(exception_text)
