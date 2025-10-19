@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys, re, time, logging
+import os, sys, re, time, logging, urllib.parse
 import store, settings, browsercontroller
 
 icon = '789C7D93CB6B135114C6BF79C4BC66924993D0269926D3247DD8579A5A92D61A5B84B6282816AC8FADB890BAB3E24E37EE15D48505F11FD045C54AC577B1540AC5A255B1B4A2958AF85AE9C23E92F8CD344A15F4901FDF9D7BE79C09E7BB67C7EE8C0C2B32A48E68250418EB07A5F3FF45454505CACBCBE1F3F9204912445182D7EB4520184490FC2B3C5E0F227A04A220941021992A8A10A842692F180C4051953F72BD9A86B2AA66A8B12628B14628C63AEEAA46A8550D50889AA026EAE149D6A38C6BD5ABFDCE8F1C3D0F5C2F02770BC03875823A459D26B3E42599E7DE5BEA12799F8776E6A295AB376D012E7F07AEFD004696811B2BC02D726F15784026F2C063324D9EB2C67332CFF5B365045ADA103A3E0CDCE4F31D729F678F587FB2F4ED19F2827BAFA8AFC922F9403E93AF79F8CF0DA332D50E776D3BD41A6A5D164EE2DA9C85BB210BA521034F6316BEE60E78531D50F9AE92CEC0D5DA0E676B16C18616C8A20C4114D86BD1EAAF60F94DB8762B2AC2E13092890489731DB27A2F0A1264D31F7A63936DD6B359E39777FCC1ED70221AD5D19A4E23B77D1B72B91CD22D2984F5305C7607BFCB7C4940B47B2F94ADFBA012676E006EE2EC1A40B0E720D20347D03B7812FD43A7D07FE2347A8E0D2175E830427B0EC0BE6B3FFCDD7D080F5D0246D9E7DB66FFA8E3D4C95548336B48CEADA16BB180BEA53C7AD9B7EE8F45843E156037FBF7A580E0D96118CD6DC0956FC0557A364246C9D88A55273E9547E76C013BE75863BE884E7A1059A01F0BE6BD584679BACDBA0389C10BF49FDE8F9977883C5CF7D0F1A48824BD6BE1FB29DE9D38FD93DFF1EC4D1E81D2FD3143E3ACE891045C6521B87CC41F81C35F014F4847D848C048D6C0A8AE41C888C3138EC2AFC7E0D1B48D23004DF3A2BAB6D69A1769C30CC9928C4DECB7CD66A75F326246CC9AB57F85611888C562F42ECA1C1B6459E27F8B40AFD42DFE8E9F8F93C73F'
@@ -79,10 +79,14 @@ class browserengine(browsercontroller.BrowserController):
         self.page_goto(services_url, wait_until='commit')
         self.wait_slow_beeline_response({services_tag:None, subscribtions_tag: None})
         self.page_screenshot()
+        ### profile_url - пробуем просто попросить по всем тэгам сразу, если дадут то с нее и возьмем, это простая загрузка - так что ждем до load
+        api_profile_all = '/api/profile/userinfo/data/?noTimeout=false&blocks=BalanceNotification,Status,ProfileSummary,Balance,Accumulators,Services,AdditionalBalances,InternetExtension,SosService,TariffServices,FamilyFeatureToggle'
+        self.page_goto(urllib.parse.urljoin(self.page.url, api_profile_all) ,wait_until='load')
+        self.page_screenshot()
         # Приходится сначала долго ждать страницу, а затем когда она пришла получить ее точный url чтобы отфильтроваться от остальных запросов с похожим url
         bal_pages = [[k, v] for k, v in self.responses.items() if profile_tag in k and 'balance' in v]
         bal_data = {}  # нужен как признак нашли ли мы страницу profile_tag
-        if len(bal_pages) > 0:
+        if len(bal_pages) > 0: # есть страница 'api/profile/userinfo/data/?noTimeout'
             logging.info(f'Берем данные с {profile_tag}')
             bal_data_url, bal_data = bal_pages[-1]
             self.result['Balance'] = bal_data.get('balance', {}).get('data', {})['balance']
@@ -114,12 +118,15 @@ class browserengine(browsercontroller.BrowserController):
         # аккумуляторы тарифа Простой ?
         try:
             try:
-                add_bal = bal_data['additionalBalances']['data'][0]['data']
+                add_bal = bal_data.get('additionalBalances',{}).get('data', [{}])[0].get('data', {})
                 dates = sorted([el.get('dueDate','') for el in add_bal])  # Все даты истечения балансов - сортируем по возрастанию
-                self.result['TurnOffStr'] = dates[0].split('T')[0]
-                self.result['TurnOff'] = int((time.mktime(time.strptime(self.result['TurnOffStr'], '%Y-%m-%d'))-time.time()) / 86400)
-                if self.result['TurnOff'] < 0:
-                    self.result['TurnOff'] = 0
+                if len(dates) > 0 and dates[0] != '':
+                    self.result['TurnOffStr'] = dates[0].split('T')[0]
+                    self.result['TurnOff'] = int((time.mktime(time.strptime(self.result['TurnOffStr'], '%Y-%m-%d'))-time.time()) / 86400)
+                    if self.result['TurnOff'] < 0:
+                        self.result['TurnOff'] = 0
+                else:
+                    logging.info(f'У нас нет страницы {profile_tag} additionalBalances, TurnOff (dueDate) не получим')
             except Exception:
                 exception_text = f'Ошибка при получении TurnOff {store.exception_text()}, идем дальше'
                 logging.error(exception_text)
