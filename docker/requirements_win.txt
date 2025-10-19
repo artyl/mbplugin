@@ -19,7 +19,7 @@ pyreadline3==3.4.1
 pystray==0.19.5
 pyTelegramBotAPI==4.15.2
 pywin32==306
-requests==2.32.0
+requests==2.32.4
 rich==13.7.0
 schedule==1.2.1
 six==1.16.0
