@@ -92,7 +92,7 @@ class browserengine(browsercontroller.BrowserController):
             logging.error(f'Not entered to lk')
             raise RuntimeError('You have not logged into your personal account')
         self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': ['/balance$'], 'jsformula': "parseFloat(data.data.value).toFixed(2)"},
+            {'name': 'Balance', 'url_tag': ['/balance?'], 'jsformula': "parseFloat(data.data.value).toFixed(2)"},
             {'name': 'TarifPlan', 'url_tag': ['/tariff$'], 'jsformula': "data.data.frontName"},
             {'name': 'UserName', 'url_tag': ['/profile$'], 'jsformula': "data.data.fullName"},
         ])
