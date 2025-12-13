@@ -1460,6 +1460,8 @@ class WebServer():
                     ct, text = view_log(qs)
                     text = [settings.header_html] + text
             elif cmd.lower() == 'profile':  # открытие браузера с указанным профилем (only local)
+                # Т.к. в общем случае мы не знаем настроек браузера для этого профиля, то принято соломоново решение открывать профиль в chromium 
+                # TODO завести в sqlite табличку со списком - какой профиль каким браузером и с какими настройками открывали
                 if environ.get('REMOTE_ADDR', 'None') == '127.0.0.1':
                     profile_path = store.abspath_join(store.options('storefolder'), 'headless')
                     profiles = [fn for fn in pathlib.Path(profile_path).iterdir() if fn.is_dir()]

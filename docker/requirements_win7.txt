@@ -1,3 +1,4 @@
+2captcha-python==2.0.1
 beautifulsoup4==4.12.3
 cffi==1.16.0
 charset-normalizer==3.3.2

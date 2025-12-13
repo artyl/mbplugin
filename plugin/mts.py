@@ -25,7 +25,7 @@ def get_free_port() -> int:
 
 class PureBrowserDebug():
 
-    def __init__(self, user_data_dir, response_store_path=None, log_responses=None, headless_chrome=False, show_chrome=True, chrome_args=None, wait_screenshot=0, slowdown=1) -> None:
+    def __init__(self, user_data_dir, response_store_path=None, log_responses=None, headless_chrome=False, show_chrome=True, chrome_args=None, wait_screenshot=0, slowdown=1, chrome_executable_path='') -> None:
         self.user_data_dir = user_data_dir  # chrome profile path
         self.response_store_path = response_store_path  # path for file log, screenshot store fith same name but png extension
         self.log_responses = log_responses  # write responses and screenshot
@@ -34,6 +34,7 @@ class PureBrowserDebug():
         self.chrome_args = chrome_args if type(chrome_args) == list else []  # additional cmd argements for chrome
         self.wait_screenshot = wait_screenshot
         self.slowdown = slowdown
+        self.chrome_executable_path = chrome_executable_path
         self.port = get_free_port()  # port for CDP
         self._data: List[dict] = []  # store all winsocket reply
         self.data_proc = 0  # number of processed data, up to what point has the data been processed
@@ -98,7 +99,11 @@ class PureBrowserDebug():
         return [p for p in children if p.name() == 'chrome.exe']
 
     def run_chromium(self):
-        self.cmd = [str(browsercontroller.browser_path()), f'--user-data-dir={self.user_data_dir}', f'--remote-debugging-port={self.port}', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-save-password-bubble', '--no-default-browser-check', ' --disable-component-update', '--disable-extensions', '--disable-sync', '--no-first-run', '--no-service-autorun', f'--remote-allow-origins=http://localhost:{self.port}']
+        if self.chrome_executable_path.strip() == '':
+            browser_path = browsercontroller.browser_path()
+        else:
+            browser_path = self.chrome_executable_path.strip()
+        self.cmd = [str(browser_path), f'--user-data-dir={self.user_data_dir}', f'--remote-debugging-port={self.port}', '--enable-features=NetworkService,NetworkServiceInProcess', '--disable-save-password-bubble', '--no-default-browser-check', ' --disable-component-update', '--disable-extensions', '--disable-sync', '--no-first-run', '--no-service-autorun', f'--remote-allow-origins=http://localhost:{self.port}']
         self.cmd.extend(self.chrome_args)
         # ??? ' --headless --no-sandbox about:blank'
         logging.info(f'Browser start: {" ".join(self.cmd)}')
@@ -373,7 +378,9 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             location = pd.page_eval('window.location.toString()')
             logging.info(f'{location=} collect {pd.len_data()}')
             if pd.check_selector('.footer .guru'):
-                state = 'qrator'
+                state = 'qrator_ban'
+            if pd.check_selector('img#captcha-img'):
+                state = 'qrator_captcha'
             elif pd.check_selector('main input[type=tel]'):
                 state = 'login'
             elif pd.check_selector('div[data-test-id=verify-otp]'):
@@ -409,6 +416,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     show_chrome = str(options('show_chrome')) == '1'
     log_responses = str(options('log_responses')) == '1'
     slowdown = float(options('slowdown'))
+    chrome_executable_path = options('chrome_executable_path')
     result = {}
     headless_chrome = False  # FIX !!! МТС в headless не работает
     show_chrome = True  # FIX !!! МТС без show_chrome не работает
@@ -416,7 +424,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     if options('browser_proxy').strip() != '':
         chrome_args.append(f'--proxy-server={options("browser_proxy").strip()}')
     wait_screenshot = int(options('wait_screenshot'))
-    pd = PureBrowserDebug(user_data_dir, response_store_path=response_store_path, log_responses=log_responses, headless_chrome=headless_chrome, show_chrome=show_chrome, chrome_args=chrome_args, wait_screenshot=wait_screenshot, slowdown=slowdown)
+    pd = PureBrowserDebug(user_data_dir, response_store_path=response_store_path, log_responses=log_responses, headless_chrome=headless_chrome, show_chrome=show_chrome, chrome_args=chrome_args, wait_screenshot=wait_screenshot, slowdown=slowdown, chrome_executable_path=chrome_executable_path)
     # 1 Is login ???
     store.feedback.text(f"Run browser", append=True)
     pd.send('Page.navigate', {'url': login_url})
@@ -427,10 +435,67 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         state = wait_state()
     pd.capture_screenshot()
 
-    if state == 'qrator':
-        store.feedback.text(f"Qrator", append=True)
+    if state == 'qrator_ban':
+        store.feedback.text(f"Qrator ban", append=True)
         logging.error('Сработала защита, попробуйте запустить в режиме show_chrome=1')
         return
+
+    if state == 'qrator_captcha':
+        store.feedback.text(f"Qrator captcha", append=True)
+        logging.error('Вводим капчу')
+        pd.capture_screenshot()
+        breakpoint() if os.path.exists('breakpoint_captcha') else None  ## pylint: disable=expression-not-assigned,forgotten-debug-statement
+        solve = None
+        if options('captcha_api_token').strip() != '':
+            try:
+                import twocaptcha 
+                solver = twocaptcha.TwoCaptcha(options('captcha_api_token'))
+                for _ in range(5):
+                    data_encoded = pd.page_eval('document.querySelectorAll("img#captcha-img")[0].src')  # data already header + base64.b64encode
+                    logging.info(f'len(data_encoded)={len(data_encoded)}')
+                    if len(data_encoded) > 200:
+                        break
+                    else:
+                        logging.info(f'Something wrong:  data_encoded={data_encoded}')
+                    time.sleep(1 * pd.slowdown)
+                data_decoded = base64.b64decode(data_encoded.split('.')[-1])
+                fn_captcha = pathlib.Path(store.abspath_join(options('loggingfolder'))) / (f'captcha_{hashlib.md5(data_decoded).hexdigest()}.jpg') 
+                fn_captcha_api_counter = pathlib.Path(store.abspath_join(options('storefolder'))) / 'captcha_api_counter.json'
+                captcha_api_counter = 0
+                try:
+                    captcha_api_counter = json.loads(fn_captcha_api_counter.read_text()).get(time.strftime('%Y%m%d'), 0)
+                except Exception:
+                    logging.error(f'Ошибка при чтении {fn_captcha_api_counter}: {store.exception_text()}')
+                if str(options('captcha_logging')) == '1':
+                    fn_captcha.write_bytes(data_decoded)
+                if captcha_api_counter < int(options('captcha_token_limit')):
+                    start_capture_time = time.time()
+                    logging.info(f'Запрос на распознавание капчи {fn_captcha.name}')
+                    solve = solver.normal(file=data_encoded)
+                    logging.info(f'Капча {fn_captcha.name} распознана как {solve} за {time.time() - start_capture_time:.1f} сек')
+                    fn_captcha_api_counter.write_text(json.dumps({time.strftime('%Y%m%d'):captcha_api_counter + 1}))
+                    if str(options('captcha_logging')) == '1':
+                        fn_captcha.with_suffix('.json').write_text(str(solve), errors='ignore')
+                    pd.page_fill('#captcha-input', solve['code'])
+                    pd.page_click('button.check-btn')
+                    time.sleep(2 * pd.slowdown)
+                    state = wait_state()
+                else:
+                    logging.info(f'Использовал лимит на распознавание капчи {captcha_api_counter}, лимит {options("captcha_token_limit")}')
+            except Exception:
+                logging.error(f'Ошибка при подготовке капчи для распознавания: {store.exception_text()}')
+        if solve is None: # Если токена нет или результата нет (например лимит) - ждем ручного ввода капчи
+            logging.info(f'Ждем ручной ввод капчи')
+            for step in range(1,10):
+                time.sleep(step * pd.slowdown)
+                state = wait_state()
+                if state in ['login', 'password', 'lk']:
+                    logging.error('Прошли капчу вручную')
+                    break
+        
+        if state == 'qrator_captcha':
+            logging.error('Капча не введена')
+            pd.capture_screenshot()
 
     login_pause = int(options('login_pause'))
     if state != 'lk' and login_pause > 0:
