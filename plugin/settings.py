@@ -369,7 +369,7 @@ operator_link = {
     'p_megafonb2b': 'https://b2blk.megafon.ru/dashboard',
     'p_mgts': 'https://auth.mgts.ru/login/b2c',
     'p_mosenergosbyt': 'https://my.mosenergosbyt.ru/auth',
-    'p_mts': 'https://lk.mts.ru/',
+    'p_mts': 'https://lk.mts.ru/tarif',
     'p_ntvplus': 'https://service.ntvplus.ru/account/action/quick-check-action',
     'p_onlime': 'https://my.rt.ru',
     'p_rostelecom': 'https://lk.rt.ru',

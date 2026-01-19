@@ -3,7 +3,7 @@
 # pylint: disable=multiple-imports, too-many-lines
 import typing, os, sys, io, random, re, time, json, threading, logging, importlib, queue, argparse, subprocess, glob, base64, collections, uuid, pathlib
 import wsgiref.simple_server, socketserver, socket, urllib.parse, urllib.request
-import psutil, requests, bs4, PIL.Image, schedule, playwright._repo_version
+import psutil, requests, bs4, PIL.Image, schedule, shutil, playwright._repo_version
 import settings, dbengine, compile_all_jsmblh, updateengine, store  # pylint: disable=import-error
 try:
     # ??? не смотря на декларированную кроссплатформенность pystray нормально заработал только на windows
@@ -1461,7 +1461,7 @@ class WebServer():
                     text = [settings.header_html] + text
             elif cmd.lower() == 'profile':  # открытие браузера с указанным профилем (only local)
                 # Т.к. в общем случае мы не знаем настроек браузера для этого профиля, то принято соломоново решение открывать профиль в chromium 
-                # TODO завести в sqlite табличку со списком - какой профиль каким браузером и с какими настройками открывали
+                # В файле Last Browser путь к браузеру которым открывали профиль последний раз, а Sync Data удаляем т.к. он несовместим между chrome и chromium
                 if environ.get('REMOTE_ADDR', 'None') == '127.0.0.1':
                     profile_path = store.abspath_join(store.options('storefolder'), 'headless')
                     profiles = [fn for fn in pathlib.Path(profile_path).iterdir() if fn.is_dir()]
@@ -1470,14 +1470,29 @@ class WebServer():
                         text = [settings.header_html] + [disclaimer] + [f'''<button onclick="fetch('/profile/{pr.name}').then(function(response){{return response}})">{pr.name}</button><br>''' for pr in profiles]
                     elif param[0] in [pr.name for pr in profiles]:
                         import browsercontroller
-                        browsercontroller.browser_path()
+                        browser_path = browsercontroller.browser_path()
                         storename = param[0]
                         user_data_dir = [pr for pr in profiles if pr.name == param[0]][0]
                         op_var = re.findall(r'^(\w_\w+)_', storename)
                         url = ''
                         if len(op_var) > 0:
                             url = settings.operator_link.get(op_var[0], '')
-                        os.system(f'{store.start_cmd()} "{browsercontroller.browser_path()}" --password-store=basic "--user-data-dir={user_data_dir}" {url}')
+                        try:
+                            # Removing broken folders Sync Data
+                            sync_data_path = pathlib.Path(user_data_dir) / 'Default' / 'Sync Data'
+                            if sync_data_path.exists() and sync_data_path.is_dir():
+                                logging.info(f'Remove broken Sync Data folder: {sync_data_path}')
+                                shutil.rmtree(sync_data_path)
+                            b_pf = pathlib.Path(user_data_dir) / 'Last Browser'
+                            if b_pf.exists() and b_pf.is_file():
+                                b_p = pathlib.Path(b_pf.read_text().replace("\x00", "").strip())  # fix U16LE
+                                logging.info(f'Found Last Browser file for profile {user_data_dir}: {b_p} exists={b_p.exists()}')
+                                if b_p.exists():
+                                    browser_path = str(b_p)
+                        except Exception:
+                            logging.error(f'Not found browser for profile in "Last Browser", use default chromium: {store.exception_text()}')
+                        logging.info(f'Open browser {browser_path} with user_data_dir={user_data_dir}')
+                        os.system(f'{store.start_cmd()} "{browser_path}" --password-store=basic --disable-sync --no-first-run "--user-data-dir={user_data_dir}" {url}')
             elif cmd.lower() == 'screenshot':  # скриншоты
                 if len(param) == 0 or not re.match(r'^\w*\.png$', param[0]):
                     return

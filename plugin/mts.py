@@ -94,7 +94,7 @@ class PureBrowserDebug():
         try:
             children = psutil.Process().children() + sum([p.children() for p in psutil.Process().children()], [])
         except Exception:
-            logging.error(f'chrome_children:v{store.exception_text()}')
+            logging.error(f'chrome_children: {store.exception_text()}')
             return []
         return [p for p in children if p.name() == 'chrome.exe']
 
@@ -444,7 +444,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
 
     if state == 'qrator_captcha':
         store.feedback.text(f"Qrator captcha", append=True)
-        logging.error('Вводим капчу')
+        logging.info('Вводим капчу')
         pd.capture_screenshot()
         breakpoint() if os.path.exists('breakpoint_captcha') else None  ## pylint: disable=expression-not-assigned,forgotten-debug-statement
         solve = None
@@ -492,7 +492,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                 time.sleep(step * pd.slowdown)
                 state = wait_state()
                 if state in ['login', 'password', 'lk']:
-                    logging.error('Прошли капчу вручную')
+                    logging.info('Прошли капчу вручную')
                     break
         
         if state == 'qrator_captcha':
