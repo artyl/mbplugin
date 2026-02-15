@@ -33,7 +33,8 @@ CMD_CHECK_SEND = 'check_send'
 CMD_CHECK_NEW_VERSION = 'check_new_version'
 CMD_PING = 'ping'
 CMD_GET_ONE = 'get_one'
-SCHED_CMDS = (CMD_CHECK, CMD_CHECK_NEW_VERSION, CMD_CHECK_SEND, CMD_GET_ONE, CMD_PING)
+CMD_REPORT = 'report'
+SCHED_CMDS = (CMD_CHECK, CMD_CHECK_NEW_VERSION, CMD_CHECK_SEND, CMD_GET_ONE, CMD_PING, CMD_REPORT)
 Job = collections.namedtuple('Job', 'job_str job_sched cmd filter_tel err_msg')
 
 Q_CMD_EXIT = 'exit'
@@ -733,8 +734,10 @@ class Scheduler(metaclass=SingletonMeta):
                         TelegramBot().send_message_by_list(msg)
             elif cmd == CMD_PING:
                 if TelegramBot().is_running():
-                    msg = ' '.join(kwargs['filter']).strip()
-                    TelegramBot().send_message_by_list('ping' if msg == '' else msg)
+                    msg = ' '.join(kwargs.get('filter_tel', [])).strip()
+                    TelegramBot().send_message_by_list('ping' if msg == '' else msg, mute=False)
+            elif cmd == CMD_REPORT:
+                pass  # TODO доделать, когда определюсь с неймингом параметров 
             else:
                 logging.error(f'Scheduler: Unknown command {cmd}: {store.exception_text()}')
             store.feedback.unset()  # После обработки задания отменяем
@@ -915,6 +918,7 @@ class TelegramBot(metaclass=SingletonMeta):
         'Запускаем бота'
         api_token = store.options('api_token', section='Telegram').strip()
         tg_proxy = store.options('tg_proxy', section='Telegram').strip()
+        self.global_mute = str(store.options('tg_enable_notification', section='Telegram')) == '0'
         if tg_proxy.lower() == 'auto':
             telebot.apihelper.proxy = urllib.request.getproxies().get('https', None)
         elif tg_proxy != '' and tg_proxy.lower() != 'auto':
@@ -935,7 +939,7 @@ class TelegramBot(metaclass=SingletonMeta):
                 threading.Thread(target=self.bot.infinity_polling, name='bot_infinity_polling', daemon=True).start()
                 logging.info('Telegram bot started')
                 if str(store.options('send_empty', section='Telegram')) == '1':
-                    self.send_message_by_list(text='Hey there!', disable_notification=True)
+                    self.send_message_by_list(text='Hey there!')
                 self._bot_running = True  # Флаг, что бот работает
             except Exception:
                 exception_text = f'Ошибка запуска telegram bot {store.exception_text()}'
@@ -976,19 +980,20 @@ class TelegramBot(metaclass=SingletonMeta):
         logging.info(f'TG:{message.chat.id} /id')
         self.put_text(message, message.chat.id)
 
-    def put_text(self, message: telebot.types.Message, text: str, msg_type=None, parse_mode='HTML') -> typing.Optional[telebot.types.Message]:
+    def put_text(self, message: telebot.types.Message, text: str, msg_type=None, parse_mode='HTML', mute=None) -> typing.Optional[telebot.types.Message]:
         '''Вызываем функцию для размещения текста'''
+        mute = self.global_mute if mute is None else mute
         try:
             if msg_type is None:
                 try:
-                    return self.bot.send_message(message.chat.id, text, parse_mode=parse_mode)
+                    return self.bot.send_message(message.chat.id, text, parse_mode=parse_mode, disable_notification=mute)
                 except Exception:
-                    return self.bot.send_message(message.chat.id, text, parse_mode=None)
+                    return self.bot.send_message(message.chat.id, text, parse_mode=None, disable_notification=mute)
             elif msg_type == 'reply_to':
                 try:
-                    return self.bot.reply_to(message, text=text, parse_mode=parse_mode)
+                    return self.bot.reply_to(message, text=text, parse_mode=parse_mode, disable_notification=mute)
                 except Exception:
-                    return self.bot.reply_to(message, text=text, parse_mode=None)
+                    return self.bot.reply_to(message, text=text, parse_mode=None, disable_notification=mute)
             elif msg_type == 'edit_message_text':
                 try:
                     return self.bot.edit_message_text(chat_id=message.chat.id, text=text, message_id=message.message_id, parse_mode=parse_mode)
@@ -1062,7 +1067,7 @@ class TelegramBot(metaclass=SingletonMeta):
     def get_balancefile(self, message: telebot.types.Message):
         """Send balance html file only auth user."""
         _, res = getreport()
-        self.bot.send_document(chat_id=message.chat.id, visible_file_name='balance.htm', document=io.BytesIO('\n'.join(res).strip().encode('cp1251')))
+        self.bot.send_document(chat_id=message.chat.id, visible_file_name='balance.htm', document=io.BytesIO('\n'.join(res).strip().encode('cp1251')), disable_notification=self.global_mute)
 
     @auth_decorator()
     def restartservice(self, message: telebot.types.Message):
@@ -1217,18 +1222,20 @@ class TelegramBot(metaclass=SingletonMeta):
         if cmd in ['checkone', 'getone']:
             self.get_one(query)
 
-    def send_message_by_list(self, text: str, parse_mode='HTML', ids=None, **kwargs):
+    def send_message_by_list(self, text: str, parse_mode='HTML', ids=None, mute=None, **kwargs):
         'Отправляем сообщение по списку ids, либо по списку auth_id из mbplugin.ini'
+        mute = self.global_mute if mute is None else mute
+        logging.info(f'TG send_message_by_list to ids={ids} mute={mute} text={text}')
         if self.bot is None or text == '':
             return
         lst = self.auth_id() if ids is None else ids
         text = text if isinstance(text, str) else str(text)
         for aid in lst:
             try:
-                self.bot.send_message(chat_id=aid, text=text, parse_mode=parse_mode, **kwargs)
+                self.bot.send_message(chat_id=aid, text=text, parse_mode=parse_mode, disable_notification=mute,  **kwargs)
             except Exception:
                 try:
-                    self.bot.send_message(chat_id=aid, text=text[:4000], parse_mode=None, **kwargs)
+                    self.bot.send_message(chat_id=aid, text=text[:4000], parse_mode=None, disable_notification=mute, **kwargs)
                 except Exception:
                     exception_text = f'Ошибка отправки сообщения {text} для {aid} telegram bot {store.exception_text()}'
                     logging.error(exception_text)
@@ -1470,29 +1477,7 @@ class WebServer():
                         text = [settings.header_html] + [disclaimer] + [f'''<button onclick="fetch('/profile/{pr.name}').then(function(response){{return response}})">{pr.name}</button><br>''' for pr in profiles]
                     elif param[0] in [pr.name for pr in profiles]:
                         import browsercontroller
-                        browser_path = browsercontroller.browser_path()
-                        storename = param[0]
-                        user_data_dir = [pr for pr in profiles if pr.name == param[0]][0]
-                        op_var = re.findall(r'^(\w_\w+)_', storename)
-                        url = ''
-                        if len(op_var) > 0:
-                            url = settings.operator_link.get(op_var[0], '')
-                        try:
-                            # Removing broken folders Sync Data
-                            sync_data_path = pathlib.Path(user_data_dir) / 'Default' / 'Sync Data'
-                            if sync_data_path.exists() and sync_data_path.is_dir():
-                                logging.info(f'Remove broken Sync Data folder: {sync_data_path}')
-                                shutil.rmtree(sync_data_path)
-                            b_pf = pathlib.Path(user_data_dir) / 'Last Browser'
-                            if b_pf.exists() and b_pf.is_file():
-                                b_p = pathlib.Path(b_pf.read_text().replace("\x00", "").strip())  # fix U16LE
-                                logging.info(f'Found Last Browser file for profile {user_data_dir}: {b_p} exists={b_p.exists()}')
-                                if b_p.exists():
-                                    browser_path = str(b_p)
-                        except Exception:
-                            logging.error(f'Not found browser for profile in "Last Browser", use default chromium: {store.exception_text()}')
-                        logging.info(f'Open browser {browser_path} with user_data_dir={user_data_dir}')
-                        os.system(f'{store.start_cmd()} "{browser_path}" --password-store=basic --disable-sync --no-first-run "--user-data-dir={user_data_dir}" {url}')
+                        browsercontroller.open_browser_profile(profile=param[0])
             elif cmd.lower() == 'screenshot':  # скриншоты
                 if len(param) == 0 or not re.match(r'^\w*\.png$', param[0]):
                     return
@@ -1509,7 +1494,6 @@ class WebServer():
             elif cmd.lower() == 'check_ini':  # проверка ini файлов (результат mbp check-ini)
                 import util
                 result = []
-
                 try:
                     mbplugin_ini_ok, mbplugin_ini_mess, phones_ini_ok, phones_ini_mess = util.do_check_ini()
                     mbplugin_ini_status = 'OK' if mbplugin_ini_ok else 'Fail'
@@ -1563,6 +1547,18 @@ class WebServer():
             elif cmd == 'getbalance_standalone':  # start balance request
                 # TODO подумать над передачей параметров в fetch - filter_tel=filter_tel,only_failed=only_failed
                 Scheduler().run_once(cmd=CMD_CHECK)
+                ct, text = 'text/html; charset=cp1251', ['OK']
+            elif cmd in ('cmd_shell', 'python_shell'):  # Start new console/python window (only local)
+                if environ.get('REMOTE_ADDR', 'None') == '127.0.0.1':
+                    python_path = str(pathlib.Path(sys.executable).absolute().parent)
+                    if python_path not in os.environ['PATH'].split(os.pathsep):
+                        os.environ['PATH'] = python_path + os.pathsep + os.environ['PATH']
+                    if cmd == 'cmd_shell':
+                        sh = 'cmd' if sys.platform == 'win32' else 'bash'
+                        os.system(f'{store.start_cmd()} {sh} ')
+                    elif cmd == 'python_shell':
+                        py = 'python -i mbplugin\__init__.py'
+                        os.system(f'{store.start_cmd()} {py} ')
                 ct, text = 'text/html; charset=cp1251', ['OK']
             elif cmd == 'flushlog':  # Start new log
                 store.logging_restart()

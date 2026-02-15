@@ -291,8 +291,12 @@ ini = {
         'tg_proxy': '',  # По умолчанию без прокси
         'api_token_': {'descr': 'Токен для бота', 'type': 'text', 'size': 100},
         'api_token': '',  # токен для бота - прописывается в ini
+        'loud_api_token_': {'descr': 'Токен для громких уведомлений бота', 'type': 'text', 'size': 100},
+        'loud_api_token': '',  # токен для громких уведомлений бота, если не задан - используется токен api_token что и для обычных уведомлений - прописывается в ini
         'auth_id_': {'descr': 'Список id пользователей, которые взаимодействовать с ТГ ботом', 'type': 'text', 'validate': lambda i: re.match(r'^((\d+,)*(\d)+)?$', str(i))},
         'auth_id': '',  # список id пользователей, которые авторизованы
+        'tg_enable_notification_': {'descr': 'Включить звук при получении сообщений в телеграм, по умолчанию звук выключен (0)', 'type': 'checkbox'},
+        'tg_enable_notification': '0',
         'send_balance_changes_': {'descr': 'Отправлять изменения баланса по sendtgbalance', 'type': 'checkbox'},
         'send_balance_changes': '1',  # отправлять изменения баланса по sendtgbalance (может приходится если мы не хотим получать полный список а фильтровать по подписке)
         'tg_from_': {'descr': 'Источник данных для ТГ бота', 'type': 'select', 'variants': 'mobilebalance sqlite'},
@@ -341,7 +345,7 @@ ini = {
         # В таких случаях надо ориентироваться на расписание на странице http://localhost:19777/schedule - если оно там есть значит оно правильное
         'schedule_': {
             'descr': 'Расписание опросов', 'type': 'list', 'size': 200,
-            'validate': lambda i: re.match(r'^every\(\d*\)(\.to\(\d+\))?\.(?:minutes?|hours?|days?|weeks?)(\.at\(.+\))?,(?:check|check_send|check_new_version|ping)(_once)?(,.*)?', i)
+            'validate': lambda i: re.match(r'^every\(\d*\)(\.to\(\d+\))?\.(?:seconds?|minutes?|hours?|days?|weeks?)(\.at\(.+\))?,(?:check|check_send|check_new_version|ping)(_once)?(,.*)?', i)
         },
         'schedule': '',
 
@@ -408,6 +412,8 @@ main_html = r'''<html>
 <a href=/log?lines=40>View log</a><br>
 <a href=/log/list>View screenshot log</a><br>
 <a href=/version_update>Version update</a><br>
+<button onclick="fetch('/cmd_shell').then(function(response) {return response})">Cmd shell</button><br>
+<button onclick="fetch('/python_shell').then(function(response) {return response})">Python shell</button><br>
 <button onclick="fetch('/flushlog').then(function(response) {return response})">Flush log</button><br>
 <button onclick="fetch('/reload_schedule').then(function(response) {return response})">Reload schedule</button><br>
 <button onclick="fetch('/recompile').then(function(response) {return response})">Recompile jsmblh plugin</button><br>

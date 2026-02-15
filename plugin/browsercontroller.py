@@ -251,6 +251,48 @@ def browser_path(browser='chromium') -> pathlib.Path:
         raise RuntimeError('Chromium not found') from e
     return path
 
+def open_browser_profile(profile=None, user_data_dir=None, br_path=None, use_default_browser_on_failure=True, remove_sync_data=True, url=None):
+    '''Открываем указанный профиль или путь к профилю если указан
+    в браузере Last Browser из профиля, или если указан указан явно br_path то в нем
+    remove_sync_data - папку Sync Data удаляем по умолчанию, т.к. он часто ломается и из-за этого браузер может не открываться
+    '''
+    if profile is None and user_data_dir is None:
+        raise RuntimeError('No profile specified')
+    if profile is not None and user_data_dir is not None:
+        raise RuntimeError('Both profile and user_data_dir specified, only one should be specified')
+    if user_data_dir is None:
+        profile_root = store.abspath_join(store.options('storefolder'), 'headless')
+        user_data_dir = pathlib.Path(profile_root) / profile
+    if profile is None:
+        profile = pathlib.Path(user_data_dir).name
+    op_var = re.findall(r'^(\w_\w+)_', profile)
+    if url is None:
+        url = '' if len(op_var) == 0 else settings.operator_link.get(op_var[0], '') 
+    if br_path is None:
+        try:
+            if remove_sync_data:
+                # Removing broken folders Sync Data
+                sync_data_path = pathlib.Path(user_data_dir) / 'Default' / 'Sync Data'
+                if sync_data_path.exists() and sync_data_path.is_dir():
+                    logging.info(f'Remove broken Sync Data folder: {sync_data_path}')
+                    shutil.rmtree(sync_data_path)
+            b_pf = pathlib.Path(user_data_dir) / 'Last Browser'
+            if b_pf.exists() and b_pf.is_file():
+                b_p = pathlib.Path(b_pf.read_text().replace("\x00", "").strip())  # fix U16LE
+                logging.info(f'Found Last Browser file for profile {user_data_dir}: {b_p} exists={b_p.exists()}')
+                if b_p.exists():
+                    br_path = str(b_p)
+        except Exception:
+            logging.error(f'Get "Last Browser" error: {store.exception_text()}')
+        if br_path is None:
+            if use_default_browser_on_failure:
+                logging.error(f'Not found browser for profile in "Last Browser", use default chromium')
+                br_path = browser_path()
+            else:
+                logging.error('Browser not found for profile and use_default_browser_on_failure is False')
+                return
+    logging.info(f'Open browser {br_path} with user_data_dir={user_data_dir}')
+    os.system(f'{store.start_cmd()} "{br_path}" --password-store=basic --disable-sync --no-first-run "--user-data-dir={user_data_dir}" {url}')
 
 class BalanceOverPlaywright():
     '''Общая часть класса управления браузером '''

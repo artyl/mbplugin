@@ -131,7 +131,9 @@ PhonesHText = {
 addition_phone_fields = {'MBPhoneNumber': '[nvarchar] (150)'}
 addition_indexes = ['idx_QueryDateTime ON Phones (QueryDateTime ASC)',
                     'idx_Phonenumber ON Phones (PhoneNumber)',
-                    'idx_MBPhonenumber ON Phones (MBPhoneNumber)']
+                    'idx_MBPhonenumber ON Phones (MBPhoneNumber)', 
+                    #'idx_PhoneNumber_operator_QueryDateTime ON phones (PhoneNumber, operator, QueryDateTime DESC)'
+                    ]
 addition_queries = [
     "delete from phones where phonenumber like 'p_%' or (phonenumber='tinkoff' and operator='???') or operator in ('#01','#02')"
     ]
@@ -195,6 +197,8 @@ class Dbengine():
         self.cur_description = cur.description
         res = cur.fetchall()
         logging.debug(f'{query} {args} {kwargs}')
+        if time.process_time()-t_start > 1:
+            logging.info(f'Execution time query {query} {time.process_time()-t_start:.6f}')
         logging.debug(f'Execution time {time.process_time()-t_start:.6f}')
         return res
 
@@ -285,7 +289,8 @@ class Dbengine():
         dbdata = self.conn_execute_fetch(reportsql)
         dbheaders = list(zip(*self.cur_description))[0]
         phones = store.ini('phones.ini').phones()
-        dbdata.sort(key=lambda line: (phones.get(line[0:2], {}).get('NN', 999)))
+        logging.debug([phones.get(line[1:3], {}).get('NN', 999) for line in dbdata])
+        dbdata.sort(key=lambda line: (phones.get(line[1:3], {}).get('NN', 999)))
         # округляем float до 2х знаков
         dbdata = [tuple([(round(i, 2) if type(i) == float else i) for i in line]) for line in dbdata]
         table = []  # результат - каждая строчка словарь элементов

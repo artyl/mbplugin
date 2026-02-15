@@ -545,7 +545,7 @@ def do_check_ini():
     mbplugin_ini_ok = True
     if 'Telegram' in mbplugin_ini.ini:
         if len([i for i in mbplugin_ini.ini['Telegram'].keys() if i.startswith('subscrib' + 'tion')]):
-            msg = f'Warning check-ini mbplugin.ini - subsri_B_tion key found in ini'
+            msg = f'Warning check-ini mbplugin.ini - subscri_B_tion key found in ini'
             mbplugin_ini_mess.append(msg)
             mbplugin_ini_ok = False
     for sec in store.settings.ini.keys():
@@ -918,20 +918,14 @@ def console(ctx, args):
 @click.pass_context
 def browser(ctx, pure, storename, url):
     'Запуск браузера playwright '
-    name = 'browser '
+    name = 'browser'
     store.turn_logging()
     if pure:
         if storename is None:
             storename = 'tmp'
-        storefolder = store.options('storefolder')
-        profile_directory = storename
-        user_data_dir = store.abspath_join(storefolder, 'headless', profile_directory)
         import browsercontroller
-        if url == '':
-            op_var = re.findall(r'^(\w_\w+)_', storename)
-            if len(op_var) > 0:
-                url = settings.operator_link.get(op_var[0], '')
-        os.system(f'{store.start_cmd()} "{browsercontroller.browser_path()}" --password-store=basic "--user-data-dir={user_data_dir}" {url}')
+        url = url if url.strip() != '' else None
+        browsercontroller.open_browser_profile(profile=storename, url=url)
     else: # playwright
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
