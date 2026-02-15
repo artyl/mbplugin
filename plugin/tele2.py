@@ -92,7 +92,7 @@ class browserengine(browsercontroller.BrowserController):
             logging.error(f'Not entered to lk')
             raise RuntimeError('You have not logged into your personal account')
         self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': ['/balance?'], 'jsformula': "parseFloat(data.data.value).toFixed(2)"},
+            {'name': 'Balance', 'url_tag': ['/balance'], 'jsformula': "parseFloat(data.data.value).toFixed(2)"},
             {'name': 'TarifPlan', 'url_tag': ['/tariff$'], 'jsformula': "data.data.frontName"},
             {'name': 'UserName', 'url_tag': ['/profile$'], 'jsformula': "data.data.fullName"},
         ])
@@ -153,6 +153,8 @@ def calculate_dop(result, response_t, response_с, response_s, response_r):
         cost = 0 if cost is None else float(str(cost).replace(',', '.'))
         kperiod = settings.UNIT.get(el.get('period', ''), 1)
         services.append((name, cost * kperiod))
+    no_count_services = ['День в сети']
+    services = [(a,0 if a in no_count_services else b) for a, b in services]
     free = len([a for a, b in services if b == 0])  # бесплатные
     paid = len([a for a, b in services if b != 0])  # платные
     paid_sum = paid_tarif + round(sum([b for a, b in services if b != 0]), 2)
