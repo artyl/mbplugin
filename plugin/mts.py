@@ -559,13 +559,17 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         if 'balance' in user_profile:
             logging.info(f'Balance found on page api/login/user-info..Balance')
             result['Balance'] = round(user_profile['balance'], 2)
-        # Берем баланс из graphql 
+        # Берем баланс из graphql - там 2 баланса - MMA и PA-OF, на случай если коды поменяются то берем max
         graphql_balance = pd.get_response_body_json('/graphql', graphql_key='data.balances.nodes')
         balance_nodes = pd.tget(graphql_balance, 'data.balances.nodes', [])
         if len(balance_nodes) > 0:
-            balance_text = str(pd.tget(balance_nodes[0], 'remainingValue.amount'))
-            if balance_text != '':
-                result['Balance'] = round(float(balance_text.replace(',', '.')), 2)
+            balances = {bn.get('code','unknown'):pd.tget(bn, 'remainingValue.amount') for bn in balance_nodes if pd.tget(bn, 'remainingValue.amount') != ''}
+            logging.info(f'Balance found on page graphql..balances.nodes: {balances}')
+            if 'MMA' in balances:
+                result['Balance'] = round(balances['MMA'], 2)
+            else:
+                logging.info(f'Not found MMA code, get max of balances')
+                result['Balance'] = round(max([b for b in balances.values()]), 2)
         # Потом все остальное
         # result['TarifPlan'] = user_profile.get('tariff', '').replace('(МАСС) (SCP)', '') # see graphql
         result['UserName'] = user_profile.get('displayName', '')
@@ -578,9 +582,9 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         if options('mts_balance_from').lower() == 'balance':
             logging.info('force get balance from api/login/user-info..balance')
             result['Balance'] = round(user_profile['balance'], 2)
-        if result.get('Balance', 0) == 0:
+        if 'Balance' not in result:  # Если до сих пор не добыли баланс, пробуем взять его из html
             # get balance from html
-            web_bal = pd.page_eval("parseFloat(document.querySelector('div.widget-mobile-balance').innerText.replace(',','.').replace(/[^0-9.]/g, ''))")
+            web_bal = pd.page_eval("parseFloat(document.querySelector('div.widget-mobile-balance').innerText.replace(',','.').replace(/[\u2010-\u2015\u2212\uFE63\uFF0D\u207B\u208B]/g, '-').replace(/[^0-9.-]/g, ''))")
             if isinstance(web_bal, float):
                 logging.info(f'Balance found in html: {web_bal}')
                 result['Balance'] = web_bal
