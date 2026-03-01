@@ -12,8 +12,8 @@ login_url = 'https://my.novofon.ru/login'
 user_selectors = {
     'chk_lk_page_js': "document.querySelector('div.bottomMenu') !== null",
     'chk_login_page_js': "document.querySelector('form input[type=password]') !== null",
-    'login_clear_js': "document.querySelector('form input[name=login]').value=''",
-    'login_selector': 'form input[name="login"]',
+    'login_clear_js': "document.querySelector('form input[name=username]').value=''",
+    'login_selector': 'form input[name="username"]',
     'submit_js': "document.querySelector('form [type=submit]').click()",
 }
 

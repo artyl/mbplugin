@@ -204,7 +204,7 @@ class PureBrowserDebug():
             request_id_list = [
                 self.tget(el, 'params.requestId') for el in self._data
                 if url in (self.tget(el, 'params.response.url') + '$')
-                and ctype in self.tget(el, 'params.response.headers.Content-Type')
+                and ctype in self.tget(el, 'params.response.headers.Content-Type')  # TODO content-type can be in capitals or not, need to check all variants
                 and self.tget(el, 'params.response.status') not in [204, 400, 404]
             ]
         else:
@@ -250,8 +250,13 @@ class PureBrowserDebug():
             if el.get('method') in ['Network.loadingFinished', 'Network.loadingFailed']:
                 self.queue_json_request_id.discard(request_id)
                 continue
-            if el.get('method') == 'Network.responseReceived' and 'json' in self.tget(el, 'params.response.headers.Content-Type'):
+            if el.get('method') == 'Network.responseReceived':
                 url = self.tget(el, 'params.response.url')
+                headers = {k.lower():v for k,v in self.tget(el, "params.response.headers", {}).items()}
+                content_type = headers.get('content-type', '').lower()
+                if 'json' not in content_type:
+                    # logging.info(f'Skipped non-json response for {url} with content-type {content_type}')
+                    continue
                 if 'yandex.ru' in url: continue
                 self.queue_json_request_id.add(request_id)
                 if self.tget(el, 'params.response.status') not in [204, 400, 404]:
@@ -567,6 +572,8 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             logging.info(f'Balance found on page graphql..balances.nodes: {balances}')
             if 'MMA' in balances:
                 result['Balance'] = round(balances['MMA'], 2)
+                if 'PA-OF' in balances:
+                    result['Balance2'] = round(balances['MMA'], 2) - round(balances['PA-OF'], 2)
             else:
                 logging.info(f'Not found MMA code, get max of balances')
                 result['Balance'] = round(max([b for b in balances.values()]), 2)
