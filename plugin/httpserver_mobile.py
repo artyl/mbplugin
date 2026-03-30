@@ -873,6 +873,38 @@ def auth_decorator(errmsg=None, nonauth: typing.Callable = None):
         return wrapper
     return decorator
 
+class IgnoreInfinityPolling(logging.Filter):
+    def filter(self, record):
+        if "Infinity polling exception:" in record.getMessage():
+            return False
+        return True
+
+class CleanTelebotLogging(logging.Filter):
+    def __init__(self):
+        super().__init__()
+        self.last_message = None
+        self.last_message_counter = 0
+    def filter(self, record):
+        # сообщения идут парами - ошибка + traceback, поэтому если пропускали ошибку, то пропускаем и traceback
+        msg = record.getMessage()
+        if msg.startswith("Exception traceback"):
+            if self.last_message_counter:
+                record.msg = f"Traceback: cleared {len(str(record.args[0]))} chars {len(record.args[0].splitlines())} lines\n{record.args[0].splitlines()[-1]}"
+                record.args = ()
+            else: 
+                return False  # Повторные вообще пропускаем
+        else:
+            if re.sub(r'timeout=\d+', '', self.last_message) == re.sub(r'timeout=\d+', '', msg):
+                self.last_message_counter += 1
+                return False  # Фильтруем повторяющиеся сообщения
+            if msg.startswith("Infinity polling exception"):
+                record.msg = f"Telebot polling restart"
+                record.args = ()
+            if self.last_message_counter > 0:
+                record.msg = record.msg + f" previous message:\n{msg}\n{self.last_message}\n was repeated {self.last_message_counter} times"
+            self.last_message = msg
+            self.last_message_counter = 0
+        return True
 
 class TelegramBot(metaclass=SingletonMeta):
 
@@ -884,6 +916,7 @@ class TelegramBot(metaclass=SingletonMeta):
         self.bot = None
         self.commands = None
         self.prepare_commands()
+        logging.getLogger('TeleBot').addFilter(CleanTelebotLogging())
         self.start_bot()
         self.add_bot_menu()
 
@@ -920,9 +953,14 @@ class TelegramBot(metaclass=SingletonMeta):
         tg_proxy = store.options('tg_proxy', section='Telegram').strip()
         self.global_mute = str(store.options('tg_enable_notification', section='Telegram')) == '0'
         if tg_proxy.lower() == 'auto':
-            telebot.apihelper.proxy = urllib.request.getproxies().get('https', None)
+            https_proxy = urllib.request.getproxies().get('https', None)
+            if https_proxy is not None:
+                telebot.apihelper.proxy = {'https': https_proxy}
+            else:
+                telebot.apihelper.proxy = None
         elif tg_proxy != '' and tg_proxy.lower() != 'auto':
-            telebot.apihelper.proxy = tg_proxy
+            telebot.apihelper.proxy = {'https': tg_proxy}
+        logging.info(f'Telegram telebot.apihelper.proxy={telebot.apihelper.proxy}')
         if api_token != '' and str(store.options('start_tgbot', section='Telegram')) == '1' and 'telebot' in sys.modules:
             try:
                 logging.info(f'Module telegram starting for id={self.auth_id()}')
@@ -936,7 +974,7 @@ class TelegramBot(metaclass=SingletonMeta):
                 self.bot.register_message_handler(self.handle_catch_all, func=lambda message: True)
                 self.bot.register_edited_message_handler(self.handle_edited_message, func=lambda message: True)
                 # self.bot.infinity_polling()  # Start the Bot
-                threading.Thread(target=self.bot.infinity_polling, name='bot_infinity_polling', daemon=True).start()
+                threading.Thread(target=self.bot.infinity_polling, name='bot_infinity_polling', daemon=True, kwargs={'timeout': 60, 'long_polling_timeout': 60}).start()
                 logging.info('Telegram bot started')
                 if str(store.options('send_empty', section='Telegram')) == '1':
                     self.send_message_by_list(text='Hey there!')
@@ -958,14 +996,17 @@ class TelegramBot(metaclass=SingletonMeta):
         'создает персональное меню бота [/] для всех id из auth_id из пунктов перечисленных в command_menu_list'
         if self.bot is None:
             return
-        command_menu_list = store.options('command_menu_list', section='Telegram').strip().split(',')
-        command_menu_list = [re.sub('^//', '/', f'/{i.strip()}') for i in command_menu_list]
-        for aid in self.auth_id():
-            # Перебираем команды из списка command_menu_list и те которые есть в command_menu_list вставляем в меню [/]
-            cmds = [self.commands[c1] for c1 in command_menu_list if c1 in self.commands]
-            self.bot.set_my_commands(
-                [telebot.types.BotCommand(cmd.name, cmd.description) for cmd in cmds],
-                scope=telebot.types.BotCommandScopeChat(aid))
+        try:
+            command_menu_list = store.options('command_menu_list', section='Telegram').strip().split(',')
+            command_menu_list = [re.sub('^//', '/', f'/{i.strip()}') for i in command_menu_list]
+            for aid in self.auth_id():
+                # Перебираем команды из списка command_menu_list и те которые есть в command_menu_list вставляем в меню [/]
+                cmds = [self.commands[c1] for c1 in command_menu_list if c1 in self.commands]
+                self.bot.set_my_commands(
+                    [telebot.types.BotCommand(cmd.name, cmd.description) for cmd in cmds],
+                    scope=telebot.types.BotCommandScopeChat(aid))
+        except Exception as ex:
+            logging.error(f'Error set bot menu: {store.exception_text(ex)}')
 
     def auth_id(self) -> typing.List[int]:
         'return auth id from ini'
@@ -973,7 +1014,7 @@ class TelegramBot(metaclass=SingletonMeta):
         if not re.match(r'(\d+,?)', auth_id_str):
             logging.error(f'incorrect auth_id in ini: {auth_id_str}')
             return []
-        return map(int, auth_id_str.split(','))
+        return list(map(int, auth_id_str.split(',')))
 
     def get_id(self, message: telebot.types.Message):
         """Echo chat id."""
@@ -1067,7 +1108,19 @@ class TelegramBot(metaclass=SingletonMeta):
     def get_balancefile(self, message: telebot.types.Message):
         """Send balance html file only auth user."""
         _, res = getreport()
-        self.bot.send_document(chat_id=message.chat.id, visible_file_name='balance.htm', document=io.BytesIO('\n'.join(res).strip().encode('cp1251')), disable_notification=self.global_mute)
+        try:
+            script_path = pathlib.Path(__file__).parent.parent.parent / 'send_balancefile.py'
+            if not script_path.exists():
+                self.bot.send_document(chat_id=message.chat.id, visible_file_name='balance.htm', document=io.BytesIO('\n'.join(res).strip().encode('cp1251')), timeout=180,  disable_notification=self.global_mute)
+            else:
+                logging.info(f'Try use {script_path}')
+                result = subprocess.run([sys.executable,  script_path], capture_output=True,  text=True)
+                result_text = (result.stderr+'\n'+result.stdout).strip()
+                logging.info(result_text)
+        except Exception:
+            err_text = 'Telegram API timeout while sending balance file, try again later'
+            self.put_text(message, err_text)
+            logging.info(f'{store.exception_text(short=True)} by id={err_text}')
 
     @auth_decorator()
     def restartservice(self, message: telebot.types.Message):

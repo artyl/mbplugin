@@ -156,7 +156,10 @@ class PureBrowserDebug():
                     logging.info(f'Timeout for {id} (number {id_countdown_timeout}) was expired')
                 if id is None or id_countdown_timeout < 0:
                     break
-            except Exception:
+            except Exception as ex:
+                if type(ex).__name__ == 'ConnectionResetError':
+                    logging.info(f'{store.exception_text(short=True)} by id={id}')
+                    break
                 logging.info(store.exception_text())
                 break
         return None
@@ -601,7 +604,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             deadline_dates = set([i['deadlineDate'] for i in counters if 'deadlineDate' in i])
             if len(deadline_dates) > 0:
                 deadline_date = min(deadline_dates)
-                delta = datetime.datetime.fromisoformat(deadline_date) - datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(seconds=10800)))
+                delta = datetime.datetime.fromisoformat(deadline_date) - datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=3)))
                 result['TurnOff'] = delta.days
                 result['TurnOffStr'] = deadline_date.split('T')[0]
             # Минуты
@@ -680,6 +683,14 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         result['TarifPlan'] = tariff_name
         tariff_price_text = pd.tget(tariff, 'data.tariffInfo.tariffPricesInfo.mainPrice.price', '0 р/день')
         tariff_price_date = pd.tget(tariff, 'data.tariffInfo.tariffPricesInfo.mainPrice.date', '')
+        if tariff_price_date != '' and result.get('TurnOff') is None:
+            try:
+                logging.info(f'Get TurnOff and TurnOffStr from /graphql(tariffInfo) data.tariffInfo.tariffPricesInfo.mainPrice.date {tariff_price_date}')
+                delta = datetime.datetime.fromisoformat(tariff_price_date) - datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=3)))
+                result['TurnOff'] = delta.days
+                result['TurnOffStr'] = tariff_price_date.split('T')[0]
+            except Exception:
+                logging.info(f'Ошибка при парсинге даты следующего списания {tariff_price_date}: {store.exception_text()}')
         groups = pd.tget(active_gr, 'data.myServicesProducts.groups', [])
         products = sum([gr.get('products', []) for gr in groups], []) 
         # (name, description(у непостоянно платных None а у постоянно платных - дата следующего списания), cost, period)

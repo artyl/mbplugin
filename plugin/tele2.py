@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
-import os, sys, re, time, logging, collections
+import collections, datetime, logging, os, re, sys, time
 import browsercontroller, settings, store
 
 icon = '789CAD532DA8C250143E0F5E31080B83D581618F056141EBE00583F0C06235D9865530894D64C13010C12C68B50D8345C3FA82C16A90051141C7E6DF39CF5DAE6F4E1EBCF7C11776EE77CE3DDF39BB9F5FF97720E46FFCB851B8F30DE4EF83FB398FCBE5F267FABE0F994C060A85029CCF678AD56A358ABDE2683422EDE170A05E645966F9BAAEC79BFD01CBB2487B3C1EE95B5114963F180CC0300CEAA35AAD42A5528172B90CB95C0E5455A5BB86C361623E72329940B3D9846EB70BBD5E0F1CC7A1386A4EA713D326E5E35C70263C168B456C7E49F948BC07FBE7B15C2E1F346118422A95225FCFF68335F91A8220D0CCF16C3C1E93CF76BB4D1E77BB1DF3C6F78231DE4BBD5EA7F833341A0D9A99A669502A95C81F6AB7DB2DF519017B984EA7D0E974683FD96C96CE716FA669329DE779AC0FFEBF705D37E613678E75715711B01ECE68BD5E8324492F771131080210459169E7F379CCE766B379F92E56AB15A4D369D2CE66B387DC56ABF5ABB7B5DFEFA1DFEF9357DC6FB15804DBB6FFE5DD22AF62AEE146'
@@ -138,6 +138,17 @@ def calculate_dop(result, response_t, response_с, response_s, response_r):
     tarif_cost = get_data(response_r).get('tariffCost', {})  # может быть null
     tarif_fee = tarif_cost.get('amount', 0) if isinstance(tarif_cost, dict) else 0
     tarif_period = get_data(response_t).get('period')
+    try:
+        tarif_date_text = get_data(response_r).get('abonentDate')
+        if tarif_date_text is not None:
+            tarif_date = datetime.datetime.fromisoformat(tarif_date_text) + datetime.timedelta(seconds=1)  # T23:59:59 + 1s
+            delta = tarif_date - datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=3)))
+            result['TurnOff'] = delta.days
+            result['TurnOffStr'] = tarif_date.strftime('%Y-%m-%d')
+        else:
+            logging.info(f'No abonentDate in tariff')
+    except Exception:
+        logging.error(f'Error parse tariff abonentDate {tarif_date_text}')
     paid_tarif = tarif_fee * settings.UNIT.get(tarif_period, 1)
     services = []
     for el in get_data(response_с):
@@ -172,7 +183,7 @@ def calculate_dop(result, response_t, response_с, response_s, response_r):
         for rest in rests:
             if rest['status'] != 'active':  # or rest['type'] != 'service':  # service - вечные, tarif - этого месяца
                 continue
-            if rest['uom'] == 'min':
+            if rest['uom'] == 'min' and rest.get('roamingPackage') is not True:
                 result['Min'] += rest['remain']
             if rest['uom'] == 'mb':
                 result['Internet'] += rest['remain'] * (settings.UNIT['MB'] / settings.UNIT.get(store.options('interUnit'), settings.UNIT['MB']))

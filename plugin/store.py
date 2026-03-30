@@ -3,8 +3,14 @@
 import os, sys, locale, time, io, re, json, pickle, requests, urllib.request, configparser, pprint, zipfile, logging, traceback, collections, typing
 import settings
 
-def exception_text():
-    return "".join(traceback.format_exception(*sys.exc_info())).encode('cp1251', 'ignore').decode('cp1251', 'ignore').strip()
+def exception_text(short=False):
+    msg = "".join(traceback.format_exception(*sys.exc_info())).encode('cp1251', 'ignore').decode('cp1251', 'ignore').strip()
+    msg_lines = msg.splitlines()
+    if msg_lines[-1].startswith('requests.exceptions.ReadTimeout'):
+        msg = msg_lines[-1]
+    if short:
+        msg = msg_lines[-1]
+    return msg
 
 def abspath_join(*argv):
     'собираем в путь все переданные куски, если получившийся не абсолютный, то приделываем к нему путь до корня'
