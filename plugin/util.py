@@ -913,14 +913,14 @@ def console(ctx, args):
 
 @cli.command()
 @click.option('-p', '--pure', is_flag=True, help='Запустить чистый браузер без playwright')
-@click.option('-f', '--storename', type=str, help='Папка профиля (только в режиме pure)')
+@click.option('-f', '--storename', type=str, help='Папка профиля, в режиме pure (профили см в mbplugin/store/headless)')
 @click.argument('url', type=str, default='')
 @click.pass_context
 def browser(ctx, pure, storename, url):
-    'Запуск браузера playwright '
+    'Запуск браузера playwright или чистый браузер с папкой профиля'
     name = 'browser'
     store.turn_logging()
-    if pure:
+    if pure or storename is not None:
         if storename is None:
             storename = 'tmp'
         import browsercontroller

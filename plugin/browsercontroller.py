@@ -488,6 +488,7 @@ class BalanceOverPlaywright():
         return self.page.content()
 
     @check_browser_opened_decorator
+    @safe_run_with_log_decorator
     def page_screenshot(self, path='', number=-1, suffix=''):
         if str(self.options('log_responses')) != '1' and self.options('logginglevel') != 'DEBUG' or settings.mode != settings.MODE_MB:
             return

@@ -1,7 +1,7 @@
 # -*- coding: utf8 -*-
 ''' Автор ArtyLa '''
 # pylint: disable=multiple-imports, too-many-lines
-import typing, os, sys, io, random, re, time, json, threading, logging, importlib, queue, argparse, subprocess, glob, base64, collections, uuid, pathlib
+import argparse, base64, collections, glob, html, importlib, io, json, logging, os, pathlib, queue, random, re, subprocess, sys, threading, time, typing, uuid
 import wsgiref.simple_server, socketserver, socket, urllib.parse, urllib.request
 import psutil, requests, bs4, PIL.Image, schedule, shutil, playwright._repo_version
 import settings, dbengine, compile_all_jsmblh, updateengine, store  # pylint: disable=import-error
@@ -882,7 +882,7 @@ class IgnoreInfinityPolling(logging.Filter):
 class CleanTelebotLogging(logging.Filter):
     def __init__(self):
         super().__init__()
-        self.last_message = None
+        self.last_message = ''
         self.last_message_counter = 0
     def filter(self, record):
         # сообщения идут парами - ошибка + traceback, поэтому если пропускали ошибку, то пропускаем и traceback
@@ -961,6 +961,12 @@ class TelegramBot(metaclass=SingletonMeta):
         elif tg_proxy != '' and tg_proxy.lower() != 'auto':
             telebot.apihelper.proxy = {'https': tg_proxy}
         logging.info(f'Telegram telebot.apihelper.proxy={telebot.apihelper.proxy}')
+        tg_api_urls = store.options('tg_api_urls', section='Telegram', default='').strip()
+        if tg_api_urls != '':
+            tg_api_url = tg_api_urls.split(',')[0].strip().rstrip('/')  # TODO !!! пока берем только первый url из списка, нужно доделать поддержку нескольких url с рандомизацией
+            telebot.apihelper.API_URL = tg_api_url + '/bot{0}/{1}'
+            telebot.apihelper.FILE_URL = tg_api_url + '/file/bot{0}/{1}'
+        logging.info(f'Telegram telebot.apihelper.API_URL={telebot.apihelper.API_URL}')
         if api_token != '' and str(store.options('start_tgbot', section='Telegram')) == '1' and 'telebot' in sys.modules:
             try:
                 logging.info(f'Module telegram starting for id={self.auth_id()}')
@@ -974,7 +980,8 @@ class TelegramBot(metaclass=SingletonMeta):
                 self.bot.register_message_handler(self.handle_catch_all, func=lambda message: True)
                 self.bot.register_edited_message_handler(self.handle_edited_message, func=lambda message: True)
                 # self.bot.infinity_polling()  # Start the Bot
-                threading.Thread(target=self.bot.infinity_polling, name='bot_infinity_polling', daemon=True, kwargs={'timeout': 60, 'long_polling_timeout': 60}).start()
+                #threading.Thread(target=self.bot.infinity_polling, name='bot_infinity_polling', daemon=True, kwargs={'timeout': 60, 'long_polling_timeout': 60}).start()
+                threading.Thread(target=self.bot.infinity_polling, name='bot_infinity_polling', daemon=True).start()
                 logging.info('Telegram bot started')
                 if str(store.options('send_empty', section='Telegram')) == '1':
                     self.send_message_by_list(text='Hey there!')
@@ -1564,6 +1571,9 @@ class WebServer():
                     threading.Thread(target=lambda: restart_program(reason=f'WEB: /restart', delay=5), name='Restart', daemon=True).start()
                 else:
                     logging.info('No new version, no restart')
+            elif cmd.lower() == 'diag':
+                res = html.escape(str(threading.enumerate()).replace('>, <', '>,\n <'))
+                ct, text = 'text/html', settings.header_html + f'\n<pre>\n{res}\n</pre>\n'
             elif cmd == 'logging_restart':  # logging_restart
                 store.logging_restart()
                 ct, text = 'text/html', 'OK'
@@ -1610,7 +1620,7 @@ class WebServer():
                         sh = 'cmd' if sys.platform == 'win32' else 'bash'
                         os.system(f'{store.start_cmd()} {sh} ')
                     elif cmd == 'python_shell':
-                        py = 'python -i mbplugin\__init__.py'
+                        py = r'python -i mbplugin\__init__.py'
                         os.system(f'{store.start_cmd()} {py} ')
                 ct, text = 'text/html; charset=cp1251', ['OK']
             elif cmd == 'flushlog':  # Start new log

@@ -170,12 +170,14 @@ class PureBrowserDebug():
         return res
 
     def tget(self, js, chain, default=''):
-        '''get by tree chain tget(js, 'params.request.url') -> js['params']['request']['url']'''
+        '''Get nested value via dot notation. tget(js, 'params.request.url') -> js['params']['request']['url']'''
         res = js
-        chain_list = chain.split('.')
-        for el in chain_list[:-1]:
-            res = res.get(el, {})
-        return res.get(chain_list[-1], default)
+        try:
+            for el in chain.split('.'):
+                res = res[el]
+            return res
+        except (KeyError, TypeError):
+            return default
 
     def browser_close(self):
         try:
@@ -267,8 +269,11 @@ class PureBrowserDebug():
                         body = self.get_response_by_id(el['params']['requestId'], comment=url).get('body', '')
                         body_prep = re.sub(r'(\d{2}:\d{2}):\d{2}\.\d+', r'\1:00.000', body)  # replace seconds with 00.000
                         body_md5 = hashlib.md5(body_prep.encode('utf8')).hexdigest()
-                        if body_md5 in self.responses_md5 or len(body) == 0:
-                            logging.info(f'Skipped duplicate or empty response for {url}')
+                        if len(body) == 0:
+                            logging.info(f'Skipped empty response for {url}')
+                            continue
+                        elif body_md5 in self.responses_md5:
+                            logging.info(f'Skipped duplicate response for {url}')
                             continue
                         self.responses_md5.add(body_md5)
                         res = json.loads(body)
@@ -283,13 +288,15 @@ class PureBrowserDebug():
 
     def wait_json_queue(self, timeout=10, tick=0.1, responses_cnt=-1):
         'Ждем пока в очереди не останется json запросов или timeout и responses_cnt увеличиться от стартового'
+        logging.info(f'Call wait_json_queue: {timeout=}, {tick=}, {responses_cnt=} {len(self.responses)=}')
         time.sleep(1 * self.slowdown)
         self.collect_json()
-        while timeout*self.slowdown > 0 and (len(self.queue_json_request_id) > 0 or responses_cnt > 0 and responses_cnt >= len(self.responses)):
+        end_time = time.time() + timeout
+        while time.time() < end_time and (len(self.queue_json_request_id) > 0 or responses_cnt > 0 and responses_cnt >= len(self.responses)):
             self.collect_json()
             time.sleep(tick)
-            timeout -= tick
             self.collect()
+            logging.info(f'Wait json queue: time={time.time() - (end_time - timeout):.1f} and {len(self.queue_json_request_id)=}>0 OR {responses_cnt=}>{len(self.responses)=}')
 
     def jsformula(self, url, formula):
         'get json from url and evaluate as data'
@@ -535,6 +542,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
 
     state = wait_state()
     if state == 'lk':
+        pd.wait_json_queue(timeout=10)
         logged_as1 = pd.get_response_body_json('api/login/user-info').get('userProfile', {}).get('login', 'UNKNOWN')
         logging.info(f'Logged as {logged_as1}')
         if login_ori != login and acc_num.isdigit():
@@ -580,6 +588,8 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             else:
                 logging.info(f'Not found MMA code, get max of balances')
                 result['Balance'] = round(max([b for b in balances.values()]), 2)
+        else:
+            logging.info(f'Not found data.balances.nodes in graphql')
         # Потом все остальное
         # result['TarifPlan'] = user_profile.get('tariff', '').replace('(МАСС) (SCP)', '') # see graphql
         result['UserName'] = user_profile.get('displayName', '')
@@ -594,6 +604,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
             result['Balance'] = round(user_profile['balance'], 2)
         if 'Balance' not in result:  # Если до сих пор не добыли баланс, пробуем взять его из html
             # get balance from html
+            logging.info(f'Balance last call: Looking for balance data in the page render')
             web_bal = pd.page_eval("parseFloat(document.querySelector('div.widget-mobile-balance').innerText.replace(',','.').replace(/[\u2010-\u2015\u2212\uFE63\uFF0D\u207B\u208B]/g, '-').replace(/[^0-9.-]/g, ''))")
             if isinstance(web_bal, float):
                 logging.info(f'Balance found in html: {web_bal}')
@@ -683,7 +694,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
         result['TarifPlan'] = tariff_name
         tariff_price_text = pd.tget(tariff, 'data.tariffInfo.tariffPricesInfo.mainPrice.price', '0 р/день')
         tariff_price_date = pd.tget(tariff, 'data.tariffInfo.tariffPricesInfo.mainPrice.date', '')
-        if tariff_price_date != '' and result.get('TurnOff') is None:
+        if tariff_price_date != '' and tariff_price_date is not None and result.get('TurnOff') is None:
             try:
                 logging.info(f'Get TurnOff and TurnOffStr from /graphql(tariffInfo) data.tariffInfo.tariffPricesInfo.mainPrice.date {tariff_price_date}')
                 delta = datetime.datetime.fromisoformat(tariff_price_date) - datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=3)))
@@ -730,11 +741,26 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
                     for el in counters:  # data.counters. ...
                         if el.get('packageType', '') == 'Calling':
                             result['SpendMin'] = int((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) / 60)
+                            try:
+                                result['MinLocal'] = int(el.get('currentAmount', 0) / 60)
+                                result['MinSonet'] = int(el.get('usedAmount', 0) / 60)
+                            except Exception:
+                                logging.info(f'Ошибка при расчете общих данных пакета минут {store.exception_text()}')
                         if el.get('packageType', '') == 'Messaging':
                             result['SMS'] = el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)
+                            try:
+                                result['SMS_RUB'] = int(el.get('currentAmount', 0))
+                                result['SMS_USD'] = int(el.get('usedAmount', 0))
+                            except Exception:
+                                logging.info(f'Ошибка при расчете общих данных пакета internet {store.exception_text()}')
                         if el.get('packageType', '') == 'Internet':
                             unitMult = settings.UNIT.get(el.get('unitType', ''), 1)
                             result['Internet'] = round((el.get('usedAmount', 0) - el.get('usedByAcceptors', 0)) * unitMult / unitDiv, 3)
+                            try:
+                                result['InternetRUB'] = float(el.get('totalAmount', 0) * unitMult / unitDiv)  # WTF для минут и sms в totalAmount месячный лимит
+                                result['InternetUSD'] = float(el.get('usedAmount', 0)  * unitMult / unitDiv)
+                            except Exception:
+                                logging.info(f'Ошибка при расчете общих данных пакета internet {store.exception_text()}')
                 if res3_alt.get('subscriberType', '') == 'Acceptor':
                     logging.info(f'mts_usedbyme: Acceptor')
                     for el in counters:  # data.counters. ...

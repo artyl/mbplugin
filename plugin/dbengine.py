@@ -140,7 +140,7 @@ addition_queries = [
 
 
 class Dbengine():
-    'Класс для работы с базой, внутри одного экземпляра используется только один курсор, для нескольких курсоров используйте несколько экземпляров'
+    'Класс для работы с базой sqlite'
 
     _need_updatescheme = True
 
@@ -152,13 +152,15 @@ class Dbengine():
         return instance
     
     def __init__(self, dbname=None, updatescheme=False, fast=False, row_factory=None, make_headers=True):
-        'fast - быстрее, но менее безопасно'
+        'fast - быстрее, но менее безопасно, normal компромиссный вариант'
         if dbname is None:
             dbname = store.abspath_join(settings.mbplugin_ini_path, 'BalanceHistory.sqlite')
         self.dbname = dbname
         self.cur_description = ()
         logging.debug(f'Db open {self.dbname}')
         self.conn = sqlite3.connect(self.dbname)  # detect_types=sqlite3.PARSE_DECLTYPES
+        # self.conn.execute("PRAGMA journal_mode=WAL;")
+        self.conn.execute("PRAGMA synchronous=NORMAL;")
         if row_factory is not None:
             self.conn.row_factory = row_factory
         # self.cur = self.conn.cursor()  # TODO it's wrong

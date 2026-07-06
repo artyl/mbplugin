@@ -289,6 +289,8 @@ ini = {
         # Либо адрес https://user:pass@host:port либо socks5://user:pass@host:port
         'tg_proxy_': {'descr': 'Прокси сервер для работы телеграм пустая строка - без прокси, auto - брать из настроек браузера, либо адрес https://user:pass@host:port либо socks5://user:pass@host:port, по умолчанию без прокси', 'type': 'text'},
         'tg_proxy': '',  # По умолчанию без прокси
+        'tg_api_urls_': {'descr': 'Адреса для API телеграма через запятую, подробности см telebot.apihelper.API_URL, по умолчанию - не менять', 'type': 'text'},
+        'tg_api_urls': '', # По умолчанию не менять
         'api_token_': {'descr': 'Токен для бота', 'type': 'text', 'size': 100},
         'api_token': '',  # токен для бота - прописывается в ini
         'loud_api_token_': {'descr': 'Токен для громких уведомлений бота', 'type': 'text', 'size': 100},
