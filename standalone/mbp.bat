@@ -14,7 +14,7 @@ if EXIST ..\plugin\util.py (
     %mbpluginpythonpath%\python mbplugin\plugin\util.py install-chromium
     %mbpluginpythonpath%\python mbplugin\plugin\util.py check-import
     %mbpluginpythonpath%\python mbplugin\plugin\util.py check-ini
-    %mbpluginpythonpath%\python mbplugin\plugin\util.py clear-browser-cache
+    REM %mbpluginpythonpath%\python mbplugin\plugin\util.py clear-browser-cache
     %mbpluginpythonpath%\python mbplugin\plugin\util.py check-playwright
     %mbpluginpythonpath%\python mbplugin\plugin\util.py web-server-autostart
     %mbpluginpythonpath%\python mbplugin\plugin\util.py version -v

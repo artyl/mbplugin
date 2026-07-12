@@ -128,7 +128,7 @@ if [ -f $util_path ]; then
     [ ! -f dockervarfile ] && python mbplugin/plugin/util.py install-chromium
     $DOCKER_STD python mbplugin/plugin/util.py check-import
     $DOCKER_STD python mbplugin/plugin/util.py check-ini
-    $DOCKER_STD python mbplugin/plugin/util.py clear-browser-cache
+    #$DOCKER_STD python mbplugin/plugin/util.py clear-browser-cache
     $DOCKER_STD python mbplugin/plugin/util.py check-playwright
     $DOCKER_STD python mbplugin/plugin/util.py version -v
     exit 0

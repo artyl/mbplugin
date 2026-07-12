@@ -6,9 +6,9 @@ icon = '789C7D93CB6B135114C6BF79C4BC66924993D0269926D3247DD8579A5A92D61A5B84B628
 
 login_url = 'https://beeline.uz/ru'
 user_selectors = {
-    'chk_login_page_js': "Array.from(document.querySelectorAll('button.auth__action')).filter(el=>el.innerText.startsWith('Войти')).length>0",
-    'chk_lk_page_js': "Array.from(document.querySelectorAll('a.auth__action')).filter(el=>el.innerText.toLowerCase().startsWith('личный кабинет')).length>0",
-    'before_login_js': "Array.from(document.querySelectorAll('button.auth__action')).filter(el=>el.innerText.toLowerCase()=='войти')[0].click();setTimeout(()=>document.querySelectorAll('button').forEach(el=>el.innerText.toLowerCase()=='вход по паролю'?el.click():0),1000)",
+    'chk_login_page_js': "Array.from(document.querySelectorAll('button.flex')).filter(el=>el.innerText.startsWith('Войти')).length>0",
+    'chk_lk_page_js': "Array.from(document.querySelectorAll('a.flex')).filter(el=>el.innerText.toLowerCase().startsWith('личный кабинет')).length>0",
+    'before_login_js': "Array.from(document.querySelectorAll('button.flex')).filter(el=>el.innerText.toLowerCase()=='войти')[0].click();setTimeout(()=>document.querySelectorAll('button').forEach(el=>el.innerText.toLowerCase()=='вход по паролю'?el.click():0),1000)",
     'login_clear_js': """document.querySelector('form[style=""] input[type=tel]').value=''""",
     'login_selector': """form[style=""] input[type=tel]""",
     'password_clear_js': """document.querySelector('form[style=""] input[type=password]').value=''""",
@@ -22,18 +22,18 @@ class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.force = 2  # сайт тормозной - увеличиваем тайминги
         self.page_goto(login_url, wait_until='commit')
-        self.page_wait_for(expression="document.querySelectorAll('.auth__action').length>0")
+        self.page_wait_for(expression="document.querySelectorAll('.flex').length>0")
         self.sleep(1)
         self.do_logon(url=None, user_selectors=user_selectors)
         #self.page_evaluate("document.querySelectorAll('button').forEach(el=>el.innerText.startsWith('+998')?el.click():0)")  # удалить, этого вроде не нужно уже?
-        self.page_evaluate("Array.from(document.querySelectorAll('a')).filter(el=>el.innerText.toLowerCase().startsWith('личный кабинет')).forEach(el=>el.click())")
+        self.page_evaluate("Array.from(document.querySelectorAll('a.flex')).filter(el=>el.innerText.toLowerCase().startsWith('личный кабинет')).forEach(el=>el.click())")
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['/user/dashboard'], 'jsformula': "parseFloat(data.core_balance).toFixed(2)"},
             {'name': 'TarifPlan', 'url_tag': ['/user/dashboard'], 'jsformula': "data.plan.name"},
             {'name': 'UserName', 'url_tag': ['/user/dashboard'], 'jsformula': "data.customer_info.first_name + ' ' + data.customer_info.last_name"},
-            {'name': 'Internet', 'url_tag': ['/user/dashboard'], 'jsformula': r"data.balances.filter(el=>el.unit=='kb' && !el.name.startsWith('Бонусный')).map(v => /(\d+(\.\d+)?)\s*(GB|MB)/.exec(v.value)).filter(x=>x).map(el=>el[3]=='MB'?el[1]/1024:el[1]/1).reduce((x,y)=>x+y,0).toFixed(2)"},
-            {'name': 'SMS', 'url_tag': ['/user/dashboard'], 'jsformula': r"data.balances.filter(el=>el.unit=='unit').map(el=>el.value.replace(/\D/g, '')*1).reduce((x,y)=>x+y,0).toFixed(0)"},
-            {'name': 'Min', 'url_tag': ['/user/dashboard'], 'jsformula': r"data.balances.filter(el=>el.unit=='min').map(el=>el.value.replace(/\D/g, '')*1).reduce((x,y)=>x+y,0).toFixed(0)"},
+            {'name': 'Internet', 'url_tag': ['/user/dashboard'], 'jsformula': r"data.balances.filter(el=>el.unit=='mbytes').map(v => /(\d+(\.\d+)?)\s*(GB|MB)/.exec(v.value)).filter(x=>x).map(el=>el[3]=='MB'?el[1]/1024:el[1]/1).reduce((x,y)=>x+y,0).toFixed(2)"},
+            {'name': 'SMS', 'url_tag': ['/user/dashboard'], 'jsformula': r"data.balances.filter(el=>el.unit=='occurrence').map(el=>el.value.replace(/\D/g, '')*1).reduce((x,y)=>x+y,0).toFixed(0)"},
+            {'name': 'Min', 'url_tag': ['/user/dashboard'], 'jsformula': r"data.balances.filter(el=>el.unit=='minutes').map(el=>el.value.replace(/\D/g, '')*1).reduce((x,y)=>x+y,0).toFixed(0)"},
             {'name': 'LicSchet', 'url_tag': ['/user$'], 'jsformula': "data.id"},
             {'name': 'BlockStatus', 'url_tag': ['/user$'], 'jsformula': "data.status"},
             #{'name': 'UslugiOn', 'url_tag': ['/dashboard-updated$'], 'jsformula': "data.services.filter(el => el.accordeons).length"},

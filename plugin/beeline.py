@@ -133,7 +133,9 @@ class browserengine(browsercontroller.BrowserController):
         # аккумуляторы тарифа Простой ?
         try:
             try:
-                add_bal = bal_data.get('additionalBalances',{}).get('data', [{}])[0].get('data', {})
+                # data в списке additionalBalances может быть несколько 'additionalBalances': { 'data':    [{'data': [{... }]}, {'data': [{... }]}, { ... }]   },
+                # add_bal = bal_data.get('additionalBalances',{}).get('data', [{}])[0].get('data', {})
+                add_bal = sum([i.get('data', []) for i in bal_data.get('additionalBalances',{}).get('data', [])], [])
                 dates = sorted([el.get('dueDate','') for el in add_bal])  # Все даты истечения балансов - сортируем по возрастанию
                 if len(dates) > 0 and dates[0] != '':
                     self.result['TurnOffStr'] = dates[0].split('T')[0]
@@ -142,8 +144,13 @@ class browserengine(browsercontroller.BrowserController):
                         self.result['TurnOff'] = 0
                 else:
                     logging.info(f'У нас нет страницы {profile_tag} additionalBalances, TurnOff (dueDate) не получим')
+                add_curr = [el for el in add_bal if el.get('unit') == 'CURRENCY' and 'value' in el]
+                if len(add_curr) > 0:
+                    self.result['Balance2'] = round(sum([el.get('value', 0) for el in add_curr]), 2)
+                else:
+                    logging.info(f'У нас нет CURRENCY на странице {profile_tag} additionalBalances, Balance2 (CURRENCY) не получим')
             except Exception:
-                exception_text = f'Ошибка при получении TurnOff {store.exception_text()}, идем дальше'
+                exception_text = f'Ошибка при получении TurnOff/Balance2 {store.exception_text()}, идем дальше'
                 logging.error(exception_text)
             # все страницы попадающие под описание
             accumulators_all = [v for k, v in self.responses.items() if accumulators_tag in k and 'accumulators' in v]
@@ -153,11 +160,16 @@ class browserengine(browsercontroller.BrowserController):
                 acc_list = accumulators_all[-1].get('accumulators', {}).get('items', [])  # Из последнего подходящего списка берем список items, но бывает что он пустой
             if len(acc_list) > 0:  # Нашли api/uni-profile-mobile/accumulators/ и он не пустой
                 logging.info(f'Taking the accumulator from the {accumulators_tag} - not empty')
-                acc_dict = {el.get('unit'): el.get('rest', 0) for el in acc_list}
+                # acc_dict = {el.get('unit'): el.get('rest', 0) for el in acc_list}
+                acc_rest_list = [(el.get('unit'), el.get('rest', 0)) for el in acc_list if el.get('title') not in ['ACC_VSERTLS_VIP_INT']]
+                # acc_rest_list =  [('KBYTE', 32147953), ('SECONDS', 30000), ('SECONDS', 57881), ('SMS', 491)]
+                acc_dict = {}
+                for k, v in acc_rest_list:
+                    acc_dict[k] = acc_dict.get(k, 0) + v
                 self.result['Internet'] = acc_dict.get('KBYTE', 0)
             else:  # иначе пробуем взять из api/profile/userinfo/data
                 logging.info(f'Taking the accumulator from the {profile_tag} additionalBalances')
-                acc_list = bal_data['additionalBalances']['data'][0]['data']
+                acc_list = bal_data.get('additionalBalances', {}).get('data', [{}])[0].get('data', {})
                 acc_dict = {el.get('unit'): el.get('value', 0) for el in acc_list}
                 # И вот тут хоба подарок от билайна - написано KBYTE а число в байтах, а как лежит Min и SMS я вообще не знаю, у меня нет
                 self.result['Internet'] = acc_dict.get('KBYTE', 0)/1024
