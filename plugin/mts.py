@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
 from typing import List, Dict
-import base64, datetime, gc, glob, hashlib, json, logging, os, pathlib, pprint, random, re, socket, sys, threading, time, subprocess
+import base64, datetime, gc, glob, hashlib, json, logging, os, pathlib, pprint, random, re, shutil, socket, sys, threading, time, subprocess
 import psutil, requests, playwright, websocket
 import browsercontroller, store, settings
 if sys.platform == 'win32':
@@ -423,7 +423,8 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     session = store.Session(storename)
     logging.info(f"Start {kwargs=}")
     storefolder = options('storefolder')
-    user_data_dir = store.abspath_join(storefolder, 'headless', f'p_{__name__}_{login}')
+    storename_br = f'p_{__name__}_{login}'
+    user_data_dir = store.abspath_join(storefolder, 'headless', storename_br)
     response_store_path = None
     if storename is not None:
         response_store_path = store.abspath_join(options('loggingfolder'), storename + '.log')
@@ -800,6 +801,7 @@ def get_balance(login, password, storename=None, wait=True, **kwargs):
     pd.capture_screenshot()
     store.feedback.text(f"Done", append=True)
     pd.browser_close()
+    browsercontroller.clear_cache(storefolder, storename_br)
     return result
 
 if __name__ == '__main__':

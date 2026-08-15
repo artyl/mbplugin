@@ -13,14 +13,14 @@ profile_tag = 'api/profile/userinfo/data/?noTimeout'
 services_url = 'https://beeline.ru/customers/products/elk/tab/mobile-connection'
 services_tag = '/api/uni-profile-mobile/services/'
 subscribtions_tag = '/api/uni-profile-mobile/subscriptions/'
-user_selectors = {'chk_lk_page_js': "document.querySelectorAll('div.balance').length+document.querySelectorAll('button[data-metric-data]').length+document.querySelectorAll('p[data-t-id]').length>0",
-                  'chk_login_page_js': "Array.from(document.querySelectorAll('h1')).filter(el=>el.innerText=='Вход в личный кабинет').length>0 && Array.from(document.querySelectorAll('button')).filter(el=>el.innerText=='Войти').length>0",
-                  'before_login_js': "document.querySelectorAll('button').forEach(el=>el.innerText=='Логин'?el.click():0);",
-                  'login_clear_js': "document.querySelector('input[placeholder^=Введите][placeholder$=логин]').value=''",
-                  'login_selector': 'input[placeholder^=Введите][placeholder$=логин]',
-                  'password_clear_js': "document.querySelector('input[placeholder^=Введите][placeholder$=пароль][type=password]').value=''",
-                  'password_selector': 'input[placeholder^=Введите][placeholder$=пароль][type=password]',
-                  'submit_js': "document.querySelector('button[type=submit]').click()",
+user_selectors = {'chk_lk_page_js': "Array.from(document.querySelectorAll('div')).filter(el=>el.textContent.trim().toLowerCase().includes('личный баланс') && !el.querySelector('div')).length+document.querySelectorAll('button[data-metric-data]').length >2",
+                  'chk_login_page_js': "Array.from(document.querySelectorAll('p')).filter(el=>el.innerText.trim().toLowerCase()=='вход в билайн').length>0 && Array.from(document.querySelectorAll('button')).filter(el=>el.innerText.trim().toLowerCase()=='войти').length>0",
+                  'before_login_js': "document.querySelectorAll('button').forEach(el=>el.innerText.trim().toLowerCase()=='логин'?el.click():0);",
+                  'login_clear_js': "document.querySelector('input[name=login]').value=''",
+                  'login_selector': 'input[name=login]',
+                  'password_clear_js': "document.querySelector('input[name=password]').value=''",
+                  'password_selector': 'input[name=password]',
+                  'submit_js': "Array.from(document.querySelectorAll('button')).find(el=>el.textContent.trim().toLowerCase()==='войти')?.click()",
                   }
 
 class browserengine(browsercontroller.BrowserController):
@@ -47,7 +47,7 @@ class browserengine(browsercontroller.BrowserController):
         # оптимистичный сценарий если залогинены стараемся по быстрому все забрать
         for w in range(5):  # 10s=sum(range(5))
             self.sleep(w)
-            self.page_evaluate('''document.querySelector('div[data-t-id=components-Banner]')?.remove();''')
+            self.page_evaluate('''document.querySelector('div[data-t-id=components-Banner]')?.remove()''')
             # document.querySelector('div.banner.swiper')?.remove();
             logging.info(f'{len(self.responses)=}')
             # На странице окно логона - ждать нечего
@@ -60,7 +60,8 @@ class browserengine(browsercontroller.BrowserController):
                 break
         # Если не попали внутрь ЛК (попали на новую форму логина) - тогда пытаемся логиниться
         if self.page_evaluate(user_selectors['chk_login_page_js']):
-            self.do_logon(url=login_url, user_selectors=user_selectors)
+            self.page_evaluate('''Array.from(document.querySelectorAll('button')).find(el => el.textContent.trim()==='по логину и паролю')?.click()''')
+            self.do_logon(url=None, user_selectors=user_selectors)
 
         self.page_screenshot()
         ### direct_lk_url
@@ -68,7 +69,7 @@ class browserengine(browsercontroller.BrowserController):
         self.page_goto(direct_lk_url)
         self.wait_slow_beeline_response({accumulators_tag: 'accumulators'})
         self.page_screenshot()
-        self.page_evaluate('''document.querySelector('div[data-t-id=components-Banner]')?.remove();''')
+        self.page_evaluate('''document.querySelector('div[data-t-id=components-Banner]')?.remove()''')
         ### profile_url
         logging.info(f'Сall self.page_goto({profile_url})')
         self.page_goto(profile_url)

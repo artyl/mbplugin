@@ -29,8 +29,8 @@ class browserengine(browsercontroller.BrowserController):
         self.sleep(1)
         self.page_screenshot()
         self.wait_params(params=[
-            {'name': 'Balance', 'url_tag': ['api/main/balance'], 'jsformula': "parseFloat(data.balance).toFixed(2)"},
-            {'name': 'KreditLimit', 'url_tag': ['api/main/balance'], 'jsformula': "parseFloat(data.balanceWithLimit).toFixed(2)"},
+            {'name': 'Balance', 'url_tag': ['balance/api/main'], 'jsformula': "parseFloat(data.balance).toFixed(2)"},
+            {'name': 'KreditLimit', 'url_tag': ['balance/api/main'], 'jsformula': "parseFloat(data.balanceWithLimit).toFixed(2)"},
             {'name': 'UserName', 'url_tag': ['/api/auth/sessionCheck'], 'jsformula': """data.name.replace('"','').replace("'",'').replace('&quot;','').replace('&nbsp;',' ').replace('&mdash;','-')"""},
             {'name': 'TarifPlan', 'url_tag': ['api/tariff/2019-3/current'], 'jsformula': """data.name.replace('"','').replace("'",'').replace('&quot;','').replace('&nbsp;',' ').replace('&mdash;','-')"""},
             {'name': 'Min', 'url_tag': ['remainders/mini'], 'jsformula': "(data.remainders ?? []).filter(el => el.remainderType=='VOICE'&&('availableValue' in el)).map(el => el.availableValue.value).reduce((a,b)=>a+b,0)"},
@@ -97,92 +97,12 @@ def calc_uslugi(result, a_tariff, a_services, a_reports):
     result['UslugiOn'] = f'{free}/{paid}({paid_sum})'
     result['UslugiList'] = '\n'.join([f'{a}\t{b}' for a, b in services])
 
-def get_balance_api(login, password, storename=None, **kwargs):
-    result = {}
-    session = store.Session(storename)
-    api_url = 'https://api.megafon.ru/mlk/'
-    logging.info('Use api {api_url}')
-    add_headers = {'User-Agent': 'MLK Android Phone 4.28.10'}
-    session.update_headers(add_headers)
-    response1 = session.post(api_url + 'login', data={'login': f'7{login}', 'password': password})
-    if 'json' not in response1.headers.get('content-type') or 'name' not in response1.json():
-        session.drop_and_create()
-        raise RuntimeError(f'Authentication failed: status_code={response1.status_code} {response1.text}')
-    response2 = session.get(api_url + 'auth/check')
-    if 'json' not in response2.headers.get('content-type') or response2.json().get('authenticated') is False:
-        session.drop_and_create()
-        raise RuntimeError(f'Authentication failed: status_code={response2.status_code} {response2.text}')
-    response3 = session.get(api_url + 'api/main/balance')
-
-    result['Balance'] = response3.json().get('balance', 0)
-    result['KreditLimit'] = response3.json().get('limit', 0)
-
-    a_profile, a_tariff, a_services = {}, {}, {}
-
-    try:
-        response4 = session.get(api_url + 'api/profile/name')
-        if response4.status_code == 200 and 'json' in response4.headers.get('content-type'):
-            a_profile = response4.json()
-            result['UserName'] = a_profile.get('name', '').replace('"', '').replace("'", '').replace('&quot;', '').replace('&nbsp;',' ').replace('&mdash;','-')
-    except Exception:
-        exception_text = f'Ошибка обработки api/profile/name {store.exception_text()}'
-        logging.error(exception_text)
-
-    try:
-        response5 = session.get(api_url + 'api/tariff/2019-3/current')
-        if response5.status_code == 200 and 'json' in response5.headers.get('content-type'):
-            a_tariff = response5.json()
-            result['TarifPlan'] = a_tariff.get('name', '').replace('"', '').replace("'", '').replace('&quot;', '').replace('&nbsp;',' ').replace('&mdash;','-')
-    except Exception:
-        exception_text = f'Ошибка обработки api/tariff/2019-3/current {store.exception_text()}'
-        logging.error(exception_text)
-
-    try:
-        response6 = session.get(api_url + 'api/reports/expenses')
-        if response6.status_code == 200 and 'json' in response6.headers.get('content-type'):
-            a_reports = response6.json()
-    except Exception:
-        exception_text = f'Ошибка обработки api/reports/expenses {store.exception_text()}'
-        logging.error(exception_text)
-
-    try:
-        response7 = session.get(api_url + 'api/services/currentServices/list')
-        if response7.status_code == 200 and 'json' in response7.headers.get('content-type'):
-            a_services = response7.json()
-            calc_uslugi(result, a_tariff, a_services, a_reports)
-    except Exception:
-        exception_text = f'Ошибка обработки api/services/currentServices/list {store.exception_text()}'
-        logging.error(exception_text)
-
-    try:
-        response8 = session.get(api_url + 'api/options/remaindersMini')
-        if response8.status_code == 200 and 'json' in response8.headers.get('content-type'):
-            r8_remainders = response8.json().get('remainders', [])  # {.., remainders: [{remainders:[{...},{...}], ...]...},  ...}
-            remainders = sum([i.get('remainders', []) for i in r8_remainders if 'в крыму' not in i.get('name', '').lower()], [])
-            minutes = [i['availableValue'] for i in remainders if i.get('unit', '').startswith('мин') or i.get('groupId', '') == 'voice']
-            if len(minutes) > 0:
-                result['Min'] = sum([i['value'] for i in minutes if i['value'] < 10000])
-            internet = [i['availableValue'] for i in remainders if i.get('unit', '').endswith('Б') or i.get('groupId', '') == 'internet']
-            unitDiv = settings.UNIT.get(interUnit, 1)
-            if len(internet) > 0:
-                result['Internet'] = sum([round(i['value'] * settings.UNIT.get(i.get('unit', ''), 1) / unitDiv, 3) for i in internet])
-            sms = [i['availableValue'] for i in remainders if i.get('unit', '').startswith('шту') or i.get('groupId', '') == 'message']
-            if len(sms) > 0:
-                result['SMS'] = sum([i['value'] for i in sms])
-    except Exception:
-        exception_text = f'Ошибка обработки api/options/remaindersMini {store.exception_text()}'
-        logging.error(exception_text)
-
-    session.save_session()
-    return result
-
 def get_balance(login, password, storename=None, **kwargs):
     ''' На вход логин и пароль, на выходе словарь с результатами '''
     store.update_settings(kwargs)
     store.turn_logging()
     pkey = store.get_pkey(login, plugin_name=__name__)
-    if store.options('plugin_mode', pkey=pkey).upper() == 'API':
-        return get_balance_api(login, password, storename)
+    #if store.options('plugin_mode', pkey=pkey).upper() == 'API': return get_balance_api(login, password, storename)
     return get_balance_browser(login, password, storename)
 
 if __name__ == '__main__':
