@@ -49,6 +49,8 @@ class browserengine(browsercontroller.BrowserController):
             logging.error(f'Internet calculation fail:{store.exception_text()}')
             del self.result['Internet']
         try:
+            self.page_goto('https://lk.megafon.ru/expenses')
+            self.sleep(5)
             self.page_goto('https://lk.megafon.ru/options/connected/paid')  # ??? https://lk.megafon.ru/options
             self.sleep(5)
             a_tariff, a_services, a_reports = {}, {}, {}
@@ -60,7 +62,7 @@ class browserengine(browsercontroller.BrowserController):
                 a_services = resps[-1]
             resps = [v for k, v in self.responses.items() if 'api/reports/expenses' in k]
             if len(resps) > 0:
-                a_reports = resps[-1]
+                a_reports = resps  # !!! list all reports with expenses
             if len(a_services) > 0:
                 calc_uslugi(self.result, a_tariff, a_services, a_reports)
             else:
