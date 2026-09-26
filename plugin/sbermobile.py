@@ -15,6 +15,7 @@
 import json
 import logging
 import os
+import re
 import uuid
 
 import store
@@ -219,9 +220,16 @@ def get_balance(login, password, storename=None, **kwargs):
             return result
         _save_token(storename, phone, token)
 
+    numbers = [phone]
+    extra = store.options('sbermobile_numbers', '', pkey=store.get_pkey(login, __name__)) or ''
+    for part in re.split(r'[,;\s]+', str(extra)):
+        candidate = _phone(part)
+        if len(candidate) == 10 and candidate not in numbers:
+            numbers.append(candidate)
+
     session.update_headers({'token': token})
     try:
-        response = session.get(f'{BASE}/tariff-service/tariff/data', params={'numbers': phone})
+        response = session.get(f'{BASE}/tariff-service/tariff/data', params={'numbers': ','.join(numbers)})
     except Exception as exc:  # noqa: BLE001
         result['ErrorMsg'] = f'СберМобайл: ошибка запроса данных ({exc})'
         return result
@@ -255,6 +263,30 @@ def get_balance(login, password, storename=None, **kwargs):
         result['TariffPlan'] = find_text(data, {'tariffname'}) or ''
         if find_flag(data, 'needpay'):
             result['BlockStatus'] = 'Нужна оплата'
+
+    # остальные номера аккаунта, перечисленные в настройке sbermobile_numbers
+    others = [item for item in rows if _phone(item.get('number', '')) != phone]
+    others.sort(key=lambda item: numbers.index(_phone(item.get('number', '')))
+                if _phone(item.get('number', '')) in numbers else len(numbers))
+    extra_lines = []
+    for index, item in enumerate(others, start=2):
+        other = {}
+        parse_row(item, other)
+        if 'Balance' in other:
+            result[f'Balance{index}'] = other['Balance']
+        parts = [str(item.get('number') or '')]
+        if other.get('TariffPlan'):
+            parts.append(other['TariffPlan'])
+        if 'Balance' in other:
+            parts.append(f"баланс {other['Balance']}")
+        if other.get('BlockStatus'):
+            parts.append(other['BlockStatus'])
+        for option in ((item.get('connectedOptions') or {}).get('additionalOptions') or []):
+            if option.get('totalValue'):
+                parts.append(f"{option.get('title')}: {option.get('currentValue')} из {option.get('totalValue')}")
+        extra_lines.append(', '.join(parts))
+    if extra_lines:
+        result['UslugiList'] = (result.get('UslugiList', '') + '\n' + '\n'.join(extra_lines)).strip()
 
     if 'Balance' not in result:
         result['ErrorMsg'] = 'СберМобайл: в ответе сервиса не найдено поле баланса'
