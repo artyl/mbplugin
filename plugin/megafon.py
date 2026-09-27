@@ -24,6 +24,12 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('.login-tile input.p
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
         self.do_logon(url=login_url, user_selectors=user_selectors)
+        self.sleep(1)
+        # Нижние элементы страницы прогружаются динамически
+        self.page_evaluate("window.scrollTo(0, document.documentElement.scrollHeight);")
+        self.sleep(1)
+        self.page_evaluate("[...document.querySelectorAll('*')].find(e => [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.includes('Расходы в')))?.scrollIntoView() || window.scrollBy(0, -100);")
+        self.page_screenshot()
         self.page_goto('https://lk.megafon.ru/options')
         self.page_wait_for(loadstate=True)
         self.sleep(1)
