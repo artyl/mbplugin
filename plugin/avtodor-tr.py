@@ -24,6 +24,9 @@ user_selectors = {'chk_lk_page_js': "document.querySelector('form input[type=pas
 
 class browserengine(browsercontroller.BrowserController):
     def data_collector(self):
+        self.page_goto(login_url)
+        self.page_wait_for(expression="!document.body.innerText.includes('Проверка браузера')")
+        self.sleep(1)
         self.do_logon(url=login_url, user_selectors=user_selectors)
         self.wait_params(params=[
             {'name': 'Balance', 'url_tag': ['api/client/extended'], 'jsformula': "data.contracts.reduce((sum, c) => sum + (c.account_balance || 0), 0).toFixed(2)"},
