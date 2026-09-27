@@ -729,5 +729,5 @@ FIX: Т.к. avtodor сломал API вариант дефолт переклю�
 FIX: Исправлен поиск нежелательных услуг в мегафон.  
 ADD: Новый плагин sbermobile [Описание настройки](https://github.com/artyl/mbplugin/pull/52) от toposferapro  
 
-## mbplugin v1.00.94 (27.09.26) Avtodor web default
+## mbplugin v1.00.94 (27.09.26) Avtodor wait browser check
 FIX: В avtodor добавил ожидание прохода окна Проверка браузера  
