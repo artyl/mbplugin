@@ -731,3 +731,7 @@ ADD: Новый плагин sbermobile [Описание настройки](ht
 
 ## mbplugin v1.00.94 (27.09.26) Avtodor wait browser check
 FIX: В avtodor добавил ожидание прохода окна Проверка браузера  
+
+## mbplugin v1.00.95 (10.10.26) emtel
+CHANGE: Удалил неуктуальные плагины smile-net  
+ADD: Новый плагин emtel  

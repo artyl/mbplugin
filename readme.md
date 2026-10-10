@@ -36,38 +36,41 @@
 
 (Источником информации послужили как собственное изучение так и существующие плагины, так что, пользуясь случаем, хочу выразить благодарность всем авторам:
 leha3d, Pasha, comprech, y-greek и другим, кто тратил свои силы и время на реверс сайтов операторов и разработку)  
-mts - mts.ru МТС (сотовая связь)  
+a1by - a1.by A1(velcom) Беларусь (сотовая связь) (автор Exemok)  
+avtodor-tr - avtodor-tr.ru Автодор транспондер  
 beeline - beeline.ru Билайн (сотовая связь)  
 beeline_uz - beeline.uz Билайн Узбекистан (сотовая связь)  
+beget - beget.ru (хостинг-провайдера BEGET) (автор d1mas)  
+cardtel - cardtel.ru (IP телефония)  
+chailand - chailand.ru Карта парка атракционов
+currency - Курсы валют USD, EUR, с ЦБ и с MOEX, курсы акций с MOEX и yahoo finance (заменил плагины eur, usd, moex и yahoo)  
+east - east.ru (East Telecom internet provider)  
+emtel - em-tel.ru (Интернет провайдер)  
+lifeby - life.com.by A1(velcom) Беларусь (сотовая связь)  
+lovit - lovit.ru (Интернет провайдер)  
+mangooffice - www.mango-office.ru (IP телефония) (автор Pasha)  
 megafon - megafon.ru Мегафон (сотовая связь)  
 megafonb2b - b2blk.megafon.ru Мегафон b2b (сотовая связь)  
-tele2 - tele2.ru (сотовая связь)  
-yota - yota.ru (сотовая связь)  
-a1by - a1.by A1(velcom) Беларусь (сотовая связь) (автор Exemok)  
-lifeby - life.com.by A1(velcom) Беларусь (сотовая связь)  
-ucelluz - my.ucell.uz ucell Узбекистан (сотовая связь)  
-rostelecom - lk.rt.ru Ростелеком (телефония и интернет)  
-smile-net - smile-net.ru Infoline/smile-net/Virgin connect (Интернет провайдер)  
-onlime - onlime.ru (Интернет провайдер)  
-lovit - lovit.ru (Интернет провайдер)  
-east - east.ru (East Telecom internet provider)  
-uminet - uminet.ru (Интернет провайдер)  
-zadarma - Zadarma.com/Novofon.com (IP телефония)  
-cardtel - cardtel.ru (IP телефония)  
-sipnet - Sipnet.ru (IP телефония)  
-mangooffice - www.mango-office.ru (IP телефония) (автор Pasha)  
-ntvplus - NTV+ быстрая проверка баланса по номеру договора и фамилии (TV)  
-strelka - strelkacard.ru Баланс карты стрелка  
-sodexo - sodexo.com Получение баланса карты Sodexo (подарочные карты)  
-currency - Курсы валют USD, EUR, с ЦБ и с MOEX, курсы акций с MOEX и yahoo finance (заменил плагины eur, usd, moex и yahoo)  
-stock - Расчет цены портфеля ценных бумаг  
-avtodor-tr - avtodor-tr.ru Автодор транспондер  
-parking_mos - parking.mos.ru оплата парковки (Вход через логин/пароль на login.mos.ru)  
 mosenergosbyt - mosenergosbyt.ru Сайт мосэнергосбыт (ЖКХ) 
-chailand - chailand.ru Карта парка атракционов
-vscale - vscale.ru Облачные серверы для разработчиков  
-beget - beget.ru (хостинг-провайдера BEGET) (автор d1mas)  
+mts - mts.ru МТС (сотовая связь)  
+nashdom - rkc-m.ru (ЖКХ РКЦ Наш Дом)  
+ntvplus - NTV+ быстрая проверка баланса по номеру договора и фамилии (TV)  
+onlime - onlime.ru (Интернет провайдер)  
+parking_mos - parking.mos.ru оплата парковки (Вход через логин/пароль на login.mos.ru)  
+rostelecom - lk.rt.ru Ростелеком (телефония и интернет)  
+rucaptcha - rucaptcha.com (Сервис распознавание капчи)  
+sbermobile - sbermobile.ru (сотовая связь)  
+sipnet - Sipnet.ru (IP телефония)  
 smsru - sms.ru оператор SMS.RU (sms рассылки) (автор Pasha)  
+sodexo - sodexo.com Получение баланса карты Sodexo (подарочные карты)  
+stock - Расчет цены портфеля ценных бумаг  
+strelka - strelkacard.ru Баланс карты стрелка  
+tele2 - tele2.ru (сотовая связь)  
+ucelluz - my.ucell.uz ucell Узбекистан (сотовая связь)  
+uminet - uminet.ru (Интернет провайдер)  
+vscale - vscale.ru Облачные серверы для разработчиков  
+yota - yota.ru (сотовая связь)  
+zadarma - Zadarma.com/Novofon.com (IP телефония)  
 Для плагинов rostelecom и mosenergosbyt можно указывать конкретный лицевой счет если их несколько в формате ```login/лицевой_счет```  
 
 ### Тестовые плагины
