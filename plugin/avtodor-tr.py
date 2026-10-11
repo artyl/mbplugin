@@ -29,6 +29,16 @@ class browserengine(browsercontroller.BrowserController):
             check_browser = self.page_evaluate("document.body.innerText.includes('Проверка браузера')")
             if not check_browser:
                 break
+            image = self.page_evaluate("document.querySelector('iframe')?.contentWindow?.document?.querySelectorAll('img.ddg-modal__captcha-image')[0].src")
+            if image is None or not image.startswith('data'):
+                self.page_evaluate("document.querySelector('iframe')?.contentWindow?.document?.querySelector('div.ddg-captcha__status')?.click()")
+                self.sleep(1)
+                continue
+            code = store.solve_captcha(image)
+            if code is not None:
+                self.page_evaluate(f"const input=document.querySelector('iframe')?.contentWindow?.document?.querySelector('input[name=captcha]'); input && (input.value = '{code}');")
+                self.sleep(1)
+                self.page_evaluate("document.querySelector('iframe')?.contentWindow?.document?.querySelector('button[type=submit]').click()")
             self.sleep(2*step)
         else:
             raise RuntimeError(f'The page is still in the browser check state on {login_url}')

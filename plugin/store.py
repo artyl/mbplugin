@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 'Модуль для хранения сессий и настроек а также чтения настроек из ini от MobileBalance'
-import os, sys, locale, time, io, re, json, pickle, requests, urllib.request, configparser, pprint, zipfile, logging, traceback, collections, typing
+import base64, collections, configparser, hashlib, io, json, locale, logging, os, pathlib, pickle, pprint, re, requests, sys, time, traceback, typing, urllib.request, zipfile
 import settings
 
 def exception_text(short=False):
@@ -672,6 +672,42 @@ def turn_logging(httplog=False, logginglevel=None, force_turn=False):
         handlers=handlers,
         level=logginglevel,
         format=options('loggingformat'))
+
+
+def solve_captcha(captcha_image_bytes, method='2captcha'):
+    # TODO: В работе (перенесено из mts.py)
+    solve = None
+    if options('captcha_api_token').strip() != '':
+        try:
+            import twocaptcha 
+            solver = twocaptcha.TwoCaptcha(options('captcha_api_token'))
+            # data_encoded = pd.page_eval('document.querySelectorAll("img#captcha-img")[0].src')  # data already header + base64.b64encode
+            data_encoded = captcha_image_bytes
+            data_decoded = base64.b64decode(data_encoded.split(',')[-1])
+            fn_captcha = pathlib.Path(abspath_join(options('loggingfolder'))) / (f'captcha_{hashlib.md5(data_decoded).hexdigest()}.jpg') 
+            fn_captcha_api_counter = pathlib.Path(abspath_join(options('storefolder'))) / 'captcha_api_counter.json'
+            captcha_api_counter = 0
+            try:
+                captcha_api_counter = json.loads(fn_captcha_api_counter.read_text()).get(time.strftime('%Y%m%d'), 0)
+            except Exception:
+                logging.error(f'Ошибка при чтении {fn_captcha_api_counter}: {exception_text()}')
+            if str(options('captcha_logging')) == '1':
+                fn_captcha.write_bytes(data_decoded)
+            if captcha_api_counter < int(options('captcha_token_limit')):
+                start_capture_time = time.time()
+                s_balance = solver.balance()
+                logging.info(f'Баланс captcha_api_token {s_balance}')
+                logging.info(f'Запрос на распознавание капчи {fn_captcha.name}')
+                solve = solver.normal(file=data_encoded)
+                logging.info(f'Капча {fn_captcha.name} распознана как {solve} за {time.time() - start_capture_time:.1f} сек')
+                fn_captcha_api_counter.write_text(json.dumps({time.strftime('%Y%m%d'):captcha_api_counter + 1}))
+                if str(options('captcha_logging')) == '1':
+                    fn_captcha.with_suffix('.json').write_text(str(solve), errors='ignore')
+                return solve.get('code', None)
+            else:
+                logging.info(f'Использовал лимит на распознавание капчи {captcha_api_counter}, лимит {options("captcha_token_limit")}')
+        except Exception:
+            logging.error(f'Ошибка при подготовке капчи для распознавания: {exception_text()}')
 
 
 if __name__ == '__main__':
